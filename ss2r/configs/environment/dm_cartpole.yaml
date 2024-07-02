@@ -1,9 +1,0 @@
-dm_cartpole:
-  task: swingup
-  image_observation:
-    enabled: false
-    image_size: [64, 64]
-    image_format: "channels_first"
-    visualize_reward: true
-  cost_multiplier: 0.2
-  slider_position_bound: 0.5

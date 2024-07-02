@@ -4,12 +4,12 @@ from typing import Any, List, Tuple
 import numpy as np
 from numpy import typing as npt
 
-from ss2r.rl.trajectory import Trajectory
+from ss2r.rl.trajectory import TrajectoryData
 
 
 @dataclass
 class EpochSummary:
-    _data: list[list[Trajectory]] = field(default_factory=list)
+    _data: list[TrajectoryData] = field(default_factory=list)
     cost_boundary: float = 25.0
 
     @property
@@ -20,10 +20,8 @@ class EpochSummary:
     def metrics(self) -> Tuple[float, float, float]:
         rewards, costs = [], []
         for trajectory_batch in self._data:
-            for trajectory in trajectory_batch:
-                *_, r, c = trajectory.as_numpy()
-                rewards.append(r)
-                costs.append(c)
+            rewards.append(trajectory_batch.reward)
+            costs.append(trajectory_batch.cost)
         # Stack data from all tasks on the first axis,
         # giving a [#tasks, #episodes, #time, ...] shape.
         stacked_rewards = np.stack(rewards)
@@ -46,12 +44,12 @@ class EpochSummary:
         vids = np.asarray(all_vids)[-1].transpose(1, 0, -1, 2, 3)
         return vids
 
-    def extend(self, samples: List[Trajectory]) -> None:
+    def extend(self, samples: List[TrajectoryData]) -> None:
         self._data.append(samples)
 
 
 def _objective(rewards: npt.NDArray[Any]) -> float:
-    return float(rewards.sum(2).mean())
+    return float(rewards.sum(1).mean())
 
 
 def _cost_rate(costs: npt.NDArray[Any]) -> float:
