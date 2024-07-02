@@ -1,0 +1,7 @@
+# @package _global_
+
+hydra:
+  launcher:
+    additional_parameters: { "gpus": "rtx_3090:1", "account": "ls_krausea" }
+
+mixed_precision: params=float32,compute=float16,output=float32
