@@ -1,21 +1,27 @@
 from dataclasses import dataclass, field
-from typing import Callable, Protocol, Union
+from typing import Callable, NamedTuple, Protocol, Union
 
 import jax
 import numpy as np
-from gymnasium import Env
-from gymnasium.spaces import Box, Discrete
+from brax.training.types import Policy
 from numpy import typing as npt
 from omegaconf import DictConfig
 
-from ss2r.rl.epoch_summary import EpochSummary
-from ss2r.rl.trajectory import TrajectoryData
 
-FloatArray = npt.NDArray[Union[np.float32, np.float64]]
+FloatArray = Union[npt.NDArray[Union[np.float32, np.float64]], jax.Array]
 
-EnvironmentFactory = Callable[[], Union[Env[Box, Box], Env[Box, Discrete]]]
 
-Policy = Union[Callable[[jax.Array, jax.Array | None], jax.Array], jax.Array]
+class Transition(NamedTuple):
+    observation: FloatArray
+    next_observation: FloatArray
+    action: FloatArray
+    reward: FloatArray
+    cost: FloatArray
+    discount: FloatArray
+    extras: FloatArray = ()
+
+
+TrajectoryData = Transition
 
 
 @dataclass
@@ -24,14 +30,23 @@ class Report:
     videos: dict[str, npt.ArrayLike] = field(default_factory=dict)
 
 
+class Simulator(Protocol):
+    action_size: int
+    observation_size: int
+
+    def rollout(self, policy: Policy, steps: int) -> TrajectoryData:
+        ...
+
+
+SimulatorFactory = Callable[[], Simulator]
+
+
 class Agent(Protocol):
     config: DictConfig
 
-    def __call__(self, observation: FloatArray, train: bool = False) -> FloatArray:
+    @property
+    def policy(self) -> Policy:
         ...
 
-    def observe(self, trajectory: TrajectoryData) -> None:
-        ...
-
-    def report(self, summary: EpochSummary, epoch: int, step: int) -> Report:
+    def train(self, steps: int, simulator: Simulator) -> Report:
         ...

@@ -1,7 +1,0 @@
-safe_adaptation_gym:
-  task: null
-  robot_name: "point"
-  image_observation:
-    enabled: false
-    image_size: [64, 64]
-    image_format: "channels_first"

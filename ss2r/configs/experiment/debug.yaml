@@ -8,11 +8,12 @@ writers:
 
 training:
   epochs: 2
-  episodes_per_epoch: 1
   time_limit: 100
   action_repeat: 2
   parallel_envs: 5
   render_episodes: 0
+  steps_per_epoch: 200
+  num_eval_steps: 200
 
 agent:
   update_steps: 2

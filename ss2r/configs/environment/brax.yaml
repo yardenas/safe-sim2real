@@ -1,0 +1,3 @@
+brax:
+  task: inverted_pendulum
+  backend: generalized

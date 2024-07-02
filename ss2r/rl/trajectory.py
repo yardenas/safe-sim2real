@@ -1,19 +1,9 @@
 from dataclasses import dataclass, field
-from typing import Any, NamedTuple
 
 import numpy as np
 from numpy import typing as npt
 
-
-class Transition(NamedTuple):
-    observation: npt.NDArray[Any]
-    next_observation: npt.NDArray[Any]
-    action: npt.NDArray[Any]
-    reward: npt.NDArray[Any]
-    cost: npt.NDArray[Any]
-
-
-TrajectoryData = Transition
+from ss2r.rl.types import TrajectoryData, Transition
 
 
 @dataclass
