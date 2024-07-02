@@ -1,0 +1,11 @@
+# @package _global_
+defaults:
+  - override /environment: safe_adaptation_gym
+
+training:
+  epochs: 100
+  safe: true
+  action_repeat: 2
+
+agent:
+  exploration_steps: 0

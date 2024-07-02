@@ -1,0 +1,51 @@
+defaults:
+  - _self_
+  - agent: sac
+  - environment: dm_cartpole
+
+hydra:
+  run:
+    dir: ${log_dir}/${now:%Y-%m-%d}/${now:%H-%M-%S}
+  sweep:
+    dir: ${log_dir}/${hydra.job.name}
+    subdir: ${hydra.job.override_dirname}/seed=${training.seed}
+  job:
+    config:
+      override_dirname:
+        exclude_keys:
+          - log_dir
+          - training.seed
+          - wandb
+    chdir: true
+
+log_dir: outputs
+
+writers:
+  - wandb
+  - jsonl
+  - stderr
+
+wandb:
+  group: null
+  notes: null
+  name: ${hydra:job.override_dirname}
+
+jit: true
+
+training:
+  trainer: rl
+  safe: true
+  safety_budget: 25
+  seed: 0
+  time_limit: 1000
+  episodes_per_epoch: 5
+  epochs: 200
+  action_repeat: 1
+  render_episodes: 0
+  parallel_envs: 10
+  scale_reward: 1.
+  exploration_steps: 5000
+
+saute:
+  enabled: true
+  penalty: 1e3
