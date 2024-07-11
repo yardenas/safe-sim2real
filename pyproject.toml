@@ -25,6 +25,7 @@ dm-haiku = "^0.0.12"
 distrax = "^0.1.5"
 jax = "0.4.25"
 brax = "^0.10.5"
+equinox = "^0.11.4"
 
 
 [[tool.poetry.source]]

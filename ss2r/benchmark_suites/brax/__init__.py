@@ -1,19 +1,37 @@
-from typing import Sequence
+from typing import Callable, Sequence
 from omegaconf import DictConfig
 import jax
 import jax.numpy as jnp
 from brax import envs
+from brax.base import System
 from brax.training.types import Policy, PRNGKey
+from ss2r.benchmark_suites.brax.cartpole import domain_randomization
 from ss2r.benchmark_suites.utils import get_domain_and_task
 from ss2r.rl.trajectory import TrajectoryData, Transition
-from ss2r.rl.types import FloatArray, Simulator, SimulatorFactory
+from ss2r.rl.types import Simulator, SimulatorFactory
 
 
 class BraxAdapter(Simulator):
-    def __init__(self, environment: envs.PipelineEnv, parallel_envs: int) -> None:
+    def __init__(
+        self,
+        environment: envs.PipelineEnv,
+        seed: int,
+        parallel_envs: int,
+        randomization_fn: Callable[[System, PRNGKey], tuple[System, System, jax.Array]],
+        action_repeat: int,
+    ) -> None:
         super().__init__()
-        self.environment = environment
+        rng = jax.random.PRNGKey(seed)
+        rng = jax.random.split(rng, parallel_envs)
+        new_sys, in_axes, samples = randomization_fn(environment.sys, rng)
+        env = envs.training.wrap(
+            environment,
+            action_repeat=action_repeat,
+            randomization_fn=lambda *_: (new_sys, in_axes),
+        )
         self.parallel_envs = parallel_envs
+        self.environment = env
+        self.parameterizations = samples
 
     @property
     def action_size(self) -> int:
@@ -23,7 +41,7 @@ class BraxAdapter(Simulator):
     def observation_size(self) -> int:
         return self.environment.observation_size
 
-    def set_state(self, state: jax.Array | FloatArray) -> envs.State | None:
+    def set_state(self, state: jax.Array) -> envs.State | None:
         q, qd = jnp.split(state, 2, axis=1)
         state = self.environment.pipeline_init(q, qd)
         return state
@@ -48,12 +66,6 @@ class BraxAdapter(Simulator):
             next_observation=nstate.obs,
             extras={"policy_extras": policy_extras, "state_extras": state_extras},
         )
-
-    def parameterizations(self) -> dict[str, jax.Array]:
-        pass
-
-    def sample_parameterizations(self) -> dict[str, jax.Array]:
-        pass
 
     def reset(self, seed: int) -> envs.State:
         key = jnp.asarray(
@@ -90,15 +102,21 @@ class BraxAdapter(Simulator):
         (final_state, _), data = jax.lax.scan(f, (state, key), (), length=steps)
         return final_state, data
 
-    # rollout = jax.jit(rollout)
+
+randomization_fns = {"inverted_pendulum": domain_randomization}
 
 
 def make(cfg: DictConfig) -> SimulatorFactory:
     def make_sim():
         _, task_cfg = get_domain_and_task(cfg)
         env = envs.get_environment(task_cfg.task)
-        env = envs.training.wrap(env, action_repeat=cfg.training.action_repeat)
-        sim = BraxAdapter(env, cfg.training.parallel_envs)
+        sim = BraxAdapter(
+            env,
+            cfg.training.seed,
+            cfg.training.parallel_envs,
+            randomization_fns[task_cfg.task],
+            cfg.training.action_repeat,
+        )
         return sim
 
     return make_sim  # type: ignore
