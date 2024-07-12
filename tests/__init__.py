@@ -16,7 +16,7 @@ class DummyAgent:
     def policy(self) -> Policy:
         return self._policy
 
-    def train(self, steps: int, simulator: Simulator) -> None:
+    def train(self, steps: int, simulator: Simulator) -> Report:
         return Report({}, {})
 
 

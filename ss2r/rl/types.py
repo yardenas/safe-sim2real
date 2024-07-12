@@ -37,12 +37,12 @@ class Simulator(Protocol):
         self,
         policy: Policy,
         steps: int,
-        seed: int | Sequence[int],
+        seed: int,
         state: SimulatorState,
     ) -> tuple[SimulatorState, TrajectoryData]:
         ...
 
-    def reset(self, seed: int | Sequence[int]) -> TrajectoryData:
+    def reset(self, seed: int | Sequence[int]) -> SimulatorState:
         ...
 
     @property

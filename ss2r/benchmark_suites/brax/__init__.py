@@ -44,10 +44,10 @@ class BraxAdapter(Simulator):
         q, qd = jnp.split(state, 2, axis=-1)
         assert q.shape[0] == qd.shape[0] == self.parallel_envs
 
-        @jax.vmap
-        def set_env_state(q, qd):
-            state = self.environment.pipeline_init(q, qd)
-            obs = self.environment._get_obs(state)
+        def set_env_state(sys, q, qd):
+            env = self.environment._env_fn(sys=sys)
+            state = env.pipeline_init(q, qd)
+            obs = env._get_obs(state)
             reward, done, cost, steps, truncation = jnp.zeros(5)
             info = {
                 "cost": cost,
@@ -58,7 +58,10 @@ class BraxAdapter(Simulator):
             }
             return envs.State(state, obs, reward, done, {}, info)
 
-        return set_env_state(q, qd)
+        res = jax.vmap(set_env_state, in_axes=(self.environment._in_axes, 0, 0))(
+            self.environment._sys_v, q, qd
+        )
+        return res
 
     def step(
         self,
@@ -95,12 +98,9 @@ class BraxAdapter(Simulator):
         self,
         policy: Policy,
         steps: int,
-        seed: int | Sequence[int],
-        state: envs.State | None = None,
+        seed: int,
+        state: envs.State,
     ) -> tuple[envs.State, TrajectoryData]:
-        if state is None:
-            state = self.reset(seed)
-
         def f(carry, _):
             state, current_key = carry
             current_key, next_key = jax.random.split(current_key)
@@ -121,7 +121,7 @@ randomization_fns = {"inverted_pendulum": domain_randomization}
 
 
 def make(cfg: DictConfig) -> SimulatorFactory:
-    def make_sim():
+    def make_sim() -> BraxAdapter:
         _, task_cfg = get_domain_and_task(cfg)
         env = envs.get_environment(task_cfg.task)
         sim = BraxAdapter(
@@ -133,4 +133,4 @@ def make(cfg: DictConfig) -> SimulatorFactory:
         )
         return sim
 
-    return make_sim  # type: ignore
+    return make_sim

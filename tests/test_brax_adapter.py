@@ -15,6 +15,7 @@ def adapter() -> BraxAdapter:
     cfg = make_test_config([f"training.parallel_envs={_ENVS}"])
     make_env = benchmark_suites.make(cfg)
     dummy_env = make_env()
+    assert isinstance(dummy_env, BraxAdapter)
     return dummy_env
 
 
@@ -29,4 +30,17 @@ def test_parameterization(adapter: BraxAdapter):
         jnp.allclose(next_state.obs[0, :], obs[0, :])
         for obs in jnp.split(next_state.obs[1:, :], adapter.parallel_envs - 1, axis=0)
     )
-    assert count / _ENVS < 0.2, "Different environment initializations should have different trajectories"
+    assert (
+        count / _ENVS < 0.2
+    ), "Different environment initializations should have different trajectories"
+
+
+def test_set_state(adapter: BraxAdapter):
+    state = adapter.reset([0] * adapter.parallel_envs).pipeline_state
+    qp = jnp.concatenate([state.q, state.qd], -1)
+    purturbed_qp = qp + jnp.ones_like(qp)
+    next_state = adapter.set_state(purturbed_qp)
+    new_purturbed_qp = jnp.concatenate(
+        [next_state.pipeline_state.q, next_state.pipeline_state.qd], -1
+    )
+    assert jnp.allclose(purturbed_qp, new_purturbed_qp)
