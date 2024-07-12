@@ -1,10 +1,10 @@
 from dataclasses import dataclass, field
-from typing import Any, List, Tuple
+from typing import Any, Tuple
 
 import numpy as np
 from numpy import typing as npt
 
-from ss2r.rl.trajectory import TrajectoryData
+from ss2r.rl.types import TrajectoryData
 
 
 @dataclass
@@ -44,7 +44,7 @@ class EpochSummary:
         vids = np.asarray(all_vids)[-1].transpose(1, 0, -1, 2, 3)
         return vids
 
-    def extend(self, samples: List[TrajectoryData]) -> None:
+    def extend(self, samples: TrajectoryData) -> None:
         self._data.append(samples)
 
 

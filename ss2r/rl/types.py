@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Callable, NamedTuple, Protocol, Union
+from typing import Any, Callable, NamedTuple, Protocol, Sequence, Union
 
 import jax
 import numpy as np
@@ -9,6 +9,8 @@ from omegaconf import DictConfig
 
 
 FloatArray = Union[npt.NDArray[Union[np.float32, np.float64]], jax.Array]
+
+SimulatorState = Any
 
 
 class Transition(NamedTuple):
@@ -31,10 +33,26 @@ class Report:
 
 
 class Simulator(Protocol):
-    action_size: int
-    observation_size: int
+    parallel_envs: int
 
-    def rollout(self, policy: Policy, steps: int) -> TrajectoryData:
+    def rollout(
+        self,
+        policy: Policy,
+        steps: int,
+        seed: int,
+        state: SimulatorState = None,
+    ) -> tuple[SimulatorState, TrajectoryData]:
+        ...
+
+    def reset(self, seed: int | Sequence[int]) -> SimulatorState:
+        ...
+
+    @property
+    def action_size(self) -> int:
+        ...
+
+    @property
+    def observation_size(self) -> int:
         ...
 
 

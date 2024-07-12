@@ -10,7 +10,7 @@ from ss2r import benchmark_suites
 from ss2r.rl import acting
 from ss2r.rl.epoch_summary import EpochSummary
 from ss2r.rl.logging import StateWriter, TrainingLogger
-from ss2r.rl.types import Agent, SimulatorFactory, Simulator
+from ss2r.rl.types import Agent, Report, SimulatorFactory, Simulator
 from ss2r.rl.utils import PRNGSequence
 
 _LOG = logging.getLogger(__name__)
@@ -93,14 +93,14 @@ class Trainer:
                 "train/feasibility": feasibilty,
                 "train/fps": self.config.training.steps_per_epoch / wall_time,
             }
-            report.metrics.update(metrics)
-            logger.log(report.metrics, self.step)
+            metrics.update(report.metrics)
+            logger.log(metrics, self.step)
             for k, v in report.videos.items():
                 logger.log_video(v, self.step, k)
             self.epoch = epoch + 1
             state_writer.write(self.state)
 
-    def _run_training_epoch(self) -> tuple[EpochSummary, float, int]:
+    def _run_training_epoch(self) -> tuple[Report, float]:
         agent, sim, logger, seeds = self.agent, self.simulator, self.logger, self.seeds
         assert (
             sim is not None
@@ -109,7 +109,7 @@ class Trainer:
             and seeds is not None
         )
         start_time = time.time()
-        sim.reset(seed=int(next(seeds)[0].item()))
+        sim.reset(list(int(s[0].item()) for s in seeds.take_n(sim.parallel_envs)))
         report = agent.train(self.config.training.steps_per_epoch, sim)
         self.step += self.config.training.steps_per_epoch
         next(seeds)
@@ -130,6 +130,7 @@ class Trainer:
             agent,
             sim,
             self.config.training.num_eval_steps,
+            int(next(seeds)[0].item()),
             self.config.training.render_episodes,
         )
         return summary
