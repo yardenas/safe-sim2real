@@ -1,5 +1,6 @@
 import pytest
 
+import jax
 import jax.numpy as jnp
 
 from ss2r import benchmark_suites
@@ -16,5 +17,13 @@ def adapter() -> BraxAdapter:
 
 
 def test_parameterization(adapter: BraxAdapter):
-    policy = lambda *_: jnp.zeros((adapter.action_size,)), None
-    adapter.rollout(policy, 10)
+    def policy(*_, **__):
+        return jnp.zeros((adapter.action_size,)), None
+
+    policy = jax.vmap(policy, in_axes=(0, None))
+    state = adapter.reset([0] * adapter.parallel_envs)
+    next_state, _ = adapter.step(state, policy, jax.random.PRNGKey(0))
+    assert all(
+        not jnp.allclose(next_state.obs[0, :], obs[0, :])
+        for obs in jnp.split(next_state.obs[1:, :], adapter.parallel_envs - 1, axis=0)
+    ), "Different environment initializations should have different trajectories"

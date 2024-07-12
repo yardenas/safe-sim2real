@@ -27,7 +27,7 @@ class BraxAdapter(Simulator):
         env = envs.training.wrap(
             environment,
             action_repeat=action_repeat,
-            randomization_fn=lambda *_: (new_sys, in_axes),
+            randomization_fn=lambda sys: randomization_fn(sys, rng)[:2],
         )
         self.parallel_envs = parallel_envs
         self.environment = env
@@ -41,10 +41,25 @@ class BraxAdapter(Simulator):
     def observation_size(self) -> int:
         return self.environment.observation_size
 
-    def set_state(self, state: jax.Array) -> envs.State | None:
-        q, qd = jnp.split(state, 2, axis=1)
-        state = self.environment.pipeline_init(q, qd)
-        return state
+    def set_state(self, state: jax.Array) -> envs.State:
+        q, qd = jnp.split(state, 2, axis=-1)
+        assert q.shape[0] == qd.shape[0] == self.parallel_envs
+
+        @jax.vmap
+        def set_env_state(q, qd):
+            state = self.environment.pipeline_init(q, qd)
+            obs = self.environment._get_obs(state)
+            reward, done, cost, steps, truncation = jnp.zeros(5)
+            info = {
+                "cost": cost,
+                "steps": steps,
+                "truncation": truncation,
+                "first_pipeline_state": state,
+                "first_obs": obs,
+            }
+            return envs.State(state, obs, reward, done, {}, info)
+
+        return set_env_state(q, qd)
 
     def step(
         self,
@@ -67,26 +82,25 @@ class BraxAdapter(Simulator):
             extras={"policy_extras": policy_extras, "state_extras": state_extras},
         )
 
-    def reset(self, seed: int) -> envs.State:
-        key = jnp.asarray(
-            jax.random.split(jax.random.PRNGKey(seed), self.parallel_envs)
-        )
-        return self.environment.reset(key)
+    def reset(self, seed: int | Sequence[int]) -> envs.State:
+        if isinstance(seed, int):
+            keys = jnp.asarray(
+                jax.random.split(jax.random.PRNGKey(seed), self.parallel_envs)
+            )
+        else:
+            assert len(seed) == self.parallel_envs
+            keys = jnp.stack([jax.random.PRNGKey(s) for s in seed])
+        return self.environment.reset(keys)
 
     def rollout(
         self,
         policy: Policy,
         steps: int,
+        seed: int | Sequence[int],
         state: envs.State | None = None,
-        key: PRNGKey | None = None,
-    ) -> TrajectoryData:
-        if key is None:
-            # TODO (yarden): fix this
-            key = jax.random.PRNGKey(0)
+    ) -> tuple[envs.State, TrajectoryData]:
         if state is None:
-            key, subkey = jax.random.split(key)
-            subkey = jax.random.split(subkey, self.parallel_envs)
-            state = self.reset(666)
+            state = self.reset(seed)
 
         def f(carry, _):
             state, current_key = carry
@@ -99,6 +113,7 @@ class BraxAdapter(Simulator):
             )
             return (nstate, next_key), transition
 
+        key = jax.random.PRNGKey(seed)
         (final_state, _), data = jax.lax.scan(f, (state, key), (), length=steps)
         return final_state, data
 

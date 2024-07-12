@@ -4,15 +4,15 @@ import jax
 def domain_randomization(sys, rng):
     @jax.vmap
     def randomize(rng):
-        cpole = jax.random.normal(rng) * 0.05 + sys.geom_size[-1, 1]
-        length = sys.geom_size.at[-1, 1].set(cpole)
-        return length, cpole
+        offset = jax.random.uniform(rng, shape=(3,), minval=-0.1, maxval=0.1)
+        pos = sys.link.transform.pos.at[0].set(offset)
+        return pos, offset
 
-    length, samples = randomize(rng)
+    pos, samples = randomize(rng)
+    sys_v = sys.tree_replace({'link.inertia.transform.pos': pos})
     in_axes = jax.tree_map(lambda x: None, sys)
-    in_axes = in_axes.tree_replace({"geom_size": 0})
-    sys = sys.tree_replace({"geom_size": length})
-    return sys, in_axes, samples[:, None]
+    in_axes = in_axes.tree_replace({'link.inertia.transform.pos': 0})
+    return sys_v, in_axes, samples
 
 
 def uniform_state_sampler():
