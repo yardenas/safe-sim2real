@@ -6,9 +6,10 @@ def evaluate(
     agent: Agent,
     simulator: Simulator,
     num_steps: int,
+    seed: int,
     render_episodes: int = 0,
-) -> tuple[EpochSummary, int]:
+) -> EpochSummary:
     summary = EpochSummary()
-    _, trajectories = simulator.rollout(agent.policy, num_steps)
+    _, trajectories = simulator.rollout(agent.policy, num_steps, seed)
     summary.extend(trajectories)
     return summary

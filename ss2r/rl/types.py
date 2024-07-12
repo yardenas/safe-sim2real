@@ -33,12 +33,14 @@ class Report:
 
 
 class Simulator(Protocol):
+    parallel_envs: int
+
     def rollout(
         self,
         policy: Policy,
         steps: int,
         seed: int,
-        state: SimulatorState,
+        state: SimulatorState = None,
     ) -> tuple[SimulatorState, TrajectoryData]:
         ...
 

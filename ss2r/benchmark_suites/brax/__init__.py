@@ -99,8 +99,14 @@ class BraxAdapter(Simulator):
         policy: Policy,
         steps: int,
         seed: int,
-        state: envs.State,
+        state: envs.State | None = None,
     ) -> tuple[envs.State, TrajectoryData]:
+        rng = jax.random.PRNGKey(seed)
+        if state is None:
+            rng, key = jax.random.split(rng)
+            keys = jax.random.split(key, self.parallel_envs)
+            state = self.environment.reset(keys)
+
         def f(carry, _):
             state, current_key = carry
             current_key, next_key = jax.random.split(current_key)
