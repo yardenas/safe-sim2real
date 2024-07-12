@@ -19,8 +19,15 @@ class Trajectory:
         # this magic is possible since transition is a named tuple.
         # This allows us make lists of observations, actions, rewards, etc.,
         # instead of list of transitions.
-        o, next_o, a, r, c = zip(*self.transitions)
+        o, next_o, a, r, c, discount, _ = zip(*self.transitions)
         # Stack on axis=1 to keep batch dimension first, and time axis second.
         stack = lambda x: np.stack(x, axis=1)
-        data = TrajectoryData(stack(o), stack(next_o), stack(a), stack(r), stack(c))
+        data = TrajectoryData(
+            stack(o),
+            stack(next_o),
+            stack(a),
+            stack(r),
+            stack(c),
+            stack(discount),
+        )
         return data
