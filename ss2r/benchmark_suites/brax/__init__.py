@@ -11,6 +11,8 @@ from ss2r.rl.trajectory import TrajectoryData, Transition
 from ss2r.rl.types import Simulator, SimulatorFactory
 
 
+
+
 class BraxAdapter(Simulator):
     def __init__(
         self,
@@ -23,7 +25,7 @@ class BraxAdapter(Simulator):
         super().__init__()
         rng = jax.random.PRNGKey(seed)
         rng = jax.random.split(rng, parallel_envs)
-        new_sys, in_axes, samples = randomization_fn(environment.sys, rng)
+        # new_sys, in_axes, samples = randomization_fn(environment.sys, rng)
         env = envs.training.wrap(
             environment,
             action_repeat=action_repeat,
@@ -31,7 +33,7 @@ class BraxAdapter(Simulator):
         )
         self.parallel_envs = parallel_envs
         self.environment = env
-        self.parameterizations = samples
+        # self.parameterizations = samples
 
     @property
     def action_size(self) -> int:
