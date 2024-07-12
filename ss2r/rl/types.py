@@ -33,15 +33,24 @@ class Report:
 
 
 class Simulator(Protocol):
-    action_size: int
-    observation_size: int
-
     def rollout(
-        self, policy: Policy, steps: int, seed: int | Sequence[int], state: SimulatorState
+        self,
+        policy: Policy,
+        steps: int,
+        seed: int | Sequence[int],
+        state: SimulatorState,
     ) -> tuple[SimulatorState, TrajectoryData]:
         ...
 
     def reset(self, seed: int | Sequence[int]) -> TrajectoryData:
+        ...
+
+    @property
+    def action_size(self) -> int:
+        ...
+
+    @property
+    def observation_size(self) -> int:
         ...
 
 

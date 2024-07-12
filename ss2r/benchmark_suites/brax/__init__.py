@@ -7,10 +7,7 @@ from brax.base import System
 from brax.training.types import Policy, PRNGKey
 from ss2r.benchmark_suites.brax.cartpole import domain_randomization
 from ss2r.benchmark_suites.utils import get_domain_and_task
-from ss2r.rl.trajectory import TrajectoryData, Transition
-from ss2r.rl.types import Simulator, SimulatorFactory
-
-
+from ss2r.rl.types import Simulator, SimulatorFactory, TrajectoryData, Transition
 
 
 class BraxAdapter(Simulator):
@@ -25,15 +22,15 @@ class BraxAdapter(Simulator):
         super().__init__()
         rng = jax.random.PRNGKey(seed)
         rng = jax.random.split(rng, parallel_envs)
-        # new_sys, in_axes, samples = randomization_fn(environment.sys, rng)
+        new_sys, in_axes, samples = randomization_fn(environment.sys, rng)
         env = envs.training.wrap(
             environment,
             action_repeat=action_repeat,
-            randomization_fn=lambda sys: randomization_fn(sys, rng)[:2],
+            randomization_fn=lambda *_, **__: (new_sys, in_axes),
         )
         self.parallel_envs = parallel_envs
         self.environment = env
-        # self.parameterizations = samples
+        self.parameterizations = samples
 
     @property
     def action_size(self) -> int:
@@ -69,7 +66,7 @@ class BraxAdapter(Simulator):
         policy: Policy,
         key: PRNGKey,
         extra_fields: Sequence[str] = (),
-    ) -> Transition:
+    ) -> tuple[envs.State, Transition]:
         actions, policy_extras = policy(env_state.obs, key)
         nstate = self.environment.step(env_state, actions)
         state_extras = {x: nstate.info[x] for x in extra_fields}
