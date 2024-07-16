@@ -1,10 +1,12 @@
 import jax
 
 
-def domain_randomization(sys, rng):
+def domain_randomization(sys, rng, cfg):
     @jax.vmap
     def randomize(rng):
-        cpole = jax.random.normal(rng) * 0.05 + sys.link.inertia.mass[-1]
+        cpole = (
+            jax.random.normal(rng) * cfg.scale + sys.link.inertia.mass[-1] + cfg.shift
+        )
         mass = sys.link.inertia.mass.at[-1].set(cpole)
         return mass, cpole
 

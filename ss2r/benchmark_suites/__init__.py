@@ -1,12 +1,12 @@
 from omegaconf import DictConfig
 
-from ss2r.benchmark_suites.utils import get_domain_and_task
+from ss2r.benchmark_suites.utils import get_domain_name
 from ss2r.rl.types import SimulatorFactory
 
 
 def make(cfg: DictConfig) -> SimulatorFactory:
-    assert len(cfg.environment.keys()) == 1
-    domain_name, _ = get_domain_and_task(cfg)
+    assert len(cfg.environment.keys()) == 2
+    domain_name = get_domain_name(cfg)
     if domain_name == "brax":
         from ss2r.benchmark_suites.brax import make
 
