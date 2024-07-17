@@ -61,21 +61,22 @@ def display_video(video, fps=30):
 def test_ppo():
     train_fn = functools.partial(
         train,
-        num_timesteps=4000000,
+        num_timesteps=2000000,
         num_evals=10,
-        reward_scaling=20,
+        reward_scaling=40,
         episode_length=1000,
         normalize_observations=True,
         action_repeat=1,
-        unroll_length=5,
+        unroll_length=10,
         num_minibatches=32,
-        num_updates_per_batch=4,
-        discounting=0.97,
+        num_updates_per_batch=8,
+        discounting=0.99,
         learning_rate=3e-4,
-        entropy_cost=1e-4,
+        entropy_cost=0,
         num_envs=2048,
         batch_size=256,
         seed=1,
+        clipping_epsilon=0.2,
     )
     max_y = 1000
     min_y = 0

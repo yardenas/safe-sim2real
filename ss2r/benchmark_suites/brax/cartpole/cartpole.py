@@ -39,9 +39,10 @@ class CartpoleSwingup(PipelineEnv):
     def reset(self, rng: jax.Array) -> State:
         """Resets the environment to an initial state."""
         rng, rng1, rng2 = jax.random.split(rng, 3)
-        q = self.sys.init_q + jax.random.normal(rng1, (self.sys.q_size(),)) * 0.01
+        # FIXME (yarden): scales should be 0.01
+        q = self.sys.init_q + jax.random.normal(rng1, (self.sys.q_size(),)) * 0.0
         # q = q.at[1].add(jnp.pi)
-        qd = jax.random.normal(rng2, (self.sys.qd_size(),)) * 0.01
+        qd = jax.random.normal(rng2, (self.sys.qd_size(),)) * 0.0
         pipeline_state = self.pipeline_init(q, qd)
         obs = self._get_obs(pipeline_state)
         reward, done = jnp.zeros(2)
@@ -98,7 +99,7 @@ class CartpoleSwingup(PipelineEnv):
         small_control = (4 + small_control) / 5
         small_velocity = rewards.tolerance(pipeline_state.qd[1], margin=5).min()
         small_velocity = (1 + small_velocity) / 2
-        return upright.mean()
+        return upright.mean() * small_control * small_velocity * centered
 
     @property
     def action_size(self):
