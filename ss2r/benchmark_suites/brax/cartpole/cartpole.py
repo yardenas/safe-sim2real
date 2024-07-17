@@ -40,7 +40,7 @@ class CartpoleSwingup(PipelineEnv):
         """Resets the environment to an initial state."""
         rng, rng1, rng2 = jax.random.split(rng, 3)
         q = self.sys.init_q + jax.random.normal(rng1, (self.sys.q_size(),)) * 0.01
-        q = q.at[1].add(jnp.pi)
+        # q = q.at[1].add(jnp.pi)
         qd = jax.random.normal(rng2, (self.sys.qd_size(),)) * 0.01
         pipeline_state = self.pipeline_init(q, qd)
         obs = self._get_obs(pipeline_state)
@@ -60,7 +60,8 @@ class CartpoleSwingup(PipelineEnv):
         return state.replace(
             pipeline_state=pipeline_state,
             obs=obs,
-            reward=self._reward(pipeline_state),
+            # FIXME (yarden)
+            reward=self._reward_easy(pipeline_state, action),
             done=done,
         )
 
@@ -86,6 +87,18 @@ class CartpoleSwingup(PipelineEnv):
             self.pole_angle_components(pipeline_state)[0], (0.995, 1.0)
         )
         return cart_in_bounds * angle_in_bounds
+
+    def _reward_easy(self, pipeline_state: base.State, action: jax.Array) -> jax.Array:
+        upright = (self.pole_angle_components(pipeline_state)[0] + 1) / 2
+        centered = rewards.tolerance(self.cart_position(pipeline_state), margin=2)
+        centered = (1 + centered) / 2
+        small_control = rewards.tolerance(
+            action, margin=1, value_at_margin=0, sigmoid="quadratic"
+        )[0]
+        small_control = (4 + small_control) / 5
+        small_velocity = rewards.tolerance(pipeline_state.qd[1], margin=5).min()
+        small_velocity = (1 + small_velocity) / 2
+        return upright.mean()
 
     @property
     def action_size(self):
