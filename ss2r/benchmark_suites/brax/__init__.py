@@ -6,7 +6,7 @@ import jax.numpy as jnp
 from brax import envs
 from brax.base import System
 from brax.training.types import Policy, PRNGKey
-from ss2r.benchmark_suites.brax import cartpole
+from ss2r.benchmark_suites.brax.cartpole import cartpole
 from ss2r.benchmark_suites.utils import get_task_config
 from ss2r.rl.types import Simulator, SimulatorFactory, TrajectoryData, Transition
 
