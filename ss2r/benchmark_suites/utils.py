@@ -2,7 +2,8 @@
 from omegaconf import DictConfig
 
 
-def get_domain_and_task(cfg: DictConfig) -> tuple[str, DictConfig]:
-    assert len(cfg.environment.keys()) == 1
-    domain_name, task = list(cfg.environment.items())[0]
-    return domain_name, task
+def get_domain_name(cfg: DictConfig) -> str:
+    return list(cfg.environment.keys())[0]
+
+def get_task_config(cfg: DictConfig) -> DictConfig:
+    return list(cfg.environment.values())[1]

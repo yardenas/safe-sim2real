@@ -1,3 +1,4 @@
+import functools
 from typing import Callable, Sequence
 from omegaconf import DictConfig
 import jax
@@ -5,8 +6,8 @@ import jax.numpy as jnp
 from brax import envs
 from brax.base import System
 from brax.training.types import Policy, PRNGKey
-from ss2r.benchmark_suites.brax.cartpole import domain_randomization
-from ss2r.benchmark_suites.utils import get_domain_and_task
+from ss2r.benchmark_suites.brax import cartpole
+from ss2r.benchmark_suites.utils import get_task_config
 from ss2r.rl.types import Simulator, SimulatorFactory, TrajectoryData, Transition
 
 
@@ -16,21 +17,25 @@ class BraxAdapter(Simulator):
         environment: envs.PipelineEnv,
         seed: int,
         parallel_envs: int,
-        randomization_fn: Callable[[System, PRNGKey], tuple[System, System, jax.Array]],
+        randomization_fn: Callable[[System, PRNGKey], tuple[System, System, jax.Array]]
+        | None,
         action_repeat: int,
     ) -> None:
         super().__init__()
         rng = jax.random.PRNGKey(seed)
         rng = jax.random.split(rng, parallel_envs)
-        new_sys, in_axes, samples = randomization_fn(environment.sys, rng)
-        env = envs.training.wrap(
-            environment,
-            action_repeat=action_repeat,
-            randomization_fn=lambda *_, **__: (new_sys, in_axes),
-        )
+        if randomization_fn is not None:
+            new_sys, in_axes, samples = randomization_fn(environment.sys, rng)
+            env = envs.training.wrap(
+                environment,
+                action_repeat=action_repeat,
+                randomization_fn=lambda *_, **__: (new_sys, in_axes),
+            )
+            self.parameterizations = samples
+        else:
+            env = envs.training.wrap(environment, action_repeat=action_repeat)
         self.parallel_envs = parallel_envs
         self.environment = env
-        self.parameterizations = samples
 
     @property
     def action_size(self) -> int:
@@ -123,18 +128,24 @@ class BraxAdapter(Simulator):
         return final_state, data
 
 
-randomization_fns = {"inverted_pendulum": domain_randomization}
+randomization_fns = {"inverted_pendulum": cartpole.domain_randomization}
 
 
 def make(cfg: DictConfig) -> SimulatorFactory:
     def make_sim() -> BraxAdapter:
-        _, task_cfg = get_domain_and_task(cfg)
-        env = envs.get_environment(task_cfg.task)
+        task_cfg = get_task_config(cfg)
+        env = envs.get_environment(task_cfg.task_name)
+        if cfg.environment.brax.domain_randomization:
+            randomize_fn = functools.partial(
+                randomization_fns[task_cfg.task_name], cfg=task_cfg
+            )
+        else:
+            randomize_fn = None
         sim = BraxAdapter(
             env,
             cfg.training.seed,
             cfg.training.parallel_envs,
-            randomization_fns[task_cfg.task],
+            randomize_fn,
             cfg.training.action_repeat,
         )
         return sim
