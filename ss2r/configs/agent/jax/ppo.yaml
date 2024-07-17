@@ -1,6 +1,6 @@
 defaults:
   - _self_
-  - state_sampler: uniform
+  - jax/state_sampler: uniform
 
 
 replay_buffer:

@@ -12,7 +12,12 @@ _ENVS = 128
 
 @pytest.fixture
 def adapter() -> BraxAdapter:
-    cfg = make_test_config([f"training.parallel_envs={_ENVS}"])
+    cfg = make_test_config(
+        [
+            f"training.parallel_envs={_ENVS}",
+            "environment.brax.domain_randomization=False",
+        ]
+    )
     make_env = benchmark_suites.make(cfg)
     dummy_env = make_env()
     assert isinstance(dummy_env, BraxAdapter)

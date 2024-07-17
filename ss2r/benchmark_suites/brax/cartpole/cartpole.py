@@ -3,6 +3,7 @@ import jax
 
 import jax.numpy as jnp
 from brax import base
+from brax.io import mjcf
 from brax.envs import register_environment
 from brax.envs.base import PipelineEnv, State
 from ss2r.algorithms.jax.state_sampler import StateSampler
@@ -29,15 +30,18 @@ def sample_state(state_sampler: StateSampler):
     pass
 
 
-@register_environment("cartpole_swingup")
 class CartpoleSwingup(PipelineEnv):
+    def __init__(self, backend="mjx", **kwargs):
+        path = "./ss2r/benchmark_suites/brax/cartpole/cartpole.xml"
+        sys = mjcf.load(path)
+        super().__init__(sys=sys, backend=backend, **kwargs)
+
     def reset(self, rng: jax.Array) -> State:
         """Resets the environment to an initial state."""
         rng, rng1, rng2 = jax.random.split(rng, 3)
-        q = self.sys.init_q + jax.random.normal(rng1, (self.sys.q_size(),))
+        q = self.sys.init_q + jax.random.normal(rng1, (self.sys.q_size(),)) * 0.01
         q = q.at[1].add(jnp.pi)
-        # FIXME (yarden): in dm control the qpos has dim 4.
-        qd = jax.random.normal(rng2, (self.sys.qd_size())) * 0.01
+        qd = jax.random.normal(rng2, (self.sys.qd_size(),)) * 0.01
         pipeline_state = self.pipeline_init(q, qd)
         obs = self._get_obs(pipeline_state)
         reward, done = jnp.zeros(2)
@@ -52,7 +56,7 @@ class CartpoleSwingup(PipelineEnv):
         action = (action + 1) * (action_max - action_min) * 0.5 + action_min
         pipeline_state = self.pipeline_step(state.pipeline_state, action)
         obs = self._get_obs(pipeline_state)
-        done = False
+        done = jnp.zeros_like(state.done)
         return state.replace(
             pipeline_state=pipeline_state,
             obs=obs,
@@ -89,7 +93,9 @@ class CartpoleSwingup(PipelineEnv):
 
     def _get_obs(self, pipeline_state: base.State) -> jax.Array:
         """Observe cartpole body position and velocities."""
-        # FIXME (yarden): qd here is not like in dm_control
         return jnp.concatenate(
             [self.bounded_position(pipeline_state), pipeline_state.qd]
         )
+
+
+register_environment("cartpole_swingup", CartpoleSwingup)

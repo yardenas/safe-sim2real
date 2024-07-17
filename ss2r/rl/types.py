@@ -20,7 +20,7 @@ class Transition(NamedTuple):
     reward: FloatArray
     cost: FloatArray
     discount: FloatArray
-    extras: FloatArray = ()
+    extras: dict[str, Any] | None = None
 
 
 TrajectoryData = Transition
