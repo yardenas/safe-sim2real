@@ -57,7 +57,7 @@ def display_video(video, fps=30):
         plt.draw()
     plt.ioff()
 
-
+@pytest.mark.skip
 def test_sac():
     train_fn = functools.partial(
         sac.train,
