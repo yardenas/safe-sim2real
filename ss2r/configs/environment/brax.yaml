@@ -1,6 +1,6 @@
 defaults:
   - _self_
-  - task: cartpole
+  - task: inverted_pendulum
 
 
 brax:
