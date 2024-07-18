@@ -134,7 +134,12 @@ class BraxAdapter(Simulator):
         return final_state, data
 
 
-randomization_fns = {"cartpole_swingup": cartpole.domain_randomization}
+randomization_fns = {
+    "cartpole_swingup": cartpole.domain_randomization,
+    "cartpole_swingup_sparse": cartpole.domain_randomization,
+    "cartpole_balance": cartpole.domain_randomization,
+    "inverted_pendulum": cartpole.domain_randomization,
+}
 
 
 def make(cfg: DictConfig) -> SimulatorFactory:

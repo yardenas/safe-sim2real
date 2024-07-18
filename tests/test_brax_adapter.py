@@ -15,7 +15,8 @@ def adapter() -> BraxAdapter:
     cfg = make_test_config(
         [
             f"training.parallel_envs={_ENVS}",
-            "environment.brax.domain_randomization=False",
+            "environment.brax.domain_randomization=True",
+            "environment/task=inverted_pendulum",
         ]
     )
     make_env = benchmark_suites.make(cfg)

@@ -16,7 +16,7 @@ def domain_randomization(sys, rng, cfg):
         cpole = (
             jax.random.normal(rng) * cfg.scale + sys.link.inertia.mass[-1] + cfg.shift
         )
-        mass = sys.link.inertia.mass.at[-1].set(cpole)
+        mass = sys.link.inertia.mass.at[-1].set(jnp.abs(cpole))
         return mass, cpole
 
     mass, samples = randomize(rng)
@@ -119,4 +119,13 @@ class Cartpole(PipelineEnv):
         )
 
 
-register_environment("cartpole", Cartpole)
+register_environment(
+    "cartpole_swingup_sparse",
+    lambda **kwargs: Cartpole(swingup=True, sparse=True, **kwargs),
+)
+register_environment(
+    "cartpole_swingup", lambda **kwargs: Cartpole(swingup=True, **kwargs)
+)
+register_environment(
+    "cartpole_balance", lambda **kwargs: Cartpole(swingup=False, **kwargs)
+)
