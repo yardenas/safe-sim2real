@@ -31,7 +31,7 @@ def sample_state(state_sampler: StateSampler):
 
 
 class Cartpole(PipelineEnv):
-    def __init__(self, backend="mjx", **kwargs):
+    def __init__(self, backend="generalized", **kwargs):
         path = "./ss2r/benchmark_suites/brax/cartpole/cartpole.xml"
         sys = mjcf.load(path)
         self.sparse = kwargs.pop("sparse", False)
