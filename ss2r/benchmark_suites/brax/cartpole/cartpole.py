@@ -39,8 +39,11 @@ class CartpoleSwingup(PipelineEnv):
     def reset(self, rng: jax.Array) -> State:
         """Resets the environment to an initial state."""
         rng, rng1, rng2 = jax.random.split(rng, 3)
-        q = self.sys.init_q + jax.random.normal(rng1, (self.sys.q_size(),)) * 0.01
-        # q = q.at[1].add(jnp.pi)
+        # q = self.sys.init_q + jax.random.normal(rng1, (self.sys.q_size(),)) * 0.01
+        # # q = q.at[1].add(jnp.pi)
+        q = self.sys.init_q
+        q = q.at[0].set(jax.random.uniform(rng1, shape=(), minval=-1., maxval=1.))
+        q = q.at[1].set(jax.random.uniform(rng1, shape=(), minval=-0.034, maxval=0.034))
         qd = jax.random.normal(rng2, (self.sys.qd_size(),)) * 0.01
         pipeline_state = self.pipeline_init(q, qd)
         obs = self._get_obs(pipeline_state)

@@ -4,7 +4,7 @@ import pytest
 import jax
 from brax.io import image
 from brax import envs
-from brax.training.agents.ppo.train import train
+import brax.training.agents.sac.train as sac
 import matplotlib.pyplot as plt
 
 from ss2r import benchmark_suites
@@ -58,27 +58,24 @@ def display_video(video, fps=30):
     plt.ioff()
 
 
-def test_ppo():
+def test_sac():
     train_fn = functools.partial(
-        train,
-        num_timesteps=10000000,
+        sac.train,
+        num_timesteps=2000000,
         num_evals=20,
-        reward_scaling=10,
+        reward_scaling=30,
         episode_length=1000,
         normalize_observations=True,
         action_repeat=1,
-        unroll_length=5,
-        num_minibatches=32,
-        num_updates_per_batch=4,
-        discounting=0.97,
-        learning_rate=3e-4,
-        entropy_cost=1e-2,
+        discounting=0.997,
+        learning_rate=6e-4,
         num_envs=2048,
-        batch_size=1024,
+        batch_size=512,
+        grad_updates_per_step=32,
+        max_replay_size=1048576,
+        min_replay_size=8192,
         seed=1,
     )
-    max_y = 1000
-    min_y = 0
     xdata, ydata = [], []
     times = [datetime.now()]
     plt.ion()
@@ -90,7 +87,6 @@ def test_ppo():
         ydata.append(metrics["eval/episode_reward"])
         plt.cla()
         plt.xlim([0, train_fn.keywords["num_timesteps"]])
-        # plt.ylim([min_y, max_y])
         plt.xlabel("# environment steps")
         plt.ylabel("reward per episode")
         plt.plot(xdata, ydata)
