@@ -1,16 +1,14 @@
 <!-- https://github.com/google-deepmind/dm_control/blob/main/dm_control/suite/cartpole.xml -->
 <mujoco model="cart-pole">
-  <option timestep="0.01" iterations="8">
+  <option timestep="0.01" integrator="RK4">
     <flag contact="disable"/>
   </option>
-
   <default>
     <default class="pole">
       <joint type="hinge" axis="0 1 0"  damping="2e-6"/>
       <geom type="capsule" fromto="0 0 0 0 0 1" size="0.045" mass=".1"/>
     </default>
   </default>
-
   <worldbody>
     <light name="light" pos="0 0 6"/>
     <camera name="fixed" pos="0 -4 1" zaxis="0 -1 0"/>
@@ -27,8 +25,7 @@
       </body>
     </body>
   </worldbody>
-
   <actuator>
-    <motor name="slide" joint="slider" gear="100" ctrllimited="true" ctrlrange="-1 1" />
+    <motor name="slide" joint="slider" gear="10" ctrllimited="true" ctrlrange="-1 1" />
   </actuator>
 </mujoco>

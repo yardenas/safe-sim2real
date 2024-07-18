@@ -61,22 +61,21 @@ def display_video(video, fps=30):
 def test_ppo():
     train_fn = functools.partial(
         train,
-        num_timesteps=2000000,
-        num_evals=10,
-        reward_scaling=40,
+        num_timesteps=10000000,
+        num_evals=20,
+        reward_scaling=10,
         episode_length=1000,
         normalize_observations=True,
         action_repeat=1,
-        unroll_length=10,
+        unroll_length=5,
         num_minibatches=32,
-        num_updates_per_batch=8,
-        discounting=0.99,
+        num_updates_per_batch=4,
+        discounting=0.97,
         learning_rate=3e-4,
-        entropy_cost=0,
+        entropy_cost=1e-2,
         num_envs=2048,
-        batch_size=256,
+        batch_size=1024,
         seed=1,
-        clipping_epsilon=0.2,
     )
     max_y = 1000
     min_y = 0
@@ -98,9 +97,8 @@ def test_ppo():
         plt.draw()
         plt.pause(0.5)
 
-
     with jax.disable_jit(False):
-        env = envs.create("cartpole_swingup")
+        env = envs.get_environment(env_name="cartpole_swingup")
         make_inference_fn, params, _ = train_fn(environment=env, progress_fn=progress)
     print(f"time to jit: {times[1] - times[0]}")
     print(f"time to train: {times[-1] - times[1]}")

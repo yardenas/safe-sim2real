@@ -34,15 +34,14 @@ class CartpoleSwingup(PipelineEnv):
     def __init__(self, backend="mjx", **kwargs):
         path = "./ss2r/benchmark_suites/brax/cartpole/cartpole.xml"
         sys = mjcf.load(path)
-        super().__init__(sys=sys, backend=backend, **kwargs)
+        super().__init__(sys=sys, backend=backend, n_frames=1, **kwargs)
 
     def reset(self, rng: jax.Array) -> State:
         """Resets the environment to an initial state."""
         rng, rng1, rng2 = jax.random.split(rng, 3)
-        # FIXME (yarden): scales should be 0.01
-        q = self.sys.init_q + jax.random.normal(rng1, (self.sys.q_size(),)) * 0.0
+        q = self.sys.init_q + jax.random.normal(rng1, (self.sys.q_size(),)) * 0.01
         # q = q.at[1].add(jnp.pi)
-        qd = jax.random.normal(rng2, (self.sys.qd_size(),)) * 0.0
+        qd = jax.random.normal(rng2, (self.sys.qd_size(),)) * 0.01
         pipeline_state = self.pipeline_init(q, qd)
         obs = self._get_obs(pipeline_state)
         reward, done = jnp.zeros(2)
