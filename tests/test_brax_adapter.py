@@ -16,7 +16,8 @@ def adapter() -> BraxAdapter:
         [
             f"training.parallel_envs={_ENVS}",
             "environment.brax.domain_randomization=True",
-            "environment/task=inverted_pendulum",
+            "environment/task=cartpole",
+            "environment.task.task_name=cartpole_balance",
         ]
     )
     make_env = benchmark_suites.make(cfg)
