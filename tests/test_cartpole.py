@@ -95,7 +95,7 @@ def test_sac():
         plt.pause(0.5)
 
     with jax.disable_jit(False):
-        env = envs.get_environment(env_name="cartpole", sparse=False, swingup=True)
+        env = envs.get_environment(env_name="cartpole_swingup")
         make_inference_fn, params, _ = train_fn(environment=env, progress_fn=progress)
     print(f"time to jit: {times[1] - times[0]}")
     print(f"time to train: {times[-1] - times[1]}")

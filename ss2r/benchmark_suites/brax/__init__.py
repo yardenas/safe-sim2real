@@ -145,7 +145,7 @@ randomization_fns = {
 def make(cfg: DictConfig) -> SimulatorFactory:
     def make_sim() -> BraxAdapter:
         task_cfg = get_task_config(cfg)
-        env = envs.get_environment(task_cfg.task_name)
+        env = envs.get_environment(task_cfg.task_name, backend="generalized")
         if cfg.environment.brax.domain_randomization:
             randomize_fn = functools.partial(
                 randomization_fns[task_cfg.task_name], cfg=task_cfg

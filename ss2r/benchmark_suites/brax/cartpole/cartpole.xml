@@ -1,6 +1,6 @@
 <!-- https://github.com/google-deepmind/dm_control/blob/main/dm_control/suite/cartpole.xml -->
 <mujoco model="cart-pole">
-  <option timestep="0.01" integrator="RK4">
+  <option timestep="0.01">
     <flag contact="disable"/>
   </option>
   <default>
