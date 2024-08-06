@@ -6,7 +6,7 @@ import jax.numpy as jnp
 from brax import envs
 from brax.base import System
 from brax.training.types import Policy, PRNGKey
-from ss2r.benchmark_suites.brax import cartpole
+from ss2r.benchmark_suites.brax.cartpole import cartpole
 from ss2r.benchmark_suites.utils import get_task_config
 from ss2r.rl.types import Simulator, SimulatorFactory, TrajectoryData, Transition
 
@@ -74,11 +74,15 @@ class BraxAdapter(Simulator):
         policy: Policy,
         key: PRNGKey,
         extra_fields: Sequence[str] = (),
+        with_pipeline_state: bool = False,
     ) -> tuple[envs.State, Transition]:
         actions, policy_extras = policy(env_state.obs, key)
         nstate = self.environment.step(env_state, actions)
         state_extras = {x: nstate.info[x] for x in extra_fields}
         cost = state_extras.get("cost", jnp.zeros_like(nstate.reward))
+        extras = {"policy_extras": policy_extras, "state_extras": state_extras}
+        if with_pipeline_state:
+            extras["pipeline_state"] = nstate.pipeline_state
         return nstate, Transition(
             observation=env_state.obs,
             action=actions,
@@ -86,7 +90,7 @@ class BraxAdapter(Simulator):
             cost=cost,
             discount=1 - nstate.done,
             next_observation=nstate.obs,
-            extras={"policy_extras": policy_extras, "state_extras": state_extras},
+            extras=extras,
         )
 
     def reset(self, seed: int | Sequence[int]) -> envs.State:
@@ -105,6 +109,7 @@ class BraxAdapter(Simulator):
         steps: int,
         seed: int,
         state: envs.State | None = None,
+        with_pipeline_state: bool = False,
     ) -> tuple[envs.State, TrajectoryData]:
         rng = jax.random.PRNGKey(seed)
         if state is None:
@@ -120,6 +125,7 @@ class BraxAdapter(Simulator):
                 policy,
                 current_key,
                 extra_fields=("truncation",),
+                with_pipeline_state=with_pipeline_state,
             )
             return (nstate, next_key), transition
 
@@ -128,13 +134,18 @@ class BraxAdapter(Simulator):
         return final_state, data
 
 
-randomization_fns = {"inverted_pendulum": cartpole.domain_randomization}
+randomization_fns = {
+    "cartpole_swingup": cartpole.domain_randomization,
+    "cartpole_swingup_sparse": cartpole.domain_randomization,
+    "cartpole_balance": cartpole.domain_randomization,
+    "inverted_pendulum": cartpole.domain_randomization,
+}
 
 
 def make(cfg: DictConfig) -> SimulatorFactory:
     def make_sim() -> BraxAdapter:
         task_cfg = get_task_config(cfg)
-        env = envs.get_environment(task_cfg.task_name)
+        env = envs.get_environment(task_cfg.task_name, backend="generalized")
         if cfg.environment.brax.domain_randomization:
             randomize_fn = functools.partial(
                 randomization_fns[task_cfg.task_name], cfg=task_cfg

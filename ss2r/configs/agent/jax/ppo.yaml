@@ -1,3 +1,8 @@
+defaults:
+  - _self_
+  - jax/state_sampler: uniform
+
+
 replay_buffer:
   capacity: 1e6
 batch_size: 256
