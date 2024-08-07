@@ -33,7 +33,6 @@ wandb:
 jit: true
 
 training:
-  trainer: rl
   safe: true
   safety_budget: 25
   seed: 0
