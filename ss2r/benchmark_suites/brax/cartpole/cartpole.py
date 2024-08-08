@@ -1,3 +1,4 @@
+import os
 from typing import Any
 import jax
 
@@ -9,20 +10,23 @@ from brax.envs.base import PipelineEnv, State
 from ss2r.algorithms.jax.state_sampler import StateSampler
 from ss2r.benchmark_suites.brax import rewards
 
+_POLE_MASS = 0.1
+
 
 def domain_randomization(sys, rng, cfg):
     @jax.vmap
     def randomize(rng):
+        # Hardcoding _POLE_MASS to avoid weird jax issues.
+        mask = jnp.asarray([0.0, 1.0])
         cpole = (
-            jax.random.normal(rng) * cfg.scale + sys.link.inertia.mass[-1] + cfg.shift
+            jax.random.normal(rng) * cfg.scale * mask + (cfg.shift + _POLE_MASS) * mask
         )
-        mass = sys.link.inertia.mass.at[-1].set(jnp.abs(cpole))
-        return mass, cpole
+        return cpole
 
-    mass, samples = randomize(rng)
+    samples = randomize(rng)
     in_axes = jax.tree_map(lambda x: None, sys)
     in_axes = in_axes.tree_replace({"link.inertia.mass": 0})
-    sys = sys.tree_replace({"link.inertia.mass": mass})
+    sys = sys.tree_replace({"link.inertia.mass": samples})
     return sys, in_axes, samples[:, None]
 
 
@@ -32,7 +36,8 @@ def sample_state(state_sampler: StateSampler):
 
 class Cartpole(PipelineEnv):
     def __init__(self, backend="generalized", **kwargs):
-        path = "./ss2r/benchmark_suites/brax/cartpole/cartpole.xml"
+        dir = os.path.dirname(__file__)
+        path = os.path.join(dir, "cartpole.xml")
         sys = mjcf.load(path)
         self.sparse = kwargs.pop("sparse", False)
         self.swingup = kwargs.pop("swingup", False)

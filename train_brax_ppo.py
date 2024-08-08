@@ -21,11 +21,12 @@ def get_environment(cfg):
     task_cfg = get_task_config(cfg)
     env = envs.get_environment(task_cfg.task_name, backend="generalized")
     if cfg.environment.brax.domain_randomization:
-        randomize_fn = functools.partial(
-            randomization_fns[task_cfg.task_name], cfg=task_cfg
-        )
+        randomize_fn = lambda sys, rng: randomization_fns[task_cfg.task_name](
+            sys, rng, task_cfg
+        )[:-1]
     else:
         randomize_fn = None
+
     return env, randomize_fn
 
 
@@ -36,7 +37,7 @@ def checkpoint(current_step, make_policy, params):
 def report(logger, num_steps, metrics):
     metrics = {
         "train/objective": metrics["eval/episode_reward"],
-        "train/sps": metrics["training/sps"],
+        "train/sps": metrics["eval/sps"],
     }
     logger.log(metrics, num_steps)
 
@@ -48,19 +49,23 @@ def main(cfg):
         f"\n{OmegaConf.to_yaml(cfg)}"
     )
     logger = TrainingLogger(cfg)
-    policy_net_size = cfg.agent.pop("policy_layer_sizes")
-    value_net_size = cfg.agent.pop("value_layer_sizes")
+    agent_cfg = dict(cfg.agent)
+    policy_net_size = agent_cfg.pop("policy_layer_sizes")
+    value_net_size = agent_cfg.pop("value_layer_sizes")
     network_factory = functools.partial(
         ppo_networks.make_ppo_networks,
         policy_hidden_layer_sizes=policy_net_size,
         value_hidden_layer_sizes=value_net_size,
     )
+    environment, randomization_fn = get_environment(cfg)
     make_inference_fn, params, _ = ppo.train(
-        **cfg.agent,
+        **agent_cfg,
+        environment=environment,
         progress_fn=functools.partial(report, logger),
         restore_checkpoint_path=get_state_path(),
         policy_params_fn=checkpoint,
         network_factory=network_factory,
+        randomization_fn=randomization_fn,
     )
     _LOG.info("Done training.")
 
