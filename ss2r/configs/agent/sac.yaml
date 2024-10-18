@@ -8,10 +8,11 @@ discounting: 0.9
 seed: 0
 batch_size: 256
 num_evals: 1
-normalize_observations: false
+normalize_observations: False
 reward_scaling: 1.0
 tau: 0.005
 min_replay_size: 0
-max_replay_size: 1e6
+max_replay_size: 1000000
 grad_updates_per_step: 1
-deterministic_eval: false
+deterministic_eval: False
+hidden_layer_sizes: [256, 256, 256, 256, 256]

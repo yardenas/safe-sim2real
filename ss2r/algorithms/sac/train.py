@@ -32,7 +32,6 @@ from brax.training import replay_buffers
 from brax.training import types
 from brax.training.acme import running_statistics
 from brax.training.acme import specs
-from brax.training.agents.sac import losses as sac_losses
 from brax.training.agents.sac import networks as sac_networks
 from brax.training.types import Params
 from brax.training.types import PRNGKey
@@ -41,6 +40,8 @@ import flax
 import jax
 import jax.numpy as jnp
 import optax
+
+import  ss2r.algorithms.sac.losses as sac_losses
 
 Metrics = types.Metrics
 Transition = types.Transition

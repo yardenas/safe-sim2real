@@ -2,7 +2,6 @@ num_timesteps: 1000000
 episode_length: 1000
 action_repeat: 1
 num_envs: 1
-max_devices_per_host: null
 num_eval_envs: 128
 learning_rate: 1e-4
 entropy_cost: 1e-4
