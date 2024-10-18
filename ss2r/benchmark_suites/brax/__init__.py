@@ -34,6 +34,7 @@ class BraxAdapter(Simulator):
             self.parameterizations = samples
         else:
             env = envs.training.wrap(environment, action_repeat=action_repeat)
+            self.parameterizations = None
         self.parallel_envs = parallel_envs
         self.environment = env
 

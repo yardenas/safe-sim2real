@@ -11,13 +11,16 @@ _ENVS = 128
 
 
 @pytest.fixture
-def adapter() -> BraxAdapter:
+def adapter(request) -> BraxAdapter:
+    if request.param is None:
+        domain_randomization = True
+    else:
+        domain_randomization = request.param
     cfg = make_test_config(
         [
             f"training.parallel_envs={_ENVS}",
-            "environment.brax.domain_randomization=True",
+            f"environment.brax.domain_randomization={str(domain_randomization)}",
             "environment/task=inverted_pendulum",
-            # "environment.task.task_name=cartpole_balance",
         ]
     )
     make_env = benchmark_suites.make(cfg)
@@ -26,7 +29,10 @@ def adapter() -> BraxAdapter:
     return dummy_env
 
 
-def test_parameterization(adapter: BraxAdapter):
+@pytest.mark.parametrize(
+    "adapter,similar_rate", [(True, 0.0), (False, 1.0)], indirect=["adapter"]
+)
+def test_parameterization(adapter: BraxAdapter, similar_rate):
     def policy(*_, **__):
         return jnp.zeros((adapter.action_size,)), None
 
@@ -34,12 +40,14 @@ def test_parameterization(adapter: BraxAdapter):
     state = adapter.reset([0] * adapter.parallel_envs)
     next_state, _ = adapter.step(state, policy, jax.random.PRNGKey(0))
     count = sum(
-        jnp.allclose(next_state.obs[0, :], obs[0, :])
-        for obs in jnp.split(next_state.obs[1:, :], adapter.parallel_envs - 1, axis=0)
+        jnp.allclose(next_state.obs[j, :], next_state.obs[i, :])
+        for i in range(adapter.parallel_envs)
+        for j in range(adapter.parallel_envs)
+        if i != j
     )
     assert (
-        count / _ENVS < 0.2
-    ), "Different environment initializations should have different trajectories"
+        count / _ENVS**2 <= similar_rate
+    ), f"Domain randomization {adapter.parameterizations is not None}, expected {similar_rate}"
 
 
 def test_set_state(adapter: BraxAdapter):
