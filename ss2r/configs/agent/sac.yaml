@@ -2,22 +2,16 @@ num_timesteps: 1000000
 episode_length: 1000
 action_repeat: 1
 num_envs: 1
-max_devices_per_host: null
 num_eval_envs: 128
-learning_rate: 1e-4
-entropy_cost: 1e-4
+learning_rate: 0.0001
 discounting: 0.9
 seed: 0
-unroll_length: 10
-batch_size: 32
-num_minibatches: 16
-num_updates_per_batch: 2
+batch_size: 256
 num_evals: 1
-num_resets_per_eval: 0
-normalize_observations: False
+normalize_observations: false
 reward_scaling: 1.0
-clipping_epsilon: 0.3
-gae_lambda: 0.95
-policy_layer_sizes: [32, 32, 32, 32]
-value_layer_sizes: [256, 256, 256, 256, 256]
-normalize_advantage: True
+tau: 0.005
+min_replay_size: 0
+max_replay_size: 1e6
+grad_updates_per_step: 1
+deterministic_eval: false

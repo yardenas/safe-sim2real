@@ -1,6 +1,6 @@
 defaults:
   - _self_
-  - agent: jax/ppo
+  - agent: sac
   - environment: brax
 
 hydra:
