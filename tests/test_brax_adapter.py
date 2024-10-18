@@ -30,7 +30,10 @@ def adapter(request) -> BraxAdapter:
 
 
 @pytest.mark.parametrize(
-    "adapter,similar_rate", [(True, 0.0), (False, 1.0)], indirect=["adapter"]
+    "adapter,similar_rate",
+    [(True, 0.0), (False, 1.0)],
+    indirect=["adapter"],
+    ids=["domain_randomization", "no_domain_randomization"],
 )
 def test_parameterization(adapter: BraxAdapter, similar_rate):
     def policy(*_, **__):
