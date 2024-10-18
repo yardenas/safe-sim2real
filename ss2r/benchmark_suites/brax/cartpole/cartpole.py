@@ -7,7 +7,7 @@ from brax import base
 from brax.io import mjcf
 from brax.envs import register_environment
 from brax.envs.base import PipelineEnv, State
-from ss2r.algorithms.jax.state_sampler import StateSampler
+from ss2r.algorithms.state_sampler import StateSampler
 from ss2r.benchmark_suites.brax import rewards
 
 _POLE_MASS = 0.1
