@@ -69,8 +69,11 @@ def make_losses(
         transitions: Transition,
         key: PRNGKey,
     ) -> jnp.ndarray:
-        domain_params = transitions.extras.get("domain_parameters", jnp.asarray([]))
-        action = jnp.concatenate([transitions.action, domain_params], axis=-1)
+        domain_params = transitions.extras.get("domain_parameters", None)
+        if domain_params is not None:
+            action = jnp.concatenate([transitions.action, domain_params], axis=-1)
+        else:
+            action = transitions.action
         q_old_action = q_network.apply(
             normalizer_params, q_params, transitions.observation, action
         )
@@ -84,7 +87,8 @@ def make_losses(
             next_dist_params, next_action
         )
         next_action = parametric_action_distribution.postprocess(next_action)
-        next_action = jnp.concatenate([next_action, domain_params], axis=-1)
+        if domain_params is not None:
+            next_action = jnp.concatenate([next_action, domain_params], axis=-1)
         next_q = q_network.apply(
             normalizer_params,
             target_q_params,
@@ -121,8 +125,9 @@ def make_losses(
         )
         log_prob = parametric_action_distribution.log_prob(dist_params, action)
         action = parametric_action_distribution.postprocess(action)
-        domain_params = transitions.extras.get("domain_parameters", jnp.asarray([]))
-        action = jnp.concatenate([action, domain_params], axis=-1)
+        domain_params = transitions.extras.get("domain_parameters", None)
+        if domain_params is not None:
+            action = jnp.concatenate([action, domain_params], axis=-1)
         q_action = q_network.apply(
             normalizer_params, q_params, transitions.observation, action
         )

@@ -198,13 +198,15 @@ def train(
                 ),
             )
             sys, in_axes, domain_parameters = v_randomization_fn(env.sys)
+            vf_randomization_fn = lambda *_: (sys, in_axes)
         else:
             domain_parameters = jnp.asarray([])
+            vf_randomization_fn = None
         env = wrap_for_training(
             env,
             episode_length=episode_length,
             action_repeat=action_repeat,
-            randomization_fn=lambda *_: (sys, in_axes) if v_randomization_fn else None,
+            randomization_fn=vf_randomization_fn,
         )
 
     obs_size = env.observation_size
@@ -230,19 +232,21 @@ def train(
     dummy_action = jnp.zeros((action_size,))
     # FIXME (yarden): if no need for replay buffer, can remove `domain_parameters` from
     # extras.
+    extras = {
+        "state_extras": {
+            "truncation": 0.0,
+        },
+        "policy_extras": {},
+    }
+    if domain_parameters.shape[-1] > 0:
+        extras["domain_parameters"] = domain_parameters[0]
     dummy_transition = Transition(  # pytype: disable=wrong-arg-types  # jax-ndarray
         observation=dummy_obs,
         action=dummy_action,
         reward=0.0,
         discount=0.0,
         next_observation=dummy_obs,
-        extras={
-            "state_extras": {
-                "truncation": 0.0,
-            },
-            "policy_extras": {},
-            "domain_parameters": domain_parameters[0],
-        },
+        extras=extras,
     )
     replay_buffer = replay_buffers.UniformSamplingQueue(
         max_replay_size=max_replay_size // device_count,
@@ -353,17 +357,18 @@ def train(
         normalizer_params = running_statistics.update(
             normalizer_params, transitions.observation, pmap_axis_name=_PMAP_AXIS_NAME
         )
-        transitions = Transition(
-            observation=transitions.observation,
-            action=transitions.action,
-            reward=transitions.reward,
-            discount=transitions.discount,
-            next_observation=transitions.next_observation,
-            extras={
-                **transitions.extras,
-                "domain_parameters": domain_parameters,
-            },
-        )
+        if domain_parameters.shape[-1] > 0:
+            transitions = Transition(
+                observation=transitions.observation,
+                action=transitions.action,
+                reward=transitions.reward,
+                discount=transitions.discount,
+                next_observation=transitions.next_observation,
+                extras={
+                    **transitions.extras,
+                    "domain_parameters": domain_parameters,
+                },
+            )
         buffer_state = replay_buffer.insert(buffer_state, transitions)
         return normalizer_params, env_state, buffer_state
 
@@ -523,7 +528,7 @@ def train(
             v_randomization_fn = functools.partial(
                 randomization_fn, rng=jax.random.split(eval_key, num_eval_envs)
             )
-            vf_randomization_fn = lambda sys: v_randomization_fn(sys)[:-1]
+            vf_randomization_fn = lambda sys: v_randomization_fn(sys)[:-1]  # type: ignore
         else:
             vf_randomization_fn = None
         eval_env = wrap_for_training(
