@@ -3,6 +3,7 @@ prefill: 5000
 discount: 0.99
 batch_size: 256
 reward_scaling: 1.0
+num_grad_steps_per_step: 1
 polyak_rate: 0.005
 replay_buffer:
   capacity: 1e6

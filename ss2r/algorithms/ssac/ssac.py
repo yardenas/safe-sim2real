@@ -11,7 +11,6 @@ from omegaconf import DictConfig
 
 from ss2r.algorithms.ssac import safe_actor_critic as sac
 from ss2r.algorithms.ssac.replay_buffer import ReplayBuffer
-from ss2r.rl.epoch_summary import EpochSummary
 from ss2r.rl.metrics import MetricsMonitor
 from ss2r.rl.types import Report
 from ss2r.rl.utils import PRNGSequence
@@ -47,7 +46,9 @@ class SafeSAC:
 
     def update(self):
         if len(self.replay_buffer) > self.config.agent.prefill:
-            for batch in self.replay_buffer.sample(self.config.training.num_envs):
+            for batch in self.replay_buffer.sample(
+                self.config.agent.num_grad_steps_per_step
+            ):
                 losses = self.actor_critic.update(batch, next(self.prng))
                 log(losses, self.metrics_monitor)
             self.actor_critic.polyak(self.config.agent.polyak_rate)
@@ -55,7 +56,7 @@ class SafeSAC:
     def observe(self, transition: Transition) -> None:
         self.replay_buffer.store(transition)
 
-    def report(self, summary: EpochSummary, epoch: int, step: int) -> Report:
+    def report(self) -> Report:
         metrics = {
             k: float(v.result.mean) for k, v in self.metrics_monitor.metrics.items()
         }
@@ -127,8 +128,10 @@ def train(config, environment, progress_fn, checkpoint_logdir):
         if step >= next_eval_step and eval_count < config.training.num_evals:
             local_key, key = jax.random.split(local_key)
             report = agent.report()
-            evaluator.run_evaluation(agent.actor_critic.actor, report.metrics)
+            metrics = evaluator.run_evaluation(
+                eqx.filter(agent.actor_critic.actor, eqx.is_array), report.metrics
+            )
             eval_count += 1
             next_eval_step += steps_per_eval
             current_epoch = eval_count
-            progress_fn(current_epoch, report.metrics)
+            progress_fn(current_epoch, metrics)
