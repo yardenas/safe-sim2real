@@ -30,8 +30,8 @@ def get_environment(cfg):
 
 def report(logger, num_steps, metrics):
     metrics = {
-        "train/objective": metrics["eval/episode_reward"],
-        "train/sps": metrics["eval/sps"],
+        "train/objective": float(metrics["eval/episode_reward"]),
+        "train/sps": float(metrics["eval/sps"]),
     }
     logger.log(metrics, num_steps)
 

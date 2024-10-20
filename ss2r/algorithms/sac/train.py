@@ -204,7 +204,7 @@ def train(
             env,
             episode_length=episode_length,
             action_repeat=action_repeat,
-            randomization_fn=lambda *_: (sys, in_axes),
+            randomization_fn=lambda *_: (sys, in_axes) if v_randomization_fn else None,
         )
 
     obs_size = env.observation_size

@@ -1,13 +1,13 @@
-num_timesteps: 1000000
+num_timesteps: 10000000
 episode_length: 1000
-action_repeat: 1
+action_repeat: 2
 num_envs: 2048
 num_eval_envs: 128
 learning_rate: 0.0001
 discounting: 0.9
 seed: 0
 batch_size: 256
-num_evals: 1
+num_evals: 10
 normalize_observations: False
 reward_scaling: 1.0
 tau: 0.005
