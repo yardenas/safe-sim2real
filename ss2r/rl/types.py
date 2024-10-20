@@ -1,9 +1,9 @@
 from dataclasses import dataclass, field
-from typing import Any, Callable, NamedTuple, Protocol, Sequence, Union
+from typing import Any, Callable, Protocol, Sequence, TypeAlias, Union
 
 import jax
 import numpy as np
-from brax.training.types import Policy
+from brax.training import types
 from numpy import typing as npt
 from omegaconf import DictConfig
 
@@ -12,15 +12,7 @@ FloatArray = Union[npt.NDArray[Union[np.float32, np.float64]], jax.Array]
 
 SimulatorState = Any
 
-
-class Transition(NamedTuple):
-    observation: FloatArray
-    next_observation: FloatArray
-    action: FloatArray
-    reward: FloatArray
-    cost: FloatArray
-    discount: FloatArray
-    extras: dict[str, Any] | None = None
+Transition: TypeAlias = types.Transition
 
 
 TrajectoryData = Transition
@@ -37,7 +29,7 @@ class Simulator(Protocol):
 
     def rollout(
         self,
-        policy: Policy,
+        policy: types.Policy,
         steps: int,
         seed: int,
         state: SimulatorState = None,
@@ -63,7 +55,7 @@ class Agent(Protocol):
     config: DictConfig
 
     @property
-    def policy(self) -> Policy:
+    def policy(self) -> types.Policy:
         ...
 
     def train(self, steps: int, simulator: Simulator) -> Report:

@@ -36,10 +36,12 @@ training:
   safe: true
   safety_budget: 25
   seed: 0
-  steps_per_epoch: 5000
-  num_eval_steps: 5000
+  num_evals: 10
+  episode_length: 1000
+  num_envs: 2048
+  num_eval_envs: 128
   epochs: 200
   action_repeat: 1
   render_episodes: 0
-  parallel_envs: 10
   scale_reward: 1.
+  num_timesteps: 1000000
