@@ -27,7 +27,7 @@ def domain_randomization(sys, rng, cfg):
     in_axes = jax.tree_map(lambda x: None, sys)
     in_axes = in_axes.tree_replace({"link.inertia.mass": 0})
     sys = sys.tree_replace({"link.inertia.mass": samples})
-    return sys, in_axes, samples[:, None]
+    return sys, in_axes, samples
 
 
 def sample_state(state_sampler: StateSampler):

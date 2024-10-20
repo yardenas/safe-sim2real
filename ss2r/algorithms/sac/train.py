@@ -19,7 +19,7 @@ See: https://arxiv.org/pdf/1812.05905.pdf
 
 import functools
 import time
-from typing import Any, Callable, Optional, Tuple, Union
+from typing import Any, Callable, Optional, Tuple, TypeAlias, Union
 
 from absl import logging
 from brax import base
@@ -32,7 +32,6 @@ from brax.training import replay_buffers
 from brax.training import types
 from brax.training.acme import running_statistics
 from brax.training.acme import specs
-from brax.training.agents.sac import networks as sac_networks
 from brax.training.types import Params
 from brax.training.types import PRNGKey
 from brax.v1 import envs as envs_v1
@@ -41,13 +40,14 @@ import jax
 import jax.numpy as jnp
 import optax
 
-import  ss2r.algorithms.sac.losses as sac_losses
+import ss2r.algorithms.sac.losses as sac_losses
+import ss2r.algorithms.sac.networks as sac_networks
 
-Metrics = types.Metrics
-Transition = types.Transition
-InferenceParams = Tuple[running_statistics.NestedMeanStd, Params]
+Metrics: TypeAlias = types.Metrics
+Transition: TypeAlias = types.Transition
+InferenceParams: TypeAlias = Tuple[running_statistics.NestedMeanStd, Params]
 
-ReplayBufferState = Any
+ReplayBufferState: TypeAlias = Any
 
 _PMAP_AXIS_NAME = "i"
 
@@ -106,7 +106,7 @@ def _init_training_state(
         alpha_optimizer_state=alpha_optimizer_state,
         alpha_params=log_alpha,
         normalizer_params=normalizer_params,
-    )
+    )  #  type: ignore
     return jax.device_put_replicated(
         training_state, jax.local_devices()[:local_devices_to_use]
     )
@@ -133,14 +133,14 @@ def train(
     max_replay_size: Optional[int] = None,
     grad_updates_per_step: int = 1,
     deterministic_eval: bool = False,
-    network_factory: types.NetworkFactory[
+    network_factory: sac_networks.DomainRandomizationNetworkFactory[
         sac_networks.SACNetworks
     ] = sac_networks.make_sac_networks,
     progress_fn: Callable[[int, Metrics], None] = lambda *args: None,
     checkpoint_logdir: Optional[str] = None,
     eval_env: Optional[envs.Env] = None,
     randomization_fn: Optional[
-        Callable[[base.System, jnp.ndarray], Tuple[base.System, base.System]]
+        Callable[[base.System, jnp.ndarray], Tuple[base.System, base.System, jax.Array]]
     ] = None,
 ):
     """SAC training."""
@@ -197,11 +197,14 @@ def train(
                     key, num_envs // jax.process_count() // local_devices_to_use
                 ),
             )
+            sys, in_axes, domain_parameters = v_randomization_fn(env.sys)
+        else:
+            domain_parameters = jnp.asarray([])
         env = wrap_for_training(
             env,
             episode_length=episode_length,
             action_repeat=action_repeat,
-            randomization_fn=v_randomization_fn,
+            randomization_fn=lambda *_: (sys, in_axes),
         )
 
     obs_size = env.observation_size
@@ -214,6 +217,7 @@ def train(
         observation_size=obs_size,
         action_size=action_size,
         preprocess_observations_fn=normalize_fn,
+        domain_randomization_size=domain_parameters.shape[-1],
     )
     make_policy = sac_networks.make_inference_fn(sac_network)
 
@@ -224,13 +228,21 @@ def train(
 
     dummy_obs = jnp.zeros((obs_size,))
     dummy_action = jnp.zeros((action_size,))
+    # FIXME (yarden): if no need for replay buffer, can remove `domain_parameters` from
+    # extras.
     dummy_transition = Transition(  # pytype: disable=wrong-arg-types  # jax-ndarray
         observation=dummy_obs,
         action=dummy_action,
         reward=0.0,
         discount=0.0,
         next_observation=dummy_obs,
-        extras={"state_extras": {"truncation": 0.0}, "policy_extras": {}},
+        extras={
+            "state_extras": {
+                "truncation": 0.0,
+            },
+            "policy_extras": {},
+            "domain_parameters": domain_parameters[0],
+        },
     )
     replay_buffer = replay_buffers.UniformSamplingQueue(
         max_replay_size=max_replay_size // device_count,
@@ -320,7 +332,7 @@ def train(
             alpha_optimizer_state=alpha_optimizer_state,
             alpha_params=alpha_params,
             normalizer_params=training_state.normalizer_params,
-        )
+        )  # type: ignore
         return (new_training_state, key), metrics
 
     def get_experience(
@@ -338,11 +350,20 @@ def train(
         env_state, transitions = acting.actor_step(
             env, env_state, policy, key, extra_fields=("truncation",)
         )
-
         normalizer_params = running_statistics.update(
             normalizer_params, transitions.observation, pmap_axis_name=_PMAP_AXIS_NAME
         )
-
+        transitions = Transition(
+            observation=transitions.observation,
+            action=transitions.action,
+            reward=transitions.reward,
+            discount=transitions.discount,
+            next_observation=transitions.next_observation,
+            extras={
+                **transitions.extras,
+                "domain_parameters": domain_parameters,
+            },
+        )
         buffer_state = replay_buffer.insert(buffer_state, transitions)
         return normalizer_params, env_state, buffer_state
 
@@ -362,7 +383,7 @@ def train(
             buffer_state,
             experience_key,
         )
-        training_state = training_state.replace(
+        training_state = training_state.replace(  # type: ignore
             normalizer_params=normalizer_params,
             env_steps=training_state.env_steps + env_steps_per_actor_step,
         )
@@ -443,7 +464,7 @@ def train(
         buffer_state: ReplayBufferState,
         key: PRNGKey,
     ) -> Tuple[TrainingState, envs.State, ReplayBufferState, Metrics]:
-        nonlocal training_walltime
+        nonlocal training_walltime  # type: ignore
         t = time.time()
         (training_state, env_state, buffer_state, metrics) = training_epoch(
             training_state, env_state, buffer_state, key
@@ -502,11 +523,14 @@ def train(
             v_randomization_fn = functools.partial(
                 randomization_fn, rng=jax.random.split(eval_key, num_eval_envs)
             )
+            vf_randomization_fn = lambda sys: v_randomization_fn(sys)[:-1]
+        else:
+            vf_randomization_fn = None
         eval_env = wrap_for_training(
             eval_env,
             episode_length=episode_length,
             action_repeat=action_repeat,
-            randomization_fn=v_randomization_fn,
+            randomization_fn=vf_randomization_fn,
         )
 
     evaluator = acting.Evaluator(

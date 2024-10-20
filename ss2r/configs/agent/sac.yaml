@@ -1,7 +1,7 @@
 num_timesteps: 1000000
 episode_length: 1000
 action_repeat: 1
-num_envs: 1
+num_envs: 2048
 num_eval_envs: 128
 learning_rate: 0.0001
 discounting: 0.9

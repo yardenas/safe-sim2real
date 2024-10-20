@@ -3,7 +3,6 @@ import logging
 
 import hydra
 from brax import envs
-from brax.training.agents.sac import networks as sac_networks
 from omegaconf import OmegaConf
 
 import ss2r.algorithms.sac.train as sac
@@ -11,6 +10,7 @@ from ss2r.benchmark_suites.brax import randomization_fns
 from ss2r.benchmark_suites.utils import get_task_config
 from ss2r.rl.logging import TrainingLogger
 from ss2r.rl.trainer import get_state_path
+import ss2r.algorithms.sac.networks as sac_networks
 
 _LOG = logging.getLogger(__name__)
 
@@ -21,7 +21,7 @@ def get_environment(cfg):
     if cfg.environment.brax.domain_randomization:
         randomize_fn = lambda sys, rng: randomization_fns[task_cfg.task_name](
             sys, rng, task_cfg
-        )[:-1]
+        )
     else:
         randomize_fn = None
 

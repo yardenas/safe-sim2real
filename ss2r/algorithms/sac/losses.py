@@ -16,7 +16,7 @@
 
 See: https://arxiv.org/pdf/1812.05905.pdf
 """
-from typing import Any
+from typing import Any, TypeAlias
 
 from brax.training import types
 from brax.training.agents.sac import networks as sac_networks
@@ -25,7 +25,7 @@ from brax.training.types import PRNGKey
 import jax
 import jax.numpy as jnp
 
-Transition = types.Transition
+Transition: TypeAlias = types.Transition
 
 
 def make_losses(
@@ -69,8 +69,10 @@ def make_losses(
         transitions: Transition,
         key: PRNGKey,
     ) -> jnp.ndarray:
+        domain_params = transitions.extras.get("domain_parameters", jnp.asarray([]))
+        action = jnp.concatenate([transitions.action, domain_params], axis=-1)
         q_old_action = q_network.apply(
-            normalizer_params, q_params, transitions.observation, transitions.action
+            normalizer_params, q_params, transitions.observation, action
         )
         next_dist_params = policy_network.apply(
             normalizer_params, policy_params, transitions.next_observation
@@ -82,6 +84,7 @@ def make_losses(
             next_dist_params, next_action
         )
         next_action = parametric_action_distribution.postprocess(next_action)
+        next_action = jnp.concatenate([next_action, domain_params], axis=-1)
         next_q = q_network.apply(
             normalizer_params,
             target_q_params,
@@ -118,6 +121,8 @@ def make_losses(
         )
         log_prob = parametric_action_distribution.log_prob(dist_params, action)
         action = parametric_action_distribution.postprocess(action)
+        domain_params = transitions.extras.get("domain_parameters", jnp.asarray([]))
+        action = jnp.concatenate([action, domain_params], axis=-1)
         q_action = q_network.apply(
             normalizer_params, q_params, transitions.observation, action
         )
