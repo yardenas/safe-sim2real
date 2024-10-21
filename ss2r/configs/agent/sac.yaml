@@ -1,7 +1,7 @@
 num_timesteps: 10000000
 episode_length: 1000
 action_repeat: 1
-num_envs: 2048
+num_envs: 512
 num_eval_envs: 128
 learning_rate: 3e-4
 discounting: 0.99
@@ -13,6 +13,6 @@ reward_scaling: 1.0
 tau: 0.005
 min_replay_size: 0
 max_replay_size: 1000000
-grad_updates_per_step: 1
+grad_updates_per_step: 512
 deterministic_eval: False
 hidden_layer_sizes: [128, 128]
