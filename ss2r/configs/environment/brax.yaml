@@ -5,4 +5,4 @@ defaults:
 
 brax:
   backend: generalized
-  domain_randomization: True
+  domain_randomization: False

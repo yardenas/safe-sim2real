@@ -1,5 +1,4 @@
 import functools
-from datetime import datetime
 
 import brax.training.agents.sac.train as sac
 import dm_env
@@ -64,58 +63,36 @@ def display_video(video, fps=30):
     plt.ioff()
 
 
-@pytest.mark.skip
 def test_sac():
     train_fn = functools.partial(
         sac.train,
-        num_timesteps=10000000,
-        num_evals=20,
-        reward_scaling=30,
+        num_timesteps=400000,
+        num_evals=4,
         episode_length=1000,
-        normalize_observations=True,
-        action_repeat=1,
-        discounting=0.997,
-        learning_rate=6e-4,
-        num_envs=2048,
-        batch_size=512,
-        grad_updates_per_step=32,
-        max_replay_size=1048576,
-        min_replay_size=8192,
+        num_envs=512,
+        batch_size=256,
+        grad_updates_per_step=512,
         seed=1,
     )
     xdata, ydata = [], []
-    times = [datetime.now()]
-    plt.ion()
-    plt.show()
 
     def progress(num_steps, metrics):
-        times.append(datetime.now())
         xdata.append(num_steps)
         ydata.append(metrics["eval/episode_reward"])
-        plt.cla()
-        plt.xlim([0, train_fn.keywords["num_timesteps"]])
-        plt.xlabel("# environment steps")
-        plt.ylabel("reward per episode")
-        plt.plot(xdata, ydata)
-        plt.draw()
-        plt.pause(0.5)
+        print(f"{num_steps}: {metrics['eval/episode_reward']}")
 
-    with jax.disable_jit(False):
-        env = envs.get_environment(env_name="cartpole_swingup")
-        make_inference_fn, params, _ = train_fn(environment=env, progress_fn=progress)
-    print(f"time to jit: {times[1] - times[0]}")
-    print(f"time to train: {times[-1] - times[1]}")
+    env = envs.get_environment(env_name="cartpole_swingup")
+    train_fn(environment=env, progress_fn=progress)
+    assert ydata[-1] > 750
 
 
-# Define a simple (nontrivial) policy that works in both environments
 def shared_policy(state):
-    pos = state[0]  # position of the pole (can vary between Brax and DMC)
-    vel = state[1]  # velocity of the pole
-    action = -1.0 * pos - 0.1 * vel  # A basic control law that swings the pole upright
+    pos = state[0]
+    vel = state[1]
+    action = -1.0 * pos - 0.1 * vel
     return np.array([action])
 
 
-# Helper function to set a custom initial state in the Brax environment
 def set_brax_initial_state(env, init_state):
     q = jax.numpy.asarray([init_state[0], init_state[2]])
     qd = jax.numpy.asarray([init_state[1], init_state[3]])
@@ -132,7 +109,6 @@ def set_brax_initial_state(env, init_state):
     return envs.State(pipeline_state, obs, reward, done, {}, info)
 
 
-# Helper function to set a custom initial state in the DMC environment
 def set_dmc_initial_state(env, init_state):
     physics = env.physics
     with physics.reset_context():

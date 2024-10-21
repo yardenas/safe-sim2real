@@ -17,7 +17,7 @@ _LOG = logging.getLogger(__name__)
 
 def get_environment(cfg):
     task_cfg = get_task_config(cfg)
-    env = envs.get_environment(task_cfg.task_name, backend="generalized")
+    env = envs.get_environment(task_cfg.task_name, backend=cfg.environment.brax.backend)
     if cfg.environment.brax.domain_randomization:
         randomize_fn = lambda sys, rng: randomization_fns[task_cfg.task_name](
             sys, rng, task_cfg
