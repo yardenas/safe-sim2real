@@ -80,7 +80,6 @@ class BraxAdapter(Simulator):
         actions, policy_extras = policy(env_state.obs, key)
         nstate = self.environment.step(env_state, actions)
         state_extras = {x: nstate.info[x] for x in extra_fields}
-        cost = state_extras.get("cost", jnp.zeros_like(nstate.reward))
         extras = {"policy_extras": policy_extras, "state_extras": state_extras}
         if with_pipeline_state:
             extras["pipeline_state"] = nstate.pipeline_state
@@ -88,7 +87,6 @@ class BraxAdapter(Simulator):
             observation=env_state.obs,
             action=actions,
             reward=nstate.reward,
-            cost=cost,
             discount=1 - nstate.done,
             next_observation=nstate.obs,
             extras=extras,
@@ -156,7 +154,7 @@ def make(cfg: DictConfig) -> SimulatorFactory:
         sim = BraxAdapter(
             env,
             cfg.training.seed,
-            cfg.training.parallel_envs,
+            cfg.training.num_envs,
             randomize_fn,
             cfg.training.action_repeat,
         )

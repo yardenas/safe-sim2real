@@ -18,10 +18,11 @@ def domain_randomization(sys, rng, cfg):
     def randomize(rng):
         # Hardcoding _POLE_MASS to avoid weird jax issues.
         mask = jnp.asarray([0.0, 1.0])
-        cpole = (
+        sample = (
             jax.random.normal(rng) * cfg.scale * mask + (cfg.shift + _POLE_MASS) * mask
         )
-        return cpole
+        sample = sys.link.inertia.mass[0] + sample
+        return sample
 
     samples = randomize(rng)
     in_axes = jax.tree_map(lambda x: None, sys)

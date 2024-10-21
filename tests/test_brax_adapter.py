@@ -18,9 +18,10 @@ def adapter(request) -> BraxAdapter:
         domain_randomization = request.param
     cfg = make_test_config(
         [
-            f"training.parallel_envs={_ENVS}",
+            f"training.num_envs={_ENVS}",
             f"environment.brax.domain_randomization={str(domain_randomization)}",
-            "environment/task=inverted_pendulum",
+            "environment/task=cartpole",
+            "environment.task.task_name=cartpole_balance",
         ]
     )
     make_env = benchmark_suites.make(cfg)
@@ -37,7 +38,7 @@ def adapter(request) -> BraxAdapter:
 )
 def test_parameterization(adapter: BraxAdapter, similar_rate):
     def policy(*_, **__):
-        return jnp.zeros((adapter.action_size,)), None
+        return jnp.ones((adapter.action_size,)), None
 
     policy = jax.vmap(policy, in_axes=(0, None))
     state = adapter.reset([0] * adapter.parallel_envs)

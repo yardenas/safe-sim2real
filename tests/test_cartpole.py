@@ -3,6 +3,7 @@ import functools
 import brax.training.agents.sac.train as sac
 import dm_env
 import jax
+import jax.numpy as jnp
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
@@ -12,13 +13,15 @@ from dm_control import suite
 from dm_control.rl.control import flatten_observation
 
 from ss2r import benchmark_suites
+from ss2r.benchmark_suites.brax import randomization_fns
 from ss2r.benchmark_suites.brax import BraxAdapter
+from ss2r.benchmark_suites.utils import get_task_config
 from tests import make_test_config
 
 
 @pytest.fixture
 def adapter() -> BraxAdapter:
-    cfg = make_test_config([f"training.parallel_envs={1}", "environment/task=cartpole"])
+    cfg = make_test_config([f"training.num_envs={1}", "environment/task=cartpole"])
     make_env = benchmark_suites.make(cfg)
     dummy_env = make_env()
     assert isinstance(dummy_env, BraxAdapter)
@@ -153,3 +156,57 @@ def test_brax_dmc_cartpole():
         # Step both environments with the same action
         brax_state = brax_step(brax_state, action)
         dmc_state = dmc_env.step(action)
+
+
+_ENVS = 256
+
+
+@pytest.mark.parametrize(
+    "use_domain_randomization,similar_rate",
+    [(True, 0.0), (False, 1.0)],
+    ids=["domain_randomization", "no_domain_randomization"],
+)
+def test_parameterization(use_domain_randomization, similar_rate):
+    def get_environment():
+        cfg = make_test_config(
+            [
+                f"training.num_envs={1}",
+                "environment/task=cartpole",
+                "environment.brax.domain_randomization="
+                + str(use_domain_randomization),
+            ]
+        )
+        task_cfg = get_task_config(cfg)
+        env = envs.get_environment(
+            task_cfg.task_name, backend=cfg.environment.brax.backend
+        )
+        if cfg.environment.brax.domain_randomization:
+            randomize_fn = lambda sys, rng: randomization_fns[task_cfg.task_name](
+                sys, rng, task_cfg
+            )
+        else:
+            randomize_fn = None
+        return env, randomize_fn
+
+    env, randomize_fn = get_environment()
+    if use_domain_randomization:
+        keys = jax.random.split(jax.random.PRNGKey(0), _ENVS)
+        v_randomize_fn = lambda sys: randomize_fn(sys, keys)
+    else:
+        v_randomize_fn = None
+    env = envs.training.wrap(env, randomization_fn=v_randomize_fn)
+    keys = jnp.stack([jax.random.PRNGKey(0) for _ in range(_ENVS)])
+    brax_state = env.reset(rng=keys)
+    brax_step = jax.jit(env.step)
+    brax_state = brax_step(brax_state, jnp.ones((_ENVS, env.action_size)))
+    count = sum(
+        jnp.allclose(brax_state.obs[j, :], brax_state.obs[i, :])
+        for i in range(_ENVS)
+        for j in range(_ENVS)
+        if i != j
+    )
+    total = _ENVS * (_ENVS - 1)
+    assert (
+        (count / total <= similar_rate and use_domain_randomization)
+        or (count / total >= similar_rate and not use_domain_randomization)
+    ), f"Domain randomization {use_domain_randomization is not None}, expected {similar_rate}"

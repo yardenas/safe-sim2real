@@ -28,7 +28,6 @@ def get_environment(cfg):
         )
     else:
         randomize_fn = None
-
     return env, randomize_fn
 
 
