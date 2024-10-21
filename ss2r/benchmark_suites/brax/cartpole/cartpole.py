@@ -31,6 +31,19 @@ def domain_randomization(sys, rng, cfg):
     return sys, in_axes, samples
 
 
+def domain_randomization_gear(sys, rng, cfg):
+    @jax.vmap
+    def randomize(rng):
+        sample = jax.random.normal(rng) * cfg.scale + sys.actuator.gear[0]
+        return sample
+
+    samples = randomize(rng)
+    in_axes = jax.tree_map(lambda x: None, sys)
+    in_axes = in_axes.tree_replace({"actuator.gear": 0})
+    sys = sys.tree_replace({"actuator.gear": samples})
+    return sys, in_axes, samples
+
+
 def sample_state(state_sampler: StateSampler):
     pass
 
