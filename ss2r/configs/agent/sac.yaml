@@ -1,13 +1,7 @@
-num_timesteps: 10000000
-episode_length: 1000
-action_repeat: 1
-num_envs: 512
-num_eval_envs: 128
+name: sac
 learning_rate: 3e-4
 discounting: 0.99
-seed: 0
 batch_size: 256
-num_evals: 10
 normalize_observations: True
 reward_scaling: 1.0
 tau: 0.005

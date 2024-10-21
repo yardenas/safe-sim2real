@@ -1,3 +1,4 @@
+import os
 import functools
 import logging
 
@@ -5,14 +6,17 @@ import hydra
 from brax import envs
 from omegaconf import OmegaConf
 
-import ss2r.algorithms.sac.train as sac
+import ss2r.algorithms.sac.networks as sac_networks
 from ss2r.benchmark_suites.brax import randomization_fns
 from ss2r.benchmark_suites.utils import get_task_config
 from ss2r.rl.logging import TrainingLogger
-from ss2r.rl.trainer import get_state_path
-import ss2r.algorithms.sac.networks as sac_networks
 
 _LOG = logging.getLogger(__name__)
+
+
+def get_state_path() -> str:
+    log_path = os.getcwd()
+    return log_path
 
 
 def get_environment(cfg):
@@ -26,6 +30,33 @@ def get_environment(cfg):
         randomize_fn = None
 
     return env, randomize_fn
+
+
+def get_train_fn(cfg):
+    if cfg.agent.name == "sac":
+        import ss2r.algorithms.sac.train as sac
+
+        agent_cfg = dict(cfg.agent)
+        training_cfg = {
+            k: v
+            for k, v in cfg.training.items()
+            if k not in ["safe", "render_episodes", "safety_budget"]
+        }
+        hidden_layer_sizes = agent_cfg.pop("hidden_layer_sizes")
+        del agent_cfg["name"]
+        network_factory = functools.partial(
+            sac_networks.make_sac_networks, hidden_layer_sizes=hidden_layer_sizes
+        )
+        train_fn = functools.partial(
+            sac.train,
+            **agent_cfg,
+            **training_cfg,
+            network_factory=network_factory,
+            checkpoint_logdir=get_state_path(),
+        )
+    else:
+        raise ValueError(f"Unknown agent name: {cfg.agent.name}")
+    return train_fn
 
 
 def report(logger, num_steps, metrics):
@@ -43,18 +74,11 @@ def main(cfg):
         f"\n{OmegaConf.to_yaml(cfg)}"
     )
     logger = TrainingLogger(cfg)
-    agent_cfg = dict(cfg.agent)
-    hidden_layer_sizes = agent_cfg.pop("hidden_layer_sizes")
-    network_factory = functools.partial(
-        sac_networks.make_sac_networks, hidden_layer_sizes=hidden_layer_sizes
-    )
     environment, randomization_fn = get_environment(cfg)
-    make_inference_fn, params, _ = sac.train(
-        **agent_cfg,
+    train_fn = get_train_fn(cfg)
+    make_inference_fn, params, _ = train_fn(
         environment=environment,
         progress_fn=functools.partial(report, logger),
-        checkpoint_logdir=get_state_path(),
-        network_factory=network_factory,
         randomization_fn=randomization_fn,
     )
     _LOG.info("Done training.")
