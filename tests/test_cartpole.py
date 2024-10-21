@@ -163,7 +163,7 @@ _ENVS = 256
 
 @pytest.mark.parametrize(
     "use_domain_randomization,similar_rate",
-    [(True, 0.0), (False, 1.0)],
+    [(True, 0.1), (False, 1.0)],
     ids=["domain_randomization", "no_domain_randomization"],
 )
 def test_parameterization(use_domain_randomization, similar_rate):
@@ -191,7 +191,7 @@ def test_parameterization(use_domain_randomization, similar_rate):
     env, randomize_fn = get_environment()
     if use_domain_randomization:
         keys = jax.random.split(jax.random.PRNGKey(0), _ENVS)
-        v_randomize_fn = lambda sys: randomize_fn(sys, keys)
+        v_randomize_fn = lambda sys: randomize_fn(sys, keys)[:-1]
     else:
         v_randomize_fn = None
     env = envs.training.wrap(env, randomization_fn=v_randomize_fn)
