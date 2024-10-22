@@ -19,7 +19,7 @@ def domain_randomization(sys, rng, cfg):
         pole_mass = jnp.asarray([1.0, 0.1])
         mask = jnp.asarray([0.0, 1.0])
         sample = jax.random.normal(rng) * cfg.scale * mask + cfg.shift * mask
-        sample = pole_mass + sample
+        sample = pole_mass + jnp.abs(sample)
         return sample
 
     samples = randomize(rng)
