@@ -16,10 +16,10 @@ def domain_randomization(sys, rng, cfg):
     @jax.vmap
     def randomize(rng):
         # Hardcoding _POLE_MASS to avoid weird jax issues.
-        pole_mass = jnp.asarray([1.0, 0.1])
+        pole_mass = jnp.asarray([1.0, 0.0])
         mask = jnp.asarray([0.0, 1.0])
-        sample = jax.random.normal(rng) * cfg.scale * mask + cfg.shift * mask
-        sample = pole_mass + jnp.abs(sample)
+        sample = jax.random.uniform(rng, minval=cfg.min, maxval=cfg.max) * mask
+        sample = pole_mass + sample
         return sample
 
     samples = randomize(rng)
