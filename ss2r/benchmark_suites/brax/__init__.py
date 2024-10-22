@@ -1,11 +1,13 @@
 import functools
 from typing import Callable, Sequence
-from omegaconf import DictConfig
+
 import jax
 import jax.numpy as jnp
 from brax import envs
 from brax.base import System
 from brax.training.types import Policy, PRNGKey
+from omegaconf import DictConfig
+
 from ss2r.benchmark_suites.brax.cartpole import cartpole
 from ss2r.benchmark_suites.utils import get_task_config
 from ss2r.rl.types import Simulator, SimulatorFactory, TrajectoryData, Transition
@@ -134,7 +136,7 @@ class BraxAdapter(Simulator):
 
 
 randomization_fns = {
-    "cartpole_swingup": cartpole.domain_randomization,
+    "cartpole_swingup": cartpole.domain_randomization_gear,
     "cartpole_swingup_sparse": cartpole.domain_randomization,
     "cartpole_balance": cartpole.domain_randomization,
     "inverted_pendulum": cartpole.domain_randomization,

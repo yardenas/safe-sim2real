@@ -32,7 +32,7 @@ def domain_randomization(sys, rng, cfg):
 def domain_randomization_gear(sys, rng, cfg):
     @jax.vmap
     def randomize(rng):
-        actuator_gear = 10.0
+        actuator_gear = jnp.asarray([10.0])
         sample = jax.random.normal(rng) * cfg.scale + actuator_gear
         return sample
 
