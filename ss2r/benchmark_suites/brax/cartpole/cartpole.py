@@ -29,11 +29,27 @@ def domain_randomization(sys, rng, cfg):
     return sys, in_axes, samples
 
 
+def domain_randomization_length(sys, rng, cfg):
+    @jax.vmap
+    def randomize(rng):
+        # Hardcoding _POLE_MASS to avoid weird jax issues.
+        pole_mass = jnp.asarray([1.0, 0.0])
+        mask = jnp.asarray([0.0, 1.0])
+        sample = jax.random.uniform(rng, minval=cfg.min, maxval=cfg.max) * mask
+        sample = pole_mass + sample
+        return sample
+
+    samples = randomize(rng)
+    in_axes = jax.tree_map(lambda x: None, sys)
+    in_axes = in_axes.tree_replace({"link.inertia.mass": 0})
+    sys = sys.tree_replace({"link.inertia.mass": samples})
+    return sys, in_axes, samples
+
+
 def domain_randomization_gear(sys, rng, cfg):
     @jax.vmap
     def randomize(rng):
-        actuator_gear = jnp.asarray([10.0])
-        sample = jax.random.normal(rng) * cfg.scale + actuator_gear
+        sample = jax.random.uniform(rng, minval=cfg.min, maxval=cfg.max)
         return sample
 
     samples = randomize(rng)

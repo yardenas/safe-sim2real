@@ -4,28 +4,15 @@ import brax.training.agents.sac.train as sac
 import dm_env
 import jax
 import jax.numpy as jnp
-import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 from brax import envs
-from brax.io import image
 from dm_control import suite
 from dm_control.rl.control import flatten_observation
 
-from ss2r import benchmark_suites
 from ss2r.benchmark_suites.brax import randomization_fns
-from ss2r.benchmark_suites.brax import BraxAdapter
 from ss2r.benchmark_suites.utils import get_task_config
 from tests import make_test_config
-
-
-@pytest.fixture
-def adapter() -> BraxAdapter:
-    cfg = make_test_config([f"training.num_envs={1}", "environment/task=cartpole"])
-    make_env = benchmark_suites.make(cfg)
-    dummy_env = make_env()
-    assert isinstance(dummy_env, BraxAdapter)
-    return dummy_env
 
 
 def pytrees_unstack(pytree):
@@ -37,33 +24,6 @@ def pytrees_unstack(pytree):
             new_leaves[i].append(leaf[i])
     new_trees = [treedef.unflatten(leaf) for leaf in new_leaves]
     return new_trees
-
-
-@pytest.mark.skip
-def test_rollout(adapter: BraxAdapter):
-    def policy(_, key):
-        return jax.random.uniform(
-            key, shape=(adapter.action_size,), minval=-1.0, maxval=1.0
-        ), None
-
-    policy = jax.vmap(policy, in_axes=(0, None))
-    _, data = adapter.rollout(policy, 100, 666, with_pipeline_state=True)
-    trajectory = jax.tree_map(lambda x: x[:, 0], data.extras["pipeline_state"])  # type: ignore
-    trajectory = pytrees_unstack(trajectory)
-    video = image.render_array(adapter.environment.sys, trajectory)
-    display_video(video)
-
-
-def display_video(video, fps=30):
-    delay = 1 / fps
-    _, ax = plt.subplots()
-    plt.ion()
-    for frame in video:
-        ax.imshow(frame)
-        ax.axis("off")
-        plt.pause(delay)
-        plt.draw()
-    plt.ioff()
 
 
 def test_sac():
@@ -172,15 +132,14 @@ def test_parameterization(use_domain_randomization, similar_rate):
             [
                 f"training.num_envs={1}",
                 "environment/task=cartpole",
-                "environment.brax.domain_randomization="
-                + str(use_domain_randomization),
+                "training.train_domain_randomization=" + str(use_domain_randomization),
             ]
         )
         task_cfg = get_task_config(cfg)
         env = envs.get_environment(
             task_cfg.task_name, backend=cfg.environment.brax.backend
         )
-        if cfg.environment.brax.domain_randomization:
+        if cfg.training.train_domain_randomization:
             randomize_fn = lambda sys, rng: randomization_fns[task_cfg.task_name](
                 sys, rng, task_cfg
             )

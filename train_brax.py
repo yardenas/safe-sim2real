@@ -1,8 +1,9 @@
-import os
 import functools
 import logging
+import os
 
 import hydra
+import jax
 from brax import envs
 from omegaconf import OmegaConf
 
@@ -22,13 +23,42 @@ def get_state_path() -> str:
 def get_environment(cfg):
     task_cfg = get_task_config(cfg)
     env = envs.get_environment(task_cfg.task_name, backend=cfg.environment.brax.backend)
-    if cfg.environment.brax.domain_randomization:
+    train_key, eval_key = jax.random.split(jax.random.PRNGKey(cfg.training.seed))
+
+    def prepare_randomization_fn(key, num_envs):
         randomize_fn = lambda sys, rng: randomization_fns[task_cfg.task_name](
             sys, rng, task_cfg
         )
+        v_randomization_fn = functools.partial(
+            randomize_fn, rng=jax.random.split(key, num_envs)
+        )
+        vf_randomization_fn = lambda sys: v_randomization_fn(sys)[:-1]  # type: ignore
+        return vf_randomization_fn
+
+    train_randomization_fn = (
+        prepare_randomization_fn(train_key, cfg.training.num_envs)
+        if cfg.training.train_domain_randomization
+        else None
+    )
+    train_env = envs.training.wrap(
+        env,
+        episode_length=cfg.training.episode_length,
+        action_repeat=cfg.training.action_repeat,
+        randomization_fn=train_randomization_fn,
+    )
+    eval_env = envs.training.wrap(
+        env,
+        episode_length=cfg.training.episode_length,
+        action_repeat=cfg.training.action_repeat,
+        randomization_fn=prepare_randomization_fn(eval_key, cfg.training.num_eval_envs)
+        if cfg.training.eval_domain_randomization
+        else None,
+    )
+    if cfg.training.train_domain_randomization and cfg.training.privileged:
+        domain_parameters = train_randomization_fn(train_env.sys)
     else:
-        randomize_fn = None
-    return env, randomize_fn
+        domain_parameters = None
+    return train_env, eval_env, domain_parameters
 
 
 def get_train_fn(cfg):
@@ -39,7 +69,13 @@ def get_train_fn(cfg):
         training_cfg = {
             k: v
             for k, v in cfg.training.items()
-            if k not in ["safe", "render_episodes", "safety_budget"]
+            if k
+            not in [
+                "safe",
+                "render_episodes",
+                "safety_budget",
+                "eval_domain_randomization",
+            ]
         }
         hidden_layer_sizes = agent_cfg.pop("hidden_layer_sizes")
         del agent_cfg["name"]
@@ -73,12 +109,14 @@ def main(cfg):
         f"\n{OmegaConf.to_yaml(cfg)}"
     )
     logger = TrainingLogger(cfg)
-    environment, randomization_fn = get_environment(cfg)
+    train_env, eval_env, domain_randomization_params = get_environment(cfg)
     train_fn = get_train_fn(cfg)
     make_inference_fn, params, _ = train_fn(
-        environment=environment,
+        environment=train_env,
+        eval_env=eval_env,
+        wrap_env=False,
         progress_fn=functools.partial(report, logger),
-        randomization_fn=randomization_fn,
+        domain_parameters=domain_randomization_params,
     )
     _LOG.info("Done training.")
 
