@@ -175,13 +175,13 @@ def train(
 
     assert num_envs % device_count == 0
     env = environment
+    rng = jax.random.PRNGKey(seed)
     if wrap_env:
         if isinstance(env, envs.Env):
             wrap_for_training = envs.training.wrap
         else:
             wrap_for_training = envs_v1.wrappers.wrap_for_training
 
-        rng = jax.random.PRNGKey(seed)
         rng, key = jax.random.split(rng)
         v_randomization_fn = None
         if randomization_fn is not None:
