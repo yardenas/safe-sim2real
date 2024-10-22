@@ -10,3 +10,4 @@ max_replay_size: 1000000
 grad_updates_per_step: 512
 deterministic_eval: False
 hidden_layer_sizes: [128, 128]
+privileged: False

@@ -135,6 +135,7 @@ def train(
     randomization_fn: Optional[
         Callable[[base.System, jnp.ndarray], Tuple[base.System, base.System, jax.Array]]
     ] = None,
+    privileged: bool = False,
 ):
     """SAC training."""
     process_id = jax.process_index()
@@ -193,7 +194,6 @@ def train(
             sys, in_axes, domain_parameters = v_randomization_fn(env.sys)
             vf_randomization_fn = lambda *_: (sys, in_axes)
         else:
-            domain_parameters = jnp.asarray([])
             vf_randomization_fn = None
         env = wrap_for_training(
             env,
@@ -208,11 +208,12 @@ def train(
     normalize_fn = lambda x, y: x
     if normalize_observations:
         normalize_fn = running_statistics.normalize
+    domain_randomization_size = domain_parameters.shape[-1] if privileged else 0
     sac_network = network_factory(
         observation_size=obs_size,
         action_size=action_size,
         preprocess_observations_fn=normalize_fn,
-        domain_randomization_size=domain_parameters.shape[-1],
+        domain_randomization_size=domain_randomization_size,
     )
     make_policy = sac_networks.make_inference_fn(sac_network)
 
@@ -231,7 +232,7 @@ def train(
         },
         "policy_extras": {},
     }
-    if domain_parameters.shape[-1] > 0:
+    if privileged:
         extras["domain_parameters"] = domain_parameters[0]
     dummy_transition = Transition(  # pytype: disable=wrong-arg-types  # jax-ndarray
         observation=dummy_obs,
@@ -350,7 +351,7 @@ def train(
         normalizer_params = running_statistics.update(
             normalizer_params, transitions.observation, pmap_axis_name=_PMAP_AXIS_NAME
         )
-        if domain_parameters.shape[-1] > 0:
+        if privileged:
             transitions = Transition(
                 observation=transitions.observation,
                 action=transitions.action,
