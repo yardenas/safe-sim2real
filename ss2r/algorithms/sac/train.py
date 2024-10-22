@@ -21,24 +21,17 @@ import functools
 import time
 from typing import Any, Callable, Optional, Tuple, TypeAlias, Union
 
-from absl import logging
-from brax import base
-from brax import envs
-from brax.io import model
-from brax.training import acting
-from brax.training import gradients
-from brax.training import pmap
-from brax.training import replay_buffers
-from brax.training import types
-from brax.training.acme import running_statistics
-from brax.training.acme import specs
-from brax.training.types import Params
-from brax.training.types import PRNGKey
-from brax.v1 import envs as envs_v1
 import flax
 import jax
 import jax.numpy as jnp
 import optax
+from absl import logging
+from brax import base, envs
+from brax.io import model
+from brax.training import acting, gradients, pmap, replay_buffers, types
+from brax.training.acme import running_statistics, specs
+from brax.training.types import Params, PRNGKey
+from brax.v1 import envs as envs_v1
 
 import ss2r.algorithms.sac.losses as sac_losses
 import ss2r.algorithms.sac.networks as sac_networks

@@ -1,27 +1,25 @@
 import os
 from typing import Any
-import jax
 
+import jax
 import jax.numpy as jnp
 from brax import base
-from brax.io import mjcf
 from brax.envs import register_environment
 from brax.envs.base import PipelineEnv, State
+from brax.io import mjcf
+
 from ss2r.algorithms.state_sampler import StateSampler
 from ss2r.benchmark_suites.brax import rewards
-
-_POLE_MASS = 0.1
 
 
 def domain_randomization(sys, rng, cfg):
     @jax.vmap
     def randomize(rng):
         # Hardcoding _POLE_MASS to avoid weird jax issues.
+        pole_mass = jnp.asarray([1.0, 0.1])
         mask = jnp.asarray([0.0, 1.0])
-        sample = (
-            jax.random.normal(rng) * cfg.scale * mask + (cfg.shift + _POLE_MASS) * mask
-        )
-        sample = sys.link.inertia.mass[0] + sample
+        sample = jax.random.normal(rng) * cfg.scale * mask + cfg.shift * mask
+        sample = pole_mass + sample
         return sample
 
     samples = randomize(rng)
