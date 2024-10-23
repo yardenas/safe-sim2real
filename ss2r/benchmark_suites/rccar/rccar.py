@@ -6,7 +6,7 @@ import jax.numpy as jnp
 from brax.envs.base import Env, State
 
 from ss2r.benchmark_suites import rewards
-from ss2r.benchmark_suites.brax.rccar.model import CarParams, RaceCar
+from ss2r.benchmark_suites.rccar.model import CarParams, RaceCar
 
 OBS_NOISE_STD_SIM_CAR: jnp.array = 0.1 * jnp.exp(
     jnp.array([-4.5, -4.5, -4.0, -2.5, -2.5, -1.0])

@@ -1,7 +1,7 @@
 defaults:
   - _self_
   - agent: sac
-  - environment: brax
+  - environment/rccar: rccar
 
 hydra:
   run:

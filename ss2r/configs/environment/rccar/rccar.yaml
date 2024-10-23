@@ -1,6 +1,7 @@
 defaults:
   - _self_
-  - car_params: car_2
+  - train_car_params: car_2
+  - eval_car_params: car_2_blend
 
 dt: 0.0333333333
 encode_angle: true

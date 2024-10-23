@@ -9,7 +9,7 @@ from brax.envs.base import PipelineEnv, State
 from brax.io import mjcf
 
 from ss2r.algorithms.state_sampler import StateSampler
-from ss2r.benchmark_suites.brax import rewards
+from ss2r.benchmark_suites import rewards
 
 
 def domain_randomization(sys, rng, cfg):
