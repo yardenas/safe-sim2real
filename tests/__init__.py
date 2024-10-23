@@ -1,7 +1,6 @@
-from hydra import compose, initialize
 import numpy as np
-
 from brax.training.types import Policy
+from hydra import compose, initialize
 
 from ss2r.rl.types import Report, Simulator
 
@@ -10,7 +9,10 @@ class DummyAgent:
     def __init__(self, action_size, config) -> None:
         self.config = config
         parallel_envs = config.training.parallel_envs
-        self._policy = lambda *_: (np.repeat(np.zeros(action_size), parallel_envs), None)
+        self._policy = lambda *_: (
+            np.repeat(np.zeros(action_size), parallel_envs),
+            None,
+        )
 
     @property
     def policy(self) -> Policy:

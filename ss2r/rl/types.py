@@ -7,7 +7,6 @@ from brax.training import types
 from numpy import typing as npt
 from omegaconf import DictConfig
 
-
 FloatArray = Union[npt.NDArray[Union[np.float32, np.float64]], jax.Array]
 
 SimulatorState = Any

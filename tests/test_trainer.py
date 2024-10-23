@@ -1,9 +1,11 @@
 import pathlib
 import time
+
 import pytest
-from tests import DummyAgent, make_test_config
-from ss2r.rl.trainer import Trainer
+
 from ss2r import benchmark_suites
+from ss2r.rl.trainer import Trainer
+from tests import DummyAgent, make_test_config
 
 
 @pytest.fixture

@@ -18,12 +18,11 @@ See: https://arxiv.org/pdf/1812.05905.pdf
 """
 from typing import Any, TypeAlias
 
-from brax.training import types
-from brax.training.agents.sac import networks as sac_networks
-from brax.training.types import Params
-from brax.training.types import PRNGKey
 import jax
 import jax.numpy as jnp
+from brax.training import types
+from brax.training.agents.sac import networks as sac_networks
+from brax.training.types import Params, PRNGKey
 
 Transition: TypeAlias = types.Transition
 

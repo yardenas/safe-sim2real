@@ -16,6 +16,7 @@
 """Soft indicator function evaluating whether a number is within bounds."""
 
 import warnings
+
 import jax.numpy as jnp
 
 # The value returned by tolerance() at `margin` distance from `bounds` interval.

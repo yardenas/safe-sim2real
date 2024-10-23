@@ -16,13 +16,14 @@
 
 from typing import Protocol, Sequence, TypeAlias, TypeVar
 
-from brax.training import distribution, networks, types
 import brax.training.agents.sac.networks as sac_networks
+from brax.training import distribution, networks, types
 from flax import linen
 
 make_inference_fn = sac_networks.make_inference_fn
 SACNetworks: TypeAlias = sac_networks.SACNetworks
-NetworkType = TypeVar('NetworkType', covariant=True)
+NetworkType = TypeVar("NetworkType", covariant=True)
+
 
 class DomainRandomizationNetworkFactory(Protocol[NetworkType]):
     def __call__(
