@@ -1,3 +1,6 @@
+defaults:
+  - brax_base
+
 task_name: inverted_pendulum
 shift: 0.0
 scale: 0.05

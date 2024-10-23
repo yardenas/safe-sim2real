@@ -132,14 +132,12 @@ def test_parameterization(use_domain_randomization, similar_rate):
         cfg = make_test_config(
             [
                 f"training.num_envs={1}",
-                "environment/task=cartpole",
+                "environment=cartpole",
                 "training.train_domain_randomization=" + str(use_domain_randomization),
             ]
         )
         task_cfg = get_task_config(cfg)
-        env = envs.get_environment(
-            task_cfg.task_name, backend=cfg.environment.brax.backend
-        )
+        env = envs.get_environment(task_cfg.task_name, backend=cfg.environment.backend)
         if cfg.training.train_domain_randomization:
             randomize_fn = lambda sys, rng: randomization_fns[task_cfg.task_name](
                 sys, rng, task_cfg

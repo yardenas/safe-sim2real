@@ -1,3 +1,6 @@
+defaults:
+  - brax_base
+
 task_name: cartpole_swingup
 min: 0.0
 max: 0.1

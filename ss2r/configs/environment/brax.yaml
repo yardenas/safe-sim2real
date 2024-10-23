@@ -1,7 +1,0 @@
-defaults:
-  - _self_
-  - task: cartpole
-
-
-brax:
-  backend: generalized
