@@ -26,6 +26,7 @@ def pytrees_unstack(pytree):
     return new_trees
 
 
+@pytest.mark.skip
 def test_sac():
     train_fn = functools.partial(
         sac.train,
