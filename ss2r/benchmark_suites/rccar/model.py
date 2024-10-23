@@ -2,7 +2,6 @@ from typing import NamedTuple
 
 import jax
 import jax.numpy as jnp
-from flax import struct
 
 
 class CarParams(NamedTuple):
@@ -93,7 +92,6 @@ def compute_accelerations(x, u, params: CarParams):
     return acceleration
 
 
-@struct.dataclass
 class RaceCar:
     """
     local_coordinates: bool

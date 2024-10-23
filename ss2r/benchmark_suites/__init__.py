@@ -5,16 +5,15 @@ from brax import envs
 
 from ss2r.benchmark_suites.brax import randomization_fns
 from ss2r.benchmark_suites.rccar import rccar
-from ss2r.benchmark_suites.utils import get_task_config
+from ss2r.benchmark_suites.utils import get_domain_name, get_task_config
 
 
 def make(cfg):
-    if cfg.benchmark_suite == "brax":
-        task_cfg = get_task_config(cfg)
-        if task_cfg.task_name == "rccar":
-            return make_rccar_envs(cfg)
-        else:
-            return make_brax_envs(cfg)
+    domain_name = get_domain_name(cfg)
+    if domain_name == "brax":
+        return make_brax_envs(cfg)
+    elif domain_name == "rccar":
+        return make_rccar_envs(cfg)
 
 
 def make_rccar_envs(cfg):
@@ -22,7 +21,17 @@ def make_rccar_envs(cfg):
     train_car_params = task_cfg.pop("train_car_params")
     eval_car_params = task_cfg.pop("eval_car_params")
     train_env = rccar.RCCar(train_car_params, **task_cfg)
+    train_env = envs.training.wrap(
+        train_env,
+        episode_length=cfg.training.episode_length,
+        action_repeat=cfg.training.action_repeat,
+    )
     eval_env = rccar.RCCar(eval_car_params, **task_cfg)
+    eval_env = envs.training.wrap(
+        eval_env,
+        episode_length=cfg.training.episode_length,
+        action_repeat=cfg.training.action_repeat,
+    )
     return train_env, eval_env, None
 
 

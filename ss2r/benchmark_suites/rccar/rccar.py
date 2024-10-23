@@ -152,7 +152,7 @@ class RCCar(Env):
         self.dynamics_model = RaceCar(dt=self._dt, encode_angle=False)
         self.sys = CarParams(**car_model_params)
         self.use_obs_noise = use_obs_noise
-        self._reward_model = RCCarEnvReward(
+        self.reward_model = RCCarEnvReward(
             goal=self._goal,
             ctrl_cost_weight=ctrl_cost_weight,
             encode_angle=self.encode_angle,
@@ -211,11 +211,11 @@ class RCCar(Env):
         obs = self.dynamics_model.step(obs, action, self.sys)
         obs = self._obs(obs, rng_key=jax.random.PRNGKey(0))
         reward = (
-            self._reward_model.forward(obs=None, action=action, next_obs=obs)
+            self.reward_model.forward(obs=None, action=action, next_obs=obs)
             * self._dt
             / self.base_dt
         )
-        done = False
+        done = jnp.asarray(0.0)
         next_state = State(
             pipeline_state=state.pipeline_state,
             obs=obs,
