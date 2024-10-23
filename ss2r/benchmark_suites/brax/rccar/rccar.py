@@ -113,7 +113,6 @@ class RCCarEnvReward:
 
 
 class RCCar(Env):
-    max_steps: int = 200
     base_dt: float = 1 / 30.0
     dim_action: Tuple[int] = (2,)
     _goal: jnp.array = jnp.array([0.0, 0.0, 0.0])
@@ -129,7 +128,6 @@ class RCCar(Env):
         use_obs_noise: bool = False,
         margin_factor: float = 10.0,
         max_throttle: float = 1.0,
-        ctrl_diff_weight: float = 0.0,
         dt: float | None = None,
     ):
         """
