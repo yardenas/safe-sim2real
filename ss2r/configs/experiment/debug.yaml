@@ -7,17 +7,7 @@ writers:
   - tensorboard
 
 training:
-  epochs: 2
-  time_limit: 100
-  action_repeat: 2
-  parallel_envs: 5
+  episode_length: 100
   render_episodes: 0
-  steps_per_epoch: 200
-  num_eval_steps: 200
-
-agent:
-  update_steps: 2
-  train_every: 50
-  replay_buffer:
-    batch_size: 4
-    sequence_length: 16
+  num_evals: 2
+  num_timesteps: 10000

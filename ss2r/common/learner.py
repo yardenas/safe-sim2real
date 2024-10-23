@@ -7,7 +7,6 @@ import optax
 from jaxtyping import PyTree
 
 
-
 class Learner:
     def __init__(
         self, model: PyTree, optimizer_config: dict[str, Any], batched: bool = False
