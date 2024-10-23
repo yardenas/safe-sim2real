@@ -1,8 +1,8 @@
 from typing import Protocol
 
 import jax
-from omegaconf import DictConfig
 from brax.training.types import PRNGKey
+from omegaconf import DictConfig
 
 
 class StateSampler(Protocol):

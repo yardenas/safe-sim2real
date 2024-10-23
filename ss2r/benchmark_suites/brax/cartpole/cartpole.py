@@ -1,29 +1,59 @@
+import os
 from typing import Any
-import jax
 
+import jax
 import jax.numpy as jnp
 from brax import base
-from brax.io import mjcf
 from brax.envs import register_environment
 from brax.envs.base import PipelineEnv, State
-from ss2r.algorithms.jax.state_sampler import StateSampler
+from brax.io import mjcf
+
+from ss2r.algorithms.state_sampler import StateSampler
 from ss2r.benchmark_suites.brax import rewards
 
 
 def domain_randomization(sys, rng, cfg):
     @jax.vmap
     def randomize(rng):
-        cpole = (
-            jax.random.normal(rng) * cfg.scale + sys.link.inertia.mass[-1] + cfg.shift
-        )
-        mass = sys.link.inertia.mass.at[-1].set(jnp.abs(cpole))
-        return mass, cpole
+        # Hardcoding _POLE_MASS to avoid weird jax issues.
+        pole_mass = jnp.asarray([1.0, 0.0])
+        mask = jnp.asarray([0.0, 1.0])
+        sample = jax.random.uniform(rng, minval=cfg.min, maxval=cfg.max) * mask
+        sample = pole_mass + sample
+        return sample
 
-    mass, samples = randomize(rng)
+    samples = randomize(rng)
     in_axes = jax.tree_map(lambda x: None, sys)
     in_axes = in_axes.tree_replace({"link.inertia.mass": 0})
-    sys = sys.tree_replace({"link.inertia.mass": mass})
-    return sys, in_axes, samples[:, None]
+    sys = sys.tree_replace({"link.inertia.mass": samples})
+    return sys, in_axes, samples
+
+
+def domain_randomization_length(sys, rng, cfg):
+    @jax.vmap
+    def randomize(rng):
+        offset = jax.random.uniform(rng, shape=(3,), minval=-0.1, maxval=0.1)
+        pos = sys.link.transform.pos.at[0].set(offset)
+        return pos
+
+    pos = randomize(rng)
+    sys_v = sys.tree_replace({"link.inertia.transform.pos": pos})
+    in_axes = jax.tree.map(lambda x: None, sys)
+    in_axes = in_axes.tree_replace({"link.inertia.transform.pos": 0})
+    return sys_v, in_axes, pos
+
+
+def domain_randomization_gear(sys, rng, cfg):
+    @jax.vmap
+    def randomize(rng):
+        sample = jax.random.uniform(rng, minval=cfg.min, maxval=cfg.max)
+        return sample
+
+    samples = randomize(rng)
+    in_axes = jax.tree_map(lambda x: None, sys)
+    in_axes = in_axes.tree_replace({"actuator.gear": 0})
+    sys = sys.tree_replace({"actuator.gear": samples})
+    return sys, in_axes, samples
 
 
 def sample_state(state_sampler: StateSampler):
@@ -32,7 +62,8 @@ def sample_state(state_sampler: StateSampler):
 
 class Cartpole(PipelineEnv):
     def __init__(self, backend="generalized", **kwargs):
-        path = "./ss2r/benchmark_suites/brax/cartpole/cartpole.xml"
+        dir = os.path.dirname(__file__)
+        path = os.path.join(dir, "cartpole.xml")
         sys = mjcf.load(path)
         self.sparse = kwargs.pop("sparse", False)
         self.swingup = kwargs.pop("swingup", False)
