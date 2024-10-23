@@ -1,0 +1,11 @@
+defaults:
+  - _self_
+  - train_car_params: car_2
+  - eval_car_params: car_2_blend
+
+domain_name: rccar
+dt: 0.0333333333
+encode_angle: true
+ctrl_cost_weight: 0.005
+margin_factor: 10.0
+max_throttle: 1.0
