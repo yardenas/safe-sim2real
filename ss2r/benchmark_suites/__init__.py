@@ -12,7 +12,7 @@ def make(cfg):
     if cfg.benchmark_suite == "brax":
         task_cfg = get_task_config(cfg)
         if task_cfg.task_name == "rccar":
-            return make_brax_envs(cfg)
+            return make_rccar_envs(cfg)
         else:
             return make_brax_envs(cfg)
 
