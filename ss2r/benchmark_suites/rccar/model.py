@@ -92,7 +92,7 @@ def compute_accelerations(x, u, params: CarParams):
     return acceleration
 
 
-class RaceCar:
+class RaceCarDynamics:
     """
     local_coordinates: bool
         Used to indicate if local or global coordinates shall be used.
@@ -133,12 +133,11 @@ class RaceCar:
             return q, None
 
         next_state, _ = jax.lax.scan(body, x, xs=None, length=self._num_steps_integrate)
-        if self.angle_idx is not None:
-            theta = next_state[self.angle_idx]
-            sin_theta, cos_theta = jnp.sin(theta), jnp.cos(theta)
-            next_state = next_state.at[self.angle_idx].set(
-                jnp.arctan2(sin_theta, cos_theta)
-            )
+        theta = next_state[self.angle_idx]
+        sin_theta, cos_theta = jnp.sin(theta), jnp.cos(theta)
+        next_state = next_state.at[self.angle_idx].set(
+            jnp.arctan2(sin_theta, cos_theta)
+        )
         return next_state
 
     def rk_integration(
@@ -183,12 +182,11 @@ class RaceCar:
             return q, None
 
         next_state, _ = jax.lax.scan(body, x, xs=None, length=self._num_steps_integrate)
-        if self.angle_idx is not None:
-            theta = next_state[self.angle_idx]
-            sin_theta, cos_theta = jnp.sin(theta), jnp.cos(theta)
-            next_state = next_state.at[self.angle_idx].set(
-                jnp.arctan2(sin_theta, cos_theta)
-            )
+        theta = next_state[self.angle_idx]
+        sin_theta, cos_theta = jnp.sin(theta), jnp.cos(theta)
+        next_state = next_state.at[self.angle_idx].set(
+            jnp.arctan2(sin_theta, cos_theta)
+        )
         return next_state
 
     def step(self, x: jnp.array, u: jnp.array, params: CarParams) -> jnp.array:
@@ -253,7 +251,6 @@ class RaceCar:
 
     def reduce_x(self, x):
         theta = jnp.arctan2(x[..., self.angle_idx], x[..., self.angle_idx + 1])
-
         x_reduced = jnp.concatenate(
             [
                 x[..., 0 : self.angle_idx],

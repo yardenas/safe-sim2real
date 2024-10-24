@@ -6,7 +6,7 @@ import jax.numpy as jnp
 from brax.envs.base import Env, State
 
 from ss2r.benchmark_suites import rewards
-from ss2r.benchmark_suites.rccar.model import CarParams, RaceCar
+from ss2r.benchmark_suites.rccar.model import CarParams, RaceCarDynamics
 
 OBS_NOISE_STD_SIM_CAR: jnp.array = 0.1 * jnp.exp(
     jnp.array([-4.5, -4.5, -4.0, -2.5, -2.5, -1.0])
@@ -144,7 +144,7 @@ class RCCar(Env):
         self.dim_state = (7,) if encode_angle else (6,)
         self.encode_angle = encode_angle
         self.max_throttle = jnp.clip(max_throttle, 0.0, 1.0)
-        self.dynamics_model = RaceCar(dt=self._dt, encode_angle=False)
+        self.dynamics_model = RaceCarDynamics(dt=self._dt, encode_angle=False)
         self.sys = CarParams(**car_model_params)
         self.use_obs_noise = use_obs_noise
         self.reward_model = RCCarEnvReward(

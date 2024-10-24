@@ -7,6 +7,6 @@ domain_name: rccar
 dt: 0.0333333333
 encode_angle: true
 ctrl_cost_weight: 0.005
-margin_factor: 10.0
+margin_factor: 20.0
 max_throttle: 1.0
 use_obs_noise: false
