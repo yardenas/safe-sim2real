@@ -1,0 +1,13 @@
+training:
+  num_envs: 128
+  num_timesteps: 1000000
+
+environment:
+  dt: 0.4
+
+agent:
+  grad_updates_per_step: 1280
+  batch_size: 128
+  min_replay_size: 100
+  max_replay_size: 1000000
+  hidden_layer_sizes: [64, 64]
