@@ -19,15 +19,15 @@ def make(cfg):
 def make_rccar_envs(cfg):
     task_cfg = dict(get_task_config(cfg))
     task_cfg.pop("domain_name")
-    train_car_params = task_cfg.pop("train_car_params")
-    eval_car_params = task_cfg.pop("eval_car_params")
-    train_env = rccar.RCCar(train_car_params, **task_cfg)
+    nominal_train_car_params = task_cfg.pop("train_car_params")["nominal"]
+    nominal_eval_car_params = task_cfg.pop("eval_car_params")["nominal"]
+    train_env = rccar.RCCar(nominal_train_car_params, **task_cfg)
     train_env = envs.training.wrap(
         train_env,
         episode_length=cfg.training.episode_length,
         action_repeat=cfg.training.action_repeat,
     )
-    eval_env = rccar.RCCar(eval_car_params, **task_cfg)
+    eval_env = rccar.RCCar(nominal_eval_car_params, **task_cfg)
     eval_env = envs.training.wrap(
         eval_env,
         episode_length=cfg.training.episode_length,
