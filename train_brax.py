@@ -6,7 +6,7 @@ import hydra
 from omegaconf import OmegaConf
 
 import ss2r.algorithms.sac.networks as sac_networks
-from ss2r.benchmark_suites import make
+from ss2r import benchmark_suites
 from ss2r.rl.logging import TrainingLogger
 
 _LOG = logging.getLogger(__name__)
@@ -117,7 +117,7 @@ def main(cfg):
         f"\n{OmegaConf.to_yaml(cfg)}"
     )
     logger = TrainingLogger(cfg)
-    train_env, eval_env, domain_randomization_params = make(cfg)
+    train_env, eval_env, domain_randomization_params = benchmark_suites.make(cfg)
     train_fn = get_train_fn(cfg)
     train_fn(
         environment=train_env,
