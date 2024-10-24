@@ -1,3 +1,4 @@
+import functools
 from typing import Tuple
 
 import jax
@@ -74,7 +75,8 @@ class RCCarEnvReward:
         self.goal = goal
         self.ctrl_cost_weight = ctrl_cost_weight
         self.encode_angle = encode_angle
-        self.tolerance_reward = rewards.ToleranceReward(
+        self.tolerance_reward = functools.partial(
+            rewards.tolerance,
             bounds=(0.0, bound),
             margin=margin_factor * bound,
             value_at_margin=0.1,
