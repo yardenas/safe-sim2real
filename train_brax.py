@@ -91,6 +91,7 @@ def get_train_fn(cfg):
                 critic_hidden_layer_sizes=(64, 64),
                 critic_activation=swish,
                 return_best_model=True,
+                eval_environment=eval_env,
             )
             optimizer.run_training(
                 jax.random.PRNGKey(cfg.training.seed), progress_fn=progress_fn
