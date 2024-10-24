@@ -85,7 +85,6 @@ def get_train_fn(cfg):
                 policy_activation=swish,
                 critic_hidden_layer_sizes=(64, 64),
                 critic_activation=swish,
-                wandb_logging=True,
                 return_best_model=True,
             )
             optimizer.run_training(
@@ -103,7 +102,7 @@ def report(logger, num_steps, metrics):
         "train/objective": float(metrics["eval/episode_reward"]),
         "train/sps": float(metrics["eval/sps"]),
     }
-    logger.log(metrics, num_steps)
+    logger.log(metrics, float(num_steps))
 
 
 @hydra.main(version_base=None, config_path="ss2r/configs", config_name="config")
@@ -115,7 +114,7 @@ def main(cfg):
     logger = TrainingLogger(cfg)
     train_env, eval_env, domain_randomization_params = make(cfg)
     train_fn = get_train_fn(cfg)
-    make_inference_fn, params, _ = train_fn(
+    train_fn(
         environment=train_env,
         eval_env=eval_env,
         wrap_env=False,
