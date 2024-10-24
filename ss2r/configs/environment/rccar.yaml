@@ -3,7 +3,7 @@ defaults:
   - train_car_params: car_2_blend
   - eval_car_params: car_2_blend
 
-domain_name: rccar
+task_name: rccar
 dt: 0.04
 encode_angle: true
 ctrl_cost_weight: 0.005

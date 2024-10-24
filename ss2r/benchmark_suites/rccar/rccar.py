@@ -3,6 +3,7 @@ from typing import Tuple
 
 import jax
 import jax.numpy as jnp
+import jax.tree_util as jtu
 from brax.envs.base import Env, State
 
 from ss2r.benchmark_suites import rewards
@@ -11,6 +12,26 @@ from ss2r.benchmark_suites.rccar.model import CarParams, RaceCarDynamics
 OBS_NOISE_STD_SIM_CAR: jnp.array = 0.1 * jnp.exp(
     jnp.array([-4.5, -4.5, -4.0, -2.5, -2.5, -1.0])
 )
+
+
+def domain_randomization(sys, rng, cfg):
+    bounds = cfg
+    treedef = jtu.tree_structure(bounds, is_leaf=lambda x: isinstance(x, tuple))
+    keys = jax.random.split(rng, treedef.num_leaves)
+    keys = jtu.tree_unflatten(treedef, keys)
+    sys = jtu.tree_map(
+        lambda key, bound: jax.random.uniform(
+            key, shape=(1,) + bound[0].shape, minval=bound[0], maxval=bound[1]
+        ),
+        keys,
+        bounds,
+    )
+    in_axes = jax.tree_map(lambda _: 0, sys)
+    return (
+        sys,
+        in_axes,
+        jtu.tree_flatten(sys)[0],
+    )
 
 
 def rotate_coordinates(state: jnp.array, encode_angle: bool = False) -> jnp.array:
