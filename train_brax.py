@@ -102,7 +102,7 @@ def report(logger, num_steps, metrics):
         "train/objective": float(metrics["eval/episode_reward"]),
         "train/sps": float(metrics["eval/sps"]),
     }
-    logger.log(metrics, float(num_steps))
+    logger.log(metrics, num_steps)
 
 
 @hydra.main(version_base=None, config_path="ss2r/configs", config_name="config")
