@@ -1,4 +1,4 @@
-name: sac
+name: sac_lenart
 learning_rate: 3e-4
 discounting: 0.99
 batch_size: 256
@@ -8,6 +8,5 @@ tau: 0.005
 min_replay_size: 0
 max_replay_size: 1000000
 grad_updates_per_step: 512
-deterministic_eval: true
+deterministic_eval: False
 hidden_layer_sizes: [128, 128]
-activation: swish

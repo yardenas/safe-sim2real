@@ -18,6 +18,7 @@ def make(cfg):
 
 def make_rccar_envs(cfg):
     task_cfg = dict(get_task_config(cfg))
+    task_cfg.pop("domain_name")
     train_car_params = task_cfg.pop("train_car_params")
     eval_car_params = task_cfg.pop("eval_car_params")
     train_env = rccar.RCCar(train_car_params, **task_cfg)

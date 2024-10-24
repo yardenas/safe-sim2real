@@ -48,7 +48,7 @@ class TrainingLogger:
 
     def log(self, summary: dict[str, float], step: int):
         for writer in self._writers:
-            writer.log(summary, step)
+            writer.log(summary, int(step))
 
     def log_video(
         self,

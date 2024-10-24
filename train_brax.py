@@ -19,6 +19,8 @@ def get_state_path() -> str:
 
 def get_train_fn(cfg):
     if cfg.agent.name == "sac":
+        import jax.nn as jnn
+
         import ss2r.algorithms.sac.train as sac
 
         agent_cfg = dict(cfg.agent)
@@ -36,9 +38,12 @@ def get_train_fn(cfg):
             ]
         }
         hidden_layer_sizes = agent_cfg.pop("hidden_layer_sizes")
+        activation = getattr(jnn, agent_cfg.pop("activation"))
         del agent_cfg["name"]
         network_factory = functools.partial(
-            sac_networks.make_sac_networks, hidden_layer_sizes=hidden_layer_sizes
+            sac_networks.make_sac_networks,
+            hidden_layer_sizes=hidden_layer_sizes,
+            activation=activation,
         )
         train_fn = functools.partial(
             sac.train,
@@ -47,6 +52,51 @@ def get_train_fn(cfg):
             network_factory=network_factory,
             checkpoint_logdir=get_state_path(),
         )
+    elif cfg.agent.name == "sac_lenart":
+        import jax
+        from jax.nn import swish
+        from mbpo.optimizers.policy_optimizers.sac.sac_brax_env import SAC
+
+        def train(environment, eval_env, wrap_env, progress_fn, domain_parameters):
+            num_env_steps_between_updates = 1
+            num_envs = 128
+            optimizer = SAC(
+                environment=environment,
+                num_timesteps=500000,
+                episode_length=100,
+                action_repeat=1,
+                num_env_steps_between_updates=num_env_steps_between_updates,
+                num_envs=num_envs,
+                num_eval_envs=128,
+                lr_alpha=3e-4,
+                lr_policy=3e-4,
+                lr_q=3e-4,
+                wd_alpha=0.0,
+                wd_policy=0.0,
+                wd_q=0.0,
+                max_grad_norm=1e5,
+                discounting=0.99,
+                batch_size=128,
+                num_evals=20,
+                normalize_observations=True,
+                reward_scaling=1.0,
+                tau=0.005,
+                min_replay_size=10**2,
+                max_replay_size=10**5,
+                grad_updates_per_step=num_env_steps_between_updates * num_envs,
+                deterministic_eval=True,
+                init_log_alpha=0.0,
+                policy_hidden_layer_sizes=(64, 64),
+                policy_activation=swish,
+                critic_hidden_layer_sizes=(64, 64),
+                critic_activation=swish,
+                return_best_model=True,
+            )
+            optimizer.run_training(
+                jax.random.PRNGKey(cfg.training.seed), progress_fn=progress_fn
+            )
+
+        return train
     else:
         raise ValueError(f"Unknown agent name: {cfg.agent.name}")
     return train_fn
@@ -69,7 +119,7 @@ def main(cfg):
     logger = TrainingLogger(cfg)
     train_env, eval_env, domain_randomization_params = make(cfg)
     train_fn = get_train_fn(cfg)
-    make_inference_fn, params, _ = train_fn(
+    train_fn(
         environment=train_env,
         eval_env=eval_env,
         wrap_env=False,
