@@ -107,9 +107,6 @@ class RCCarEnvReward:
         reward = self.tolerance_reward(total_dist)
         return reward
 
-    def __call__(self, *args, **kwargs):
-        self.forward(*args, **kwargs)
-
 
 class RCCar(Env):
     dim_action: Tuple[int] = (2,)
