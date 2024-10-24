@@ -6,7 +6,7 @@ import jax.numpy as jnp
 from brax.envs.base import Env, State
 
 from ss2r.benchmark_suites import rewards
-from ss2r.benchmark_suites.rccar.model import CarParams, RaceCar
+from ss2r.benchmark_suites.rccar.model import CarParams, RaceCarDynamics
 
 OBS_NOISE_STD_SIM_CAR: jnp.array = 0.1 * jnp.exp(
     jnp.array([-4.5, -4.5, -4.0, -2.5, -2.5, -1.0])
@@ -62,9 +62,6 @@ def decode_angles(state: jnp.array, angle_idx: int) -> jnp.array:
 
 
 class RCCarEnvReward:
-    _angle_idx: int = 2
-    dim_action: Tuple[int] = (2,)
-
     def __init__(
         self,
         goal: jnp.array,
@@ -73,6 +70,8 @@ class RCCarEnvReward:
         bound: float = 0.1,
         margin_factor: float = 10.0,
     ):
+        self._angle_idx = 2
+        self.dim_action = (2,)
         self.goal = goal
         self.ctrl_cost_weight = ctrl_cost_weight
         self.encode_angle = encode_angle
@@ -108,12 +107,8 @@ class RCCarEnvReward:
         reward = self.tolerance_reward(total_dist)
         return reward
 
-    def __call__(self, *args, **kwargs):
-        self.forward(*args, **kwargs)
-
 
 class RCCar(Env):
-    base_dt: float = 1 / 30.0
     dim_action: Tuple[int] = (2,)
     _goal: jnp.array = jnp.array([0.0, 0.0, 0.0])
     _init_pose: jnp.array = jnp.array([1.42, -1.04, jnp.pi])
@@ -128,7 +123,7 @@ class RCCar(Env):
         use_obs_noise: bool = False,
         margin_factor: float = 10.0,
         max_throttle: float = 1.0,
-        dt: float | None = None,
+        dt: float = 1 / 30.0,
     ):
         """
         Race car simulator environment
@@ -142,14 +137,11 @@ class RCCar(Env):
             car_model_params: dictionary of car model parameters that overwrite the default values
             seed: random number generator seed
         """
-        if dt is None:
-            self._dt = self.base_dt
-        else:
-            self._dt = dt
+        self._dt = dt
         self.dim_state = (7,) if encode_angle else (6,)
         self.encode_angle = encode_angle
         self.max_throttle = jnp.clip(max_throttle, 0.0, 1.0)
-        self.dynamics_model = RaceCar(dt=self._dt, encode_angle=False)
+        self.dynamics_model = RaceCarDynamics(dt=self._dt)
         self.sys = CarParams(**car_model_params)
         self.use_obs_noise = use_obs_noise
         self.reward_model = RCCarEnvReward(
@@ -159,13 +151,13 @@ class RCCar(Env):
             margin_factor=margin_factor,
         )
 
-    def _obs(self, state: jnp.array, rng_key: jax.random.PRNGKey) -> jnp.array:
+    def _obs(self, state: jnp.array, rng: jax.random.PRNGKey) -> jnp.array:
         """Adds observation noise to the state"""
         assert state.shape[-1] == 6
         # add observation noise
         if self.use_obs_noise:
             obs = state + self._obs_noise_stds * jax.random.normal(
-                rng_key, shape=self.dim_state
+                rng, shape=self.dim_state
             )
         else:
             obs = state
@@ -192,7 +184,7 @@ class RCCar(Env):
             [0.005, 0.005, 0.02]
         ) * jax.random.normal(key_vel, shape=(3,))
         init_state = jnp.concatenate([init_pos, init_theta, init_vel])
-        init_state = self._obs(init_state, rng_key=key_obs)
+        init_state = self._obs(init_state, rng=key_obs)
         return State(
             pipeline_state=None,
             obs=init_state,
@@ -206,19 +198,15 @@ class RCCar(Env):
         action = action.at[0].set(self.max_throttle * action[0])
         obs = state.obs
         if self.encode_angle:
-            obs = decode_angles(obs, self._angle_idx)
-        assert obs.shape[-1] == 6
-        obs = self.dynamics_model.step(obs, action, self.sys)
-        obs = self._obs(obs, rng_key=jax.random.PRNGKey(0))
-        reward = (
-            self.reward_model.forward(obs=None, action=action, next_obs=obs)
-            * self._dt
-            / self.base_dt
-        )
+            dynamics_state = decode_angles(obs, self._angle_idx)
+        next_dynamics_state = self.dynamics_model.step(dynamics_state, action, self.sys)
+        # FIXME (yarden): hard-coded key is bad here.
+        next_obs = self._obs(next_dynamics_state, rng=jax.random.PRNGKey(0))
+        reward = self.reward_model.forward(obs=None, action=action, next_obs=next_obs)
         done = jnp.asarray(0.0)
         next_state = State(
             pipeline_state=state.pipeline_state,
-            obs=obs,
+            obs=next_obs,
             reward=reward,
             done=done,
             metrics=state.metrics,
