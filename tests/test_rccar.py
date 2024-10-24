@@ -1,4 +1,3 @@
-import dm_env
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -30,24 +29,6 @@ def set_brax_initial_state(env, init_state):
         "first_obs": obs,
     }
     return envs.State(pipeline_state, obs, reward, done, {}, info)
-
-
-def set_dmc_initial_state(env, init_state):
-    physics = env.physics
-    with physics.reset_context():
-        # Set cart and pole initial state [cart_position, cart_velocity, pole_angle, pole_angular_velocity]
-        physics.named.data.qpos["slider"] = init_state[0]  # Cart position
-        physics.named.data.qvel["slider"] = init_state[1]  # Cart velocity
-        physics.named.data.qpos["hinge_1"] = init_state[2]  # Pole angle
-        physics.named.data.qvel["hinge_1"] = init_state[3]  # Pole angular velocity
-    env._task.after_step(physics)
-    out_state = dm_env.TimeStep(
-        step_type=dm_env.StepType.FIRST,
-        reward=None,
-        discount=None,
-        observation=env._task.get_observation(physics),
-    )
-    return out_state
 
 
 _ENVS = 256
