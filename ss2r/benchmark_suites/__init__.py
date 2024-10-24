@@ -63,7 +63,11 @@ def make_rccar_envs(cfg):
         action_repeat=cfg.training.action_repeat,
         randomization_fn=eval_randomization_fn,
     )
-    return train_env, eval_env, params_fn
+    if cfg.training.train_domain_randomization and cfg.training.privileged:
+        domain_parameters = params_fn(train_env.sys)
+    else:
+        domain_parameters = None
+    return train_env, eval_env, domain_parameters
 
 
 def make_brax_envs(cfg):
