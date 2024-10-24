@@ -2,6 +2,7 @@ import functools
 from typing import Tuple
 
 import jax
+import jax.flatten_util
 import jax.numpy as jnp
 import jax.tree_util as jtu
 from brax.envs.base import Env, State
@@ -39,16 +40,12 @@ def domain_randomization(sys, rng, cfg):
         sys = jtu.tree_map(
             sample_from_bounds, bounds, keys, is_leaf=lambda x: isinstance(x, list)
         )
-        return sys
+        return sys, jax.flatten_util.ravel_pytree(sys)[0]
 
     cfg = OmegaConf.to_container(cfg)
     in_axes = jax.tree_map(lambda _: 0, sys)
-    sys = randomize(rng)
-    return (
-        sys,
-        in_axes,
-        jtu.tree_flatten(sys)[0],
-    )
+    sys, params = randomize(rng)
+    return sys, in_axes, params
 
 
 def rotate_coordinates(state: jnp.array, encode_angle: bool = False) -> jnp.array:

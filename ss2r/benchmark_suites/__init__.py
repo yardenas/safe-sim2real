@@ -63,7 +63,7 @@ def make_rccar_envs(cfg):
         action_repeat=cfg.training.action_repeat,
         randomization_fn=eval_randomization_fn,
     )
-    return train_env, eval_env, None
+    return train_env, eval_env, params_fn
 
 
 def make_brax_envs(cfg):

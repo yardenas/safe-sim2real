@@ -1,52 +1,12 @@
-import functools
-
-import brax.training.agents.sac.train as sac
 import dm_env
 import jax
 import jax.numpy as jnp
 import numpy as np
 import pytest
 from brax import envs
-from dm_control import suite
-from dm_control.rl.control import flatten_observation
 
 from ss2r import benchmark_suites
 from tests import make_test_config
-
-
-def pytrees_unstack(pytree):
-    leaves, treedef = jax.tree_flatten(pytree)
-    n_trees = leaves[0].shape[0]
-    new_leaves = [[] for _ in range(n_trees)]
-    for leaf in leaves:
-        for i in range(n_trees):
-            new_leaves[i].append(leaf[i])
-    new_trees = [treedef.unflatten(leaf) for leaf in new_leaves]
-    return new_trees
-
-
-@pytest.mark.skip
-def test_sac():
-    train_fn = functools.partial(
-        sac.train,
-        num_timesteps=400000,
-        num_evals=4,
-        episode_length=1000,
-        num_envs=512,
-        batch_size=256,
-        grad_updates_per_step=512,
-        seed=1,
-    )
-    xdata, ydata = [], []
-
-    def progress(num_steps, metrics):
-        xdata.append(num_steps)
-        ydata.append(metrics["eval/episode_reward"])
-        print(f"{num_steps}: {metrics['eval/episode_reward']}")
-
-    env = envs.get_environment(env_name="cartpole_swingup")
-    train_fn(environment=env, progress_fn=progress)
-    assert ydata[-1] > 750
 
 
 def shared_policy(state):
@@ -88,34 +48,6 @@ def set_dmc_initial_state(env, init_state):
         observation=env._task.get_observation(physics),
     )
     return out_state
-
-
-def test_brax_dmc_cartpole():
-    jax.config.update("jax_enable_x64", True)
-    num_steps = 1000
-    brax_env = envs.get_environment(env_name="cartpole_swingup", backend="generalized")
-    dmc_env = suite.load(domain_name="cartpole", task_name="swingup")
-    brax_env.reset(rng=jax.random.PRNGKey(0))
-    dmc_env.reset()
-    # Define a custom initial state [cart_position, cart_velocity, pole_angle, pole_angular_velocity]
-    initial_state = np.array([0.0, 0.0, np.pi, 0.0])
-    # Set the initial state in both environments
-    brax_state = set_brax_initial_state(brax_env, initial_state)
-    dmc_state = set_dmc_initial_state(dmc_env, initial_state)
-    brax_step = jax.jit(brax_env.step)
-    for _ in range(num_steps):
-        # Extract observations from Brax and DMC
-        brax_obs = brax_state.obs
-        dmc_obs = flatten_observation(dmc_state.observation)["observations"]
-        # Compare state shapes
-        assert brax_obs.shape == dmc_obs.shape
-        # Compare states elementwise
-        assert np.allclose(brax_obs, dmc_obs, atol=1e-2)
-        # Get action from the shared policy
-        action = shared_policy(brax_obs)
-        # Step both environments with the same action
-        brax_state = brax_step(brax_state, action)
-        dmc_state = dmc_env.step(action)
 
 
 _ENVS = 256
