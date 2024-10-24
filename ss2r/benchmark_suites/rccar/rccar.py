@@ -5,6 +5,7 @@ import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
 from brax.envs.base import Env, State
+from omegaconf import OmegaConf
 
 from ss2r.benchmark_suites import rewards
 from ss2r.benchmark_suites.rccar.model import CarParams, RaceCarDynamics
@@ -15,18 +16,34 @@ OBS_NOISE_STD_SIM_CAR: jnp.array = 0.1 * jnp.exp(
 
 
 def domain_randomization(sys, rng, cfg):
-    bounds = cfg
-    treedef = jtu.tree_structure(bounds, is_leaf=lambda x: isinstance(x, tuple))
-    keys = jax.random.split(rng, treedef.num_leaves)
-    keys = jtu.tree_unflatten(treedef, keys)
-    sys = jtu.tree_map(
-        lambda key, bound: jax.random.uniform(
-            key, shape=(1,) + bound[0].shape, minval=bound[0], maxval=bound[1]
-        ),
-        keys,
-        bounds,
-    )
+    def sample_from_bounds(value, key):
+        """
+        Sample from a JAX uniform distribution if the value is a list of two elements.
+        """
+        if isinstance(value, list) and len(value) == 2:
+            lower, upper = value
+            # Sample from jax.random.uniform with the given key
+            return jax.random.uniform(key, shape=(), minval=lower, maxval=upper)
+        return value
+
+    @jax.vmap
+    def randomize(rng):
+        bounds = CarParams(**cfg)
+        # Define a custom tree structure that treats lists as leaves
+        treedef = jtu.tree_structure(bounds, is_leaf=lambda x: isinstance(x, list))
+        # Generate random keys only for the relevant leaves (i.e., lists with 2 elements)
+        keys = jax.random.split(rng, num=treedef.num_leaves)
+        # Rebuild the tree with the keys, only where there are valid leaves
+        keys = jtu.tree_unflatten(treedef, keys)
+        # Map over the tree, generating random values where needed
+        sys = jtu.tree_map(
+            sample_from_bounds, bounds, keys, is_leaf=lambda x: isinstance(x, list)
+        )
+        return sys
+
+    cfg = OmegaConf.to_container(cfg)
     in_axes = jax.tree_map(lambda _: 0, sys)
+    sys = randomize(rng)
     return (
         sys,
         in_axes,

@@ -29,6 +29,7 @@ def prepare_randomization_fn(key, num_envs, cfg, task_name):
 def make_rccar_envs(cfg):
     task_cfg = dict(get_task_config(cfg))
     task_cfg.pop("domain_name")
+    task_cfg.pop("task_name")
     train_car_params = task_cfg.pop("train_car_params")
     eval_car_params = task_cfg.pop("eval_car_params")
     train_key, eval_key = jax.random.split(jax.random.PRNGKey(cfg.training.seed))
@@ -38,7 +39,7 @@ def make_rccar_envs(cfg):
             train_key,
             cfg.training.num_envs,
             train_car_params["bounds"],
-            task_cfg.task_name,
+            cfg.environment.task_name,
         )
         if cfg.training.train_domain_randomization
         else (None, None)
@@ -54,7 +55,7 @@ def make_rccar_envs(cfg):
         eval_key,
         cfg.training.num_eval_envs,
         eval_car_params["bounds"],
-        task_cfg.task_name,
+        cfg.environment.task_name,
     )
     eval_env = envs.training.wrap(
         eval_env,

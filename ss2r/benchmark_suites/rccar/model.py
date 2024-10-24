@@ -19,7 +19,6 @@ class CarParams:
     c_m_1: max current of motor: [0.2 - 0.5] c_m_2: motor resistance due to shaft: [0.01 - 0.15]
     """
 
-    car_id: int = 2
     m: jax.Array = jnp.array(1.65)  # [0.04, 0.08]
     i_com: jax.Array = jnp.array(2.78e-05)  # [1e-6, 5e-6]
     l_f: jax.Array = jnp.array(0.13)  # [0.025, 0.05]
