@@ -106,19 +106,17 @@ class RaceCarDynamics:
     def __init__(
         self,
         dt,
-        encode_angle: bool = True,
         local_coordinates: bool = False,
         rk_integrator: bool = True,
     ):
-        self.encode_angle = encode_angle
         if dt <= 1 / 100:
             integration_dt = dt
         else:
             integration_dt = 1 / 100
         self.local_coordinates = local_coordinates
         self.angle_idx = 2
-        self.velocity_start_idx = 4 if self.encode_angle else 3
-        self.velocity_end_idx = 5 if self.encode_angle else 4
+        self.velocity_start_idx = 3
+        self.velocity_end_idx = 4
         self.rk_integrator = rk_integrator
         self._num_steps_integrate = int(dt / integration_dt)
         self.dt_integration = integration_dt
@@ -188,11 +186,8 @@ class RaceCarDynamics:
         return next_state
 
     def step(self, x: jnp.array, u: jnp.array, params: CarParams) -> jnp.array:
-        theta_x = (
-            jnp.arctan2(x[..., self.angle_idx], x[..., self.angle_idx + 1])
-            if self.encode_angle
-            else x[..., self.angle_idx]
-        )
+        assert x.shape[-1] == 6
+        theta_x = x[..., self.angle_idx]
         offset = jnp.clip(params.angle_offset, -jnp.pi, jnp.pi)
         theta_x = theta_x + offset
         if not self.local_coordinates:
@@ -204,27 +199,10 @@ class RaceCarDynamics:
             x = x.at[..., self.velocity_start_idx : self.velocity_end_idx + 1].set(
                 rotated_vel
             )
-        if self.encode_angle:
-            x_reduced = self.reduce_x(x)
-            if self.rk_integrator:
-                x_reduced = self.rk_integration(x_reduced, u, params)
-            else:
-                x_reduced = self._compute_one_dt(x_reduced, u, params)
-            next_theta = jnp.atleast_1d(x_reduced[..., self.angle_idx])
-            next_x = jnp.concatenate(
-                [
-                    x_reduced[..., 0 : self.angle_idx],
-                    jnp.sin(next_theta),
-                    jnp.cos(next_theta),
-                    x_reduced[..., self.angle_idx + 1 :],
-                ],
-                axis=-1,
-            )
+        if self.rk_integrator:
+            next_x = self.rk_integration(x, u, params)
         else:
-            if self.rk_integrator:
-                next_x = self.rk_integration(x, u, params)
-            else:
-                next_x = self._compute_one_dt(x, u, params)
+            next_x = self._compute_one_dt(x, u, params)
         if self.local_coordinates:
             # convert position to local frame
             pos = next_x[..., 0 : self.angle_idx] - x[..., 0 : self.angle_idx]
@@ -232,13 +210,7 @@ class RaceCarDynamics:
             next_x = next_x.at[..., 0 : self.angle_idx].set(rotated_pos)
         else:
             # convert velocity to global frame
-            new_theta_x = (
-                jnp.arctan2(
-                    next_x[..., self.angle_idx], next_x[..., self.angle_idx + 1]
-                )
-                if self.encode_angle
-                else next_x[..., self.angle_idx]
-            )
+            new_theta_x = next_x[..., self.angle_idx]
             new_theta_x = new_theta_x + offset
             velocity = next_x[..., self.velocity_start_idx : self.velocity_end_idx + 1]
             rotated_vel = rotate_vector(velocity, new_theta_x)
@@ -246,18 +218,6 @@ class RaceCarDynamics:
                 ..., self.velocity_start_idx : self.velocity_end_idx + 1
             ].set(rotated_vel)
         return next_x
-
-    def reduce_x(self, x):
-        theta = jnp.arctan2(x[..., self.angle_idx], x[..., self.angle_idx + 1])
-        x_reduced = jnp.concatenate(
-            [
-                x[..., 0 : self.angle_idx],
-                jnp.atleast_1d(theta),
-                x[..., self.velocity_start_idx :],
-            ],
-            axis=-1,
-        )
-        return x_reduced
 
     def _ode_dyn(self, x, u, params: CarParams):
         """Compute derivative using dynamic model.

@@ -1,4 +1,3 @@
-import functools
 from typing import Tuple
 
 import jax
@@ -75,8 +74,7 @@ class RCCarEnvReward:
         self.goal = goal
         self.ctrl_cost_weight = ctrl_cost_weight
         self.encode_angle = encode_angle
-        self.tolerance_reward = functools.partial(
-            rewards.tolerance,
+        self.tolerance_reward = rewards.ToleranceReward(
             bounds=(0.0, bound),
             margin=margin_factor * bound,
             value_at_margin=0.1,
@@ -141,7 +139,7 @@ class RCCar(Env):
         self.dim_state = (7,) if encode_angle else (6,)
         self.encode_angle = encode_angle
         self.max_throttle = jnp.clip(max_throttle, 0.0, 1.0)
-        self.dynamics_model = RaceCarDynamics(dt=self._dt, encode_angle=False)
+        self.dynamics_model = RaceCarDynamics(dt=self._dt)
         self.sys = CarParams(**car_model_params)
         self.use_obs_noise = use_obs_noise
         self.reward_model = RCCarEnvReward(
@@ -198,16 +196,15 @@ class RCCar(Env):
         action = action.at[0].set(self.max_throttle * action[0])
         obs = state.obs
         if self.encode_angle:
-            obs = decode_angles(obs, self._angle_idx)
-        assert obs.shape[-1] == 6
-        obs = self.dynamics_model.step(obs, action, self.sys)
+            dynamics_state = decode_angles(obs, self._angle_idx)
+        next_dynamics_state = self.dynamics_model.step(dynamics_state, action, self.sys)
         # FIXME (yarden): hard-coded key is bad here.
-        obs = self._obs(obs, rng_key=jax.random.PRNGKey(0))
-        reward = self.reward_model.forward(obs=None, action=action, next_obs=obs)
+        next_obs = self._obs(next_dynamics_state, rng_key=jax.random.PRNGKey(0))
+        reward = self.reward_model.forward(obs=None, action=action, next_obs=next_obs)
         done = jnp.asarray(0.0)
         next_state = State(
             pipeline_state=state.pipeline_state,
-            obs=obs,
+            obs=next_obs,
             reward=reward,
             done=done,
             metrics=state.metrics,
