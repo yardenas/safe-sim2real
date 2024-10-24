@@ -62,9 +62,6 @@ def decode_angles(state: jnp.array, angle_idx: int) -> jnp.array:
 
 
 class RCCarEnvReward:
-    _angle_idx: int = 2
-    dim_action: Tuple[int] = (2,)
-
     def __init__(
         self,
         goal: jnp.array,
@@ -73,6 +70,8 @@ class RCCarEnvReward:
         bound: float = 0.1,
         margin_factor: float = 10.0,
     ):
+        self._angle_idx = 2
+        self.dim_action = (2,)
         self.goal = goal
         self.ctrl_cost_weight = ctrl_cost_weight
         self.encode_angle = encode_angle
@@ -113,7 +112,6 @@ class RCCarEnvReward:
 
 
 class RCCar(Env):
-    base_dt: float = 1 / 30.0
     dim_action: Tuple[int] = (2,)
     _goal: jnp.array = jnp.array([0.0, 0.0, 0.0])
     _init_pose: jnp.array = jnp.array([1.42, -1.04, jnp.pi])
@@ -128,7 +126,7 @@ class RCCar(Env):
         use_obs_noise: bool = False,
         margin_factor: float = 10.0,
         max_throttle: float = 1.0,
-        dt: float | None = None,
+        dt: float = 1 / 30.0,
     ):
         """
         Race car simulator environment
@@ -142,10 +140,7 @@ class RCCar(Env):
             car_model_params: dictionary of car model parameters that overwrite the default values
             seed: random number generator seed
         """
-        if dt is None:
-            self._dt = self.base_dt
-        else:
-            self._dt = dt
+        self._dt = dt
         self.dim_state = (7,) if encode_angle else (6,)
         self.encode_angle = encode_angle
         self.max_throttle = jnp.clip(max_throttle, 0.0, 1.0)
@@ -209,12 +204,9 @@ class RCCar(Env):
             obs = decode_angles(obs, self._angle_idx)
         assert obs.shape[-1] == 6
         obs = self.dynamics_model.step(obs, action, self.sys)
+        # FIXME (yarden): hard-coded key is bad here.
         obs = self._obs(obs, rng_key=jax.random.PRNGKey(0))
-        reward = (
-            self.reward_model.forward(obs=None, action=action, next_obs=obs)
-            * self._dt
-            / self.base_dt
-        )
+        reward = self.reward_model.forward(obs=None, action=action, next_obs=obs)
         done = jnp.asarray(0.0)
         next_state = State(
             pipeline_state=state.pipeline_state,
