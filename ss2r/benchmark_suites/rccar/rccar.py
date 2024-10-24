@@ -2,8 +2,11 @@ import functools
 from typing import Tuple
 
 import jax
+import jax.flatten_util
 import jax.numpy as jnp
+import jax.tree_util as jtu
 from brax.envs.base import Env, State
+from omegaconf import OmegaConf
 
 from ss2r.benchmark_suites import rewards
 from ss2r.benchmark_suites.rccar.model import CarParams, RaceCarDynamics
@@ -11,6 +14,38 @@ from ss2r.benchmark_suites.rccar.model import CarParams, RaceCarDynamics
 OBS_NOISE_STD_SIM_CAR: jnp.array = 0.1 * jnp.exp(
     jnp.array([-4.5, -4.5, -4.0, -2.5, -2.5, -1.0])
 )
+
+
+def domain_randomization(sys, rng, cfg):
+    def sample_from_bounds(value, key):
+        """
+        Sample from a JAX uniform distribution if the value is a list of two elements.
+        """
+        if isinstance(value, list) and len(value) == 2:
+            lower, upper = value
+            # Sample from jax.random.uniform with the given key
+            return jax.random.uniform(key, shape=(), minval=lower, maxval=upper)
+        return value
+
+    @jax.vmap
+    def randomize(rng):
+        bounds = CarParams(**cfg)
+        # Define a custom tree structure that treats lists as leaves
+        treedef = jtu.tree_structure(bounds, is_leaf=lambda x: isinstance(x, list))
+        # Generate random keys only for the relevant leaves (i.e., lists with 2 elements)
+        keys = jax.random.split(rng, num=treedef.num_leaves)
+        # Rebuild the tree with the keys, only where there are valid leaves
+        keys = jtu.tree_unflatten(treedef, keys)
+        # Map over the tree, generating random values where needed
+        sys = jtu.tree_map(
+            sample_from_bounds, bounds, keys, is_leaf=lambda x: isinstance(x, list)
+        )
+        return sys, jax.flatten_util.ravel_pytree(sys)[0]
+
+    cfg = OmegaConf.to_container(cfg)
+    in_axes = jax.tree_map(lambda _: 0, sys)
+    sys, params = randomize(rng)
+    return sys, in_axes, params
 
 
 def rotate_coordinates(state: jnp.array, encode_angle: bool = False) -> jnp.array:

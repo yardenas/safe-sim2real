@@ -10,8 +10,7 @@ from brax import envs
 from dm_control import suite
 from dm_control.rl.control import flatten_observation
 
-from ss2r.benchmark_suites.brax import randomization_fns
-from ss2r.benchmark_suites.utils import get_task_config
+from ss2r import benchmark_suites
 from tests import make_test_config
 
 
@@ -128,31 +127,14 @@ _ENVS = 256
     ids=["domain_randomization", "no_domain_randomization"],
 )
 def test_parameterization(use_domain_randomization, similar_rate):
-    def get_environment():
-        cfg = make_test_config(
-            [
-                f"training.num_envs={1}",
-                "environment=cartpole",
-                "training.train_domain_randomization=" + str(use_domain_randomization),
-            ]
-        )
-        task_cfg = get_task_config(cfg)
-        env = envs.get_environment(task_cfg.task_name, backend=cfg.environment.backend)
-        if cfg.training.train_domain_randomization:
-            randomize_fn = lambda sys, rng: randomization_fns[task_cfg.task_name](
-                sys, rng, task_cfg
-            )
-        else:
-            randomize_fn = None
-        return env, randomize_fn
-
-    env, randomize_fn = get_environment()
-    if use_domain_randomization:
-        keys = jax.random.split(jax.random.PRNGKey(0), _ENVS)
-        v_randomize_fn = lambda sys: randomize_fn(sys, keys)[:-1]
-    else:
-        v_randomize_fn = None
-    env = envs.training.wrap(env, randomization_fn=v_randomize_fn)
+    cfg = make_test_config(
+        [
+            f"training.num_envs={_ENVS}",
+            "environment=rccar",
+            "training.train_domain_randomization=" + str(use_domain_randomization),
+        ]
+    )
+    env, *_ = benchmark_suites.make(cfg)
     keys = jnp.stack([jax.random.PRNGKey(0) for _ in range(_ENVS)])
     brax_state = env.reset(rng=keys)
     brax_step = jax.jit(env.step)
