@@ -4,12 +4,12 @@ defaults:
 
 training:
   num_envs: 128
-  num_timesteps: 1000000
+  num_timesteps: 500000
   episode_length: 100
 
 agent:
   grad_updates_per_step: 128
   batch_size: 128
   min_replay_size: 100
-  max_replay_size: 1000000
+  max_replay_size: 500000
   hidden_layer_sizes: [64, 64]

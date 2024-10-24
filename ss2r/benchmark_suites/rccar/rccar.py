@@ -149,13 +149,13 @@ class RCCar(Env):
             margin_factor=margin_factor,
         )
 
-    def _obs(self, state: jnp.array, rng_key: jax.random.PRNGKey) -> jnp.array:
+    def _obs(self, state: jnp.array, rng: jax.random.PRNGKey) -> jnp.array:
         """Adds observation noise to the state"""
         assert state.shape[-1] == 6
         # add observation noise
         if self.use_obs_noise:
             obs = state + self._obs_noise_stds * jax.random.normal(
-                rng_key, shape=self.dim_state
+                rng, shape=self.dim_state
             )
         else:
             obs = state
@@ -182,7 +182,7 @@ class RCCar(Env):
             [0.005, 0.005, 0.02]
         ) * jax.random.normal(key_vel, shape=(3,))
         init_state = jnp.concatenate([init_pos, init_theta, init_vel])
-        init_state = self._obs(init_state, rng_key=key_obs)
+        init_state = self._obs(init_state, rng=key_obs)
         return State(
             pipeline_state=None,
             obs=init_state,
@@ -199,7 +199,7 @@ class RCCar(Env):
             dynamics_state = decode_angles(obs, self._angle_idx)
         next_dynamics_state = self.dynamics_model.step(dynamics_state, action, self.sys)
         # FIXME (yarden): hard-coded key is bad here.
-        next_obs = self._obs(next_dynamics_state, rng_key=jax.random.PRNGKey(0))
+        next_obs = self._obs(next_dynamics_state, rng=jax.random.PRNGKey(0))
         reward = self.reward_model.forward(obs=None, action=action, next_obs=next_obs)
         done = jnp.asarray(0.0)
         next_state = State(

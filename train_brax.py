@@ -19,6 +19,8 @@ def get_state_path() -> str:
 
 def get_train_fn(cfg):
     if cfg.agent.name == "sac":
+        import jax.nn as jnn
+
         import ss2r.algorithms.sac.train as sac
 
         agent_cfg = dict(cfg.agent)
@@ -36,9 +38,12 @@ def get_train_fn(cfg):
             ]
         }
         hidden_layer_sizes = agent_cfg.pop("hidden_layer_sizes")
+        activation = getattr(jnn, agent_cfg.pop("activation"))
         del agent_cfg["name"]
         network_factory = functools.partial(
-            sac_networks.make_sac_networks, hidden_layer_sizes=hidden_layer_sizes
+            sac_networks.make_sac_networks,
+            hidden_layer_sizes=hidden_layer_sizes,
+            activation=activation,
         )
         train_fn = functools.partial(
             sac.train,
@@ -53,16 +58,16 @@ def get_train_fn(cfg):
         from mbpo.optimizers.policy_optimizers.sac.sac_brax_env import SAC
 
         def train(environment, eval_env, wrap_env, progress_fn, domain_parameters):
-            num_env_steps_between_updates = 10
+            num_env_steps_between_updates = 1
             num_envs = 128
             optimizer = SAC(
                 environment=environment,
-                num_timesteps=20_000,
+                num_timesteps=500000,
                 episode_length=100,
                 action_repeat=1,
                 num_env_steps_between_updates=num_env_steps_between_updates,
                 num_envs=num_envs,
-                num_eval_envs=32,
+                num_eval_envs=128,
                 lr_alpha=3e-4,
                 lr_policy=3e-4,
                 lr_q=3e-4,
