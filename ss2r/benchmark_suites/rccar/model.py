@@ -35,9 +35,7 @@ class CarParams:
     c_m_2: jax.Array = jnp.array(1.5003588)  # [0.00, 0.007]
     c_d: jax.Array = jnp.array(0.0)  # [0.01, 0.1]
     steering_limit: jax.Array = jnp.array(0.19989373)
-    use_blend: jax.Array = jnp.array(
-        0.0
-    )  # 0.0 -> (only kinematics), 1.0 -> (kinematics + dynamics)
+    use_blend: jax.Array = jnp.array(0.0)
     # parameters used to compute the blend ratio characteristics
     blend_ratio_ub: jax.Array = jnp.array([0.5477225575])
     blend_ratio_lb: jax.Array = jnp.array([0.4472135955])
