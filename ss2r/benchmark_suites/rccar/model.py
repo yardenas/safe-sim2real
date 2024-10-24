@@ -1,10 +1,10 @@
-from typing import NamedTuple
-
 import jax
 import jax.numpy as jnp
+from flax.struct import dataclass
 
 
-class CarParams(NamedTuple):
+@dataclass
+class CarParams:
     """
     d_f, d_r : Represent grip of the car. Range: [0.015, 0.025]
     b_f, b_r: Slope of the pacejka. Range: [2.0 - 4.0].
