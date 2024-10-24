@@ -47,6 +47,52 @@ def get_train_fn(cfg):
             network_factory=network_factory,
             checkpoint_logdir=get_state_path(),
         )
+    elif cfg.agent.name == "sac_lenart":
+        import jax
+        from jax.nn import swish
+        from mbpo.optimizers.policy_optimizers.sac.sac_brax_env import SAC
+
+        def train(environment, eval_env, wrap_env, progress_fn, domain_parameters):
+            num_env_steps_between_updates = 10
+            num_envs = 128
+            optimizer = SAC(
+                environment=environment,
+                num_timesteps=20_000,
+                episode_length=100,
+                action_repeat=1,
+                num_env_steps_between_updates=num_env_steps_between_updates,
+                num_envs=num_envs,
+                num_eval_envs=32,
+                lr_alpha=3e-4,
+                lr_policy=3e-4,
+                lr_q=3e-4,
+                wd_alpha=0.0,
+                wd_policy=0.0,
+                wd_q=0.0,
+                max_grad_norm=1e5,
+                discounting=0.99,
+                batch_size=128,
+                num_evals=20,
+                normalize_observations=True,
+                reward_scaling=1.0,
+                tau=0.005,
+                min_replay_size=10**2,
+                max_replay_size=10**5,
+                grad_updates_per_step=num_env_steps_between_updates * num_envs,
+                deterministic_eval=True,
+                init_log_alpha=0.0,
+                policy_hidden_layer_sizes=(64, 64),
+                policy_activation=swish,
+                critic_hidden_layer_sizes=(64, 64),
+                critic_activation=swish,
+                wandb_logging=True,
+                return_best_model=True,
+            )
+            optimizer.run_training(
+                jax.random.PRNGKey(cfg.training.seed), progress_fn=progress_fn
+            )
+
+        return train
     else:
         raise ValueError(f"Unknown agent name: {cfg.agent.name}")
     return train_fn

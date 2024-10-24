@@ -27,6 +27,7 @@ jax = "0.4.25"
 brax = "^0.10.5"
 equinox = "^0.11.4"
 pyqt6 = "^6.7.0"
+mbpo = {git = "https://github.com/lasgroup/Model-based-policy-optimizers.git"}
 
 
 [[tool.poetry.source]]
