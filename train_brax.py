@@ -3,13 +3,52 @@ import logging
 import os
 
 import hydra
+import jax
+from brax.io import image
+from brax.training.types import Policy, State
 from omegaconf import OmegaConf
 
 import ss2r.algorithms.sac.networks as sac_networks
 from ss2r import benchmark_suites
+from ss2r.common.pytree import pytrees_unstack
 from ss2r.rl.logging import TrainingLogger
 
 _LOG = logging.getLogger(__name__)
+
+
+def rollout(
+    self,
+    policy: Policy,
+    steps: int,
+    rng: int,
+    state: State | None = None,
+) -> tuple[State, State]:
+    if state is None:
+        rng, rng = jax.random.split(rng)
+        keys = jax.random.split(rng, self.parallel_envs)
+        state = self.environment.reset(keys)
+
+    def f(carry, _):
+        state, current_key = carry
+        current_key, next_key = jax.random.split(current_key)
+        nstate, transition = self.step(
+            state,
+            policy,
+            current_key,
+            extra_fields=("truncation",),
+        )
+        return (nstate, next_key), transition
+
+    (final_state, _), data = jax.lax.scan(f, (state, rng), (), length=steps)
+    return final_state, data
+
+
+def render_video(sys, policy, steps, rng):
+    _, trajectory = rollout(policy, steps, rng)
+    trajectory = jax.tree_map(lambda x: x[:, 0], trajectory.extras["pipeline_state"])  # type: ignore
+    trajectory = pytrees_unstack(trajectory)
+    video = image.render_array(sys, trajectory)
+    return video
 
 
 def get_state_path() -> str:
@@ -120,13 +159,20 @@ def main(cfg):
     logger = TrainingLogger(cfg)
     train_env, eval_env, domain_randomization_params = benchmark_suites.make(cfg)
     train_fn = get_train_fn(cfg)
-    train_fn(
+    make_policy, params, metrics = train_fn(
         environment=train_env,
         eval_env=eval_env,
         wrap_env=False,
         progress_fn=functools.partial(report, logger),
         domain_parameters=domain_randomization_params,
     )
+    video = render_video(
+        train_env.sys,
+        make_policy(params, deterministic=True),
+        cfg.training.episode_length,
+        jax.random.PRNGKey(cfg.training.seed),
+    )
+    logger.log_video(video, 0)
     _LOG.info("Done training.")
 
 

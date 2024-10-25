@@ -615,4 +615,4 @@ def train(
     pmap.assert_is_replicated(training_state)
     logging.info("total steps: %s", total_steps)
     pmap.synchronize_hosts()
-    return (make_policy, params, metrics)
+    return make_policy, params, metrics
