@@ -1,10 +1,13 @@
-from ss2r.benchmark_suites.brax.cartpole import cartpole
-from ss2r.benchmark_suites.rccar import rccar
+import jax
+from brax.io import image
 
-randomization_fns = {
-    "cartpole_swingup": cartpole.domain_randomization,
-    "cartpole_swingup_sparse": cartpole.domain_randomization,
-    "cartpole_balance": cartpole.domain_randomization,
-    "inverted_pendulum": cartpole.domain_randomization,
-    "rccar": rccar.domain_randomization,
-}
+from ss2r.common.pytree import pytrees_unstack
+from ss2r.rl.utils import rollout
+
+
+def render(env, policy, steps, rng):
+    _, trajectory = rollout(policy, steps, rng)
+    trajectory = jax.tree_map(lambda x: x[:, 0], trajectory.extras["pipeline_state"])
+    trajectory = pytrees_unstack(trajectory)
+    video = image.render_array(env.sys, trajectory)
+    return video

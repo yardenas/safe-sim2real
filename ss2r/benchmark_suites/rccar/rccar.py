@@ -10,6 +10,7 @@ from omegaconf import OmegaConf
 
 from ss2r.benchmark_suites import rewards
 from ss2r.benchmark_suites.rccar.model import CarParams, RaceCarDynamics
+from ss2r.rl.utils import rollout
 
 OBS_NOISE_STD_SIM_CAR: jnp.array = 0.1 * jnp.exp(
     jnp.array([-4.5, -4.5, -4.0, -2.5, -2.5, -1.0])
@@ -267,3 +268,51 @@ class RCCar(Env):
 
     def backend(self) -> str:
         return "positional"
+
+
+def render(env, policy, steps, rng):
+    import numpy as np
+    from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
+    from matplotlib.figure import Figure
+
+    _, trajectory = rollout(policy, steps, rng)
+    trajectory = jax.tree_map(lambda x: x[:, 0], trajectory.obs)
+    if env.encode_angle:
+        trajectory = decode_angles(trajectory, 2)
+
+    def draw_scene(timestep):
+        # Create a figure and axis
+        fig = Figure(figsize=(6, 6))  # Adjust the size as needed
+        canvas = FigureCanvas(fig)
+        ax = fig.add_subplot(111)
+        pos_domain_size = 5.0
+        ax.set_xlim(-pos_domain_size, pos_domain_size)
+        ax.set_ylim(-pos_domain_size, pos_domain_size)
+        ax.scatter(0, 0)
+        # Rotate coordinates if required
+        rotated_trajectory = rotate_coordinates(trajectory, encode_angle=False)
+        # Plot the car's position and velocity at the specified timestep
+        x, y = rotated_trajectory[timestep, 0], rotated_trajectory[timestep, 1]
+        vx, vy = rotated_trajectory[timestep, 3], rotated_trajectory[timestep, 4]
+        ax.quiver(
+            x,
+            y,
+            vx,
+            vy,
+            color="blue",
+            scale=10,
+            headlength=3,
+            headaxislength=3,
+            headwidth=3,
+            linewidth=0.5,
+        )
+        # Render figure to canvas and retrieve RGB array
+        canvas.draw()
+        width, height = fig.get_size_inches() * fig.get_dpi()
+        image = np.frombuffer(canvas.tostring_rgb(), dtype="uint8").reshape(
+            int(height), int(width), 3
+        )
+        return image
+
+    images = [draw_scene(timestep) for timestep in range(steps)]
+    return np.asanyarray(images)
