@@ -3,7 +3,8 @@ import functools
 import jax
 from brax import envs
 
-from ss2r.benchmark_suites.brax import randomization_fns
+from ss2r.benchmark_suites import brax
+from ss2r.benchmark_suites.brax.cartpole import cartpole
 from ss2r.benchmark_suites.rccar import rccar
 from ss2r.benchmark_suites.utils import get_domain_name, get_task_config
 
@@ -106,3 +107,17 @@ def make_brax_envs(cfg):
     else:
         domain_parameters = None
     return train_env, eval_env, domain_parameters
+
+
+randomization_fns = {
+    "cartpole_swingup": cartpole.domain_randomization,
+    "cartpole_swingup_sparse": cartpole.domain_randomization,
+    "cartpole_balance": cartpole.domain_randomization,
+    "inverted_pendulum": cartpole.domain_randomization,
+    "rccar": rccar.domain_randomization,
+}
+
+render_fns = {
+    "cartpole_swingup": brax.render,
+    "rccar": rccar.render,
+}
