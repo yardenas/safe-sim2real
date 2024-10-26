@@ -3,6 +3,7 @@ import logging
 import os
 
 import hydra
+import jax
 from omegaconf import OmegaConf
 
 import ss2r.algorithms.sac.networks as sac_networks
@@ -35,6 +36,7 @@ def get_train_fn(cfg):
                 "train_domain_randomization",
                 "eval_domain_randomization",
                 "privileged",
+                "render",
             ]
         }
         hidden_layer_sizes = agent_cfg.pop("hidden_layer_sizes")
@@ -103,12 +105,18 @@ def get_train_fn(cfg):
     return train_fn
 
 
-def report(logger, num_steps, metrics):
+class Counter:
+    def __init__(self):
+        self.count = 0
+
+
+def report(logger, step, num_steps, metrics):
     metrics = {
         "train/objective": float(metrics["eval/episode_reward"]),
         "train/sps": float(metrics["eval/sps"]),
     }
     logger.log(metrics, num_steps)
+    step.count = num_steps
 
 
 @hydra.main(version_base=None, config_path="ss2r/configs", config_name="config")
@@ -120,13 +128,22 @@ def main(cfg):
     logger = TrainingLogger(cfg)
     train_env, eval_env, domain_randomization_params = benchmark_suites.make(cfg)
     train_fn = get_train_fn(cfg)
-    train_fn(
+    steps = Counter()
+    make_policy, params, _ = train_fn(
         environment=train_env,
         eval_env=eval_env,
         wrap_env=False,
-        progress_fn=functools.partial(report, logger),
+        progress_fn=functools.partial(report, logger, steps),
         domain_parameters=domain_randomization_params,
     )
+    if cfg.training.render:
+        video = benchmark_suites.render_fns[cfg.environment.task_name](
+            eval_env,
+            make_policy(params, deterministic=True),
+            cfg.training.episode_length,
+            jax.random.PRNGKey(cfg.training.seed),
+        )
+        logger.log_video(video, steps.count, "train/video")
     _LOG.info("Done training.")
 
 

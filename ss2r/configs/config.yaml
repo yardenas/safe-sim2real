@@ -41,7 +41,7 @@ training:
   num_envs: 2048
   num_eval_envs: 128
   action_repeat: 1
-  render_episodes: 0
+  render: true
   num_timesteps: 1000000
   privileged: false
   train_domain_randomization: true

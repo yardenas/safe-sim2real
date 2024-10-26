@@ -1,29 +1,29 @@
 import jax
+from brax.envs import Env, State
+from brax.training.types import Policy
 
 
-class PRNGSequence:
-    def __init__(self, seed: int):
-        self.key = jax.random.PRNGKey(seed)
+def rollout(
+    env: Env,
+    policy: Policy,
+    steps: int,
+    rng: jax.Array,
+    state: State | None = None,
+) -> tuple[State, State]:
+    parallel_envs = env._sys_v.m.shape
+    keys = jax.random.split(rng, parallel_envs[0])
+    if state is None:
+        state = env.reset(keys)
 
-    def __iter__(self):
-        return self
+    def f(carry, _):
+        state, current_key = carry
+        current_key, next_key = jax.random.split(current_key)
+        action, _ = policy(state.obs, current_key)
+        nstate = env.step(
+            state,
+            action,
+        )
+        return (nstate, next_key), nstate
 
-    def __next__(self):
-        self.key, subkey = jax.random.split(self.key)
-        return subkey
-
-    def take_n(self, n):
-        keys = jax.random.split(self.key, n + 1)
-        self.key = keys[0]
-        return keys[1:]
-
-
-class Count:
-    def __init__(self, n: int):
-        self.count = 0
-        self.n = n
-
-    def __call__(self):
-        bingo = (self.count + 1) == self.n
-        self.count = (self.count + 1) % self.n
-        return bingo
+    (final_state, _), data = jax.lax.scan(f, (state, rng), (), length=steps)
+    return final_state, data

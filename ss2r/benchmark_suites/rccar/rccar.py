@@ -10,6 +10,7 @@ from omegaconf import OmegaConf
 
 from ss2r.benchmark_suites import rewards
 from ss2r.benchmark_suites.rccar.model import CarParams, RaceCarDynamics
+from ss2r.rl.utils import rollout
 
 OBS_NOISE_STD_SIM_CAR: jnp.array = 0.1 * jnp.exp(
     jnp.array([-4.5, -4.5, -4.0, -2.5, -2.5, -1.0])
@@ -57,7 +58,7 @@ def rotate_coordinates(state: jnp.array, encode_angle: bool = False) -> jnp.arra
         state[..., 1:2],
         state[:, 4 + int(encode_angle) : 5 + int(encode_angle)],
     )
-    theta = state[..., 2 : 3 + int(encode_angle)]
+    theta = state[..., 2 : 3 + int(encode_angle)] - jnp.pi / 2
     new_state = jnp.concatenate(
         [y_pos, -x_pos, theta, y_vel, -x_vel, state[..., 5 + int(encode_angle) :]],
         axis=-1,
@@ -99,7 +100,7 @@ def decode_angles(state: jnp.array, angle_idx: int) -> jnp.array:
 class RCCarEnvReward:
     def __init__(
         self,
-        goal: jnp.array,
+        goal: jax.Array,
         encode_angle: bool = False,
         ctrl_cost_weight: float = 0.005,
         bound: float = 0.1,
@@ -118,7 +119,7 @@ class RCCarEnvReward:
             sigmoid="long_tail",
         )
 
-    def forward(self, obs: jnp.array, action: jnp.array, next_obs: jnp.array):
+    def forward(self, obs: jax.Array, action: jax.Array, next_obs: jax.Array):
         """Computes the reward for the given transition"""
         reward_ctrl = self.action_reward(action)
         reward_state = self.state_reward(obs, next_obs)
@@ -126,11 +127,11 @@ class RCCarEnvReward:
         return reward
 
     @staticmethod
-    def action_reward(action: jnp.array) -> jnp.array:
+    def action_reward(action: jax.Array) -> jax.Array:
         """Computes the reward/penalty for the given action"""
         return -(action**2).sum(-1)
 
-    def state_reward(self, obs: jnp.array, next_obs: jnp.array) -> jnp.array:
+    def state_reward(self, obs: jax.Array, next_obs: jax.Array) -> jax.Array:
         """Computes the reward for the given observations"""
         if self.encode_angle:
             next_obs = decode_angles(next_obs, angle_idx=self._angle_idx)
@@ -145,10 +146,10 @@ class RCCarEnvReward:
 
 class RCCar(Env):
     dim_action: Tuple[int] = (2,)
-    _goal: jnp.array = jnp.array([0.0, 0.0, 0.0])
-    _init_pose: jnp.array = jnp.array([1.42, -1.04, jnp.pi])
+    _goal: jax.Array = jnp.array([0.0, 0.0, 0.0])
+    _init_pose: jax.Array = jnp.array([1.42, -1.04, jnp.pi])
     _angle_idx: int = 2
-    _obs_noise_stds: jnp.array = OBS_NOISE_STD_SIM_CAR
+    _obs_noise_stds: jax.Array = OBS_NOISE_STD_SIM_CAR
 
     def __init__(
         self,
@@ -267,3 +268,79 @@ class RCCar(Env):
 
     def backend(self) -> str:
         return "positional"
+
+
+def render(env, policy, steps, rng):
+    import numpy as np
+    from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
+    from matplotlib.figure import Figure
+    from matplotlib.patches import Circle, Rectangle
+
+    _, trajectory = rollout(env, policy, steps, rng)
+    trajectory = jax.tree_map(lambda x: x[:, 0], trajectory.obs)
+    if env.encode_angle:
+        trajectory = decode_angles(trajectory, 2)
+
+    def draw_scene(timestep):
+        # Create a figure and axis
+        fig = Figure(figsize=(2.5, 2.5), dpi=300)
+        canvas = FigureCanvas(fig)
+        ax = fig.gca()
+        pos_domain_size = 3.5
+        ax.set_xlim(-pos_domain_size, pos_domain_size)
+        ax.set_ylim(-pos_domain_size, pos_domain_size)
+        target_center = (0, 0)
+        colors = ["red", "white", "blue"]
+        radii = [0.3, 0.2, 0.1]
+
+        for radius, color in zip(radii, colors):
+            circle = Circle(target_center, radius, color=color, ec="black", lw=0.5)
+            ax.add_patch(circle)
+        # Rotate coordinates if required
+        rotated_trajectory = rotate_coordinates(trajectory, encode_angle=False)
+        # Plot the car's position and velocity at the specified timestep
+        x, y = rotated_trajectory[timestep, 0], rotated_trajectory[timestep, 1]
+        vx, vy = rotated_trajectory[timestep, 3], rotated_trajectory[timestep, 4]
+        car_width, car_length = 0.3, 0.6
+        car = Rectangle(
+            (x - car_length / 2, y - car_width / 2),
+            car_length,
+            car_width,
+            angle=rotated_trajectory[timestep, 2] * 180 / np.pi,
+            color="green",
+            alpha=0.7,
+            ec="black",
+            rotation_point="center",
+        )
+        ax.add_patch(car)
+        # Add an arrow to indicate the car's orientation
+        ax.arrow(
+            x,
+            y,
+            vx * 0.5,
+            vy * 0.5,
+            head_width=0.2,
+            head_length=0.2,
+            fc="black",
+            ec="black",
+        )
+        ax.quiver(
+            x,
+            y,
+            vx,
+            vy,
+            color="blue",
+            scale=10,
+            headlength=3,
+            headaxislength=3,
+            headwidth=3,
+            linewidth=0.5,
+        )
+        # Render figure to canvas and retrieve RGB array
+        canvas.draw()
+        image = np.frombuffer(canvas.tostring_rgb(), dtype="uint8").copy()
+        image = image.reshape(*reversed(canvas.get_width_height()), 3)
+        return image
+
+    images = [draw_scene(timestep) for timestep in range(steps)]
+    return np.asanyarray(images).transpose(0, 3, 1, 2)
