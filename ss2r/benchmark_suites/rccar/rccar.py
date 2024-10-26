@@ -1,5 +1,4 @@
 import functools
-from typing import Tuple
 
 import jax
 import jax.flatten_util
@@ -144,13 +143,11 @@ class RCCarEnvReward:
         return reward
 
 
-class RCCar(Env):
-    dim_action: Tuple[int] = (2,)
-    _goal: jax.Array = jnp.array([0.0, 0.0, 0.0])
-    _init_pose: jax.Array = jnp.array([1.42, -1.04, jnp.pi])
-    _angle_idx: int = 2
-    _obs_noise_stds: jax.Array = OBS_NOISE_STD_SIM_CAR
+def cost_fn(state: jax.Array, threshold: float) -> jax.Array:
+    return jnp.where(state[..., 0] < threshold, 1.0, 0.0)
 
+
+class RCCar(Env):
     def __init__(
         self,
         car_model_params: dict,
@@ -160,6 +157,7 @@ class RCCar(Env):
         margin_factor: float = 10.0,
         max_throttle: float = 1.0,
         dt: float = 1 / 30.0,
+        safety_threshold: float = -0.1,
     ):
         """
         Race car simulator environment
@@ -173,6 +171,12 @@ class RCCar(Env):
             car_model_params: dictionary of car model parameters that overwrite the default values
             seed: random number generator seed
         """
+        self._goal = jnp.array([0.0, 0.0, 0.0])
+        self._init_pose = jnp.array([1.42, -1.04, jnp.pi])
+        self._angle_idx = 2
+        self._obs_noise_stds = OBS_NOISE_STD_SIM_CAR
+        self.dim_action = (2,)
+        self.safety_threshold = safety_threshold
         self._dt = dt
         self.dim_state = (7,) if encode_angle else (6,)
         self.encode_angle = encode_angle
@@ -226,6 +230,7 @@ class RCCar(Env):
             obs=init_state,
             reward=jnp.array(0.0),
             done=jnp.array(0.0),
+            info={"cost": jnp.array([0.0])},
         )
 
     def step(self, state: State, action: jax.Array) -> State:
@@ -239,14 +244,16 @@ class RCCar(Env):
         # FIXME (yarden): hard-coded key is bad here.
         next_obs = self._obs(next_dynamics_state, rng=jax.random.PRNGKey(0))
         reward = self.reward_model.forward(obs=None, action=action, next_obs=next_obs)
+        cost = cost_fn(obs, self.safety_threshold)
         done = jnp.asarray(0.0)
+        info = {**state.info, "cost": cost}
         next_state = State(
             pipeline_state=state.pipeline_state,
             obs=next_obs,
             reward=reward,
             done=done,
             metrics=state.metrics,
-            info=state.info,
+            info=info,
         )
         return next_state
 
