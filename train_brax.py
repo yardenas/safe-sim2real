@@ -111,10 +111,7 @@ class Counter:
 
 
 def report(logger, step, num_steps, metrics):
-    metrics = {
-        "train/objective": float(metrics["eval/episode_reward"]),
-        "train/sps": float(metrics["eval/sps"]),
-    }
+    metrics = {k: float(v) for k, v in metrics.items()}
     logger.log(metrics, num_steps)
     step.count = num_steps
 
