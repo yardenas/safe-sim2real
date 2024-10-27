@@ -140,7 +140,7 @@ def main(cfg):
             cfg.training.episode_length,
             jax.random.PRNGKey(cfg.training.seed),
         )
-        logger.log_video(video, steps.count, "train/video")
+        logger.log_video(video, steps.count, "eval/video")
     _LOG.info("Done training.")
 
 
