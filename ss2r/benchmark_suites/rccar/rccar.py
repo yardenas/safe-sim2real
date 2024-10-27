@@ -174,7 +174,7 @@ class RCCar(Env):
             seed: random number generator seed
         """
         self._goal = jnp.array([0.0, 0.0, 0.0])
-        self.obstacle = obstacle
+        self.obstacle = tuple(obstacle)
         self._init_pose = jnp.array([1.42, -1.04, jnp.pi])
         self._angle_idx = 2
         self._obs_noise_stds = OBS_NOISE_STD_SIM_CAR
