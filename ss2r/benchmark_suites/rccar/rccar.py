@@ -159,7 +159,7 @@ class RCCar(Env):
         margin_factor: float = 10.0,
         max_throttle: float = 1.0,
         dt: float = 1 / 30.0,
-        obstacle: tuple[float, float, float] = (-0.75, -0.75, 0.2),
+        obstacle: tuple[float, float, float] = (0.75, -0.75, 0.2),
     ):
         """
         Race car simulator environment
@@ -173,21 +173,21 @@ class RCCar(Env):
             car_model_params: dictionary of car model parameters that overwrite the default values
             seed: random number generator seed
         """
-        self._goal = jnp.array([0.0, 0.0, 0.0])
+        self.goal = jnp.array([0.0, 0.0, 0.0])
         self.obstacle = tuple(obstacle)
         self._init_pose = jnp.array([1.42, -1.04, jnp.pi])
-        self._angle_idx = 2
+        self.angle_idx = 2
         self._obs_noise_stds = OBS_NOISE_STD_SIM_CAR
         self.dim_action = (2,)
-        self._dt = dt
+        self.dt = dt
         self.dim_state = (7,) if encode_angle else (6,)
         self.encode_angle = encode_angle
         self.max_throttle = jnp.clip(max_throttle, 0.0, 1.0)
-        self.dynamics_model = RaceCarDynamics(dt=self._dt)
+        self.dynamics_model = RaceCarDynamics(dt=self.dt)
         self.sys = CarParams(**car_model_params)
         self.use_obs_noise = use_obs_noise
         self.reward_model = RCCarEnvReward(
-            goal=self._goal,
+            goal=self.goal,
             ctrl_cost_weight=ctrl_cost_weight,
             encode_angle=self.encode_angle,
             margin_factor=margin_factor,
@@ -205,7 +205,7 @@ class RCCar(Env):
             obs = state
         # encode angle to sin(theta) ant cos(theta) if desired
         if self.encode_angle:
-            obs = encode_angles(obs, self._angle_idx)
+            obs = encode_angles(obs, self.angle_idx)
         assert (obs.shape[-1] == 7 and self.encode_angle) or (
             obs.shape[-1] == 6 and not self.encode_angle
         )
@@ -241,7 +241,7 @@ class RCCar(Env):
         action = action.at[0].set(self.max_throttle * action[0])
         obs = state.obs
         if self.encode_angle:
-            dynamics_state = decode_angles(obs, self._angle_idx)
+            dynamics_state = decode_angles(obs, self.angle_idx)
         next_dynamics_state = self.dynamics_model.step(dynamics_state, action, self.sys)
         # FIXME (yarden): hard-coded key is bad here.
         next_obs = self._obs(next_dynamics_state, rng=jax.random.PRNGKey(0))
@@ -258,10 +258,6 @@ class RCCar(Env):
             info=info,
         )
         return next_state
-
-    @property
-    def dt(self):
-        return self._dt
 
     @property
     def observation_size(self) -> int:
@@ -289,8 +285,8 @@ def render(env, policy, steps, rng):
     trajectory = jax.tree_map(lambda x: x[:, 0], trajectory.obs)
     if env.encode_angle:
         trajectory = decode_angles(trajectory, 2)
-
     obstacle_position, obstacle_radius = env.obstacle[:2], env.obstacle[2]
+    obstacle_position = jnp.array([obstacle_position[1], -obstacle_position[0]])
 
     def draw_scene(timestep):
         # Create a figure and axis
