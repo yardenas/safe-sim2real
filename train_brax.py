@@ -8,7 +8,7 @@ from omegaconf import OmegaConf
 
 import ss2r.algorithms.sac.networks as sac_networks
 from ss2r import benchmark_suites
-from ss2r.rl.logging import TrainingLogger
+from ss2r.common.logging import TrainingLogger
 
 _LOG = logging.getLogger(__name__)
 
@@ -111,10 +111,7 @@ class Counter:
 
 
 def report(logger, step, num_steps, metrics):
-    metrics = {
-        "train/objective": float(metrics["eval/episode_reward"]),
-        "train/sps": float(metrics["eval/sps"]),
-    }
+    metrics = {k: float(v) for k, v in metrics.items()}
     logger.log(metrics, num_steps)
     step.count = num_steps
 
@@ -143,7 +140,7 @@ def main(cfg):
             cfg.training.episode_length,
             jax.random.PRNGKey(cfg.training.seed),
         )
-        logger.log_video(video, steps.count, "train/video")
+        logger.log_video(video, steps.count, "eval/video")
     _LOG.info("Done training.")
 
 
