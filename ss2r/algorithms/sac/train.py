@@ -35,6 +35,7 @@ from brax.v1 import envs as envs_v1
 
 import ss2r.algorithms.sac.losses as sac_losses
 import ss2r.algorithms.sac.networks as sac_networks
+from ss2r.rl.evaluation import ConstraintsEvaluator
 
 Metrics: TypeAlias = types.Metrics
 Transition: TypeAlias = types.Transition
@@ -534,7 +535,7 @@ def train(
             randomization_fn=vf_randomization_fn,
         )
 
-    evaluator = acting.Evaluator(
+    evaluator = ConstraintsEvaluator(
         eval_env,
         functools.partial(make_policy, deterministic=deterministic_eval),
         num_eval_envs=num_eval_envs,
