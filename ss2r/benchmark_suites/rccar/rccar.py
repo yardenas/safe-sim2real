@@ -45,7 +45,7 @@ def domain_randomization(sys, rng, cfg):
     cfg = OmegaConf.to_container(cfg)
     in_axes = jax.tree_map(lambda _: 0, sys)
     sys, params = randomize(rng)
-    return sys, in_axes, params[:, None]
+    return sys, in_axes, params
 
 
 def rotate_coordinates(state: jnp.array, encode_angle: bool = False) -> jnp.array:

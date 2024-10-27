@@ -118,7 +118,10 @@ class TensorboardXWriter:
         fps: int | float = 30,
         flush: bool = False,
     ):
-        self._writer.add_video(name, np.array(images, copy=False), step, fps=fps)
+        images = np.array(images, copy=False)
+        if images.ndim == 4:
+            images = images[None]
+        self._writer.add_video(name, images, step, fps=fps)
         if flush:
             self._writer.flush()
 
