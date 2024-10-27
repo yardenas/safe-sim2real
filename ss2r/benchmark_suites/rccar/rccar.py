@@ -143,8 +143,10 @@ class RCCarEnvReward:
         return reward
 
 
-def cost_fn(state: jax.Array, threshold: float) -> jax.Array:
-    return jnp.where(state[..., 0] < threshold, 1.0, 0.0)
+def cost_fn(state: jax.Array, obstacle_position, obstacle_radius) -> jax.Array:
+    xy = state[..., :2]
+    distance = jnp.linalg.norm(xy - obstacle_position)
+    return jnp.where(distance >= obstacle_radius, 0.0, 1.0)
 
 
 class RCCar(Env):
@@ -157,7 +159,7 @@ class RCCar(Env):
         margin_factor: float = 10.0,
         max_throttle: float = 1.0,
         dt: float = 1 / 30.0,
-        safety_threshold: float = -0.1,
+        obstacle: tuple[float, float, float] = (-0.75, -0.75, 0.2),
     ):
         """
         Race car simulator environment
@@ -172,11 +174,11 @@ class RCCar(Env):
             seed: random number generator seed
         """
         self._goal = jnp.array([0.0, 0.0, 0.0])
+        self.obstacle = obstacle
         self._init_pose = jnp.array([1.42, -1.04, jnp.pi])
         self._angle_idx = 2
         self._obs_noise_stds = OBS_NOISE_STD_SIM_CAR
         self.dim_action = (2,)
-        self.safety_threshold = safety_threshold
         self._dt = dt
         self.dim_state = (7,) if encode_angle else (6,)
         self.encode_angle = encode_angle
@@ -230,7 +232,7 @@ class RCCar(Env):
             obs=init_state,
             reward=jnp.array(0.0),
             done=jnp.array(0.0),
-            info={"cost": jnp.array([0.0])},
+            info={"cost": jnp.array(0.0)},
         )
 
     def step(self, state: State, action: jax.Array) -> State:
@@ -244,7 +246,7 @@ class RCCar(Env):
         # FIXME (yarden): hard-coded key is bad here.
         next_obs = self._obs(next_dynamics_state, rng=jax.random.PRNGKey(0))
         reward = self.reward_model.forward(obs=None, action=action, next_obs=next_obs)
-        cost = cost_fn(obs, self.safety_threshold)
+        cost = cost_fn(obs, jnp.asarray(self.obstacle[:2]), self.obstacle[2])
         done = jnp.asarray(0.0)
         info = {**state.info, "cost": cost}
         next_state = State(
@@ -288,6 +290,8 @@ def render(env, policy, steps, rng):
     if env.encode_angle:
         trajectory = decode_angles(trajectory, 2)
 
+    obstacle_position, obstacle_radius = env.obstacle[:2], env.obstacle[2]
+
     def draw_scene(timestep):
         # Create a figure and axis
         fig = Figure(figsize=(2.5, 2.5), dpi=300)
@@ -308,7 +312,7 @@ def render(env, policy, steps, rng):
         # Plot the car's position and velocity at the specified timestep
         x, y = rotated_trajectory[timestep, 0], rotated_trajectory[timestep, 1]
         vx, vy = rotated_trajectory[timestep, 3], rotated_trajectory[timestep, 4]
-        car_width, car_length = 0.3, 0.6
+        car_width, car_length = 0.07, 0.2
         car = Rectangle(
             (x - car_length / 2, y - car_width / 2),
             car_length,
@@ -320,17 +324,15 @@ def render(env, policy, steps, rng):
             rotation_point="center",
         )
         ax.add_patch(car)
-        # Add an arrow to indicate the car's orientation
-        ax.arrow(
-            x,
-            y,
-            vx * 0.5,
-            vy * 0.5,
-            head_width=0.2,
-            head_length=0.2,
-            fc="black",
+        obstacle = Circle(
+            obstacle_position,
+            obstacle_radius,
+            color="gray",
+            alpha=0.5,
             ec="black",
+            lw=1.5,
         )
+        ax.add_patch(obstacle)
         ax.quiver(
             x,
             y,
@@ -343,6 +345,7 @@ def render(env, policy, steps, rng):
             headwidth=3,
             linewidth=0.5,
         )
+        ax.grid(True, linewidth=0.5, c="gainsboro", zorder=0)
         # Render figure to canvas and retrieve RGB array
         canvas.draw()
         image = np.frombuffer(canvas.tostring_rgb(), dtype="uint8").copy()
