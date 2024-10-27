@@ -8,7 +8,7 @@ from omegaconf import OmegaConf
 
 import ss2r.algorithms.sac.networks as sac_networks
 from ss2r import benchmark_suites
-from ss2r.rl.logging import TrainingLogger
+from ss2r.common.logging import TrainingLogger
 
 _LOG = logging.getLogger(__name__)
 
