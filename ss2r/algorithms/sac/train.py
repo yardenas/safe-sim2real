@@ -114,6 +114,7 @@ def train(
     action_repeat: int = 1,
     num_envs: int = 1,
     num_eval_envs: int = 128,
+    num_trajectories_per_env: int = 1,
     learning_rate: float = 1e-4,
     discounting: float = 0.9,
     seed: int = 0,
@@ -159,7 +160,7 @@ def train(
         max_replay_size = num_timesteps
 
     # The number of environment steps executed for every `actor_step()` call.
-    env_steps_per_actor_step = action_repeat * num_envs
+    env_steps_per_actor_step = action_repeat * num_envs * num_trajectories_per_env
     # equals to ceil(min_replay_size / env_steps_per_actor_step)
     num_prefill_actor_steps = -(-min_replay_size // num_envs)
     num_prefill_env_steps = num_prefill_actor_steps * env_steps_per_actor_step
@@ -348,9 +349,17 @@ def train(
         ReplayBufferState,
     ]:
         policy = make_policy((normalizer_params, policy_params))
-        env_state, transitions = acting.actor_step(
-            env, env_state, policy, key, extra_fields=("truncation",)
+        step = lambda state, key: acting.actor_step(
+            env, state, policy, key, extra_fields=("truncation",)
         )
+        step = jax.vmap(step)
+        keys = jax.random.split(key, num_trajectories_per_env)
+        env_state, transitions = step(env_state, keys)
+        if env_state.obs.ndim == 3:
+            transitions = jax.tree_map(
+                lambda x: x.reshape(-1, *x.shape[2:]),
+                transitions,
+            )
         normalizer_params = running_statistics.update(
             normalizer_params, transitions.observation, pmap_axis_name=_PMAP_AXIS_NAME
         )
@@ -509,9 +518,14 @@ def train(
     local_key, rb_key, env_key, eval_key = jax.random.split(local_key, 4)
 
     # Env init
-    env_keys = jax.random.split(env_key, num_envs // jax.process_count())
-    env_keys = jnp.reshape(env_keys, (local_devices_to_use, -1) + env_keys.shape[1:])
-    env_state = jax.pmap(env.reset)(env_keys)
+    env_keys = jax.random.split(
+        env_key, num_envs // jax.process_count() * num_trajectories_per_env
+    )
+    env_keys = jnp.reshape(
+        env_keys,
+        (local_devices_to_use, num_trajectories_per_env, -1) + env_keys.shape[1:],
+    )
+    env_state = jax.pmap(jax.vmap(env.reset))(env_keys)
 
     # Replay buffer init
     buffer_state = jax.pmap(replay_buffer.init)(
