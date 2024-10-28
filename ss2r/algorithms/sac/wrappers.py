@@ -19,7 +19,7 @@ def ts1(state, rng):
 
 
 def std_bonus(state, lambda_):
-    return lambda_ * jnp.std(state.obs, axis=1)
+    return lambda_ * jnp.std(state.obs)
 
 
 class StatePropagation(Wrapper):
@@ -35,25 +35,58 @@ class StatePropagation(Wrapper):
         self.reward_bonus_fn = reward_bonus_fn
         self.cost_penalty_fn = cost_penalty_fn
         self.propagation_fn = propagation_fn
+        self.num_envs = None
 
     def reset(self, rng: jax.Array) -> State:
+        if self.num_envs is None:
+            self.num_envs = rng.shape[0]
         state = self.env.reset(rng)
-        state.info["first_obs"] = state.obs
         if "propagation_rng" in state.info:
-            ts_rng = state.info["propagation_rng"]
+            propagation_rng = state.info["propagation_rng"]
         else:
-            ts_rng = jax.random.split(rng)[1]
-        n_key, key = jax.random.split(ts_rng)
-        state.info["propagation_rng"] = n_key
+            propagation_rng = jax.random.split(rng[0])[1]
+        n_key, key = jax.random.split(propagation_rng)
+        state.info["propagation_rng"] = jax.random.split(n_key, self.num_envs)
         return self.propagation_fn(state, key)
 
     def step(self, state: State, action: jax.Array) -> State:
+        # The order here matters, the tree_map changes the dimensions of
+        # the propgattion_rng
+        propagation_rng = state.info["propagation_rng"]
+        tile = lambda tree: jax.tree_map(
+            lambda x: jnp.tile(x, (self.num_envs,) + (1,) * x.ndim), tree
+        )
+        state, action = tile(state), tile(action)
         nstate = self.env.step(state, action)
-        ts_rng = state.info["propagation_rng"]
-        n_key, key = jax.random.split(ts_rng)
-        state.info["propagation_rng"] = n_key
+        n_key, key = jax.random.split(propagation_rng)
+        nstate.info["propagation_rng"] = jax.random.split(n_key, self.num_envs)
         if self.reward_bonus_fn is not None:
-            nstate.reward += self.reward_bonus_fn(nstate)
+            nstate = nstate.replace(reward=nstate.reward + self.reward_bonus_fn(nstate))
         if self.cost_penalty_fn is not None:
             nstate.info["cost"] += self.cost_penalty_fn(nstate)
         return self.propagation_fn(nstate, key)
+
+
+def get_randomized_values(sys_v, in_axes):
+    sys_v_leaves, _ = jax.tree.flatten(sys_v)
+    in_axes_leaves, _ = jax.tree.flatten(in_axes)
+    randomized_values = [
+        leaf for leaf, axis in zip(sys_v_leaves, in_axes_leaves) if axis is not None
+    ]
+    randomized_array = jnp.array(randomized_values).reshape(
+        randomized_values[0].shape[0], len(randomized_values)
+    )
+    return randomized_array
+
+
+class DomainRandomizationParams(Wrapper):
+    def __init__(self, env):
+        super().__init__(env)
+        self.domain_parameters = get_randomized_values(
+            self.env._sys_v, self.env._in_axes
+        )
+
+    def reset(self, rng: jax.Array) -> State:
+        state = self.env.reset(rng)
+        state.info["domain_parameters"] = self.domain_parameters
+        return state

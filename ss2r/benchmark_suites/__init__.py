@@ -23,8 +23,7 @@ def prepare_randomization_fn(key, num_envs, cfg, task_name):
         randomize_fn, rng=jax.random.split(key, num_envs)
     )
     vf_randomization_fn = lambda sys: v_randomization_fn(sys)[:-1]  # type: ignore
-    params_fn = lambda sys: v_randomization_fn(sys)[-1]
-    return vf_randomization_fn, params_fn
+    return vf_randomization_fn
 
 
 def make_rccar_envs(cfg):
@@ -35,7 +34,7 @@ def make_rccar_envs(cfg):
     eval_car_params = task_cfg.pop("eval_car_params")
     train_key, eval_key = jax.random.split(jax.random.PRNGKey(cfg.training.seed))
     train_env = rccar.RCCar(train_car_params["nominal"], **task_cfg)
-    train_randomization_fn, params_fn = (
+    train_randomization_fn = (
         prepare_randomization_fn(
             train_key,
             cfg.training.num_envs,
@@ -43,7 +42,7 @@ def make_rccar_envs(cfg):
             cfg.environment.task_name,
         )
         if cfg.training.train_domain_randomization
-        else (None, None)
+        else None
     )
     train_env = envs.training.wrap(
         train_env,
@@ -52,7 +51,7 @@ def make_rccar_envs(cfg):
         randomization_fn=train_randomization_fn,
     )
     eval_env = rccar.RCCar(eval_car_params["nominal"], **task_cfg)
-    eval_randomization_fn, _ = prepare_randomization_fn(
+    eval_randomization_fn = prepare_randomization_fn(
         eval_key,
         cfg.training.num_eval_envs,
         eval_car_params["bounds"],
@@ -64,11 +63,7 @@ def make_rccar_envs(cfg):
         action_repeat=cfg.training.action_repeat,
         randomization_fn=eval_randomization_fn,
     )
-    if cfg.training.train_domain_randomization and cfg.training.privileged:
-        domain_parameters = params_fn(train_env.sys)
-    else:
-        domain_parameters = None
-    return train_env, eval_env, domain_parameters
+    return train_env, eval_env
 
 
 def make_brax_envs(cfg):
@@ -78,12 +73,12 @@ def make_brax_envs(cfg):
     )
     eval_env = envs.get_environment(task_cfg.task_name, backend=cfg.environment.backend)
     train_key, eval_key = jax.random.split(jax.random.PRNGKey(cfg.training.seed))
-    train_randomization_fn, params_fn = (
+    train_randomization_fn = (
         prepare_randomization_fn(
             train_key, cfg.training.num_envs, task_cfg, task_cfg.task_name
         )
         if cfg.training.train_domain_randomization
-        else (None, None)
+        else None
     )
     train_env = envs.training.wrap(
         train_env,
@@ -91,7 +86,7 @@ def make_brax_envs(cfg):
         action_repeat=cfg.training.action_repeat,
         randomization_fn=train_randomization_fn,
     )
-    eval_randomization_fn, _ = prepare_randomization_fn(
+    eval_randomization_fn = prepare_randomization_fn(
         eval_key, cfg.training.num_eval_envs, task_cfg, task_cfg.task_name
     )
     eval_env = envs.training.wrap(
@@ -102,11 +97,7 @@ def make_brax_envs(cfg):
         if cfg.training.eval_domain_randomization
         else None,
     )
-    if cfg.training.train_domain_randomization and cfg.training.privileged:
-        domain_parameters = params_fn(train_env.sys)
-    else:
-        domain_parameters = None
-    return train_env, eval_env, domain_parameters
+    return train_env, eval_env
 
 
 randomization_fns = {

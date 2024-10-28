@@ -35,7 +35,6 @@ def get_train_fn(cfg):
                 "safety_budget",
                 "train_domain_randomization",
                 "eval_domain_randomization",
-                "privileged",
                 "render",
             ]
         }
@@ -123,7 +122,7 @@ def main(cfg):
         f"\n{OmegaConf.to_yaml(cfg)}"
     )
     logger = TrainingLogger(cfg)
-    train_env, eval_env, domain_randomization_params = benchmark_suites.make(cfg)
+    train_env, eval_env = benchmark_suites.make(cfg)
     train_fn = get_train_fn(cfg)
     steps = Counter()
     make_policy, params, _ = train_fn(
@@ -131,7 +130,6 @@ def main(cfg):
         eval_env=eval_env,
         wrap_env=False,
         progress_fn=functools.partial(report, logger, steps),
-        domain_parameters=domain_randomization_params,
     )
     if cfg.training.render:
         video = benchmark_suites.render_fns[cfg.environment.task_name](
