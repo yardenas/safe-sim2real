@@ -35,6 +35,7 @@ from brax.v1 import envs as envs_v1
 
 import ss2r.algorithms.sac.losses as sac_losses
 import ss2r.algorithms.sac.networks as sac_networks
+from ss2r.algorithms.sac.wrappers import StatePropagation, std_bonus
 from ss2r.rl.evaluation import ConstraintsEvaluator
 
 Metrics: TypeAlias = types.Metrics
@@ -115,6 +116,9 @@ def train(
     num_envs: int = 1,
     num_eval_envs: int = 128,
     num_trajectories_per_env: int = 1,
+    reward_bonus: float | None = None,
+    cost_penalty: float | None = None,
+    propagation: str | None = None,
     learning_rate: float = 1e-4,
     discounting: float = 0.9,
     seed: int = 0,
@@ -203,6 +207,17 @@ def train(
             action_repeat=action_repeat,
             randomization_fn=vf_randomization_fn,
         )
+        if propagation is not None:
+            if reward_bonus is not None:
+                reward_bonus_fn = functools.partial(std_bonus, lambda_=reward_bonus)
+            if cost_penalty is not None:
+                cost_penalty_fn = functools.partial(std_bonus, lambda_=cost_penalty)
+            env = StatePropagation(
+                env,
+                propagation_fn=propagation,
+                reward_bonus_fn=reward_bonus_fn,
+                cost_penalty_fn=cost_penalty_fn,
+            )
 
     obs_size = env.observation_size
     action_size = env.action_size
