@@ -19,7 +19,7 @@ def ts1(state, rng):
 
 
 def std_bonus(state, lambda_):
-    return lambda_ * jnp.std(state.obs)
+    return lambda_ * jnp.std(state.obs, axis=0).mean()
 
 
 class StatePropagation(Wrapper):
