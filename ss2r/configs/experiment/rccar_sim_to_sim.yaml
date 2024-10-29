@@ -1,6 +1,8 @@
 # @package _global_
 defaults:
   - override /environment: rccar
+  - override /environment/train_car_params: car_2
+  - override /environment/eval_car_params: car_2_blend
 
 training:
   num_envs: 128
@@ -10,8 +12,6 @@ training:
   eval_domain_randomization: false
   privileged: true
 
-environment/train_car_params: car_2
-environment/eval_car_params: car_2_blend
 
 agent:
   grad_updates_per_step: 128
