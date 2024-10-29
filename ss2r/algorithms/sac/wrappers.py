@@ -69,9 +69,7 @@ def get_randomized_values(sys_v, in_axes):
     randomized_values = [
         leaf for leaf, axis in zip(sys_v_leaves, in_axes_leaves) if axis is not None
     ]
-    randomized_array = jnp.array(randomized_values).reshape(
-        randomized_values[0].shape[0], len(randomized_values)
-    )
+    randomized_array = jnp.array(randomized_values).T
     return randomized_array
 
 
