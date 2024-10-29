@@ -382,6 +382,11 @@ def train(
         normalizer_params = running_statistics.update(
             normalizer_params, transitions.observation, pmap_axis_name=_PMAP_AXIS_NAME
         )
+        if transitions.observation.ndim == 3:
+            transitions = jax.tree_util.tree_map(
+                lambda x: x[0],
+                transitions,
+            )
         buffer_state = replay_buffer.insert(buffer_state, transitions)
         return normalizer_params, env_state, buffer_state
 
