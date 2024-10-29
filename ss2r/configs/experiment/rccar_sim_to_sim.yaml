@@ -1,0 +1,21 @@
+# @package _global_
+defaults:
+  - override /environment: rccar
+  - override /environment/train_car_params: car_2
+  - override /environment/eval_car_params: car_2_blend
+
+training:
+  num_envs: 128
+  num_timesteps: 500000
+  episode_length: 100
+  train_domain_randomization: true
+  eval_domain_randomization: false
+  privileged: true
+
+
+agent:
+  grad_updates_per_step: 128
+  batch_size: 128
+  min_replay_size: 100
+  max_replay_size: 100000
+  hidden_layer_sizes: [64, 64]
