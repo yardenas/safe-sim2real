@@ -166,10 +166,10 @@ def train(
     if max_replay_size is None:
         max_replay_size = num_timesteps
 
-    # The number of environment steps executed for every `actor_step()` call.
-    env_steps_per_actor_step = action_repeat * num_envs * num_trajectories_per_env
-    # equals to ceil(min_replay_size / env_steps_per_actor_step)
     factor = 1 if propagation is not None else num_envs
+    # The number of environment steps executed for every `actor_step()` call.
+    env_steps_per_actor_step = action_repeat * factor * num_trajectories_per_env
+    # equals to ceil(min_replay_size / env_steps_per_actor_step)
     num_prefill_actor_steps = -(-min_replay_size // (factor * num_trajectories_per_env))
     num_prefill_env_steps = num_prefill_actor_steps * env_steps_per_actor_step
     assert num_timesteps - num_prefill_env_steps >= 0
