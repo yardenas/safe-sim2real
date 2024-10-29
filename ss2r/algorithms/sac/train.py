@@ -377,16 +377,13 @@ def train(
             if domain_parameters is not None
             else ("truncation",)
         )
-        step = lambda state: acting.actor_step(
+        step = lambda state, key: acting.actor_step(
             env, state, policy, key, extra_fields=extra_fields
         )
         step = jax.vmap(step)
-        env_state, transitions = step(env_state)
-        if transitions.observation.ndim == 3:
-            transitions = jax.tree_map(
-                lambda x: x.reshape(-1, *x.shape[2:]),
-                transitions,
-            )
+        env_state, transitions = acting.actor_step(
+            env, env_state, policy, key, extra_fields=extra_fields
+        )
         normalizer_params = running_statistics.update(
             normalizer_params, transitions.observation, pmap_axis_name=_PMAP_AXIS_NAME
         )
