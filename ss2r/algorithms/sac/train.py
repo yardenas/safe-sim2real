@@ -217,10 +217,16 @@ def train(
     else:
         domain_parameters = None
     if propagation is not None:
-        if reward_bonus is not None:
-            reward_bonus_fn = functools.partial(std_bonus, lambda_=reward_bonus)
-        if cost_penalty is not None:
-            cost_penalty_fn = functools.partial(std_bonus, lambda_=cost_penalty)
+        reward_bonus_fn = (
+            functools.partial(std_bonus, lambda_=reward_bonus)
+            if reward_bonus is not None
+            else None
+        )
+        cost_penalty_fn = (
+            functools.partial(std_bonus, lambda_=cost_penalty)
+            if cost_penalty is not None
+            else None
+        )
         env = StatePropagation(
             env,
             reward_bonus_fn=reward_bonus_fn,
