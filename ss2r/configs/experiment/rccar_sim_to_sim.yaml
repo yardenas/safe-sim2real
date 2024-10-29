@@ -10,9 +10,8 @@ training:
   eval_domain_randomization: false
   privileged: true
 
-environment:
-  train_car_params: car_2
-  eval_car_params: car_2_blend
+environment/train_car_params: car_2
+environment/eval_car_params: car_2_blend
 
 agent:
   grad_updates_per_step: 128
