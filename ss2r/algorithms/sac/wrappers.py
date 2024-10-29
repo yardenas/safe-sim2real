@@ -28,11 +28,8 @@ class StatePropagation(Wrapper):
     This wrapper assumes that the environment is wrapped before with a VmapWrapper or DomainRandomizationVmapWrapper
     """
 
-    def __init__(
-        self, env, propagation_fn=ts1, reward_bonus_fn=None, cost_penalty_fn=None
-    ):
+    def __init__(self, env, propagation_fn=ts1, cost_penalty_fn=None):
         super().__init__(env)
-        self.reward_bonus_fn = reward_bonus_fn
         self.cost_penalty_fn = cost_penalty_fn
         self.propagation_fn = propagation_fn
         self.num_envs = None
@@ -47,6 +44,7 @@ class StatePropagation(Wrapper):
             propagation_rng = jax.random.split(rng[0])[1]
         n_key, key = jax.random.split(propagation_rng)
         state.info["propagation_rng"] = jax.random.split(n_key, self.num_envs)
+        state.info["imagined_cost"] = jnp.zeros(self.num_envs)
         return self.propagation_fn(state, key)
 
     def step(self, state: State, action: jax.Array) -> State:
@@ -60,10 +58,8 @@ class StatePropagation(Wrapper):
         nstate = self.env.step(state, action)
         n_key, key = jax.random.split(propagation_rng)
         nstate.info["propagation_rng"] = jax.random.split(n_key, self.num_envs)
-        if self.reward_bonus_fn is not None:
-            nstate = nstate.replace(reward=nstate.reward + self.reward_bonus_fn(nstate))
         if self.cost_penalty_fn is not None:
-            nstate.info["cost"] += self.cost_penalty_fn(nstate)
+            nstate.info["imagined_cost"] += self.cost_penalty_fn(nstate)
         return self.propagation_fn(nstate, key)
 
 

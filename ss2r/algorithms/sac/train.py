@@ -120,7 +120,6 @@ def train(
     num_envs: int = 1,
     num_eval_envs: int = 128,
     num_trajectories_per_env: int = 1,
-    reward_bonus: float | None = None,
     cost_penalty: float | None = None,
     propagation: str | None = None,
     learning_rate: float = 1e-4,
@@ -218,11 +217,6 @@ def train(
     else:
         domain_parameters = None
     if propagation is not None:
-        reward_bonus_fn = (
-            functools.partial(std_bonus, lambda_=reward_bonus)
-            if reward_bonus is not None
-            else None
-        )
         cost_penalty_fn = (
             functools.partial(std_bonus, lambda_=cost_penalty)
             if cost_penalty is not None
@@ -230,7 +224,6 @@ def train(
         )
         env = StatePropagation(
             env,
-            reward_bonus_fn=reward_bonus_fn,
             cost_penalty_fn=cost_penalty_fn,
         )
 
