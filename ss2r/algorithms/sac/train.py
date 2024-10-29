@@ -222,10 +222,7 @@ def train(
             if cost_penalty is not None
             else None
         )
-        env = StatePropagation(
-            env,
-            cost_penalty_fn=cost_penalty_fn,
-        )
+        env = StatePropagation(env, cost_penalty_fn=cost_penalty_fn)
 
     obs_size = env.observation_size
     action_size = env.action_size
