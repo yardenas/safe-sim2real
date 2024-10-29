@@ -35,6 +35,11 @@ from brax.v1 import envs as envs_v1
 
 import ss2r.algorithms.sac.losses as sac_losses
 import ss2r.algorithms.sac.networks as sac_networks
+from ss2r.algorithms.sac.wrappers import (
+    DomainRandomizationParams,
+    StatePropagation,
+    std_bonus,
+)
 from ss2r.rl.evaluation import ConstraintsEvaluator
 
 Metrics: TypeAlias = types.Metrics
@@ -114,6 +119,9 @@ def train(
     action_repeat: int = 1,
     num_envs: int = 1,
     num_eval_envs: int = 128,
+    num_trajectories_per_env: int = 1,
+    cost_penalty: float | None = None,
+    propagation: str | None = None,
     learning_rate: float = 1e-4,
     discounting: float = 0.9,
     seed: int = 0,
@@ -136,7 +144,7 @@ def train(
     randomization_fn: Optional[
         Callable[[base.System, jnp.ndarray], Tuple[base.System, base.System, jax.Array]]
     ] = None,
-    domain_parameters: Optional[jnp.ndarray] = None,
+    privileged: bool = False,
 ):
     """SAC training."""
     process_id = jax.process_index()
@@ -158,10 +166,11 @@ def train(
     if max_replay_size is None:
         max_replay_size = num_timesteps
 
+    factor = 1 if propagation is not None else num_envs
     # The number of environment steps executed for every `actor_step()` call.
-    env_steps_per_actor_step = action_repeat * num_envs
+    env_steps_per_actor_step = action_repeat * factor * num_trajectories_per_env
     # equals to ceil(min_replay_size / env_steps_per_actor_step)
-    num_prefill_actor_steps = -(-min_replay_size // num_envs)
+    num_prefill_actor_steps = -(-min_replay_size // (factor * num_trajectories_per_env))
     num_prefill_env_steps = num_prefill_actor_steps * env_steps_per_actor_step
     assert num_timesteps - num_prefill_env_steps >= 0
     num_evals_after_init = max(num_evals - 1, 1)
@@ -202,6 +211,18 @@ def train(
             action_repeat=action_repeat,
             randomization_fn=vf_randomization_fn,
         )
+    if privileged:
+        env = DomainRandomizationParams(env)
+        domain_parameters = env.domain_parameters
+    else:
+        domain_parameters = None
+    if propagation is not None:
+        cost_penalty_fn = (
+            functools.partial(std_bonus, lambda_=cost_penalty)
+            if cost_penalty is not None
+            else None
+        )
+        env = StatePropagation(env, cost_penalty_fn=cost_penalty_fn)
 
     obs_size = env.observation_size
     action_size = env.action_size
@@ -348,23 +369,23 @@ def train(
         ReplayBufferState,
     ]:
         policy = make_policy((normalizer_params, policy_params))
-        env_state, transitions = acting.actor_step(
-            env, env_state, policy, key, extra_fields=("truncation",)
+        extra_fields = (
+            ("truncation", "domain_parameters")
+            if domain_parameters is not None
+            else ("truncation",)
         )
+        step = lambda state: acting.actor_step(
+            env, state, policy, key, extra_fields=extra_fields
+        )
+        step = jax.vmap(step)
+        env_state, transitions = step(env_state)
         normalizer_params = running_statistics.update(
             normalizer_params, transitions.observation, pmap_axis_name=_PMAP_AXIS_NAME
         )
-        if domain_parameters is not None:
-            transitions = Transition(
-                observation=transitions.observation,
-                action=transitions.action,
-                reward=transitions.reward,
-                discount=transitions.discount,
-                next_observation=transitions.next_observation,
-                extras={
-                    **transitions.extras,
-                    "domain_parameters": domain_parameters,
-                },
+        if transitions.observation.ndim == 3:
+            transitions = jax.tree_util.tree_map(
+                lambda x: x[0],
+                transitions,
             )
         buffer_state = replay_buffer.insert(buffer_state, transitions)
         return normalizer_params, env_state, buffer_state
@@ -389,7 +410,6 @@ def train(
             normalizer_params=normalizer_params,
             env_steps=training_state.env_steps + env_steps_per_actor_step,
         )
-
         buffer_state, transitions = replay_buffer.sample(buffer_state)
         # Change the front dimension of transitions so 'update_step' is called
         # grad_updates_per_step times by the scan.
@@ -400,7 +420,6 @@ def train(
         (training_state, _), metrics = jax.lax.scan(
             sgd_step, (training_state, training_key), transitions
         )
-
         metrics["buffer_current_size"] = replay_buffer.size(buffer_state)
         return training_state, env_state, buffer_state, metrics
 
@@ -509,9 +528,14 @@ def train(
     local_key, rb_key, env_key, eval_key = jax.random.split(local_key, 4)
 
     # Env init
-    env_keys = jax.random.split(env_key, num_envs // jax.process_count())
-    env_keys = jnp.reshape(env_keys, (local_devices_to_use, -1) + env_keys.shape[1:])
-    env_state = jax.pmap(env.reset)(env_keys)
+    env_keys = jax.random.split(
+        env_key, num_trajectories_per_env * num_envs // jax.process_count()
+    )
+    env_keys = jnp.reshape(
+        env_keys,
+        (local_devices_to_use, num_trajectories_per_env, -1) + env_keys.shape[1:],
+    )
+    env_state = jax.pmap(jax.vmap(env.reset))(env_keys)
 
     # Replay buffer init
     buffer_state = jax.pmap(replay_buffer.init)(
