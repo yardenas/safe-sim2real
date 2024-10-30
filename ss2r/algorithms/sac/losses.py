@@ -102,6 +102,8 @@ def make_losses(
                 "imagined_cost",
                 transitions.extras.get("cost", jnp.zeros_like(transitions.reward)),
             )
+            # FIXME (yarden): cost is not zeros
+            cost = jnp.zeros_like(transitions.reward)
             reward = jnp.stack([transitions.reward, cost], axis=-1)
             # No need for exploration bonus in the constraints.
             next_v = next_v.at[:, 1].add(alpha * next_log_prob)
