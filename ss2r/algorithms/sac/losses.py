@@ -106,7 +106,7 @@ def make_losses(
             cost = jnp.zeros_like(transitions.reward)
             reward = jnp.stack([transitions.reward, cost], axis=-1)
             # No need for exploration bonus in the constraints.
-            next_v = next_v.at[:, 1].add(alpha * next_log_prob)
+            next_v = next_v.at[:, 1].set(0)
         else:
             reward = expand(transitions.reward)
         target_q = jax.lax.stop_gradient(
