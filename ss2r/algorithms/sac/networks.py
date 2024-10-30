@@ -50,7 +50,7 @@ def make_q_network(
     preprocess_observations_fn: types.PreprocessObservationFn = types.identity_observation_preprocessor,
     hidden_layer_sizes: Sequence[int] = (256, 256),
     activation: ActivationFn = linen.relu,
-    n_critics: int = 4,
+    n_critics: int = 2,
     output_size: int = 1,
 ) -> FeedForwardNetwork:
     """Creates a value network."""
