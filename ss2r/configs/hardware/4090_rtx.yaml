@@ -4,4 +4,3 @@ hydra:
   launcher:
     additional_parameters: { "gpus": "rtx_4090:1", "account": "ls_krausea" }
 
-mixed_precision: params=float32,compute=bfloat16,output=float32
