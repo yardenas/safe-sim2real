@@ -174,6 +174,8 @@ def train(
             "No training will happen because min_replay_size >= num_timesteps"
         )
 
+    safety_budget = (safety_budget / episode_length) / (1.0 - discounting)
+    logging.info(f"Episode safety budget: {safety_budget}")
     if max_replay_size is None:
         max_replay_size = num_timesteps
     if propagation == "standard":
