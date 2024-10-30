@@ -30,9 +30,7 @@ def get_train_fn(cfg):
             for k, v in cfg.training.items()
             if k
             not in [
-                "safe",
                 "render_episodes",
-                "safety_budget",
                 "train_domain_randomization",
                 "eval_domain_randomization",
                 "render",

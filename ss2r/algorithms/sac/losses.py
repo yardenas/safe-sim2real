@@ -16,9 +16,10 @@
 
 See: https://arxiv.org/pdf/1812.05905.pdf
 """
-from typing import Any, TypeAlias
+from typing import Any, NamedTuple, TypeAlias
 
 import jax
+import jax.nn as jnn
 import jax.numpy as jnp
 from brax.training import types
 from brax.training.agents.sac import networks as sac_networks
@@ -94,16 +95,25 @@ def make_losses(
             transitions.next_observation,
             next_action,
         )
-        next_v = jnp.min(next_q, axis=-1) - alpha * next_log_prob
+        expand = lambda x: jnp.expand_dims(x, axis=-1)
+        next_v = jnp.min(next_q, axis=-1) - alpha * expand(next_log_prob)
+        if next_q.shape[1] > 1:
+            cost = transitions.extras.get(
+                "imagined_cost",
+                transitions.extras.get("cost", jnp.zeros_like(transitions.reward)),
+            )
+            reward = jnp.stack([transitions.reward, cost], axis=-1)
+        else:
+            reward = transitions.expand(reward)
         target_q = jax.lax.stop_gradient(
-            transitions.reward * reward_scaling
-            + transitions.discount * discounting * next_v
+            reward * reward_scaling
+            + expand(transitions.discount) * discounting * next_v
         )
-        q_error = q_old_action - jnp.expand_dims(target_q, -1)
+        q_error = q_old_action - expand(target_q)
 
         # Better bootstrapping for truncated episodes.
         truncation = transitions.extras["state_extras"]["truncation"]
-        q_error *= jnp.expand_dims(1 - truncation, -1)
+        q_error *= expand(expand(1 - truncation))
 
         q_loss = 0.5 * jnp.mean(jnp.square(q_error))
         return q_loss
@@ -115,6 +125,8 @@ def make_losses(
         alpha: jnp.ndarray,
         transitions: Transition,
         key: PRNGKey,
+        safety_budget: float,
+        lagrangian_params: LagrangianParams,
     ) -> jnp.ndarray:
         dist_params = policy_network.apply(
             normalizer_params, policy_params, transitions.observation
@@ -131,7 +143,51 @@ def make_losses(
             normalizer_params, q_params, transitions.observation, action
         )
         min_q = jnp.min(q_action, axis=-1)
-        actor_loss = alpha * log_prob - min_q
-        return jnp.mean(actor_loss)
+        aux = {}
+        if min_q.shape[1] > 1:
+            q_r, q_c = jnp.split(min_q, 2, -1)
+            psi, cond = augmented_lagrangian(
+                safety_budget - q_c.mean(),
+                lagrangian_params.lagrange_multiplier,
+                lagrangian_params.penalty_multiplier,
+            )
+            actor_loss = psi + jnp.mean(alpha * log_prob - q_r)
+            aux["lagrangian_cond"] = cond
+        else:
+            actor_loss = jnp.mean(alpha * log_prob - min_q)
+        return actor_loss, aux
 
     return alpha_loss, critic_loss, actor_loss
+
+
+class LagrangianParams(NamedTuple):
+    lagrange_multiplier: jax.Array
+    penalty_multiplier: jax.Array
+
+
+def augmented_lagrangian(
+    constraint: jax.Array,
+    lagrange_multiplier: jax.Array,
+    penalty_multiplier: jax.Array,
+) -> jax.Array:
+    # Nocedal-Wright 2006 Numerical Optimization, Eq. 17.65, p. 546
+    # (with a slight change of notation)
+    g = -constraint
+    c = penalty_multiplier
+    cond = lagrange_multiplier + c * g
+    psi = jnp.where(
+        jnp.greater(cond, 0.0),
+        lagrange_multiplier * g + c / 2.0 * g**2,
+        -1.0 / (2.0 * c) * lagrange_multiplier**2,
+    )
+    return psi, cond
+
+
+def update_augmented_lagrangian(
+    cond: jax.Array, penalty_multiplier: jax.Array, penalty_multiplier_factor: float
+):
+    new_penalty_multiplier = jnp.clip(
+        penalty_multiplier * (1.0 + penalty_multiplier_factor), penalty_multiplier, 1.0
+    )
+    new_lagrange_multiplier = jnn.relu(cond)
+    return LagrangianParams(new_lagrange_multiplier, new_penalty_multiplier)

@@ -65,6 +65,7 @@ class TrainingState:
     alpha_optimizer_state: optax.OptState
     alpha_params: Params
     normalizer_params: running_statistics.RunningStatisticsState
+    lagrangian_params: sac_losses.LagrangianParams
 
 
 def _unpmap(v):
@@ -79,6 +80,8 @@ def _init_training_state(
     alpha_optimizer: optax.GradientTransformation,
     policy_optimizer: optax.GradientTransformation,
     q_optimizer: optax.GradientTransformation,
+    lagrange_multiplier: float,
+    penalty_multiplier: float,
 ) -> TrainingState:
     """Inits the training state and replicates it over devices."""
     key_policy, key_q = jax.random.split(key)
@@ -105,6 +108,9 @@ def _init_training_state(
         alpha_optimizer_state=alpha_optimizer_state,
         alpha_params=log_alpha,
         normalizer_params=normalizer_params,
+        lagrangian_params=sac_losses.LagrangianParams(
+            lagrange_multiplier, penalty_multiplier
+        ),
     )  #  type: ignore
     return jax.device_put_replicated(
         training_state, jax.local_devices()[:local_devices_to_use]
@@ -145,6 +151,11 @@ def train(
         Callable[[base.System, jnp.ndarray], Tuple[base.System, base.System, jax.Array]]
     ] = None,
     privileged: bool = False,
+    safe: bool = False,
+    safety_budget: float = float("inf"),
+    lagrange_multiplier: float = 1e-9,
+    penalty_multiplier: float = 1.0,
+    penalty_multiplier_factor: float = 1.0,
 ):
     """SAC training."""
     process_id = jax.process_index()
@@ -238,6 +249,7 @@ def train(
         action_size=action_size,
         preprocess_observations_fn=normalize_fn,
         domain_randomization_size=domain_randomization_size,
+        safe=safe,
     )
     make_policy = sac_networks.make_inference_fn(sac_network)
 
@@ -248,8 +260,6 @@ def train(
 
     dummy_obs = jnp.zeros((obs_size,))
     dummy_action = jnp.zeros((action_size,))
-    # FIXME (yarden): if no need for replay buffer, can remove `domain_parameters` from
-    # extras.
     extras = {
         "state_extras": {
             "truncation": 0.0,
@@ -258,6 +268,12 @@ def train(
     }
     if domain_parameters is not None:
         extras["domain_parameters"] = domain_parameters[0]
+    if safe:
+        if propagation is not None and cost_penalty is not None:
+            extras["imagined_cost"] = 0.0
+        else:
+            extras["cost"] = 0.0
+
     dummy_transition = Transition(  # pytype: disable=wrong-arg-types  # jax-ndarray
         observation=dummy_obs,
         action=dummy_action,
@@ -290,7 +306,7 @@ def train(
     )
     actor_update = (
         gradients.gradient_update_fn(  # pytype: disable=wrong-arg-types  # jax-ndarray
-            actor_loss, policy_optimizer, pmap_axis_name=_PMAP_AXIS_NAME
+            actor_loss, policy_optimizer, pmap_axis_name=_PMAP_AXIS_NAME, has_aux=True
         )
     )
 
@@ -320,13 +336,15 @@ def train(
             key_critic,
             optimizer_state=training_state.q_optimizer_state,
         )
-        actor_loss, policy_params, policy_optimizer_state = actor_update(
+        (actor_loss, aux), policy_params, policy_optimizer_state = actor_update(
             training_state.policy_params,
             training_state.normalizer_params,
             training_state.q_params,
             alpha,
             transitions,
             key_actor,
+            safety_budget,
+            training_state.lagrangian_params,
             optimizer_state=training_state.policy_optimizer_state,
         )
 
@@ -335,12 +353,26 @@ def train(
             training_state.target_q_params,
             q_params,
         )
+        if "lagrangian_cond" in aux:
+            cond = aux["lagrangian_cond"]
+            new_lagrangian_params = sac_losses.update_augmented_lagrangian(
+                cond,
+                training_state.lagrangian_params.penalty_multiplier,
+                penalty_multiplier_factor,
+            )
+            additional_metrics = {
+                "lagrange_multiplier": new_lagrangian_params.lagrange_multiplier
+            }
+        else:
+            new_lagrangian_params = training_state.lagrangian_params
+            additional_metrics = {}
 
         metrics = {
             "critic_loss": critic_loss,
             "actor_loss": actor_loss,
             "alpha_loss": alpha_loss,
             "alpha": jnp.exp(alpha_params),
+            **additional_metrics,
         }
 
         new_training_state = TrainingState(
@@ -354,6 +386,7 @@ def train(
             alpha_optimizer_state=alpha_optimizer_state,
             alpha_params=alpha_params,
             normalizer_params=training_state.normalizer_params,
+            lagrangian_params=new_lagrangian_params,
         )  # type: ignore
         return (new_training_state, key), metrics
 
@@ -369,10 +402,8 @@ def train(
         ReplayBufferState,
     ]:
         policy = make_policy((normalizer_params, policy_params))
-        extra_fields = (
-            ("truncation", "domain_parameters")
-            if domain_parameters is not None
-            else ("truncation",)
+        extra_fields = ("truncation",) + tuple(
+            key for key in extras.keys() if key not in ["state_extras", "policy_extras"]
         )
         step = lambda state: acting.actor_step(
             env, state, policy, key, extra_fields=extra_fields
@@ -522,6 +553,8 @@ def train(
         alpha_optimizer=alpha_optimizer,
         policy_optimizer=policy_optimizer,
         q_optimizer=q_optimizer,
+        lagrange_multiplier=lagrange_multiplier,
+        penalty_multiplier=penalty_multiplier,
     )
     del global_key
 
