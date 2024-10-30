@@ -104,7 +104,7 @@ def make_losses(
             )
             reward = jnp.stack([transitions.reward, cost], axis=-1)
         else:
-            reward = transitions.expand(reward)
+            reward = expand(transitions.reward)
         target_q = jax.lax.stop_gradient(
             reward * reward_scaling
             + expand(transitions.discount) * discounting * next_v
