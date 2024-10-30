@@ -103,6 +103,8 @@ def make_losses(
                 transitions.extras.get("cost", jnp.zeros_like(transitions.reward)),
             )
             reward = jnp.stack([transitions.reward, cost], axis=-1)
+            # No need for exploration bonus in the constraints.
+            next_v = next_v.at[:, 1].add(alpha * next_log_prob)
         else:
             reward = expand(transitions.reward)
         target_q = jax.lax.stop_gradient(
@@ -146,13 +148,17 @@ def make_losses(
         aux = {}
         if min_q.shape[1] > 1:
             q_r, q_c = jnp.split(min_q, 2, -1)
+            constraint = safety_budget - q_c.mean()
             psi, cond = augmented_lagrangian(
-                safety_budget - q_c.mean(),
+                constraint,
                 lagrangian_params.lagrange_multiplier,
                 lagrangian_params.penalty_multiplier,
             )
             actor_loss = psi + jnp.mean(alpha * log_prob - q_r)
             aux["lagrangian_cond"] = cond
+            aux["constraint_estimate"] = constraint
+            aux["cost"] = q_c.mean()
+
         else:
             actor_loss = jnp.mean(alpha * log_prob - min_q)
         return actor_loss, aux
