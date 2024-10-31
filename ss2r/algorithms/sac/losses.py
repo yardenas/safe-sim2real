@@ -165,7 +165,7 @@ def make_losses(
                 lagrangian_params.penalty_multiplier,
             )
             # FIXME (yarden): zero here is bad!
-            actor_loss = psi * 0.0 + jnp.mean(alpha * log_prob - min_qr)
+            actor_loss = psi + jnp.mean(alpha * log_prob - min_qr)
             aux["lagrangian_cond"] = cond
             aux["constraint_estimate"] = constraint
             aux["cost"] = mean_qc.mean()
