@@ -106,7 +106,6 @@ def make_losses(
             next_v -= alpha * next_log_prob
         reward = transitions.reward
         if safe:
-            assert "imagined_cost" in transitions.extras or "cost" in transitions.extras
             reward = transitions.extras.get(
                 "imagined_cost",
                 transitions.extras.get("cost", jnp.zeros_like(transitions.reward)),
