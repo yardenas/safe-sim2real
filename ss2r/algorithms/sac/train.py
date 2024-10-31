@@ -396,7 +396,7 @@ def train(
         polyak = lambda target, new: jax.tree_util.tree_map(
             lambda x, y: x * (1 - tau) + y * tau, target, new
         )
-        new_target_qr_params = polyak(training_state.target_qc_params, qc_params)
+        new_target_qc_params = polyak(training_state.target_qc_params, qc_params)
         if safe:
             pass
             # new_target_qc_params = polyak(training_state.target_qc_params, qc_params)
@@ -433,7 +433,7 @@ def train(
             qc_optimizer_state=qc_optimizer_state,
             qr_params=qc_params,
             qc_params=qc_params,
-            target_qr_params=new_target_qr_params,
+            target_qr_params=new_target_qc_params,
             target_qc_params=new_target_qc_params,
             gradient_steps=training_state.gradient_steps + 1,
             env_steps=training_state.env_steps,
