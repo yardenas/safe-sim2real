@@ -357,7 +357,7 @@ def train(
             alpha,
             transitions,
             key_critic,
-            False,
+            True,
             True,
             optimizer_state=training_state.qr_optimizer_state,
         )
