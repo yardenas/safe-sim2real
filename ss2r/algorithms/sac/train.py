@@ -368,7 +368,7 @@ def train(
                 training_state.target_qc_params,
                 alpha,
                 transitions,
-                key_cost_critic,
+                key_critic,
                 optimizer_state=training_state.qr_optimizer_state,
             )
             cost_metrics = {
