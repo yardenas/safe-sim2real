@@ -144,7 +144,6 @@ def train(
     propagation: str | None = None,
     learning_rate: float = 1e-4,
     discounting: float = 0.9,
-    safety_discounting: float = 0.9,
     seed: int = 0,
     batch_size: int = 256,
     num_evals: int = 1,
@@ -189,7 +188,7 @@ def train(
             "No training will happen because min_replay_size >= num_timesteps"
         )
 
-    safety_budget = (safety_budget / episode_length) / (1.0 - safety_discounting)
+    safety_budget = (safety_budget / episode_length) / (1.0 - discounting)
     logging.info(f"Episode safety budget: {safety_budget}")
     if max_replay_size is None:
         max_replay_size = num_timesteps
@@ -311,7 +310,6 @@ def train(
         sac_network=sac_network,
         reward_scaling=reward_scaling,
         discounting=discounting,
-        safety_discounting=safety_discounting,
         action_size=action_size,
     )
     alpha_update = (

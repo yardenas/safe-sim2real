@@ -32,7 +32,6 @@ def make_losses(
     sac_network: sac_networks.SACNetworks,
     reward_scaling: float,
     discounting: float,
-    safety_discounting: float,
     action_size: int,
 ):
     """Creates the SAC losses."""
@@ -79,7 +78,6 @@ def make_losses(
         else:
             action = transitions.action
         q_network = qc_network if safe else qr_network
-        gamma = safety_discounting if safe else discounting
         q_old_action = q_network.apply(
             normalizer_params, q_params, transitions.observation, action
         )
@@ -112,7 +110,7 @@ def make_losses(
             )
             reward = transitions.reward
         target_q = jax.lax.stop_gradient(
-            reward * reward_scaling + transitions.discount * gamma * next_v
+            reward * reward_scaling + transitions.discount * discounting * next_v
         )
         q_error = q_old_action - jnp.expand_dims(target_q, -1)
 
