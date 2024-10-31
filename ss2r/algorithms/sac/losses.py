@@ -107,7 +107,7 @@ def make_losses(
             next_q_r, next_q_c = jnp.split(next_q, 2, 1)
             next_v_r = jnp.min(next_q_r, axis=-1) - alpha * expand(next_log_prob)
             next_v_c = jnp.max(next_q_c, axis=-1)
-            next_v = jnp.concatenate([next_v_r, next_v_c], axis=-1)
+            next_v = jnp.concatenate([next_v_r, next_v_r], axis=-1)
         else:
             next_v = jnp.min(next_q, axis=-1) - alpha * expand(next_log_prob)
             reward = expand(transitions.reward)
@@ -163,7 +163,6 @@ def make_losses(
             aux["lagrangian_cond"] = cond
             aux["constraint_estimate"] = constraint
             aux["cost"] = q_c.mean()
-
         else:
             min_q = jnp.min(q_action, axis=-1)
             actor_loss = jnp.mean(alpha * log_prob - min_q)
