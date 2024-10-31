@@ -1,5 +1,7 @@
 name: sac
 learning_rate: 3e-4
+critic_learning_rate: 3e-4
+cost_critic_learning_rate: 3e-4
 discounting: 0.99
 safety_discounting: 0.99
 batch_size: 256

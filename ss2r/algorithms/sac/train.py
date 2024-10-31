@@ -143,6 +143,8 @@ def train(
     cost_penalty: float | None = None,
     propagation: str | None = None,
     learning_rate: float = 1e-4,
+    critic_learning_rate: float = 1e-4,
+    cost_critic_learning_rate: float = 1e-4,
     discounting: float = 0.9,
     safety_discounting: float = 0.9,
     seed: int = 0,
@@ -274,8 +276,8 @@ def train(
     alpha_optimizer = optax.adam(learning_rate=3e-4)
 
     policy_optimizer = optax.adam(learning_rate=learning_rate)
-    qr_optimizer = optax.adam(learning_rate=learning_rate)
-    qc_optimizer = optax.adam(learning_rate=learning_rate) if safe else None
+    qr_optimizer = optax.adam(learning_rate=critic_learning_rate)
+    qc_optimizer = optax.adam(learning_rate=cost_critic_learning_rate) if safe else None
 
     dummy_obs = jnp.zeros((obs_size,))
     dummy_action = jnp.zeros((action_size,))
