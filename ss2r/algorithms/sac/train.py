@@ -349,16 +349,6 @@ def train(
             optimizer_state=training_state.alpha_optimizer_state,
         )
         alpha = jnp.exp(training_state.alpha_params)
-        critic_loss, qr_params, qr_optimizer_state = critic_update(
-            training_state.qr_params,
-            training_state.policy_params,
-            training_state.normalizer_params,
-            training_state.target_qr_params,
-            alpha,
-            transitions,
-            key_critic,
-            optimizer_state=training_state.qr_optimizer_state,
-        )
         if safe:
             cost_critic_loss, qc_params, qc_optimizer_state = cost_critic_update(
                 training_state.qc_params,
@@ -379,6 +369,16 @@ def train(
             cost_metrics = {}
             qc_params = None
             qc_optimizer_state = None
+        critic_loss, qr_params, qr_optimizer_state = critic_update(
+            training_state.qr_params,
+            training_state.policy_params,
+            training_state.normalizer_params,
+            training_state.target_qr_params,
+            alpha,
+            transitions,
+            key_critic,
+            optimizer_state=training_state.qr_optimizer_state,
+        )
         # (actor_loss, aux), policy_params, policy_optimizer_state = actor_update(
         #     training_state.policy_params,
         #     training_state.normalizer_params,
