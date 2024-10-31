@@ -77,7 +77,7 @@ def make_losses(
             action = jnp.concatenate([transitions.action, domain_params], axis=-1)
         else:
             action = transitions.action
-        q_network = qc_network
+        q_network = qc_network if safe else qr_network
         q_old_action = q_network.apply(
             normalizer_params, q_params, transitions.observation, action
         )

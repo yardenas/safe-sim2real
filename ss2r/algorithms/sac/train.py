@@ -96,8 +96,7 @@ def _init_training_state(
     policy_optimizer_state = policy_optimizer.init(policy_params)
     qr_params = sac_network.qr_network.init(key_qr)
     if sac_network.qc_network is not None:
-        # FIXME (yarden): use key_qc
-        qc_params = sac_network.qc_network.init(key_qr)
+        qc_params = sac_network.qc_network.init(key_qc)
         assert qc_optimizer is not None
         qc_optimizer_state = qc_optimizer.init(qc_params)
     else:
@@ -350,18 +349,19 @@ def train(
             optimizer_state=training_state.alpha_optimizer_state,
         )
         alpha = jnp.exp(training_state.alpha_params)
-        # FIXME (yarden): changed to qc
-        critic_loss, qc_params, qc_optimizer_state = critic_update(
-            training_state.qc_params,
+        critic_loss, qr_params, qr_optimizer_state = critic_update(
+            training_state.qr_params,
             training_state.policy_params,
             training_state.normalizer_params,
-            training_state.target_qc_params,
+            training_state.target_qr_params,
             alpha,
             transitions,
             key_critic,
-            optimizer_state=training_state.qc_optimizer_state,
+            False,
+            True,
+            optimizer_state=training_state.qr_optimizer_state,
         )
-        if False:
+        if safe:
             cost_critic_loss, qc_params, qc_optimizer_state = cost_critic_update(
                 training_state.qc_params,
                 training_state.policy_params,
@@ -370,8 +370,8 @@ def train(
                 alpha,
                 transitions,
                 key_cost_critic,
-                True,
                 False,
+                True,
                 optimizer_state=training_state.qc_optimizer_state,
             )
             cost_metrics = {
@@ -396,10 +396,9 @@ def train(
         polyak = lambda target, new: jax.tree_util.tree_map(
             lambda x, y: x * (1 - tau) + y * tau, target, new
         )
-        new_target_qc_params = polyak(training_state.target_qc_params, qc_params)
+        new_target_qr_params = polyak(training_state.target_qr_params, qr_params)
         if safe:
-            pass
-            # new_target_qc_params = polyak(training_state.target_qc_params, qc_params)
+            new_target_qc_params = polyak(training_state.target_qc_params, qc_params)
         else:
             new_target_qc_params = None
         if aux:
@@ -429,11 +428,11 @@ def train(
         new_training_state = TrainingState(
             policy_optimizer_state=policy_optimizer_state,
             policy_params=policy_params,
-            qr_optimizer_state=qc_optimizer_state,
+            qr_optimizer_state=qr_optimizer_state,
             qc_optimizer_state=qc_optimizer_state,
-            qr_params=qc_params,
+            qr_params=qr_params,
             qc_params=qc_params,
-            target_qr_params=new_target_qc_params,
+            target_qr_params=new_target_qr_params,
             target_qc_params=new_target_qc_params,
             gradient_steps=training_state.gradient_steps + 1,
             env_steps=training_state.env_steps,
