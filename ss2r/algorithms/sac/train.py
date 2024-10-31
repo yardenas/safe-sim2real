@@ -369,7 +369,7 @@ def train(
                 transitions,
                 key_cost_critic,
                 False,
-                True,
+                False,
                 optimizer_state=training_state.qc_optimizer_state,
             )
             cost_metrics = {
