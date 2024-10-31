@@ -68,6 +68,8 @@ def make_losses(
         alpha: jnp.ndarray,
         transitions: Transition,
         key: PRNGKey,
+        exploration_bonus: bool = True,
+        safe: bool = False,
     ) -> jnp.ndarray:
         domain_params = transitions.extras.get("domain_parameters", None)
         if domain_params is not None:
@@ -95,31 +97,23 @@ def make_losses(
             transitions.next_observation,
             next_action,
         )
-        expand = lambda x: jnp.expand_dims(x, axis=-1)
-        if next_q.shape[1] > 1:
-            cost = transitions.extras.get(
+        next_v = jnp.min(next_q, axis=-1)
+        if exploration_bonus:
+            next_v -= alpha * next_log_prob
+        reward = transitions.reward
+        if safe:
+            reward = transitions.extras.get(
                 "imagined_cost",
                 transitions.extras.get("cost", jnp.zeros_like(transitions.reward)),
             )
-            # FIXME (yarden): cost is not zeros
-            cost = jnp.zeros_like(transitions.reward)
-            reward = jnp.stack([transitions.reward, cost], axis=-1)
-            next_q_r, next_q_c = jnp.split(next_q, 2, 1)
-            next_v_r = jnp.min(next_q_r, axis=-1) - alpha * expand(next_log_prob)
-            next_v_c = jnp.min(next_q_c, axis=-1)
-            next_v = jnp.concatenate([next_v_r, next_v_c], axis=-1)
-        else:
-            next_v = jnp.min(next_q, axis=-1) - alpha * expand(next_log_prob)
-            reward = expand(transitions.reward)
         target_q = jax.lax.stop_gradient(
-            reward * reward_scaling
-            + expand(transitions.discount) * discounting * next_v
+            reward * reward_scaling + transitions.discount * discounting * next_v
         )
-        q_error = q_old_action - expand(target_q)
+        q_error = q_old_action - jnp.expand_dims(target_q, -1)
 
         # Better bootstrapping for truncated episodes.
         truncation = transitions.extras["state_extras"]["truncation"]
-        q_error *= expand(expand(1 - truncation))
+        q_error *= jnp.expand_dims(1 - truncation, -1)
 
         q_loss = 0.5 * jnp.mean(jnp.square(q_error))
         return q_loss
@@ -127,7 +121,8 @@ def make_losses(
     def actor_loss(
         policy_params: Params,
         normalizer_params: Any,
-        q_params: Params,
+        qr_params: Params,
+        qc_params: Params | None,
         alpha: jnp.ndarray,
         transitions: Transition,
         key: PRNGKey,
@@ -145,28 +140,30 @@ def make_losses(
         domain_params = transitions.extras.get("domain_parameters", None)
         if domain_params is not None:
             action = jnp.concatenate([action, domain_params], axis=-1)
-        q_action = q_network.apply(
-            normalizer_params, q_params, transitions.observation, action
+        qr_action = q_network.apply(
+            normalizer_params, qr_params, transitions.observation, action
         )
+        min_qr = jnp.min(qr_action, axis=-1)
         aux = {}
-        if q_action.shape[1] > 1:
-            q_r, q_c = jnp.split(q_action, 2, 1)
-            q_r, q_c = q_r.min(axis=-1), q_c.min(axis=-1)
-            constraint = safety_budget - q_c.mean()
+        if qc_params is not None:
+            qc_action = q_network.apply(
+                normalizer_params, qc_params, transitions.observation, action
+            )
+            min_qc = jnp.min(qc_action, axis=-1)
+            constraint = safety_budget - min_qc.mean()
             psi, cond = augmented_lagrangian(
                 constraint,
                 lagrangian_params.lagrange_multiplier,
                 lagrangian_params.penalty_multiplier,
             )
             # FIXME (yarden): zero here is bad!
-            actor_loss = psi * 0.0 + jnp.mean(alpha * log_prob - q_r)
+            actor_loss = psi * 0.0 + jnp.mean(alpha * log_prob - min_qr)
             aux["lagrangian_cond"] = cond
             aux["constraint_estimate"] = constraint
-            aux["cost"] = q_c.mean()
+            aux["cost"] = min_qc.mean()
         else:
-            min_q = jnp.min(q_action, axis=-1)
-            actor_loss = jnp.mean(alpha * log_prob - min_q)
-        return actor_loss, aux
+            actor_loss = jnp.mean(alpha * log_prob - min_qr)
+        return actor_loss
 
     return alpha_loss, critic_loss, actor_loss
 
