@@ -350,7 +350,7 @@ def train(
         )
         alpha = jnp.exp(training_state.alpha_params)
         if safe:
-            cost_critic_loss, qc_params, qc_optimizer_state = cost_critic_update(
+            cost_critic_loss, qc_params, qc_optimizer_state = critic_update(
                 training_state.qc_params,
                 training_state.policy_params,
                 training_state.normalizer_params,
