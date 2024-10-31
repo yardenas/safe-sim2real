@@ -378,22 +378,18 @@ def train(
             cost_metrics = {}
             qc_params = None
             qc_optimizer_state = None
-        # (actor_loss, aux), policy_params, policy_optimizer_state = actor_update(
-        #     training_state.policy_params,
-        #     training_state.normalizer_params,
-        #     training_state.qr_params,
-        #     training_state.qc_params,
-        #     alpha,
-        #     transitions,
-        #     key_actor,
-        #     safety_budget,
-        #     training_state.lagrangian_params,
-        #     optimizer_state=training_state.policy_optimizer_state,
-        # )
-        actor_loss = 0
-        aux = {}
-        policy_optimizer_state = training_state.policy_optimizer_state
-        policy_params = training_state.policy_params
+        (actor_loss, aux), policy_params, policy_optimizer_state = actor_update(
+            training_state.policy_params,
+            training_state.normalizer_params,
+            training_state.qr_params,
+            training_state.qc_params,
+            alpha,
+            transitions,
+            key_actor,
+            safety_budget,
+            training_state.lagrangian_params,
+            optimizer_state=training_state.policy_optimizer_state,
+        )
         polyak = lambda target, new: jax.tree_util.tree_map(
             lambda x, y: x * (1 - tau) + y * tau, target, new
         )
