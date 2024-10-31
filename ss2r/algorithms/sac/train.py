@@ -359,7 +359,7 @@ def train(
             alpha,
             transitions,
             key_critic,
-            optimizer_state=training_state.qr_optimizer_state,
+            optimizer_state=training_state.qc_optimizer_state,
         )
         if safe:
             cost_critic_loss, qc_params, qc_optimizer_state = cost_critic_update(
