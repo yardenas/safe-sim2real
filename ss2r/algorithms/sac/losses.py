@@ -165,7 +165,7 @@ def make_losses(
             aux["cost"] = min_qc.mean()
         else:
             actor_loss = jnp.mean(alpha * log_prob - min_qr)
-        return actor_loss
+        return actor_loss, aux
 
     return alpha_loss, critic_loss, actor_loss
 
