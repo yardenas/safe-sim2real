@@ -101,7 +101,10 @@ def make_losses(
             transitions.next_observation,
             next_action,
         )
-        next_v = jnp.min(next_q, axis=-1)
+        if safe:
+            next_v = jnp.mean(next_q, axis=-1)
+        else:
+            next_v = jnp.min(next_q, axis=-1)
         if exploration_bonus:
             next_v -= alpha * next_log_prob
         reward = transitions.reward
@@ -154,8 +157,8 @@ def make_losses(
             qc_action = qc_network.apply(
                 normalizer_params, qc_params, transitions.observation, action
             )
-            min_qc = jnp.min(qc_action, axis=-1)
-            constraint = safety_budget - min_qc.mean()
+            mean_qc = jnp.mean(qc_action, axis=-1)
+            constraint = safety_budget - mean_qc.mean()
             psi, cond = augmented_lagrangian(
                 constraint,
                 lagrangian_params.lagrange_multiplier,
@@ -165,7 +168,7 @@ def make_losses(
             actor_loss = psi * 0.0 + jnp.mean(alpha * log_prob - min_qr)
             aux["lagrangian_cond"] = cond
             aux["constraint_estimate"] = constraint
-            aux["cost"] = min_qc.mean()
+            aux["cost"] = mean_qc.mean()
         else:
             actor_loss = jnp.mean(alpha * log_prob - min_qr)
         return actor_loss, aux
