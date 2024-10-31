@@ -96,7 +96,6 @@ def make_losses(
             next_action,
         )
         expand = lambda x: jnp.expand_dims(x, axis=-1)
-        next_v = jnp.min(next_q, axis=-1) - alpha * expand(next_log_prob)
         if next_q.shape[1] > 1:
             cost = transitions.extras.get(
                 "imagined_cost",
@@ -105,9 +104,12 @@ def make_losses(
             # FIXME (yarden): cost is not zeros
             cost = jnp.zeros_like(transitions.reward)
             reward = jnp.stack([transitions.reward, cost], axis=-1)
-            # No need for exploration bonus in the constraints.
-            next_v = next_v.at[:, 1].add(alpha * next_log_prob)
+            next_q_r, next_q_c = jnp.split(next_q, 2, 1)
+            next_v_r = jnp.min(next_q_r, axis=-1) - alpha * expand(next_log_prob)
+            next_v_c = jnp.max(next_q_c, axis=-1)
+            next_v = jnp.concatenate([next_v_r, next_v_c], axis=-1)
         else:
+            next_v = jnp.min(next_q, axis=-1) - alpha * expand(next_log_prob)
             reward = expand(transitions.reward)
         target_q = jax.lax.stop_gradient(
             reward * reward_scaling
@@ -146,22 +148,24 @@ def make_losses(
         q_action = q_network.apply(
             normalizer_params, q_params, transitions.observation, action
         )
-        min_q = jnp.min(q_action, axis=-1)
         aux = {}
-        if min_q.shape[1] > 1:
-            q_r, q_c = jnp.split(min_q, 2, -1)
+        if q_action.shape[1] > 1:
+            q_r, q_c = jnp.split(q_action, 2, 1)
+            q_r, q_c = q_r.min(axis=-1), q_c.max(axis=-1)
             constraint = safety_budget - q_c.mean()
             psi, cond = augmented_lagrangian(
                 constraint,
                 lagrangian_params.lagrange_multiplier,
                 lagrangian_params.penalty_multiplier,
             )
+            # FIXME (yarden): zero here is bad!
             actor_loss = psi * 0.0 + jnp.mean(alpha * log_prob - q_r)
             aux["lagrangian_cond"] = cond
             aux["constraint_estimate"] = constraint
             aux["cost"] = q_c.mean()
 
         else:
+            min_q = jnp.min(q_action, axis=-1)
             actor_loss = jnp.mean(alpha * log_prob - min_q)
         return actor_loss, aux
 
