@@ -14,5 +14,5 @@ agent:
   grad_updates_per_step: 128
   batch_size: 128
   min_replay_size: 100
-  max_replay_size: 750000
+  max_replay_size: 1000000
   hidden_layer_sizes: [64, 64]
