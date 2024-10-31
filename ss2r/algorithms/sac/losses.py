@@ -38,7 +38,8 @@ def make_losses(
 
     target_entropy = -0.5 * action_size
     policy_network = sac_network.policy_network
-    q_network = sac_network.q_network
+    qr_network = sac_network.qr_network
+    qc_network = sac_network.qc_network
     parametric_action_distribution = sac_network.parametric_action_distribution
 
     def alpha_loss(
@@ -76,6 +77,7 @@ def make_losses(
             action = jnp.concatenate([transitions.action, domain_params], axis=-1)
         else:
             action = transitions.action
+        q_network = qc_network if safe else qr_network
         q_old_action = q_network.apply(
             normalizer_params, q_params, transitions.observation, action
         )
@@ -140,13 +142,13 @@ def make_losses(
         domain_params = transitions.extras.get("domain_parameters", None)
         if domain_params is not None:
             action = jnp.concatenate([action, domain_params], axis=-1)
-        qr_action = q_network.apply(
+        qr_action = qr_network.apply(
             normalizer_params, qr_params, transitions.observation, action
         )
         min_qr = jnp.min(qr_action, axis=-1)
         aux = {}
         if qc_params is not None:
-            qc_action = q_network.apply(
+            qc_action = qc_network.apply(
                 normalizer_params, qc_params, transitions.observation, action
             )
             min_qc = jnp.min(qc_action, axis=-1)

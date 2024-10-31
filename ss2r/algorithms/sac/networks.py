@@ -14,18 +14,22 @@
 
 """SAC networks."""
 
-from typing import Protocol, Sequence, TypeAlias, TypeVar
+from typing import Protocol, Sequence, TypeVar
 
 import brax.training.agents.sac.networks as sac_networks
+import flax
 from brax.training import distribution, networks, types
 from flax import linen
 
 make_inference_fn = sac_networks.make_inference_fn
-SACNetworks: TypeAlias = sac_networks.SACNetworks
 NetworkType = TypeVar("NetworkType", covariant=True)
 
 
-class SafeSACNetworks(SACNetworks):
+@flax.struct.dataclass
+class SafeSACNetworks:
+    policy_network: networks.FeedForwardNetwork
+    qr_network: networks.FeedForwardNetwork
+    parametric_action_distribution: distribution.ParametricDistribution
     qc_network: networks.FeedForwardNetwork | None
 
 
@@ -63,7 +67,7 @@ def make_sac_networks(
         hidden_layer_sizes=hidden_layer_sizes,
         activation=activation,
     )
-    q_network = networks.make_q_network(
+    qr_network = networks.make_q_network(
         observation_size,
         action_size + domain_randomization_size,
         preprocess_observations_fn=preprocess_observations_fn,
@@ -73,7 +77,7 @@ def make_sac_networks(
     if safe:
         qc_network = networks.make_q_network(
             observation_size,
-            action_size,
+            action_size + domain_randomization_size,
             preprocess_observations_fn=preprocess_observations_fn,
             hidden_layer_sizes=hidden_layer_sizes,
             activation=activation,
@@ -82,7 +86,7 @@ def make_sac_networks(
         qc_network = None
     return SafeSACNetworks(
         policy_network=policy_network,
-        q_network=q_network,
+        qr_network=qr_network,
         qc_network=qc_network,
         parametric_action_distribution=parametric_action_distribution,
-    )
+    )  # type: ignore

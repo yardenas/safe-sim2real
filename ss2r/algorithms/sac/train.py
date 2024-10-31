@@ -94,7 +94,7 @@ def _init_training_state(
 
     policy_params = sac_network.policy_network.init(key_policy)
     policy_optimizer_state = policy_optimizer.init(policy_params)
-    qr_params = sac_network.q_network.init(key_qr)
+    qr_params = sac_network.qr_network.init(key_qr)
     if sac_network.qc_network is not None:
         qc_params = sac_network.qc_network.init(key_qc)
         assert qc_optimizer is not None
@@ -336,7 +336,9 @@ def train(
     ) -> Tuple[Tuple[TrainingState, PRNGKey], Metrics]:
         training_state, key = carry
 
-        key, key_alpha, key_critic, key_actor = jax.random.split(key, 4)
+        key, key_alpha, key_critic, key_cost_critic, key_actor = jax.random.split(
+            key, 5
+        )
 
         alpha_loss, alpha_params, alpha_optimizer_state = alpha_update(
             training_state.alpha_params,
@@ -365,7 +367,7 @@ def train(
                 training_state.target_qc_params,
                 alpha,
                 transitions,
-                key_critic,
+                key_cost_critic,
                 True,
                 optimizer_state=training_state.qc_optimizer_state,
             )
@@ -380,6 +382,7 @@ def train(
             training_state.policy_params,
             training_state.normalizer_params,
             training_state.qr_params,
+            training_state.qc_params,
             alpha,
             transitions,
             key_actor,
