@@ -350,11 +350,12 @@ def train(
             optimizer_state=training_state.alpha_optimizer_state,
         )
         alpha = jnp.exp(training_state.alpha_params)
-        critic_loss, qr_params, qr_optimizer_state = critic_update(
-            training_state.qr_params,
+        # FIXME (yarden): changed to qc
+        critic_loss, qc_params, qc_optimizer_state = critic_update(
+            training_state.qc_params,
             training_state.policy_params,
             training_state.normalizer_params,
-            training_state.target_qr_params,
+            training_state.target_qc_params,
             alpha,
             transitions,
             key_critic,
@@ -395,9 +396,10 @@ def train(
         polyak = lambda target, new: jax.tree_util.tree_map(
             lambda x, y: x * (1 - tau) + y * tau, target, new
         )
-        new_target_qr_params = polyak(training_state.target_qr_params, qr_params)
+        new_target_qr_params = polyak(training_state.target_qc_params, qc_params)
         if safe:
-            new_target_qc_params = polyak(training_state.target_qc_params, qc_params)
+            pass
+            # new_target_qc_params = polyak(training_state.target_qc_params, qc_params)
         else:
             new_target_qc_params = None
         if aux:
@@ -427,9 +429,9 @@ def train(
         new_training_state = TrainingState(
             policy_optimizer_state=policy_optimizer_state,
             policy_params=policy_params,
-            qr_optimizer_state=qr_optimizer_state,
+            qr_optimizer_state=qc_optimizer_state,
             qc_optimizer_state=qc_optimizer_state,
-            qr_params=qr_params,
+            qr_params=qc_params,
             qc_params=qc_params,
             target_qr_params=new_target_qr_params,
             target_qc_params=new_target_qc_params,
