@@ -111,7 +111,6 @@ def make_losses(
                 "imagined_cost",
                 transitions.extras.get("cost", jnp.zeros_like(transitions.reward)),
             )
-            reward = jnp.ones_like(reward)
         target_q = jax.lax.stop_gradient(
             reward * reward_scaling + transitions.discount * gamma * next_v
         )
