@@ -106,8 +106,8 @@ def make_losses(
             reward = jnp.stack([transitions.reward, cost], axis=-1)
             next_q_r, next_q_c = jnp.split(next_q, 2, 1)
             next_v_r = jnp.min(next_q_r, axis=-1) - alpha * expand(next_log_prob)
-            next_v_c = jnp.max(next_q_c, axis=-1)
-            next_v = jnp.concatenate([next_v_r, next_v_r], axis=-1)
+            next_v_c = jnp.min(next_q_c, axis=-1)
+            next_v = jnp.concatenate([next_v_r, next_v_c], axis=-1)
         else:
             next_v = jnp.min(next_q, axis=-1) - alpha * expand(next_log_prob)
             reward = expand(transitions.reward)
@@ -151,7 +151,7 @@ def make_losses(
         aux = {}
         if q_action.shape[1] > 1:
             q_r, q_c = jnp.split(q_action, 2, 1)
-            q_r, q_c = q_r.min(axis=-1), q_c.max(axis=-1)
+            q_r, q_c = q_r.min(axis=-1), q_c.min(axis=-1)
             constraint = safety_budget - q_c.mean()
             psi, cond = augmented_lagrangian(
                 constraint,
