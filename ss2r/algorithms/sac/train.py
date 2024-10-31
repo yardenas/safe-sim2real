@@ -349,26 +349,26 @@ def train(
             optimizer_state=training_state.alpha_optimizer_state,
         )
         alpha = jnp.exp(training_state.alpha_params)
-        critic_loss, qr_params, qr_optimizer_state = critic_update(
-            training_state.qr_params,
+        critic_loss, qc_params, qc_optimizer_state = critic_update(
+            training_state.qc_params,
             training_state.policy_params,
             training_state.normalizer_params,
-            training_state.target_qr_params,
+            training_state.target_qc_params,
             alpha,
             transitions,
             key_critic,
-            optimizer_state=training_state.qr_optimizer_state,
+            optimizer_state=training_state.qc_optimizer_state,
         )
         if safe:
-            cost_critic_loss, qc_params, qc_optimizer_state = cost_critic_update(
-                training_state.qc_params,
+            cost_critic_loss, qr_params, qr_optimizer_state = cost_critic_update(
+                training_state.qr_params,
                 training_state.policy_params,
                 training_state.normalizer_params,
-                training_state.target_qc_params,
+                training_state.target_qr_params,
                 alpha,
                 transitions,
                 key_cost_critic,
-                optimizer_state=training_state.qc_optimizer_state,
+                optimizer_state=training_state.qr_optimizer_state,
             )
             cost_metrics = {
                 "cost_critic_loss": cost_critic_loss,
@@ -429,11 +429,11 @@ def train(
             policy_optimizer_state=policy_optimizer_state,
             policy_params=policy_params,
             qr_optimizer_state=qr_optimizer_state,
-            qc_optimizer_state=qr_optimizer_state,
+            qc_optimizer_state=qc_optimizer_state,
             qr_params=qr_params,
-            qc_params=qr_params,
+            qc_params=qc_params,
             target_qr_params=new_target_qr_params,
-            target_qc_params=new_target_qr_params,
+            target_qc_params=new_target_qc_params,
             gradient_steps=training_state.gradient_steps + 1,
             env_steps=training_state.env_steps,
             alpha_optimizer_state=alpha_optimizer_state,
