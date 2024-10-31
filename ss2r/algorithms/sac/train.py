@@ -368,6 +368,7 @@ def train(
                 alpha,
                 transitions,
                 key_cost_critic,
+                False,
                 True,
                 optimizer_state=training_state.qc_optimizer_state,
             )
