@@ -88,15 +88,15 @@ def _init_training_state(
     penalty_multiplier: float,
 ) -> TrainingState:
     """Inits the training state and replicates it over devices."""
-    key_policy, key_q = jax.random.split(key)
+    key_policy, key_qr, key_qc = jax.random.split(key, 3)
     log_alpha = jnp.asarray(0.0, dtype=jnp.float32)
     alpha_optimizer_state = alpha_optimizer.init(log_alpha)
 
     policy_params = sac_network.policy_network.init(key_policy)
     policy_optimizer_state = policy_optimizer.init(policy_params)
-    qr_params = sac_network.qr_network.init(key_q)
+    qr_params = sac_network.qr_network.init(key_qr)
     if sac_network.qc_network is not None:
-        qc_params = sac_network.qc_network.init(key_q)
+        qc_params = sac_network.qc_network.init(key_qc)
         assert qc_optimizer is not None
         qc_optimizer_state = qc_optimizer.init(qc_params)
     else:
