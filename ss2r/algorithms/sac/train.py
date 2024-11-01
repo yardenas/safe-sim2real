@@ -35,11 +35,8 @@ from brax.v1 import envs as envs_v1
 
 import ss2r.algorithms.sac.losses as sac_losses
 import ss2r.algorithms.sac.networks as sac_networks
-from ss2r.algorithms.sac.wrappers import (
-    DomainRandomizationParams,
-    StatePropagation,
-    std_bonus,
-)
+from ss2r.algorithms.sac.robustness import SACCost
+from ss2r.algorithms.sac.wrappers import DomainRandomizationParams, StatePropagation
 from ss2r.rl.evaluation import ConstraintsEvaluator
 
 Metrics: TypeAlias = types.Metrics
@@ -247,12 +244,7 @@ def train(
     else:
         domain_parameters = None
     if propagation is not None:
-        cost_penalty_fn = (
-            functools.partial(std_bonus, lambda_=cost_penalty)
-            if cost_penalty is not None
-            else None
-        )
-        env = StatePropagation(env, cost_penalty_fn=cost_penalty_fn)
+        env = StatePropagation(env)
 
     obs_size = env.observation_size
     action_size = env.action_size
@@ -289,10 +281,8 @@ def train(
     if domain_parameters is not None:
         extras["domain_parameters"] = domain_parameters[0]
     if safe:
-        if propagation is not None and cost_penalty is not None:
-            extras["imagined_cost"] = 0.0
-        else:
-            extras["cost"] = 0.0
+        if propagation is not None:
+            extras["state_propagation"] = {}
 
     dummy_transition = Transition(  # pytype: disable=wrong-arg-types  # jax-ndarray
         observation=dummy_obs,
@@ -372,8 +362,8 @@ def train(
                 alpha,
                 transitions,
                 key_critic,
-                False,
                 True,
+                SACCost(),
                 optimizer_state=training_state.qc_optimizer_state,
             )
             cost_metrics = {
