@@ -32,13 +32,15 @@ def make_losses(
     sac_network: sac_networks.SACNetworks,
     reward_scaling: float,
     discounting: float,
+    safety_discounting: float,
     action_size: int,
 ):
     """Creates the SAC losses."""
 
     target_entropy = -0.5 * action_size
     policy_network = sac_network.policy_network
-    q_network = sac_network.q_network
+    qr_network = sac_network.qr_network
+    qc_network = sac_network.qc_network
     parametric_action_distribution = sac_network.parametric_action_distribution
 
     def alpha_loss(
@@ -68,12 +70,16 @@ def make_losses(
         alpha: jnp.ndarray,
         transitions: Transition,
         key: PRNGKey,
+        exploration_bonus: bool = True,
+        safe: bool = False,
     ) -> jnp.ndarray:
         domain_params = transitions.extras.get("domain_parameters", None)
         if domain_params is not None:
             action = jnp.concatenate([transitions.action, domain_params], axis=-1)
         else:
             action = transitions.action
+        q_network = qc_network if safe else qr_network
+        gamma = safety_discounting if safe else discounting
         q_old_action = q_network.apply(
             normalizer_params, q_params, transitions.observation, action
         )
@@ -95,25 +101,27 @@ def make_losses(
             transitions.next_observation,
             next_action,
         )
-        expand = lambda x: jnp.expand_dims(x, axis=-1)
-        next_v = jnp.min(next_q, axis=-1) - alpha * expand(next_log_prob)
-        if next_q.shape[1] > 1:
-            cost = transitions.extras.get(
+        if safe:
+            next_v = jnp.mean(next_q, axis=-1)
+        else:
+            next_v = jnp.min(next_q, axis=-1)
+        if exploration_bonus:
+            next_v -= alpha * next_log_prob
+        reward = transitions.reward
+        if safe:
+            assert "imagined_cost" in transitions.extras or "cost" in transitions.extras
+            reward = transitions.extras.get(
                 "imagined_cost",
                 transitions.extras.get("cost", jnp.zeros_like(transitions.reward)),
             )
-            reward = jnp.stack([transitions.reward, cost], axis=-1)
-        else:
-            reward = expand(transitions.reward)
         target_q = jax.lax.stop_gradient(
-            reward * reward_scaling
-            + expand(transitions.discount) * discounting * next_v
+            reward * reward_scaling + transitions.discount * gamma * next_v
         )
-        q_error = q_old_action - expand(target_q)
+        q_error = q_old_action - jnp.expand_dims(target_q, -1)
 
         # Better bootstrapping for truncated episodes.
         truncation = transitions.extras["state_extras"]["truncation"]
-        q_error *= expand(expand(1 - truncation))
+        q_error *= jnp.expand_dims(1 - truncation, -1)
 
         q_loss = 0.5 * jnp.mean(jnp.square(q_error))
         return q_loss
@@ -121,7 +129,8 @@ def make_losses(
     def actor_loss(
         policy_params: Params,
         normalizer_params: Any,
-        q_params: Params,
+        qr_params: Params,
+        qc_params: Params | None,
         alpha: jnp.ndarray,
         transitions: Transition,
         key: PRNGKey,
@@ -139,22 +148,28 @@ def make_losses(
         domain_params = transitions.extras.get("domain_parameters", None)
         if domain_params is not None:
             action = jnp.concatenate([action, domain_params], axis=-1)
-        q_action = q_network.apply(
-            normalizer_params, q_params, transitions.observation, action
+        qr_action = qr_network.apply(
+            normalizer_params, qr_params, transitions.observation, action
         )
-        min_q = jnp.min(q_action, axis=-1)
+        min_qr = jnp.min(qr_action, axis=-1)
         aux = {}
-        if min_q.shape[1] > 1:
-            q_r, q_c = jnp.split(min_q, 2, -1)
+        if qc_params is not None:
+            qc_action = qc_network.apply(
+                normalizer_params, qc_params, transitions.observation, action
+            )
+            mean_qc = jnp.mean(qc_action, axis=-1)
+            constraint = safety_budget - mean_qc.mean()
             psi, cond = augmented_lagrangian(
-                safety_budget - q_c.mean(),
+                constraint,
                 lagrangian_params.lagrange_multiplier,
                 lagrangian_params.penalty_multiplier,
             )
-            actor_loss = psi + jnp.mean(alpha * log_prob - q_r)
+            actor_loss = psi + jnp.mean(alpha * log_prob - min_qr)
             aux["lagrangian_cond"] = cond
+            aux["constraint_estimate"] = constraint
+            aux["cost"] = mean_qc.mean()
         else:
-            actor_loss = jnp.mean(alpha * log_prob - min_q)
+            actor_loss = jnp.mean(alpha * log_prob - min_qr)
         return actor_loss, aux
 
     return alpha_loss, critic_loss, actor_loss

@@ -57,9 +57,12 @@ class TrainingState:
 
     policy_optimizer_state: optax.OptState
     policy_params: Params
-    q_optimizer_state: optax.OptState
-    q_params: Params
-    target_q_params: Params
+    qr_optimizer_state: optax.OptState
+    qc_optimizer_state: optax.OptState | None
+    qr_params: Params
+    qc_params: Params | None
+    target_qr_params: Params
+    target_qc_params: Params | None
     gradient_steps: jnp.ndarray
     env_steps: jnp.ndarray
     alpha_optimizer_state: optax.OptState
@@ -76,23 +79,30 @@ def _init_training_state(
     key: PRNGKey,
     obs_size: int,
     local_devices_to_use: int,
-    sac_network: sac_networks.SACNetworks,
+    sac_network: sac_networks.SafeSACNetworks,
     alpha_optimizer: optax.GradientTransformation,
     policy_optimizer: optax.GradientTransformation,
-    q_optimizer: optax.GradientTransformation,
+    qr_optimizer: optax.GradientTransformation,
+    qc_optimizer: optax.GradientTransformation | None,
     lagrange_multiplier: float,
     penalty_multiplier: float,
 ) -> TrainingState:
     """Inits the training state and replicates it over devices."""
-    key_policy, key_q = jax.random.split(key)
+    key_policy, key_qr, key_qc = jax.random.split(key, 3)
     log_alpha = jnp.asarray(0.0, dtype=jnp.float32)
     alpha_optimizer_state = alpha_optimizer.init(log_alpha)
 
     policy_params = sac_network.policy_network.init(key_policy)
     policy_optimizer_state = policy_optimizer.init(policy_params)
-    q_params = sac_network.q_network.init(key_q)
-    q_optimizer_state = q_optimizer.init(q_params)
-
+    qr_params = sac_network.qr_network.init(key_qr)
+    if sac_network.qc_network is not None:
+        qc_params = sac_network.qc_network.init(key_qc)
+        assert qc_optimizer is not None
+        qc_optimizer_state = qc_optimizer.init(qc_params)
+    else:
+        qc_params = None
+        qc_optimizer_state = None
+    qr_optimizer_state = qr_optimizer.init(qr_params)
     normalizer_params = running_statistics.init_state(
         specs.Array((obs_size,), jnp.dtype("float32"))
     )
@@ -100,9 +110,12 @@ def _init_training_state(
     training_state = TrainingState(
         policy_optimizer_state=policy_optimizer_state,
         policy_params=policy_params,
-        q_optimizer_state=q_optimizer_state,
-        q_params=q_params,
-        target_q_params=q_params,
+        qr_optimizer_state=qr_optimizer_state,
+        qr_params=qr_params,
+        target_qr_params=qr_params,
+        qc_optimizer_state=qc_optimizer_state,
+        qc_params=qc_params,
+        target_qc_params=qc_params,
         gradient_steps=jnp.zeros(()),
         env_steps=jnp.zeros(()),
         alpha_optimizer_state=alpha_optimizer_state,
@@ -129,7 +142,10 @@ def train(
     cost_penalty: float | None = None,
     propagation: str | None = None,
     learning_rate: float = 1e-4,
+    critic_learning_rate: float = 1e-4,
+    cost_critic_learning_rate: float = 1e-4,
     discounting: float = 0.9,
+    safety_discounting: float = 0.9,
     seed: int = 0,
     batch_size: int = 256,
     num_evals: int = 1,
@@ -142,7 +158,7 @@ def train(
     grad_updates_per_step: int = 1,
     deterministic_eval: bool = False,
     network_factory: sac_networks.DomainRandomizationNetworkFactory[
-        sac_networks.SACNetworks
+        sac_networks.SafeSACNetworks
     ] = sac_networks.make_sac_networks,
     progress_fn: Callable[[int, Metrics], None] = lambda *args: None,
     checkpoint_logdir: Optional[str] = None,
@@ -174,6 +190,8 @@ def train(
             "No training will happen because min_replay_size >= num_timesteps"
         )
 
+    safety_budget = (safety_budget / episode_length) / (1.0 - safety_discounting)
+    logging.info(f"Episode safety budget: {safety_budget}")
     if max_replay_size is None:
         max_replay_size = num_timesteps
     if propagation == "standard":
@@ -257,7 +275,8 @@ def train(
     alpha_optimizer = optax.adam(learning_rate=3e-4)
 
     policy_optimizer = optax.adam(learning_rate=learning_rate)
-    q_optimizer = optax.adam(learning_rate=learning_rate)
+    qr_optimizer = optax.adam(learning_rate=critic_learning_rate)
+    qc_optimizer = optax.adam(learning_rate=cost_critic_learning_rate) if safe else None
 
     dummy_obs = jnp.zeros((obs_size,))
     dummy_action = jnp.zeros((action_size,))
@@ -293,6 +312,7 @@ def train(
         sac_network=sac_network,
         reward_scaling=reward_scaling,
         discounting=discounting,
+        safety_discounting=safety_discounting,
         action_size=action_size,
     )
     alpha_update = (
@@ -302,9 +322,13 @@ def train(
     )
     critic_update = (
         gradients.gradient_update_fn(  # pytype: disable=wrong-arg-types  # jax-ndarray
-            critic_loss, q_optimizer, pmap_axis_name=_PMAP_AXIS_NAME
+            critic_loss, qr_optimizer, pmap_axis_name=_PMAP_AXIS_NAME
         )
     )
+    if safe:
+        cost_critic_update = gradients.gradient_update_fn(  # pytype: disable=wrong-arg-types  # jax-ndarray
+            critic_loss, qc_optimizer, pmap_axis_name=_PMAP_AXIS_NAME
+        )
     actor_update = (
         gradients.gradient_update_fn(  # pytype: disable=wrong-arg-types  # jax-ndarray
             actor_loss, policy_optimizer, pmap_axis_name=_PMAP_AXIS_NAME, has_aux=True
@@ -316,7 +340,9 @@ def train(
     ) -> Tuple[Tuple[TrainingState, PRNGKey], Metrics]:
         training_state, key = carry
 
-        key, key_alpha, key_critic, key_actor = jax.random.split(key, 4)
+        key, key_alpha, key_critic, key_cost_critic, key_actor = jax.random.split(
+            key, 5
+        )
 
         alpha_loss, alpha_params, alpha_optimizer_state = alpha_update(
             training_state.alpha_params,
@@ -327,20 +353,41 @@ def train(
             optimizer_state=training_state.alpha_optimizer_state,
         )
         alpha = jnp.exp(training_state.alpha_params)
-        critic_loss, q_params, q_optimizer_state = critic_update(
-            training_state.q_params,
+        critic_loss, qr_params, qr_optimizer_state = critic_update(
+            training_state.qr_params,
             training_state.policy_params,
             training_state.normalizer_params,
-            training_state.target_q_params,
+            training_state.target_qr_params,
             alpha,
             transitions,
             key_critic,
-            optimizer_state=training_state.q_optimizer_state,
+            optimizer_state=training_state.qr_optimizer_state,
         )
+        if safe:
+            cost_critic_loss, qc_params, qc_optimizer_state = cost_critic_update(
+                training_state.qc_params,
+                training_state.policy_params,
+                training_state.normalizer_params,
+                training_state.target_qc_params,
+                alpha,
+                transitions,
+                key_critic,
+                False,
+                True,
+                optimizer_state=training_state.qc_optimizer_state,
+            )
+            cost_metrics = {
+                "cost_critic_loss": cost_critic_loss,
+            }
+        else:
+            cost_metrics = {}
+            qc_params = None
+            qc_optimizer_state = None
         (actor_loss, aux), policy_params, policy_optimizer_state = actor_update(
             training_state.policy_params,
             training_state.normalizer_params,
-            training_state.q_params,
+            training_state.qr_params,
+            training_state.qc_params,
             alpha,
             transitions,
             key_actor,
@@ -348,13 +395,15 @@ def train(
             training_state.lagrangian_params,
             optimizer_state=training_state.policy_optimizer_state,
         )
-
-        new_target_q_params = jax.tree_util.tree_map(
-            lambda x, y: x * (1 - tau) + y * tau,
-            training_state.target_q_params,
-            q_params,
+        polyak = lambda target, new: jax.tree_util.tree_map(
+            lambda x, y: x * (1 - tau) + y * tau, target, new
         )
-        if "lagrangian_cond" in aux:
+        new_target_qr_params = polyak(training_state.target_qr_params, qr_params)
+        if safe:
+            new_target_qc_params = polyak(training_state.target_qc_params, qc_params)
+        else:
+            new_target_qc_params = None
+        if aux:
             cond = aux["lagrangian_cond"]
             new_lagrangian_params = sac_losses.update_augmented_lagrangian(
                 cond,
@@ -362,7 +411,8 @@ def train(
                 penalty_multiplier_factor,
             )
             additional_metrics = {
-                "lagrange_multiplier": new_lagrangian_params.lagrange_multiplier
+                "lagrange_multiplier": new_lagrangian_params.lagrange_multiplier,
+                **aux,
             }
         else:
             new_lagrangian_params = training_state.lagrangian_params
@@ -373,15 +423,19 @@ def train(
             "actor_loss": actor_loss,
             "alpha_loss": alpha_loss,
             "alpha": jnp.exp(alpha_params),
+            **cost_metrics,
             **additional_metrics,
         }
 
         new_training_state = TrainingState(
             policy_optimizer_state=policy_optimizer_state,
             policy_params=policy_params,
-            q_optimizer_state=q_optimizer_state,
-            q_params=q_params,
-            target_q_params=new_target_q_params,
+            qr_optimizer_state=qr_optimizer_state,
+            qc_optimizer_state=qc_optimizer_state,
+            qr_params=qr_params,
+            qc_params=qc_params,
+            target_qr_params=new_target_qr_params,
+            target_qc_params=new_target_qc_params,
             gradient_steps=training_state.gradient_steps + 1,
             env_steps=training_state.env_steps,
             alpha_optimizer_state=alpha_optimizer_state,
@@ -553,7 +607,8 @@ def train(
         sac_network=sac_network,
         alpha_optimizer=alpha_optimizer,
         policy_optimizer=policy_optimizer,
-        q_optimizer=q_optimizer,
+        qr_optimizer=qr_optimizer,
+        qc_optimizer=qc_optimizer,
         lagrange_multiplier=lagrange_multiplier,
         penalty_multiplier=penalty_multiplier,
     )
