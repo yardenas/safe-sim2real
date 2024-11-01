@@ -96,8 +96,7 @@ def _init_training_state(
     policy_optimizer_state = policy_optimizer.init(policy_params)
     qr_params = sac_network.qr_network.init(key_qr)
     if sac_network.qc_network is not None:
-        # FIXME (yarden): mind the key
-        qc_params = sac_network.qc_network.init(key_qr)
+        qc_params = sac_network.qc_network.init(key_qc)
         assert qc_optimizer is not None
         qc_optimizer_state = qc_optimizer.init(qc_params)
     else:
