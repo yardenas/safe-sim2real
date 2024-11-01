@@ -35,7 +35,7 @@ from brax.v1 import envs as envs_v1
 
 import ss2r.algorithms.sac.losses as sac_losses
 import ss2r.algorithms.sac.networks as sac_networks
-from ss2r.algorithms.sac.robustness import SACCost
+from ss2r.algorithms.sac.robustness import CVaR, SACCost
 from ss2r.algorithms.sac.wrappers import DomainRandomizationParams, StatePropagation
 from ss2r.rl.evaluation import ConstraintsEvaluator
 
@@ -279,10 +279,13 @@ def train(
         "policy_extras": {},
     }
     if domain_parameters is not None:
-        extras["domain_parameters"] = domain_parameters[0]
+        extras["state_extras"]["domain_parameters"] = domain_parameters[0]
     if safe:
         if propagation is not None:
-            extras["state_propagation"] = {}
+            extras["state_extras"]["state_propagation"] = {
+                "next_obs": dummy_obs,
+                "rng": rng,
+            }
 
     dummy_transition = Transition(  # pytype: disable=wrong-arg-types  # jax-ndarray
         observation=dummy_obs,
@@ -363,7 +366,7 @@ def train(
                 transitions,
                 key_critic,
                 True,
-                SACCost(),
+                CVaR(),
                 optimizer_state=training_state.qc_optimizer_state,
             )
             cost_metrics = {
@@ -459,10 +462,7 @@ def train(
             normalizer_params, transitions.observation, pmap_axis_name=_PMAP_AXIS_NAME
         )
         if transitions.observation.ndim == 3:
-            transitions = jax.tree_util.tree_map(
-                lambda x: x[0],
-                transitions,
-            )
+            transitions = jax.tree_util.tree_map(lambda x: x[0], transitions)
         buffer_state = replay_buffer.insert(buffer_state, transitions)
         return normalizer_params, env_state, buffer_state
 

@@ -40,9 +40,11 @@ class StatePropagation(Wrapper):
         propagation_rng = jax.random.split(rng[0])[1]
         n_key, key = jax.random.split(propagation_rng)
         state.info["state_propagation"] = {}
-        state.info["state_propagation"]["rng"] = jax.split(n_key, self.num_envs)
-        state.info["state_propagation"]["next_state"] = state
-        return self.propagation_fn(state, key)
+        state.info["state_propagation"]["rng"] = jax.random.split(n_key, self.num_envs)
+        orig_next_obs = state.obs
+        state = self.propagation_fn(state, key)
+        state.info["state_propagation"]["next_obs"] = orig_next_obs
+        return state
 
     def step(self, state: State, action: jax.Array) -> State:
         # The order here matters, the tree_map changes the dimensions of
@@ -54,9 +56,12 @@ class StatePropagation(Wrapper):
         state, action = tile(state), tile(action)
         nstate = self.env.step(state, action)
         n_key, key = jax.random.split(propagation_rng)
+        orig_next_obs = nstate.obs
         nstate.info["state_propagation"]["rng"] = jax.random.split(n_key, self.num_envs)
-        nstate.info["state_propagation"]["next_state"] = nstate
-        return self.propagation_fn(nstate, key)
+        nstate.info["state_propagation"]["next_obs"] = nstate.obs
+        nstate = self.propagation_fn(nstate, key)
+        nstate.info["state_propagation"]["next_obs"] = orig_next_obs
+        return nstate
 
 
 def get_randomized_values(sys_v, in_axes):
