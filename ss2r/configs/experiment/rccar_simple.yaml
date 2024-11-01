@@ -4,13 +4,18 @@ defaults:
 
 training:
   num_envs: 128
-  num_timesteps: 500000
+  num_timesteps: 1000000
   episode_length: 100
   safety_budget: 1.
+  train_domain_randomization: false
+  eval_domain_randomization: false
 
 agent:
   grad_updates_per_step: 128
   batch_size: 128
   min_replay_size: 100
-  max_replay_size: 100000
+  max_replay_size: 1000000
   hidden_layer_sizes: [64, 64]
+  safety_discounting: 0.985
+  lagrange_multiplier: 0.1
+  penalty_multiplier: 0.0001
