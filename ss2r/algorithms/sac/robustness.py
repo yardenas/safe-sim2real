@@ -2,9 +2,7 @@ from typing import Callable, Protocol
 
 import jax
 import jax.numpy as jnp
-from brax.training.types import Params
-
-from ss2r.algorithms.sac.losses import Transition
+from brax.training.types import Params, Transition
 
 
 class QTransformation(Protocol):
