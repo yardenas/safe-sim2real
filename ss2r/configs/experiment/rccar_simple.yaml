@@ -4,7 +4,7 @@ defaults:
 
 training:
   num_envs: 128
-  num_timesteps: 750000
+  num_timesteps: 1000000
   episode_length: 100
   safety_budget: 1.
   train_domain_randomization: false
