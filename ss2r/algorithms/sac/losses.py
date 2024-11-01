@@ -75,7 +75,9 @@ def make_losses(
         safe: bool = False,
         target_q_fn: QTransformation = SACBase(),
     ) -> jnp.ndarray:
-        domain_params = transitions.extras.get("domain_parameters", None)
+        domain_params = transitions.extras["state_extras"].get(
+            "domain_parameters", None
+        )
         if domain_params is not None:
             action = jnp.concatenate([transitions.action, domain_params], axis=-1)
         else:
@@ -131,7 +133,9 @@ def make_losses(
         )
         log_prob = parametric_action_distribution.log_prob(dist_params, action)
         action = parametric_action_distribution.postprocess(action)
-        domain_params = transitions.extras.get("domain_parameters", None)
+        domain_params = transitions.extras["state_extras"].get(
+            "domain_parameters", None
+        )
         if domain_params is not None:
             action = jnp.concatenate([action, domain_params], axis=-1)
         qr_action = qr_network.apply(

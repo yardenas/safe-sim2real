@@ -35,7 +35,7 @@ from brax.v1 import envs as envs_v1
 
 import ss2r.algorithms.sac.losses as sac_losses
 import ss2r.algorithms.sac.networks as sac_networks
-from ss2r.algorithms.sac.robustness import CVaR, SACCost
+from ss2r.algorithms.sac.robustness import SACCost
 from ss2r.algorithms.sac.wrappers import DomainRandomizationParams, StatePropagation
 from ss2r.rl.evaluation import ConstraintsEvaluator
 
@@ -169,6 +169,8 @@ def train(
     lagrange_multiplier: float = 1e-9,
     penalty_multiplier: float = 1.0,
     penalty_multiplier_factor: float = 1.0,
+    cost_q_transform: str | None = None,
+    cvar_confidence: float = 0.95,
 ):
     """SAC training."""
     process_id = jax.process_index()
@@ -279,11 +281,11 @@ def train(
         "policy_extras": {},
     }
     if domain_parameters is not None:
-        extras["state_extras"]["domain_parameters"] = domain_parameters[0]
+        extras["state_extras"]["domain_parameters"] = domain_parameters[0]  # type: ignore
     if safe:
         if propagation is not None:
-            extras["state_extras"]["state_propagation"] = {
-                "next_obs": dummy_obs,
+            extras["state_extras"]["state_propagation"] = {  # type: ignore
+                "next_obs": jnp.tile(dummy_obs, (num_envs,) + (1,) * dummy_obs.ndim),
                 "rng": rng,
             }
 
@@ -366,7 +368,7 @@ def train(
                 transitions,
                 key_critic,
                 True,
-                CVaR(),
+                SACCost(),
                 optimizer_state=training_state.qc_optimizer_state,
             )
             cost_metrics = {
@@ -450,9 +452,11 @@ def train(
         ReplayBufferState,
     ]:
         policy = make_policy((normalizer_params, policy_params))
-        extra_fields = ("truncation",) + tuple(
-            key for key in extras.keys() if key not in ["state_extras", "policy_extras"]
-        )
+        extra_fields = ("truncation",)
+        if domain_parameters is not None:
+            extra_fields += ("domain_parameters",)  # type: ignore
+        if propagation is not None:
+            extra_fields += ("state_propagation",)  # type: ignore
         step = lambda state: acting.actor_step(
             env, state, policy, key, extra_fields=extra_fields
         )
