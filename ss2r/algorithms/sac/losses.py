@@ -25,6 +25,8 @@ from brax.training import types
 from brax.training.agents.sac import networks as sac_networks
 from brax.training.types import Params, PRNGKey
 
+from ss2r.algorithms.sac.robustness import QTransformation, SACBase
+
 Transition: TypeAlias = types.Transition
 
 
@@ -70,10 +72,12 @@ def make_losses(
         alpha: jnp.ndarray,
         transitions: Transition,
         key: PRNGKey,
-        exploration_bonus: bool = True,
         safe: bool = False,
+        target_q_fn: QTransformation = SACBase(),
     ) -> jnp.ndarray:
-        domain_params = transitions.extras.get("domain_parameters", None)
+        domain_params = transitions.extras["state_extras"].get(
+            "domain_parameters", None
+        )
         if domain_params is not None:
             action = jnp.concatenate([transitions.action, domain_params], axis=-1)
         else:
@@ -83,46 +87,30 @@ def make_losses(
         q_old_action = q_network.apply(
             normalizer_params, q_params, transitions.observation, action
         )
-        next_dist_params = policy_network.apply(
-            normalizer_params, policy_params, transitions.next_observation
-        )
-        next_action = parametric_action_distribution.sample_no_postprocessing(
-            next_dist_params, key
-        )
-        next_log_prob = parametric_action_distribution.log_prob(
-            next_dist_params, next_action
-        )
-        next_action = parametric_action_distribution.postprocess(next_action)
-        if domain_params is not None:
-            next_action = jnp.concatenate([next_action, domain_params], axis=-1)
-        next_q = q_network.apply(
-            normalizer_params,
-            target_q_params,
-            transitions.next_observation,
-            next_action,
-        )
-        if safe:
-            next_v = jnp.mean(next_q, axis=-1)
-        else:
-            next_v = jnp.min(next_q, axis=-1)
-        if exploration_bonus:
-            next_v -= alpha * next_log_prob
-        reward = transitions.reward
-        if safe:
-            assert "imagined_cost" in transitions.extras or "cost" in transitions.extras
-            reward = transitions.extras.get(
-                "imagined_cost",
-                transitions.extras.get("cost", jnp.zeros_like(transitions.reward)),
+
+        def policy(obs: jax.Array) -> tuple[jax.Array, jax.Array]:
+            next_dist_params = policy_network.apply(
+                normalizer_params, policy_params, obs
             )
-        target_q = jax.lax.stop_gradient(
-            reward * reward_scaling + transitions.discount * gamma * next_v
+            next_action = parametric_action_distribution.sample_no_postprocessing(
+                next_dist_params, key
+            )
+            next_log_prob = parametric_action_distribution.log_prob(
+                next_dist_params, next_action
+            )
+            next_action = parametric_action_distribution.postprocess(next_action)
+            return next_action, next_log_prob
+
+        q_fn = lambda obs, action: q_network.apply(
+            normalizer_params, target_q_params, obs, action
+        )
+        target_q = target_q_fn(
+            transitions, q_fn, policy, gamma, domain_params, alpha, reward_scaling
         )
         q_error = q_old_action - jnp.expand_dims(target_q, -1)
-
         # Better bootstrapping for truncated episodes.
         truncation = transitions.extras["state_extras"]["truncation"]
         q_error *= jnp.expand_dims(1 - truncation, -1)
-
         q_loss = 0.5 * jnp.mean(jnp.square(q_error))
         return q_loss
 
@@ -145,7 +133,9 @@ def make_losses(
         )
         log_prob = parametric_action_distribution.log_prob(dist_params, action)
         action = parametric_action_distribution.postprocess(action)
-        domain_params = transitions.extras.get("domain_parameters", None)
+        domain_params = transitions.extras["state_extras"].get(
+            "domain_parameters", None
+        )
         if domain_params is not None:
             action = jnp.concatenate([action, domain_params], axis=-1)
         qr_action = qr_network.apply(

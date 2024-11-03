@@ -35,11 +35,8 @@ from brax.v1 import envs as envs_v1
 
 import ss2r.algorithms.sac.losses as sac_losses
 import ss2r.algorithms.sac.networks as sac_networks
-from ss2r.algorithms.sac.wrappers import (
-    DomainRandomizationParams,
-    StatePropagation,
-    std_bonus,
-)
+from ss2r.algorithms.sac.robustness import SACCost
+from ss2r.algorithms.sac.wrappers import DomainRandomizationParams, StatePropagation
 from ss2r.rl.evaluation import ConstraintsEvaluator
 
 Metrics: TypeAlias = types.Metrics
@@ -172,6 +169,8 @@ def train(
     lagrange_multiplier: float = 1e-9,
     penalty_multiplier: float = 1.0,
     penalty_multiplier_factor: float = 1.0,
+    cost_q_transform: str | None = None,
+    cvar_confidence: float = 0.95,
 ):
     """SAC training."""
     process_id = jax.process_index()
@@ -247,12 +246,7 @@ def train(
     else:
         domain_parameters = None
     if propagation is not None:
-        cost_penalty_fn = (
-            functools.partial(std_bonus, lambda_=cost_penalty)
-            if cost_penalty is not None
-            else None
-        )
-        env = StatePropagation(env, cost_penalty_fn=cost_penalty_fn)
+        env = StatePropagation(env)
 
     obs_size = env.observation_size
     action_size = env.action_size
@@ -287,12 +281,14 @@ def train(
         "policy_extras": {},
     }
     if domain_parameters is not None:
-        extras["domain_parameters"] = domain_parameters[0]
+        extras["state_extras"]["domain_parameters"] = domain_parameters[0]  # type: ignore
     if safe:
-        if propagation is not None and cost_penalty is not None:
-            extras["imagined_cost"] = 0.0
-        else:
-            extras["cost"] = 0.0
+        if propagation is not None:
+            extras["state_extras"]["state_propagation"] = {  # type: ignore
+                "next_obs": jnp.tile(dummy_obs, (num_envs,) + (1,) * dummy_obs.ndim),
+                "rng": rng,
+            }
+        extras["state_extras"]["cost"] = 0.0  # type: ignore
 
     dummy_transition = Transition(  # pytype: disable=wrong-arg-types  # jax-ndarray
         observation=dummy_obs,
@@ -372,8 +368,8 @@ def train(
                 alpha,
                 transitions,
                 key_critic,
-                False,
                 True,
+                SACCost(),
                 optimizer_state=training_state.qc_optimizer_state,
             )
             cost_metrics = {
@@ -457,9 +453,13 @@ def train(
         ReplayBufferState,
     ]:
         policy = make_policy((normalizer_params, policy_params))
-        extra_fields = ("truncation",) + tuple(
-            key for key in extras.keys() if key not in ["state_extras", "policy_extras"]
-        )
+        extra_fields = ("truncation",)
+        if domain_parameters is not None:
+            extra_fields += ("domain_parameters",)  # type: ignore
+        if propagation is not None:
+            extra_fields += ("state_propagation",)  # type: ignore
+        if safe:
+            extra_fields += ("cost",)  # type: ignore
         step = lambda state: acting.actor_step(
             env, state, policy, key, extra_fields=extra_fields
         )
@@ -469,10 +469,7 @@ def train(
             normalizer_params, transitions.observation, pmap_axis_name=_PMAP_AXIS_NAME
         )
         if transitions.observation.ndim == 3:
-            transitions = jax.tree_util.tree_map(
-                lambda x: x[0],
-                transitions,
-            )
+            transitions = jax.tree_util.tree_map(lambda x: x[0], transitions)
         buffer_state = replay_buffer.insert(buffer_state, transitions)
         return normalizer_params, env_state, buffer_state
 
