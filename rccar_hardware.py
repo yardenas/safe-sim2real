@@ -8,6 +8,7 @@ _LOG = logging.getLogger(__name__)
 
 
 def make_env():
+    # TODO (yarden): don't forget to use EpisodeWrapper
     return None, None
 
 

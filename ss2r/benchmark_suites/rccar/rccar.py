@@ -165,17 +165,14 @@ class RCCar(Env):
     ):
         self.goal = jnp.array([0.0, 0.0, 0.0])
         self.obstacle = tuple(obstacle)
-        self._init_pose = jnp.array([1.42, -1.04, jnp.pi])
+        self.init_pose = jnp.array([1.42, -1.04, jnp.pi])
         self.angle_idx = 2
         self._obs_noise_stds = OBS_NOISE_STD_SIM_CAR
         self.dim_action = (2,)
-        self.dt = dt
         self.dim_state = (7,) if encode_angle else (6,)
         self.encode_angle = encode_angle
         self.max_throttle = jnp.clip(max_throttle, 0.0, 1.0)
-        self.dynamics_model = (
-            RaceCarDynamics(dt=self.dt) if hardware is None else hardware
-        )
+        self.dynamics_model = RaceCarDynamics(dt=dt) if hardware is None else hardware
         self.sys = CarParams(**car_model_params)
         self.use_obs_noise = use_obs_noise
         self.reward_model = RCCarEnvReward(
@@ -195,7 +192,6 @@ class RCCar(Env):
             )
         else:
             obs = state
-        # encode angle to sin(theta) ant cos(theta) if desired
         if self.encode_angle:
             obs = encode_angles(obs, self.angle_idx)
         assert (obs.shape[-1] == 7 and self.encode_angle) or (
@@ -209,10 +205,10 @@ class RCCar(Env):
             init_state = self.dynamics_model.mocap_state()
         else:
             key_pos, key_vel, key_obs = jax.random.split(rng, 3)
-            init_pos = self._init_pose[:2] + jax.random.uniform(
+            init_pos = self.init_pose[:2] + jax.random.uniform(
                 key_pos, shape=(2,), minval=-0.10, maxval=0.10
             )
-            init_theta = self._init_pose[2:] + jax.random.uniform(
+            init_theta = self.init_pose[2:] + jax.random.uniform(
                 key_pos, shape=(1,), minval=-0.10 * jnp.pi, maxval=0.10 * jnp.pi
             )
             init_vel = jnp.zeros((3,)) + jnp.array(
