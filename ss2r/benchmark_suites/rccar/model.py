@@ -216,7 +216,7 @@ class RaceCarDynamics:
             next_x = next_x.at[
                 ..., self.velocity_start_idx : self.velocity_end_idx + 1
             ].set(rotated_vel)
-        return next_x
+        return next_x, {}
 
     def _ode_dyn(self, x, u, params: CarParams):
         """Compute derivative using dynamic model.
