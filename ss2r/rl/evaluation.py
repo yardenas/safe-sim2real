@@ -5,7 +5,7 @@ import jax.numpy as jnp
 from brax.envs.base import Env, State
 from brax.envs.wrappers.training import EvalMetrics, EvalWrapper
 from brax.training.acting import Evaluator, generate_unroll
-from brax.training.types import Policy, PolicyParams, PRNGKey
+from brax.training.types import Metrics, Policy, PolicyParams, PRNGKey
 
 
 class ConstraintEvalWrapper(EvalWrapper):
@@ -54,6 +54,7 @@ class ConstraintsEvaluator(Evaluator):
         self,
         eval_env: Env,
         eval_policy_fn: Callable[[PolicyParams], Policy],
+        eval_callbacks: list[Callable[[Metrics], Metrics]],
         num_eval_envs: int,
         episode_length: int,
         action_repeat: int,
@@ -62,6 +63,7 @@ class ConstraintsEvaluator(Evaluator):
         self._key = key
         self._eval_walltime = 0.0
         eval_env = ConstraintEvalWrapper(eval_env)
+        self.eval_callbacks = eval_callbacks
 
         def generate_eval_unroll(policy_params: PolicyParams, key: PRNGKey) -> State:
             reset_keys = jax.random.split(key, num_eval_envs)
