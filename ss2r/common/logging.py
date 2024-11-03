@@ -81,6 +81,16 @@ class StdErrWriter:
     ):
         pass
 
+    def log_artifact(
+        self,
+        path: str,
+        name: str,
+        type: str,
+        description: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ):
+        pass
+
 
 class JsonlWriter:
     def __init__(self, log_dir: str) -> None:
@@ -96,6 +106,16 @@ class JsonlWriter:
         step: int,
         name: str = "policy",
         fps: int | float = 30,
+    ):
+        pass
+
+    def log_artifact(
+        self,
+        path: str,
+        name: str,
+        type: str,
+        description: str | None = None,
+        metadata: dict[str, Any] | None = None,
     ):
         pass
 
@@ -124,6 +144,16 @@ class TensorboardXWriter:
         self._writer.add_video(name, images, step, fps=fps)
         if flush:
             self._writer.flush()
+
+    def log_artifact(
+        self,
+        path: str,
+        name: str,
+        type: str,
+        description: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ):
+        pass
 
 
 class WeightAndBiasesWriter:
@@ -160,6 +190,19 @@ class WeightAndBiasesWriter:
             },
             step=step,
         )
+
+    def log_artifact(
+        self,
+        path: str,
+        name: str,
+        type: str,
+        description: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ):
+        artifact = self._handle.Artifact(name, type, description, metadata)
+        artifact.add_file(path)
+        self._handle.save(path)
+        self._handle.log_artifact(artifact)
 
 
 class StateWriter:

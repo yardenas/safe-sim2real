@@ -49,7 +49,7 @@ def get_train_fn(cfg):
             **agent_cfg,
             **training_cfg,
             network_factory=network_factory,
-            checkpoint_logdir=get_state_path(),
+            checkpoint_logdir=f"{get_state_path()}/ckpt",
         )
     elif cfg.agent.name == "sac_lenart":
         import jax

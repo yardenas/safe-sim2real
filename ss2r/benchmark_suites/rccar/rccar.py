@@ -161,6 +161,7 @@ class RCCar(Env):
         max_throttle: float = 1.0,
         dt: float = 1 / 30.0,
         obstacle: tuple[float, float, float] = (0.75, -0.75, 0.2),
+        *,
         hardware: HardwareDynamics | None = None,
     ):
         self.goal = jnp.array([0.0, 0.0, 0.0])

@@ -184,7 +184,9 @@ class RaceCarDynamics:
         )
         return next_state
 
-    def step(self, x: jnp.array, u: jnp.array, params: CarParams) -> jnp.array:
+    def step(
+        self, x: jnp.array, u: jnp.array, params: CarParams
+    ) -> tuple[jax.Array, dict]:
         assert x.shape[-1] == 6
         theta_x = x[..., self.angle_idx]
         offset = jnp.clip(params.angle_offset, -jnp.pi, jnp.pi)

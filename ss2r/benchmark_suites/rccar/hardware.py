@@ -1,6 +1,16 @@
+import sys
 from contextlib import contextmanager
 
+import jax
 import numpy as np
+
+try:
+    sys.path.append(
+        "C:/Users/Panda/Desktop/rcCarInterface/rc-car-interface/build/src/libs/pyCarController"
+    )
+    import carl
+except ImportError as e:
+    print("Could not import carl: ", e)
 
 
 @contextmanager
@@ -45,7 +55,7 @@ class HardwareDynamics:
         self.max_throttle = max_throttle
 
     # FIXME (yarden): make sure that this really conforms to the actual state
-    def step(self, dynamic_state, action, sys):
+    def step(self, dynamic_state, action, sys) -> tuple[jax.Array, dict]:
         scaled_action = action.copy()
         scaled_action[1] *= self.max_throttle
         self.controller.control_mode()

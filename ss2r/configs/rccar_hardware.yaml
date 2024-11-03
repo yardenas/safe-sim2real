@@ -1,6 +1,5 @@
 defaults:
   - _self_
-  - agent: sac
   - environment: rccar
 
 hydra:
@@ -30,21 +29,9 @@ wandb:
   notes: null
   name: ${hydra:job.override_dirname}
 
-
-num_trajectories: 100  
-
-
-# training:
-#   safe: true
-#   safety_budget: 25
-#   seed: 0
-#   num_evals: 25
-#   episode_length: 1000
-#   num_envs: 2048
-#   num_eval_envs: 128
-#   action_repeat: 1
-#   render: true
-#   num_timesteps: 1000000
-#   privileged: false
-#   train_domain_randomization: true
-#   eval_domain_randomization: true
+num_trajectories: 100
+episode_length: 100
+action_repeat: 1
+safety_budget: 1
+safe: false
+run_name: ???
