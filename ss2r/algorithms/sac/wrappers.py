@@ -28,9 +28,8 @@ class StatePropagation(Wrapper):
     This wrapper assumes that the environment is wrapped before with a VmapWrapper or DomainRandomizationVmapWrapper
     """
 
-    def __init__(self, env, propagation_fn=ts1, cost_penalty_fn=None):
+    def __init__(self, env, propagation_fn=ts1):
         super().__init__(env)
-        self.cost_penalty_fn = cost_penalty_fn
         self.propagation_fn = propagation_fn
         self.num_envs = None
 
@@ -38,29 +37,31 @@ class StatePropagation(Wrapper):
         if self.num_envs is None:
             self.num_envs = rng.shape[0]
         state = self.env.reset(rng)
-        if "propagation_rng" in state.info:
-            propagation_rng = state.info["propagation_rng"]
-        else:
-            propagation_rng = jax.random.split(rng[0])[1]
+        propagation_rng = jax.random.split(rng[0])[1]
         n_key, key = jax.random.split(propagation_rng)
-        state.info["propagation_rng"] = jax.random.split(n_key, self.num_envs)
-        state.info["imagined_cost"] = jnp.zeros(self.num_envs)
-        return self.propagation_fn(state, key)
+        state.info["state_propagation"] = {}
+        state.info["state_propagation"]["rng"] = jax.random.split(n_key, self.num_envs)
+        orig_next_obs = state.obs
+        state = self.propagation_fn(state, key)
+        state.info["state_propagation"]["next_obs"] = orig_next_obs
+        return state
 
     def step(self, state: State, action: jax.Array) -> State:
         # The order here matters, the tree_map changes the dimensions of
         # the propgattion_rng
-        propagation_rng = state.info["propagation_rng"]
+        propagation_rng = state.info["state_propagation"]["rng"]
         tile = lambda tree: jax.tree_map(
             lambda x: jnp.tile(x, (self.num_envs,) + (1,) * x.ndim), tree
         )
         state, action = tile(state), tile(action)
         nstate = self.env.step(state, action)
         n_key, key = jax.random.split(propagation_rng)
-        nstate.info["propagation_rng"] = jax.random.split(n_key, self.num_envs)
-        if self.cost_penalty_fn is not None:
-            nstate.info["imagined_cost"] += self.cost_penalty_fn(nstate)
-        return self.propagation_fn(nstate, key)
+        orig_next_obs = nstate.obs
+        nstate.info["state_propagation"]["rng"] = jax.random.split(n_key, self.num_envs)
+        nstate.info["state_propagation"]["next_obs"] = nstate.obs
+        nstate = self.propagation_fn(nstate, key)
+        nstate.info["state_propagation"]["next_obs"] = orig_next_obs
+        return nstate
 
 
 def get_randomized_values(sys_v, in_axes):
