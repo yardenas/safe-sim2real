@@ -1,5 +1,6 @@
 import sys
 from contextlib import contextmanager
+from typing import Any
 
 import jax
 import numpy as np
@@ -55,8 +56,8 @@ class HardwareDynamics:
         self.max_throttle = max_throttle
 
     # FIXME (yarden): make sure that this really conforms to the actual state
-    def step(self, dynamic_state, action, sys) -> tuple[jax.Array, dict]:
-        scaled_action = action.copy()
+    def step(self, x: jax.Array, u: jax.Array, params: Any) -> tuple[jax.Array, dict]:
+        scaled_action = u.copy()
         scaled_action[1] *= self.max_throttle
         self.controller.control_mode()
         command_set_in_time = self.controller.set_command(scaled_action)

@@ -194,11 +194,13 @@ class WeightAndBiasesWriter:
     def log_artifact(
         self,
         path: str,
-        name: str,
         type: str,
+        name: str | None = None,
         description: str | None = None,
         metadata: dict[str, Any] | None = None,
     ):
+        if name is None:
+            name = self._handle.run.id
         artifact = self._handle.Artifact(name, type, description, metadata)
         artifact.add_file(path)
         self._handle.save(path)

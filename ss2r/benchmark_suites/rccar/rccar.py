@@ -173,7 +173,9 @@ class RCCar(Env):
         self.dim_state = (7,) if encode_angle else (6,)
         self.encode_angle = encode_angle
         self.max_throttle = jnp.clip(max_throttle, 0.0, 1.0)
-        self.dynamics_model = RaceCarDynamics(dt=dt) if hardware is None else hardware
+        self.dynamics_model: RaceCarDynamics | HardwareDynamics = (
+            RaceCarDynamics(dt=dt) if hardware is None else hardware
+        )
         self.sys = CarParams(**car_model_params)
         self.use_obs_noise = use_obs_noise
         self.reward_model = RCCarEnvReward(
