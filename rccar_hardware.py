@@ -11,8 +11,9 @@ def make_env():
     return None, None
 
 
-def collect_trajectory():
-    pass
+def collect_trajectory(env, controller, policy):
+    with hardware.start(controller):
+        pass
 
 
 def fetch_policy():
@@ -22,13 +23,13 @@ def fetch_policy():
 @hydra.main(version_base=None, config_path="ss2r/configs", config_name="rccar_hardware")
 def main(cfg):
     traj_count = 0
-    controller, env = make_env()
     policy_fn = fetch_policy()
-    while traj_count < cfg.num_trajectories:
-        answer = input("Press Y/y when ready to collect trajectory")
-        if not (answer == "Y" or answer == "y"):
-            _LOG.info("Skipping trajectory")
-            continue
-        with hardware.start(controller):
+    with hardware.connect(car_id=cfg.car_id) as controller:
+        controller, env = make_env()
+        while traj_count < cfg.num_trajectories:
+            answer = input("Press Y/y when ready to collect trajectory")
+            if not (answer == "Y" or answer == "y"):
+                _LOG.info("Skipping trajectory")
+                continue
             collect_trajectory(env)
-        traj_count += 1
+            traj_count += 1
