@@ -1,15 +1,18 @@
+import functools
 import logging
 import os
 import time
 
-import cloudpickle
 import hydra
 import jax
+import jax.nn as jnn
 import omegaconf
 import wandb
 from brax.envs.wrappers.training import EpisodeWrapper
+from brax.io import model
 from brax.training.types import Metrics, Policy
 
+from ss2r.algorithms.sac.networks import make_inference_fn, make_sac_networks
 from ss2r.benchmark_suites.rccar import hardware, rccar
 from ss2r.benchmark_suites.utils import get_task_config
 from ss2r.benchmark_suites.wrappers import ActionObservationDelayWrapper
@@ -54,14 +57,21 @@ def collect_trajectory(
     return metrics
 
 
-def fetch_policy(policy_id, run):
-    policy_artifact = run.use_artifact(f"policy:{policy_id}")
+def fetch_policy(run_id):
+    api = wandb.Api()
+    run = api.run(f"ss2r/{run_id}")
+    policy_artifact = api.artifact(f"ss2r/policy:{run_id}")
     policy_dir = policy_artifact.download()
     path = os.path.join(policy_dir, "policy.pkl")
-    with open(path, "rb") as f:
-        data = cloudpickle.load(f)
-    make_policy = data["make_policy"]
-    policy_params = data["params"]
+    policy_params = model.load_params(path)
+    config = run.config
+    activation = getattr(jnn, config["agent"]["activation"])
+    network_factory = functools.partial(
+        make_sac_networks,
+        hidden_layer_sizes=config["agent"]["hidden_layer_sizes"],
+        activation=activation,
+    )
+    make_policy = make_inference_fn(network_factory)
     return make_policy(policy_params, True)
 
 
@@ -72,12 +82,12 @@ def main(cfg):
     config_dict = omegaconf.OmegaConf.to_container(cfg, resolve=True)
     with wandb.init(
         project="ss2r", resume=True, config=config_dict, **cfg.wandb
-    ) as run, hardware.connect(
+    ), hardware.connect(
         car_id=cfg.car_id,
         port_number=cfg.port_number,
         control_frequency=cfg.control_frequency,
     ) as controller:
-        policy_fn = fetch_policy(cfg.policy_id, run)
+        policy_fn = fetch_policy(cfg.policy_id)
         env = make_env(controller, cfg)
         while traj_count < cfg.num_trajectories:
             answer = input("Press Y/y when ready to collect trajectory")
