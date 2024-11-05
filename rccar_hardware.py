@@ -99,7 +99,7 @@ def main(cfg):
         policy_fn = fetch_policy(cfg.policy_id)
         env = make_env(controller, cfg)
         while traj_count < cfg.num_trajectories:
-            answer = input("Press Y/y when ready to collect trajectory")
+            answer = input("Press Y/y when ready to collect trajectory\n")
             if not (answer == "Y" or answer == "y"):
                 _LOG.info("Skipping trajectory")
                 continue

@@ -204,10 +204,10 @@ class RCCar(Env):
 
     def reset(self, rng: jax.Array) -> State:
         """Resets the environment to a random initial state close to the initial pose"""
+        key_pos, key_vel, key_obs = jax.random.split(rng, 3)
         if isinstance(self.dynamics_model, HardwareDynamics):
             init_state = self.dynamics_model.mocap_state()
         else:
-            key_pos, key_vel, key_obs = jax.random.split(rng, 3)
             init_pos = self.init_pose[:2] + jax.random.uniform(
                 key_pos, shape=(2,), minval=-0.10, maxval=0.10
             )
