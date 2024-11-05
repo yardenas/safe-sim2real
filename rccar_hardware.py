@@ -1,5 +1,6 @@
 import logging
 import os
+import pickle
 import time
 
 import hydra
@@ -66,7 +67,7 @@ def collect_trajectory(
     return metrics
 
 
-def fetch_policy(run_id):
+def fetch_wandb_policy(run_id):
     api = wandb.Api()
     run = api.run(f"ss2r/{run_id}")
     policy_artifact = api.artifact(f"ss2r/policy:{run_id}")
@@ -90,6 +91,24 @@ def fetch_policy(run_id):
     return make_policy(policy_params, True)
 
 
+def load_recorded_policy(path):
+    with open(path, "rb") as f:
+        rec_traj = pickle.load(f)
+        actions = rec_traj["actions"]
+
+    class Policy:
+        def __init__(self) -> None:
+            self.id = 0
+            self.actions = actions
+
+        def __call__(self, *arg, **kwargs):
+            next_action = self.actions[self.id]
+            self.id += 1
+            return next_action
+
+    return Policy()
+
+
 @hydra.main(version_base=None, config_path="ss2r/configs", config_name="rccar_hardware")
 def main(cfg):
     traj_count = 0
@@ -102,7 +121,11 @@ def main(cfg):
         port_number=cfg.port_number,
         control_frequency=cfg.control_frequency,
     ) as controller, jax.disable_jit():
-        policy_fn = fetch_policy(cfg.policy_id)
+        if cfg.policy_id is not None:
+            assert cfg.playback_policy is None
+            policy_fn = fetch_wandb_policy(cfg.policy_id)
+        else:
+            policy_fn = load_recorded_policy(cfg.playback_policy)
         env = make_env(controller, cfg)
         while traj_count < cfg.num_trajectories:
             answer = input("Press Y/y when ready to collect trajectory\n")
