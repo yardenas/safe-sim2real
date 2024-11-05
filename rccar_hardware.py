@@ -2,11 +2,12 @@ import logging
 import os
 import pickle
 import time
+from typing import NamedTuple
 
 import hydra
 import jax
 import jax.nn as jnn
-import omegaconf
+import numpy as np
 import wandb
 from brax.envs.wrappers.training import EpisodeWrapper
 from brax.io import model
@@ -20,9 +21,17 @@ from ss2r.benchmark_suites.wrappers import (
     ActionObservationDelayWrapper,
     FrameActionStack,
 )
+from ss2r.common.logging import TrainingLogger
 from ss2r.rl.evaluation import ConstraintEvalWrapper
 
 _LOG = logging.getLogger(__name__)
+
+
+class Trajectory(NamedTuple):
+    state: list[jax.Array]
+    action: list[jax.Array]
+    reward: list[jax.Array]
+    cost: list[jax.Array]
 
 
 def make_env(controller, cfg):
@@ -53,18 +62,25 @@ def make_env(controller, cfg):
 
 def collect_trajectory(
     env: rccar.RCCar, controller, policy: Policy, rng: jax.Array
-) -> Metrics:
+) -> tuple[Metrics, Trajectory]:
     t = time.time()
+    trajectory = Trajectory([], [], [], [])
     with hardware.start(controller):
         state = env.reset(rng)
         while not state.done:
+            trajectory.state.append(state.obs)
             rng, key = jax.random.split(rng)
             action, _ = policy(state.obs, key)
+            trajectory.action.append(action)
             state = env.step(state, action)
+            trajectory.reward.append(state.reward)
+            trajectory.cost.append(state.info["cost"])
+        trajectory.state.append(state.obs)
+
     epoch_eval_time = time.time() - t
     eval_metrics = state.info["eval_metrics"].episode_metrics
     metrics = {"eval/walltime": epoch_eval_time, **eval_metrics}
-    return metrics
+    return metrics, trajectory
 
 
 def fetch_wandb_policy(run_id):
@@ -109,14 +125,18 @@ def load_recorded_policy(path):
     return Policy()
 
 
+def save_trajectory(trajectory, path):
+    trajectory = jax.tree_map(np.asarray, trajectory)
+    with open(path, "wb") as f:
+        pickle.dump(trajectory, f)
+
+
 @hydra.main(version_base=None, config_path="ss2r/configs", config_name="rccar_hardware")
 def main(cfg):
     traj_count = 0
     rng = jax.random.PRNGKey(cfg.seed)
-    config_dict = omegaconf.OmegaConf.to_container(cfg, resolve=True)
-    with wandb.init(
-        project="ss2r", resume=True, config=config_dict, **cfg.wandb
-    ), hardware.connect(
+    logger = TrainingLogger(cfg)
+    with hardware.connect(
         car_id=cfg.car_id,
         port_number=cfg.port_number,
         control_frequency=cfg.control_frequency,
@@ -134,9 +154,11 @@ def main(cfg):
                 continue
             _LOG.info(f"Collecting trajectory {traj_count}")
             rng, key = jax.random.split(rng)
-            metrics = collect_trajectory(env, controller, policy_fn, key)
-            print(metrics)
+            metrics, trajectory = collect_trajectory(env, controller, policy_fn, key)
+            logger.log(metrics, traj_count)
             _LOG.info(f"Done trajectory: {traj_count}")
+            if cfg.out_path_name is not None:
+                save_trajectory(trajectory, f"{cfg.out_path_name}-{traj_count}.pkl")
             traj_count += 1
 
 
