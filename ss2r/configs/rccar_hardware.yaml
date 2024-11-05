@@ -37,7 +37,7 @@ safety_budget: 1
 safe: false
 car_id: 2
 port_number: 5
-control_frequency: 41.664
-policy_id: nul
+control_frequency: 32.59
+policy_id: null
 playback_policy: null
 out_path_name: null
