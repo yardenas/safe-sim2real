@@ -45,12 +45,6 @@ def make_env(controller, cfg):
     if sliding_window > 0:
         env = FrameActionStack(env, num_stack=sliding_window)
     env = EpisodeWrapper(env, cfg.episode_length, cfg.action_repeat)
-    if task_cfg.action_delay > 0 or task_cfg.observation_delay > 0:
-        env = ActionObservationDelayWrapper(
-            env,
-            action_delay=task_cfg.action_delay,
-            obs_delay=task_cfg.observation_delay,
-        )
     env = ConstraintEvalWrapper(env)
     return env
 
