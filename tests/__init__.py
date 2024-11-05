@@ -6,7 +6,7 @@ def make_test_config(additional_overrides=None):
         additional_overrides = []
     with initialize(version_base=None, config_path="../ss2r/configs"):
         cfg = compose(
-            config_name="config",
+            config_name="train_brax",
             overrides=[
                 "writers=[stderr]",
                 "+experiment=debug",

@@ -5,7 +5,6 @@ jit: false
 writers:
   - jsonl
   - tensorboard
-  - wandb
 
 training:
   episode_length: 100
