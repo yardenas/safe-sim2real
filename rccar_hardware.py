@@ -31,9 +31,7 @@ def make_env(controller, cfg):
     task_cfg.pop("task_name")
     train_car_params = task_cfg.pop("train_car_params")
     task_cfg.pop("eval_car_params")
-    dynamics = hardware.HardwareDynamics(
-        controller=controller, max_throttle=task_cfg["max_throttle"]
-    )
+    dynamics = hardware.HardwareDynamics(controller=controller)
     action_delay, obs_delay = (
         task_cfg.pop("action_delay"),
         task_cfg.pop("observation_delay"),
