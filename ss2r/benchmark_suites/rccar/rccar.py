@@ -230,6 +230,7 @@ class RCCar(Env):
     def step(self, state: State, action: jax.Array) -> State:
         assert action.shape[-1:] == self.dim_action
         action = jnp.clip(action, -1.0, 1.0)
+        # FIXME (yarden): wait for Bhavi for this.
         action = action.at[1].set(self.max_throttle * action[1])
         obs = state.obs
         if self.encode_angle:
