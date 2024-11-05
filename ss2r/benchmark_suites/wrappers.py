@@ -64,3 +64,113 @@ class ActionObservationDelayWrapper(Wrapper):
             },
         )
         return state
+
+
+class FrameActionStack(Wrapper):
+    """Wrapper that stacks both observations and actions in a rolling manner for Brax environments.
+
+    This wrapper maintains a history of both observations and actions, allowing the agent to access
+    temporal information. For the initial state, the observation buffer is filled with the initial
+    observation, and the action buffer is filled with zeros.
+
+    Args:
+        env: The Brax environment to wrap
+        num_stack: Number of frames to stack (applies to both observations and actions)
+    """
+
+    def __init__(self, env, num_stack: int):
+        super().__init__(env)
+        self.num_stack = num_stack
+
+        # Modify observation space to account for stacked frames and actions
+        # Note: In Brax, we don't explicitly define spaces like in Gymnasium
+        # but we'll track the dimensions for clarity
+        self.single_obs_shape = self.env.observation_size
+        self.single_action_shape = self.env.action_size
+
+        # The new observation will include both stacked observations and actions
+        self.observation_size = (
+            self.single_obs_shape * num_stack
+            + self.single_action_shape * (num_stack - 1)
+        )
+
+    def reset(self, rng: jax.Array) -> State:
+        """Reset the environment and initialize the frame and action stacks."""
+        state = self.env.reset(rng)
+
+        # Create initial observation stack (filled with initial observation)
+        obs_stack = jp.tile(state.obs[None], (self.num_stack,) + state.obs.shape)
+
+        # Create initial action stack (filled with zeros)
+        zero_action = jp.zeros(self.single_action_shape)
+        action_stack = jp.tile(
+            zero_action[None], (self.num_stack - 1,) + zero_action.shape
+        )
+
+        # Store stacks in state info
+        state.info["obs_stack"] = obs_stack
+        state.info["action_stack"] = action_stack
+
+        # Create the stacked observation
+        state = state.replace(
+            obs=self._get_stacked_obs(obs_stack, action_stack),
+            info={
+                **state.info,
+                "obs_stack": obs_stack,
+                "action_stack": action_stack,
+                "first_obs": state.obs,
+            },
+        )
+
+        return state
+
+    def step(self, state: State, action: jax.Array) -> State:
+        """Step the environment and update the stacks."""
+        # Get current stacks
+        obs_stack = state.info["obs_stack"]
+        action_stack = state.info["action_stack"]
+
+        # Step the environment
+        state = self.env.step(state, action)
+
+        # Update observation stack
+        new_obs_stack = jp.roll(obs_stack, shift=-1, axis=0)
+        new_obs_stack = new_obs_stack.at[-1].set(state.obs)
+
+        # Update action stack
+        new_action_stack = jp.roll(action_stack, shift=-1, axis=0)
+        new_action_stack = new_action_stack.at[-1].set(action)
+
+        # Handle done states
+        def where_done(x, y):
+            done = state.done
+            if done.shape:
+                done = jp.reshape(done, [x.shape[0]] + [1] * (len(x.shape) - 1))
+            return jp.where(done, x, y)
+
+        # Create the stacked observation
+        stacked_obs = self._get_stacked_obs(new_obs_stack, new_action_stack)
+        obs = where_done(state.info["first_obs"], stacked_obs)
+
+        # Update state
+        state = state.replace(
+            obs=obs,
+            info={
+                **state.info,
+                "obs_stack": new_obs_stack,
+                "action_stack": new_action_stack,
+            },
+        )
+
+        return state
+
+    def _get_stacked_obs(
+        self, obs_stack: jax.Array, action_stack: jax.Array
+    ) -> jax.Array:
+        """Combine the observation and action stacks into a single observation."""
+        # Flatten the observation stack
+        flat_obs = obs_stack.reshape(-1)
+        # Flatten the action stack
+        flat_actions = action_stack.reshape(-1)
+        # Concatenate them
+        return jp.concatenate([flat_obs, flat_actions])
