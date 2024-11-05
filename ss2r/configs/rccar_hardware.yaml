@@ -29,6 +29,7 @@ wandb:
   notes: null
   name: ${hydra:job.override_dirname}
 
+seed: 0
 num_trajectories: 100
 episode_length: 100
 action_repeat: 1
