@@ -15,7 +15,10 @@ from brax.training.types import Metrics, Policy
 from ss2r.algorithms.sac.networks import make_inference_fn, make_sac_networks
 from ss2r.benchmark_suites.rccar import hardware, rccar
 from ss2r.benchmark_suites.utils import get_task_config
-from ss2r.benchmark_suites.wrappers import ActionObservationDelayWrapper
+from ss2r.benchmark_suites.wrappers import (
+    ActionObservationDelayWrapper,
+    FrameActionStack,
+)
 from ss2r.rl.evaluation import ConstraintEvalWrapper
 
 _LOG = logging.getLogger(__name__)
@@ -29,7 +32,18 @@ def make_env(controller, cfg):
     dynamics = hardware.HardwareDynamics(
         controller=controller, max_throttle=task_cfg["max_throttle"]
     )
+    action_delay, obs_delay = (
+        task_cfg.pop("action_delay"),
+        task_cfg.pop("observation_delay"),
+    )
+    sliding_window = task_cfg.pop("sliding_window")
     env = rccar.RCCar(train_car_params["nominal"], **task_cfg, hardware=dynamics)
+    if action_delay > 0 or obs_delay > 0:
+        env = ActionObservationDelayWrapper(
+            env, action_delay=action_delay, obs_delay=obs_delay
+        )
+    if sliding_window > 0:
+        env = FrameActionStack(env, num_stack=sliding_window)
     env = EpisodeWrapper(env, cfg.episode_length, cfg.action_repeat)
     if task_cfg.action_delay > 0 or task_cfg.observation_delay > 0:
         env = ActionObservationDelayWrapper(
