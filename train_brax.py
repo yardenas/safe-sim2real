@@ -4,6 +4,7 @@ import os
 
 import hydra
 import jax
+from brax.io import model
 from omegaconf import OmegaConf
 
 import ss2r.algorithms.sac.networks as sac_networks
@@ -34,6 +35,7 @@ def get_train_fn(cfg):
                 "train_domain_randomization",
                 "eval_domain_randomization",
                 "render",
+                "store_policy",
             ]
         }
         hidden_layer_sizes = agent_cfg.pop("hidden_layer_sizes")
@@ -49,7 +51,7 @@ def get_train_fn(cfg):
             **agent_cfg,
             **training_cfg,
             network_factory=network_factory,
-            checkpoint_logdir=get_state_path(),
+            checkpoint_logdir=f"{get_state_path()}/ckpt",
         )
     elif cfg.agent.name == "sac_lenart":
         import jax
@@ -113,7 +115,7 @@ def report(logger, step, num_steps, metrics):
     step.count = num_steps
 
 
-@hydra.main(version_base=None, config_path="ss2r/configs", config_name="config")
+@hydra.main(version_base=None, config_path="ss2r/configs", config_name="train_brax")
 def main(cfg):
     _LOG.info(
         f"Setting up experiment with the following configuration: "
@@ -137,6 +139,10 @@ def main(cfg):
             jax.random.PRNGKey(cfg.training.seed),
         )
         logger.log_video(video, steps.count, "eval/video")
+    if cfg.training.store_policy:
+        path = get_state_path() + "/policy.pkl"
+        model.save_params(get_state_path() + "/policy.pkl", params)
+        logger.log_artifact(path, "model", "policy")
     _LOG.info("Done training.")
 
 

@@ -29,6 +29,16 @@ class Writer(Protocol):
     ):
         ...
 
+    def log_artifact(
+        self,
+        path: str,
+        type: str,
+        name: str | None = None,
+        description: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ):
+        ...
+
 
 class TrainingLogger:
     def __init__(self, config: DictConfig) -> None:
@@ -60,6 +70,17 @@ class TrainingLogger:
         for writer in self._writers:
             writer.log_video(images, step, name, fps)
 
+    def log_artifact(
+        self,
+        path: str,
+        type: str,
+        name: str | None = None,
+        description: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ):
+        for writer in self._writers:
+            writer.log_artifact(path, type, name, description, metadata)
+
 
 class StdErrWriter:
     def __init__(self, logger_name: str = _SUMMARY_DEFAULT):
@@ -81,6 +102,16 @@ class StdErrWriter:
     ):
         pass
 
+    def log_artifact(
+        self,
+        path: str,
+        type: str,
+        name: str | None = None,
+        description: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ):
+        pass
+
 
 class JsonlWriter:
     def __init__(self, log_dir: str) -> None:
@@ -96,6 +127,16 @@ class JsonlWriter:
         step: int,
         name: str = "policy",
         fps: int | float = 30,
+    ):
+        pass
+
+    def log_artifact(
+        self,
+        path: str,
+        type: str,
+        name: str | None = None,
+        description: str | None = None,
+        metadata: dict[str, Any] | None = None,
     ):
         pass
 
@@ -124,6 +165,16 @@ class TensorboardXWriter:
         self._writer.add_video(name, images, step, fps=fps)
         if flush:
             self._writer.flush()
+
+    def log_artifact(
+        self,
+        path: str,
+        type: str,
+        name: str | None = None,
+        description: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ):
+        pass
 
 
 class WeightAndBiasesWriter:
@@ -160,6 +211,22 @@ class WeightAndBiasesWriter:
             },
             step=step,
         )
+
+    def log_artifact(
+        self,
+        path: str,
+        type: str,
+        name: str | None = None,
+        description: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ):
+        if name is None:
+            name = self._handle.run.id
+        if metadata is None:
+            metadata = dict(self._handle.config)
+        artifact = self._handle.Artifact(name, type, description, metadata)
+        artifact.add_file(path)
+        self._handle.log_artifact(artifact, aliases=[self._handle.run.id])
 
 
 class StateWriter:

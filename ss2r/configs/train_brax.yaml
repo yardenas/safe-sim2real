@@ -46,3 +46,4 @@ training:
   privileged: false
   train_domain_randomization: true
   eval_domain_randomization: true
+  store_policy: true
