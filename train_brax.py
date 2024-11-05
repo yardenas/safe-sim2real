@@ -125,24 +125,25 @@ def main(cfg):
     train_env, eval_env = benchmark_suites.make(cfg)
     train_fn = get_train_fn(cfg)
     steps = Counter()
-    make_policy, params, _ = train_fn(
-        environment=train_env,
-        eval_env=eval_env,
-        wrap_env=False,
-        progress_fn=functools.partial(report, logger, steps),
-    )
-    if cfg.training.render:
-        video = benchmark_suites.render_fns[cfg.environment.task_name](
-            eval_env,
-            make_policy(params, deterministic=True),
-            cfg.training.episode_length,
-            jax.random.PRNGKey(cfg.training.seed),
+    with jax.disable_jit(cfg.jit):
+        make_policy, params, _ = train_fn(
+            environment=train_env,
+            eval_env=eval_env,
+            wrap_env=False,
+            progress_fn=functools.partial(report, logger, steps),
         )
-        logger.log_video(video, steps.count, "eval/video")
-    if cfg.training.store_policy:
-        path = get_state_path() + "/policy.pkl"
-        model.save_params(get_state_path() + "/policy.pkl", params)
-        logger.log_artifact(path, "model", "policy")
+        if cfg.training.render:
+            video = benchmark_suites.render_fns[cfg.environment.task_name](
+                eval_env,
+                make_policy(params, deterministic=True),
+                cfg.training.episode_length,
+                jax.random.PRNGKey(cfg.training.seed),
+            )
+            logger.log_video(video, steps.count, "eval/video")
+        if cfg.training.store_policy:
+            path = get_state_path() + "/policy.pkl"
+            model.save_params(get_state_path() + "/policy.pkl", params)
+            logger.log_artifact(path, "model", "policy")
     _LOG.info("Done training.")
 
 
