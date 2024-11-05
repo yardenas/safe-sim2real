@@ -28,7 +28,7 @@ _LOG = logging.getLogger(__name__)
 
 
 class Trajectory(NamedTuple):
-    state: list[jax.Array]
+    observation: list[jax.Array]
     action: list[jax.Array]
     reward: list[jax.Array]
     cost: list[jax.Array]
@@ -65,21 +65,27 @@ def collect_trajectory(
 ) -> tuple[Metrics, Trajectory]:
     t = time.time()
     trajectory = Trajectory([], [], [], [])
+    elapsed = []
     with hardware.start(controller):
         state = env.reset(rng)
         while not state.done:
-            trajectory.state.append(state.obs)
+            trajectory.observation.append(state.obs)
             rng, key = jax.random.split(rng)
             action, _ = policy(state.obs, key)
             trajectory.action.append(action)
             state = env.step(state, action)
             trajectory.reward.append(state.reward)
             trajectory.cost.append(state.info["cost"])
-        trajectory.state.append(state.obs)
+            elapsed.append(state.info["elapsed_time"])
+        trajectory.observation.append(state.obs)
 
     epoch_eval_time = time.time() - t
     eval_metrics = state.info["eval_metrics"].episode_metrics
-    metrics = {"eval/walltime": epoch_eval_time, **eval_metrics}
+    metrics = {
+        "eval/walltime": epoch_eval_time,
+        **eval_metrics,
+        "eval/average_time": np.mean(elapsed),
+    }
     return metrics, trajectory
 
 
