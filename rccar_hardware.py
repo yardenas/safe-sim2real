@@ -61,7 +61,7 @@ def collect_trajectory(
             action, _ = policy(state.obs, key)
             state = env.step(state, action)
     epoch_eval_time = time.time() - t
-    eval_metrics = state.info["eval_metrics"]
+    eval_metrics = state.info["eval_metrics"]["episode_metrics"]
     metrics = {"eval/walltime": epoch_eval_time, **eval_metrics}
     return metrics
 
