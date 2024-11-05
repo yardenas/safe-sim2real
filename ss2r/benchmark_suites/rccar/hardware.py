@@ -58,7 +58,7 @@ class HardwareDynamics:
     # FIXME (yarden): make sure that this really conforms to the actual state
     def step(self, x: jax.Array, u: jax.Array, params: Any) -> tuple[jax.Array, dict]:
         scaled_action = u.copy()
-        scaled_action[1] *= self.max_throttle
+        scaled_action = scaled_action.at[1].multiply(self.max_throttle)
         self.controller.control_mode()
         command_set_in_time = self.controller.set_command(scaled_action)
         assert command_set_in_time, "API blocked python thread for too long"
