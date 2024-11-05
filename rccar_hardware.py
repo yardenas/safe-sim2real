@@ -96,3 +96,7 @@ def main(cfg):
             print(metrics)
             _LOG.info(f"Done trajectory: {traj_count}")
             traj_count += 1
+
+
+if __name__ == "__main__":
+    main()
