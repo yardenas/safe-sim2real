@@ -29,6 +29,16 @@ class Writer(Protocol):
     ):
         ...
 
+    def log_artifact(
+        self,
+        path: str,
+        type: str,
+        name: str | None = None,
+        description: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ):
+        ...
+
 
 class TrainingLogger:
     def __init__(self, config: DictConfig) -> None:
@@ -60,6 +70,17 @@ class TrainingLogger:
         for writer in self._writers:
             writer.log_video(images, step, name, fps)
 
+    def log_artifact(
+        self,
+        path: str,
+        type: str,
+        name: str | None = None,
+        description: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ):
+        for writer in self._writers:
+            writer.log_artifact(path, type, name, description, metadata)
+
 
 class StdErrWriter:
     def __init__(self, logger_name: str = _SUMMARY_DEFAULT):
@@ -84,8 +105,8 @@ class StdErrWriter:
     def log_artifact(
         self,
         path: str,
-        name: str,
         type: str,
+        name: str | None = None,
         description: str | None = None,
         metadata: dict[str, Any] | None = None,
     ):
@@ -112,8 +133,8 @@ class JsonlWriter:
     def log_artifact(
         self,
         path: str,
-        name: str,
         type: str,
+        name: str | None = None,
         description: str | None = None,
         metadata: dict[str, Any] | None = None,
     ):
@@ -148,8 +169,8 @@ class TensorboardXWriter:
     def log_artifact(
         self,
         path: str,
-        name: str,
         type: str,
+        name: str | None = None,
         description: str | None = None,
         metadata: dict[str, Any] | None = None,
     ):
