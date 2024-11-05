@@ -78,7 +78,7 @@ def fetch_wandb_policy(run_id):
 def load_recorded_policy(path):
     with open(path, "rb") as f:
         rec_traj = pickle.load(f)
-        actions = rec_traj.actions
+        actions = rec_traj.action
     return DummyPolicy(actions)
 
 
