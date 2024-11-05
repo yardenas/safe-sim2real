@@ -27,7 +27,7 @@ def make_env(controller, cfg):
     task_cfg.pop("task_name")
     train_car_params = task_cfg.pop("train_car_params")
     dynamics = hardware.HardwareDynamics(
-        controller=controller, max_throttle=task_cfg.max_throttle
+        controller=controller, max_throttle=task_cfg["max_throttle"]
     )
     env = rccar.RCCar(train_car_params["nominal"], **task_cfg, hardware=dynamics)
     env = EpisodeWrapper(env, cfg.episode_length, cfg.action_repeat)
