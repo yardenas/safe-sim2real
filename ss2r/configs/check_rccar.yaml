@@ -1,0 +1,22 @@
+defaults:
+  - _self_
+  - environment: rccar
+
+hydra:
+  run:
+    dir: ${log_dir}/${now:%Y-%m-%d}/${now:%H-%M-%S}
+  sweep:
+    dir: ${log_dir}/${hydra.job.name}
+    subdir: ${hydra.job.override_dirname}/seed=${training.seed}
+  job:
+    config:
+      override_dirname:
+        exclude_keys:
+          - log_dir
+          - training.seed
+          - wandb
+    chdir: true
+
+baseline_trajectory: ???
+check_trajectory: ???
+compare_with_model: true

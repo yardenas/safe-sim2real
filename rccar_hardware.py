@@ -1,8 +1,6 @@
 import logging
 import os
 import pickle
-import time
-from typing import NamedTuple
 
 import hydra
 import jax
@@ -12,8 +10,8 @@ import wandb
 from brax.envs.wrappers.training import EpisodeWrapper
 from brax.io import model
 from brax.training.acme import running_statistics
-from brax.training.types import Metrics, Policy
 
+from rccar_experiments.utils import DummyPolicy, collect_trajectory
 from ss2r.algorithms.sac.networks import make_inference_fn, make_sac_networks
 from ss2r.benchmark_suites.rccar import hardware, rccar
 from ss2r.benchmark_suites.utils import get_task_config
@@ -25,13 +23,6 @@ from ss2r.common.logging import TrainingLogger
 from ss2r.rl.evaluation import ConstraintEvalWrapper
 
 _LOG = logging.getLogger(__name__)
-
-
-class Trajectory(NamedTuple):
-    observation: list[jax.Array]
-    action: list[jax.Array]
-    reward: list[jax.Array]
-    cost: list[jax.Array]
 
 
 def make_env(controller, cfg):
@@ -58,35 +49,6 @@ def make_env(controller, cfg):
     env = EpisodeWrapper(env, cfg.episode_length, cfg.action_repeat)
     env = ConstraintEvalWrapper(env)
     return env
-
-
-def collect_trajectory(
-    env: rccar.RCCar, controller, policy: Policy, rng: jax.Array
-) -> tuple[Metrics, Trajectory]:
-    t = time.time()
-    trajectory = Trajectory([], [], [], [])
-    elapsed = []
-    with hardware.start(controller):
-        state = env.reset(rng)
-        while not state.done:
-            trajectory.observation.append(state.obs)
-            rng, key = jax.random.split(rng)
-            action, _ = policy(state.obs, key)
-            trajectory.action.append(action)
-            state = env.step(state, action)
-            trajectory.reward.append(state.reward)
-            trajectory.cost.append(state.info["cost"])
-            elapsed.append(state.info["elapsed_time"])
-        trajectory.observation.append(state.obs)
-
-    epoch_eval_time = time.time() - t
-    eval_metrics = state.info["eval_metrics"].episode_metrics
-    metrics = {
-        "eval/walltime": epoch_eval_time,
-        **eval_metrics,
-        "eval/average_time": np.mean(elapsed),
-    }
-    return metrics, trajectory
 
 
 def fetch_wandb_policy(run_id):
@@ -117,18 +79,7 @@ def load_recorded_policy(path):
     with open(path, "rb") as f:
         rec_traj = pickle.load(f)
         actions = rec_traj["actions"]
-
-    class Policy:
-        def __init__(self) -> None:
-            self.id = 0
-            self.actions = actions
-
-        def __call__(self, *arg, **kwargs):
-            next_action = self.actions[self.id]
-            self.id += 1
-            return next_action
-
-    return Policy()
+    return DummyPolicy(actions)
 
 
 def save_trajectory(trajectory, path):
