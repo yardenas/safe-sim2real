@@ -29,6 +29,7 @@ def make_env(controller, cfg):
     task_cfg.pop("domain_name")
     task_cfg.pop("task_name")
     train_car_params = task_cfg.pop("train_car_params")
+    task_cfg.pop("eval_car_params")
     dynamics = hardware.HardwareDynamics(
         controller=controller, max_throttle=task_cfg["max_throttle"]
     )
