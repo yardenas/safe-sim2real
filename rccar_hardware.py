@@ -101,7 +101,7 @@ def main(cfg):
         car_id=cfg.car_id,
         port_number=cfg.port_number,
         control_frequency=cfg.control_frequency,
-    ) as controller:
+    ) as controller, jax.disable_jit():
         policy_fn = fetch_policy(cfg.policy_id)
         env = make_env(controller, cfg)
         while traj_count < cfg.num_trajectories:
