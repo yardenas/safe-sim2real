@@ -58,7 +58,7 @@ def collect_trajectory(
         state = env.reset(rng)
         while not state.done:
             rng, key = jax.random.split(rng)
-            action = policy(state.obs, key)
+            action, _ = policy(state.obs, key)
             state = env.step(state, action)
     epoch_eval_time = time.time() - t
     eval_metrics = state.info["eval_metrics"]
