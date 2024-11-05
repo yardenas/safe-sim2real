@@ -36,3 +36,6 @@ action_repeat: 1
 safety_budget: 1
 safe: false
 run_name: ???
+car_id: 2
+port_number: 5
+control_frequency: 41.664

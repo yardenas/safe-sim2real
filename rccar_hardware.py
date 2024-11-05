@@ -82,7 +82,11 @@ def main(cfg):
     config_dict = omegaconf.OmegaConf.to_container(cfg, resolve=True)
     with wandb.init(
         project="ss2r", resume=True, config=config_dict, **cfg.wandb
-    ) as run, hardware.connect(car_id=cfg.car_id) as controller:
+    ) as run, hardware.connect(
+        car_id=cfg.car_id,
+        port_number=cfg.port_number,
+        control_frequency=cfg.control_frequency,
+    ) as controller:
         policy_fn = fetch_policy(cfg.policy_name, cfg.policy_path, run)
         env = make_env(controller, cfg)
         while traj_count < cfg.num_trajectories:
