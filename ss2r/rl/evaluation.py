@@ -53,7 +53,7 @@ class ConstraintsEvaluator(Evaluator):
     def __init__(
         self,
         eval_env: Env,
-        eval_policy_fn: Callable[[PolicyParams], Policy],
+        eval_policy_fn: Callable[[PolicyParams], Policy],  # type: ignore
         num_eval_envs: int,
         episode_length: int,
         action_repeat: int,
@@ -63,7 +63,7 @@ class ConstraintsEvaluator(Evaluator):
         self._eval_walltime = 0.0
         eval_env = ConstraintEvalWrapper(eval_env)
 
-        def generate_eval_unroll(policy_params: PolicyParams, key: PRNGKey) -> State:
+        def generate_eval_unroll(policy_params: PolicyParams, key: PRNGKey) -> State:  # type: ignore
             reset_keys = jax.random.split(key, num_eval_envs)
             eval_first_state = eval_env.reset(reset_keys)
             return generate_unroll(

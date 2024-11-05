@@ -8,6 +8,7 @@ from brax.envs.base import Env, State
 from omegaconf import OmegaConf
 
 from ss2r.benchmark_suites import rewards
+from ss2r.benchmark_suites.rccar.hardware import HardwareDynamics
 from ss2r.benchmark_suites.rccar.model import CarParams, RaceCarDynamics
 from ss2r.rl.utils import rollout
 
@@ -160,30 +161,21 @@ class RCCar(Env):
         max_throttle: float = 1.0,
         dt: float = 1 / 30.0,
         obstacle: tuple[float, float, float] = (0.75, -0.75, 0.2),
+        *,
+        hardware: HardwareDynamics | None = None,
     ):
-        """
-        Race car simulator environment
-
-        Args:
-            ctrl_cost_weight: weight of the control penalty
-            encode_angle: whether to encode the angle as cos(theta), sin(theta)
-            use_obs_noise: whether to use observation noise
-            use_tire_model: whether to use the (high-fidelity) tire model, if False just uses a kinematic bicycle model
-            action_delay: whether to delay the action by a certain amount of time (in seconds)
-            car_model_params: dictionary of car model parameters that overwrite the default values
-            seed: random number generator seed
-        """
         self.goal = jnp.array([0.0, 0.0, 0.0])
         self.obstacle = tuple(obstacle)
-        self._init_pose = jnp.array([1.42, -1.04, jnp.pi])
+        self.init_pose = jnp.array([1.42, -1.04, jnp.pi])
         self.angle_idx = 2
         self._obs_noise_stds = OBS_NOISE_STD_SIM_CAR
         self.dim_action = (2,)
-        self.dt = dt
         self.dim_state = (7,) if encode_angle else (6,)
         self.encode_angle = encode_angle
         self.max_throttle = jnp.clip(max_throttle, 0.0, 1.0)
-        self.dynamics_model = RaceCarDynamics(dt=self.dt)
+        self.dynamics_model: RaceCarDynamics | HardwareDynamics = (
+            RaceCarDynamics(dt=dt) if hardware is None else hardware
+        )
         self.sys = CarParams(**car_model_params)
         self.use_obs_noise = use_obs_noise
         self.reward_model = RCCarEnvReward(
@@ -203,7 +195,6 @@ class RCCar(Env):
             )
         else:
             obs = state
-        # encode angle to sin(theta) ant cos(theta) if desired
         if self.encode_angle:
             obs = encode_angles(obs, self.angle_idx)
         assert (obs.shape[-1] == 7 and self.encode_angle) or (
@@ -213,19 +204,20 @@ class RCCar(Env):
 
     def reset(self, rng: jax.Array) -> State:
         """Resets the environment to a random initial state close to the initial pose"""
-
-        # sample random initial state
         key_pos, key_vel, key_obs = jax.random.split(rng, 3)
-        init_pos = self._init_pose[:2] + jax.random.uniform(
-            key_pos, shape=(2,), minval=-0.10, maxval=0.10
-        )
-        init_theta = self._init_pose[2:] + jax.random.uniform(
-            key_pos, shape=(1,), minval=-0.10 * jnp.pi, maxval=0.10 * jnp.pi
-        )
-        init_vel = jnp.zeros((3,)) + jnp.array(
-            [0.005, 0.005, 0.02]
-        ) * jax.random.normal(key_vel, shape=(3,))
-        init_state = jnp.concatenate([init_pos, init_theta, init_vel])
+        if isinstance(self.dynamics_model, HardwareDynamics):
+            init_state = self.dynamics_model.mocap_state()
+        else:
+            init_pos = self.init_pose[:2] + jax.random.uniform(
+                key_pos, shape=(2,), minval=-0.10, maxval=0.10
+            )
+            init_theta = self.init_pose[2:] + jax.random.uniform(
+                key_pos, shape=(1,), minval=-0.10 * jnp.pi, maxval=0.10 * jnp.pi
+            )
+            init_vel = jnp.zeros((3,)) + jnp.array(
+                [0.005, 0.005, 0.02]
+            ) * jax.random.normal(key_vel, shape=(3,))
+            init_state = jnp.concatenate([init_pos, init_theta, init_vel])
         init_state = self._obs(init_state, rng=key_obs)
         return State(
             pipeline_state=None,
@@ -242,13 +234,15 @@ class RCCar(Env):
         obs = state.obs
         if self.encode_angle:
             dynamics_state = decode_angles(obs, self.angle_idx)
-        next_dynamics_state = self.dynamics_model.step(dynamics_state, action, self.sys)
+        next_dynamics_state, step_info = self.dynamics_model.step(
+            dynamics_state, action, self.sys
+        )
         # FIXME (yarden): hard-coded key is bad here.
         next_obs = self._obs(next_dynamics_state, rng=jax.random.PRNGKey(0))
         reward = self.reward_model.forward(obs=None, action=action, next_obs=next_obs)
         cost = cost_fn(obs, jnp.asarray(self.obstacle[:2]), self.obstacle[2])
         done = jnp.asarray(0.0)
-        info = {**state.info, "cost": cost}
+        info = {**state.info, "cost": cost, **step_info}
         next_state = State(
             pipeline_state=state.pipeline_state,
             obs=next_obs,

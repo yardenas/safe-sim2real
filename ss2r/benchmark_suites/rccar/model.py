@@ -1,3 +1,5 @@
+from typing import Any
+
 import jax
 import jax.numpy as jnp
 from flax.struct import dataclass
@@ -184,7 +186,7 @@ class RaceCarDynamics:
         )
         return next_state
 
-    def step(self, x: jnp.array, u: jnp.array, params: CarParams) -> jnp.array:
+    def step(self, x: jax.Array, u: jax.Array, params: Any) -> tuple[jax.Array, dict]:
         assert x.shape[-1] == 6
         theta_x = x[..., self.angle_idx]
         offset = jnp.clip(params.angle_offset, -jnp.pi, jnp.pi)
@@ -216,7 +218,7 @@ class RaceCarDynamics:
             next_x = next_x.at[
                 ..., self.velocity_start_idx : self.velocity_end_idx + 1
             ].set(rotated_vel)
-        return next_x
+        return next_x, {}
 
     def _ode_dyn(self, x, u, params: CarParams):
         """Compute derivative using dynamic model.
