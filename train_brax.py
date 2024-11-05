@@ -2,6 +2,7 @@ import functools
 import logging
 import os
 
+import cloudpickle
 import hydra
 import jax
 from omegaconf import OmegaConf
@@ -34,6 +35,7 @@ def get_train_fn(cfg):
                 "train_domain_randomization",
                 "eval_domain_randomization",
                 "render",
+                "store_policy",
             ]
         }
         hidden_layer_sizes = agent_cfg.pop("hidden_layer_sizes")
@@ -111,7 +113,16 @@ def report(logger, step, num_steps, metrics):
     metrics = {k: float(v) for k, v in metrics.items()}
     logger.log(metrics, num_steps)
     step.count = num_steps
-    logger.log_artifact(get_state_path() + f"/ckpt_sac_{num_steps}.pkl", "model")
+
+
+def save_policy(make_policy, params, path):
+    data = {
+        "make_policy": make_policy,
+        "params": params,
+    }
+    state_bytes = cloudpickle.dumps(data)
+    with open(path, "wb") as fout:
+        fout.write(state_bytes)
 
 
 @hydra.main(version_base=None, config_path="ss2r/configs", config_name="train_brax")
@@ -138,6 +149,10 @@ def main(cfg):
             jax.random.PRNGKey(cfg.training.seed),
         )
         logger.log_video(video, steps.count, "eval/video")
+    if cfg.store_policy:
+        path = get_state_path() + "/policy.pkl"
+        save_policy(make_policy, params, get_state_path() + "/policy.pkl")
+        logger.log_artifact(path, "model")
     _LOG.info("Done training.")
 
 
