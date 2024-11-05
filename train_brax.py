@@ -2,9 +2,9 @@ import functools
 import logging
 import os
 
-import cloudpickle
 import hydra
 import jax
+from brax.io import model
 from omegaconf import OmegaConf
 
 import ss2r.algorithms.sac.networks as sac_networks
@@ -115,16 +115,6 @@ def report(logger, step, num_steps, metrics):
     step.count = num_steps
 
 
-def save_policy(make_policy, params, path):
-    data = {
-        "make_policy": make_policy,
-        "params": params,
-    }
-    data_bytes = cloudpickle.dumps(data)
-    with open(path, "wb") as fout:
-        fout.write(data_bytes)
-
-
 @hydra.main(version_base=None, config_path="ss2r/configs", config_name="train_brax")
 def main(cfg):
     _LOG.info(
@@ -151,7 +141,7 @@ def main(cfg):
         logger.log_video(video, steps.count, "eval/video")
     if cfg.training.store_policy:
         path = get_state_path() + "/policy.pkl"
-        save_policy(make_policy, params, get_state_path() + "/policy.pkl")
+        model.save_params(get_state_path() + "/policy.pkl", params)
         logger.log_artifact(path, "model", "policy")
     _LOG.info("Done training.")
 
