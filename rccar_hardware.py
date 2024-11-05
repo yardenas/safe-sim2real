@@ -1,4 +1,3 @@
-import functools
 import logging
 import os
 import time
@@ -10,6 +9,7 @@ import omegaconf
 import wandb
 from brax.envs.wrappers.training import EpisodeWrapper
 from brax.io import model
+from brax.training.acme import running_statistics
 from brax.training.types import Metrics, Policy
 
 from ss2r.algorithms.sac.networks import make_inference_fn, make_sac_networks
@@ -75,12 +75,18 @@ def fetch_policy(run_id):
     policy_params = model.load_params(path)
     config = run.config
     activation = getattr(jnn, config["agent"]["activation"])
-    network_factory = functools.partial(
-        make_sac_networks,
+    if config["agent"]["normalize_observations"]:
+        normalize = running_statistics.normalize
+    else:
+        normalize = lambda x, y: x
+    sac_network = make_sac_networks(
+        observation_size=7,
+        action_size=2,
+        preprocess_observations_fn=normalize,
         hidden_layer_sizes=config["agent"]["hidden_layer_sizes"],
         activation=activation,
     )
-    make_policy = make_inference_fn(network_factory)
+    make_policy = make_inference_fn(sac_network)
     return make_policy(policy_params, True)
 
 
