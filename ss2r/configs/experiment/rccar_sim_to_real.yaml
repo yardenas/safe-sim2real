@@ -4,6 +4,12 @@ defaults:
   - override /environment/train_car_params: car_2_blend
   - override /environment/eval_car_params: car_2_blend
 
+  
+environment:
+  action_delay: 3
+  observation_delay: 3
+  sliding_window: 3
+
 training:
   num_envs: 128
   num_timesteps: 2000000
