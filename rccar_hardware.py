@@ -15,6 +15,7 @@ from brax.training.types import Metrics, Policy
 from ss2r.algorithms.sac.networks import make_inference_fn, make_sac_networks
 from ss2r.benchmark_suites.rccar import hardware, rccar
 from ss2r.benchmark_suites.utils import get_task_config
+from ss2r.benchmark_suites.wrappers import ActionObservationDelayWrapper
 from ss2r.rl.evaluation import ConstraintEvalWrapper
 
 _LOG = logging.getLogger(__name__)
@@ -30,7 +31,12 @@ def make_env(controller, cfg):
     )
     env = rccar.RCCar(train_car_params["nominal"], **task_cfg, hardware=dynamics)
     env = EpisodeWrapper(env, cfg.episode_length, cfg.action_repeat)
-    # TODO (yarden): add delay and sliding window wrappers
+    if task_cfg.action_delay > 0 or task_cfg.observation_delay > 0:
+        env = ActionObservationDelayWrapper(
+            env,
+            action_delay=task_cfg.action_delay,
+            obs_delay=task_cfg.observation_delay,
+        )
     env = ConstraintEvalWrapper(env)
     return env
 
@@ -72,12 +78,12 @@ def fetch_policy(name, path, run):
 @hydra.main(version_base=None, config_path="ss2r/configs", config_name="rccar_hardware")
 def main(cfg):
     traj_count = 0
-    policy_fn = fetch_policy()
     rng = jax.random.PRNGKey(cfg.seed)
     config_dict = omegaconf.OmegaConf.to_container(cfg, resolve=True)
     with wandb.init(
         project="ss2r", resume=True, config=config_dict, **cfg.wandb
     ) as run, hardware.connect(car_id=cfg.car_id) as controller:
+        policy_fn = fetch_policy(cfg.policy_name, cfg.policy_path, run)
         env = make_env(controller, cfg)
         while traj_count < cfg.num_trajectories:
             answer = input("Press Y/y when ready to collect trajectory")
@@ -87,5 +93,6 @@ def main(cfg):
             _LOG.info(f"Collecting trajectory {traj_count}")
             rng, key = jax.random.split(rng)
             metrics = collect_trajectory(env, controller, policy_fn, key)
+            print(metrics)
             _LOG.info(f"Done trajectory: {traj_count}")
             traj_count += 1
