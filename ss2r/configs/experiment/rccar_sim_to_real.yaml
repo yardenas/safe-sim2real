@@ -9,6 +9,7 @@ environment:
   action_delay: 3
   observation_delay: 3
   sliding_window: 3
+  dt: 0.03333333
 
 training:
   num_envs: 128
