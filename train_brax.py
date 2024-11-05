@@ -120,9 +120,9 @@ def save_policy(make_policy, params, path):
         "make_policy": make_policy,
         "params": params,
     }
-    state_bytes = cloudpickle.dumps(data)
+    data_bytes = cloudpickle.dumps(data)
     with open(path, "wb") as fout:
-        fout.write(state_bytes)
+        fout.write(data_bytes)
 
 
 @hydra.main(version_base=None, config_path="ss2r/configs", config_name="train_brax")
@@ -149,10 +149,10 @@ def main(cfg):
             jax.random.PRNGKey(cfg.training.seed),
         )
         logger.log_video(video, steps.count, "eval/video")
-    if cfg.store_policy:
+    if cfg.training.store_policy:
         path = get_state_path() + "/policy.pkl"
         save_policy(make_policy, params, get_state_path() + "/policy.pkl")
-        logger.log_artifact(path, "model")
+        logger.log_artifact(path, "model", "policy")
     _LOG.info("Done training.")
 
 

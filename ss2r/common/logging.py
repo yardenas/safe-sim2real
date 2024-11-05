@@ -224,8 +224,7 @@ class WeightAndBiasesWriter:
             name = self._handle.run.id
         artifact = self._handle.Artifact(name, type, description, metadata)
         artifact.add_file(path)
-        self._handle.save(path)
-        self._handle.log_artifact(artifact)
+        self._handle.log_artifact(artifact, aliases=[self._handle.run.id])
 
 
 class StateWriter:
