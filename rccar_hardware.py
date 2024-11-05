@@ -1,18 +1,15 @@
-import functools
 import logging
 import os
 import time
 
+import cloudpickle
 import hydra
 import jax
-import jax.nn as jnn
 import omegaconf
 import wandb
 from brax.envs.wrappers.training import EpisodeWrapper
-from brax.io import model
 from brax.training.types import Metrics, Policy
 
-from ss2r.algorithms.sac.networks import make_inference_fn, make_sac_networks
 from ss2r.benchmark_suites.rccar import hardware, rccar
 from ss2r.benchmark_suites.utils import get_task_config
 from ss2r.benchmark_suites.wrappers import ActionObservationDelayWrapper
@@ -57,21 +54,14 @@ def collect_trajectory(
     return metrics
 
 
-def fetch_policy(name, path, run):
-    api = wandb.Api()
-    run = api.run(f"ss2r/{run}")
-    policy_artifact = run.use_artifact(f"{name}:latest")
+def fetch_policy(policy_id, run):
+    policy_artifact = run.use_artifact(f"policy:{policy_id}")
     policy_dir = policy_artifact.download()
-    path = os.path.join(policy_dir, path)
-    policy_params = model.load_params(path)
-    config = run.config
-    activation = getattr(jnn, config["agent"]["activation"])
-    network_factory = functools.partial(
-        make_sac_networks,
-        hidden_layer_sizes=config["agent"]["hidden_layer_sizes"],
-        activation=activation,
-    )
-    make_policy = make_inference_fn(network_factory)
+    path = os.path.join(policy_dir, "policy.pkl")
+    with open(path, "rb") as f:
+        data = cloudpickle.load(f)
+    make_policy = data["make_policy"]
+    policy_params = data["params"]
     return make_policy(policy_params, True)
 
 
@@ -87,7 +77,7 @@ def main(cfg):
         port_number=cfg.port_number,
         control_frequency=cfg.control_frequency,
     ) as controller:
-        policy_fn = fetch_policy(cfg.policy_name, cfg.policy_path, run)
+        policy_fn = fetch_policy(cfg.policy_id, run)
         env = make_env(controller, cfg)
         while traj_count < cfg.num_trajectories:
             answer = input("Press Y/y when ready to collect trajectory")

@@ -38,7 +38,7 @@ def connect(
     try:
         yield controller
     finally:
-        controller.close()
+        controller.stop()
 
 
 @contextmanager
