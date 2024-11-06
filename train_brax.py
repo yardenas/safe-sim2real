@@ -125,7 +125,7 @@ def main(cfg):
     train_env, eval_env = benchmark_suites.make(cfg)
     train_fn = get_train_fn(cfg)
     steps = Counter()
-    with jax.disable_jit(cfg.jit):
+    with jax.disable_jit(not cfg.jit):
         make_policy, params, _ = train_fn(
             environment=train_env,
             eval_env=eval_env,
