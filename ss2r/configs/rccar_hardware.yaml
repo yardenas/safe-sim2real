@@ -1,6 +1,8 @@
 defaults:
   - _self_
   - environment: rccar
+  - override /environment/train_car_params: car_2_blend
+  - override /environment/eval_car_params: car_2_blend
 
 hydra:
   run:
