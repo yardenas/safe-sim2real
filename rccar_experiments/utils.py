@@ -46,6 +46,7 @@ def collect_trajectory(
         **eval_metrics,
         "eval/average_time": np.mean(elapsed),
     }
+    metrics = {key: float(value) for key, value in metrics.items()}
     return metrics, trajectory
 
 
