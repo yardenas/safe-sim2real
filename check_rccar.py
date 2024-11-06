@@ -26,8 +26,19 @@ def play_recorded_trajectory(actions, env):
 def main(cfg):
     baseline_trajectory = load_trajectory(cfg.baseline_trajectory)
     check_trajectory = load_trajectory(cfg.check_trajectory)
+    cfg.episode_length = len(baseline_trajectory.action)
     model = make_env(cfg)
     model_trajectory = play_recorded_trajectory(baseline_trajectory.action, model)
+    asarray = lambda x: np.asarray(x)
+    baseline_trajectory = jax.tree_map(
+        asarray, baseline_trajectory, is_leaf=lambda x: isinstance(x, list)
+    )
+    check_trajectory = jax.tree_map(
+        asarray, check_trajectory, is_leaf=lambda x: isinstance(x, list)
+    )
+    model_trajectory = jax.tree_map(
+        asarray, model_trajectory, is_leaf=lambda x: isinstance(x, list)
+    )
     horizon = min(
         len(baseline_trajectory.observation),
         len(check_trajectory.observation),
@@ -46,7 +57,7 @@ def main(cfg):
             check_trajectory.observation[:, :7], i, obstacle_position, obstacle_radius
         )
         model = draw_scene(
-            np.asarray(model_trajectory.observation)[:, :7],
+            model_trajectory.observation[:, :7],
             i,
             obstacle_position,
             obstacle_radius,
@@ -55,10 +66,10 @@ def main(cfg):
     vid = np.asarray(vid)
     baseline, check, model = np.split(vid, 3, axis=1)
     vid = np.concatenate([baseline, check, model], axis=3).squeeze()
-    imageio.mimsave("check_rccar.gif", vid, fps=30)
+    imageio.mimsave("check_rccar.gif", vid, fps=30, loop=0)
     assert np.allclose(
-        baseline_trajectory.observation,
-        check_trajectory.observation,
+        baseline_trajectory.observation[:horizon],
+        check_trajectory.observation[:horizon],
         atol=0.1,
         rtol=0.05,
     ), "Baseline and check trajectories do not match"
