@@ -50,7 +50,7 @@ def load_recorded_policy(path):
 
 
 def save_trajectory(trajectory, path):
-    trajectory = jax.tree_map(np.asarray, trajectory)
+    trajectory = jax.tree.map(np.asarray, trajectory)
     with open(path, "wb") as f:
         pickle.dump(trajectory, f)
 
