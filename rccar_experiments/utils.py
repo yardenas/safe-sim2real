@@ -57,7 +57,7 @@ class DummyPolicy:
 
     def __call__(self, *arg, **kwargs):
         next_action = self.actions[self.id]
-        self.id += 1
+        self.id = (self.id + 1) % len(self.actions)
         return next_action, {}
 
 
