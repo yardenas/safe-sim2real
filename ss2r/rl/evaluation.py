@@ -31,7 +31,7 @@ class ConstraintEvalWrapper(EvalWrapper):
         nstate.metrics["cost"] = nstate.info.get("cost", jnp.array(0.0))
         episode_steps = jnp.where(
             state_metrics.active_episodes,
-            nstate.info["steps"],
+            nstate.info.get("steps", jnp.zeros_like(state_metrics.episode_steps)),
             state_metrics.episode_steps,
         )
         episode_metrics = jax.tree_util.tree_map(

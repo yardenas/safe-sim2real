@@ -87,11 +87,12 @@ class FrameActionStack(Wrapper):
         # but we'll track the dimensions for clarity
         self.single_obs_shape = self.env.observation_size
         self.single_action_shape = self.env.action_size
+        self.num_stack = num_stack
 
-        # The new observation will include both stacked observations and actions
-        self.observation_size = (
-            self.single_obs_shape * num_stack
-            + self.single_action_shape * (num_stack - 1)
+    @property
+    def observation_size(self) -> int:
+        return self.single_obs_shape * self.num_stack + self.single_action_shape * (
+            self.num_stack - 1
         )
 
     def reset(self, rng: jax.Array) -> State:
