@@ -51,7 +51,7 @@ def main(cfg):
     check_trajectory = jax.tree_map(
         asarray, check_trajectory, is_leaf=lambda x: isinstance(x, list)
     )
-    model_trajectory = play_recorded_trajectory(baseline_trajectory.action, model)
+    model_trajectory = play_recorded_trajectory(check_trajectory.action, model)
     model_trajectory = jax.tree_map(
         asarray, model_trajectory, is_leaf=lambda x: isinstance(x, list)
     )
