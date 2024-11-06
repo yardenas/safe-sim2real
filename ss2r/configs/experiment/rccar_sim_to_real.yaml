@@ -10,7 +10,6 @@ environment:
   observation_delay: 3
   sliding_window: 3
   dt: 0.03333333
-  max_throttle: 0.4
 
 
 training:
