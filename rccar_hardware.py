@@ -72,7 +72,10 @@ def main(cfg):
             policy_fn = load_recorded_policy(cfg.playback_policy)
         env = make_env(cfg, controller)
         while traj_count < cfg.num_trajectories:
-            answer = input("Press Y/y when ready to collect trajectory\n")
+            answer = input("Press Y/y when ready to collect trajectory. N/n to stop.\n")
+            if answer == "N" or answer == "n":
+                _LOG.info("Stopping data collection.")
+                break
             if not (answer == "Y" or answer == "y"):
                 _LOG.info("Skipping trajectory")
                 continue
