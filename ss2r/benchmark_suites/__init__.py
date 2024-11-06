@@ -72,11 +72,15 @@ def make_rccar_envs(cfg):
         )
     if sliding_window > 0:
         eval_env = FrameActionStack(eval_env, num_stack=sliding_window)
-    eval_randomization_fn = prepare_randomization_fn(
-        eval_key,
-        cfg.training.num_eval_envs,
-        eval_car_params["bounds"],
-        cfg.environment.task_name,
+    eval_randomization_fn = (
+        prepare_randomization_fn(
+            eval_key,
+            cfg.training.num_eval_envs,
+            eval_car_params["bounds"],
+            cfg.environment.task_name,
+        )
+        if cfg.training.eval_domain_randomization
+        else None
     )
     eval_env = envs.training.wrap(
         eval_env,

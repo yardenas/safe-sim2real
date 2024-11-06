@@ -1,0 +1,30 @@
+defaults:
+  - _self_
+  - environment: rccar
+  - override /environment/train_car_params: car_2_blend
+  - override /environment/eval_car_params: car_2_blend
+
+hydra:
+  run:
+    dir: ${log_dir}/check-rccar/${now:%Y-%m-%d}/${now:%H-%M-%S}
+  job:
+    config:
+      override_dirname:
+        exclude_keys:
+          - log_dir
+          - training.seed
+          - wandb
+    chdir: true
+
+environment:
+  action_delay: 3
+  observation_delay: 3
+  sliding_window: 3
+  dt: 0.03333333
+
+log_dir: outputs
+baseline_trajectory: /home/yarden/ethz/rl/safe-sim2real/data/baseline.pkl
+check_trajectory: /home/yarden/ethz/rl/safe-sim2real/data/trajectory-0.pkl
+action_repeat: 1
+episode_length: ???
+decode_check: true

@@ -100,8 +100,6 @@ class RaceCarDynamics:
         else:
             x = [x, y, theta, vel_x, vel_y, angular_velocity_z]
     u = [steering_angle, throttle]
-    encode_angle: bool
-        Encodes angle to sin ant cos if true
     """
 
     def __init__(
