@@ -70,6 +70,7 @@ def main(cfg):
             policy_fn = fetch_wandb_policy(cfg.policy_id)
         else:
             policy_fn = load_recorded_policy(cfg.playback_policy)
+            cfg.episode_length = len(policy_fn.actions)
         env = make_env(cfg, controller)
         while traj_count < cfg.num_trajectories:
             answer = input("Press Y/y when ready to collect trajectory. N/n to stop.\n")
