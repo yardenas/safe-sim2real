@@ -10,8 +10,11 @@ try:
         "C:/Users/Panda/Desktop/rcCarInterface/rc-car-interface/build/src/libs/pyCarController"
     )
     import carl
+
+    DUMMY_CONTROLLER = False
 except ImportError as e:
     print("Could not import carl: ", e)
+    DUMMY_CONTROLLER = True
 
 
 @contextmanager
@@ -22,6 +25,12 @@ def connect(
     window_size: int = 6,
     port_number: int = 8,
 ):
+    if DUMMY_CONTROLLER:
+        try:
+            yield None
+        finally:
+            pass
+        return
     if car_id == 1:
         mocap_id = 1003
     elif car_id == 2:
@@ -43,6 +52,12 @@ def connect(
 
 @contextmanager
 def start(controller):
+    if DUMMY_CONTROLLER:
+        try:
+            yield None
+        finally:
+            pass
+        return
     controller.start()
     try:
         yield
@@ -70,5 +85,5 @@ class HardwareDynamics:
         current_state[[0, 3]] = current_state[[1, 4]]
         current_state[[1, 4]] = mocap_x
         current_state[2] += np.pi
-        current_state[2] = ((current_state[2] + np.pi) % (2 * np.pi)) - np.pi
+        current_state[2] = (current_state[2] + np.pi) % (2 * np.pi)
         return current_state
