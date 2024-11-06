@@ -1,3 +1,4 @@
+import logging
 import pickle
 
 import hydra
@@ -7,6 +8,8 @@ import numpy as np
 
 from rccar_experiments.utils import DummyPolicy, collect_trajectory, make_env
 from ss2r.benchmark_suites.rccar.rccar import draw_scene
+
+_LOG = logging.getLogger(__name__)
 
 
 def load_trajectory(path):
@@ -53,6 +56,13 @@ def main(cfg):
     baseline, check, model = np.split(vid, 3, axis=1)
     vid = np.concatenate([baseline, check, model], axis=3).squeeze()
     imageio.mimsave("check_rccar.gif", vid, fps=30)
+    assert np.allclose(
+        baseline_trajectory.observation,
+        check_trajectory.observation,
+        atol=0.1,
+        rtol=0.05,
+    ), "Baseline and check trajectories do not match"
+    _LOG.info("Baseline and check trajectories match, congratulations!")
 
 
 if __name__ == "__main__":
