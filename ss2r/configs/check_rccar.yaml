@@ -27,3 +27,4 @@ baseline_trajectory: /home/yarden/ethz/rl/safe-sim2real/data/baseline.pkl
 check_trajectory: /home/yarden/ethz/rl/safe-sim2real/data/trajectory-0.pkl
 action_repeat: 1
 episode_length: ???
+decode_check: true

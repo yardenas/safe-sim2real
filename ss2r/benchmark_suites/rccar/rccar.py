@@ -86,7 +86,7 @@ def encode_angles(state: jnp.array, angle_idx: int) -> jnp.array:
 
 
 def decode_angles(state: jnp.array, angle_idx: int) -> jnp.array:
-    """Decodes the angle (theta) from sin(theta) ant cos(theta)"""
+    """Decodes the angle (theta) from sin(theta) and cos(theta)"""
     assert angle_idx < state.shape[-1] - 1
     theta = jnp.arctan2(
         state[..., angle_idx : angle_idx + 1], state[..., angle_idx + 1 : angle_idx + 2]
