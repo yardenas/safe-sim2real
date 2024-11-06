@@ -71,7 +71,10 @@ def main(cfg):
         else:
             policy_fn = load_recorded_policy(cfg.playback_policy)
             cfg.episode_length = len(policy_fn.actions)
-        env = make_env(cfg, controller)
+        if cfg.no_controller:
+            env = make_env(cfg)
+        else:
+            env = make_env(cfg, controller)
         while traj_count < cfg.num_trajectories:
             answer = input("Press Y/y when ready to collect trajectory. N/n to stop.\n")
             if answer == "N" or answer == "n":
