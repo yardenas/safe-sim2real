@@ -60,10 +60,11 @@ def main(cfg):
     traj_count = 0
     rng = jax.random.PRNGKey(cfg.seed)
     logger = TrainingLogger(cfg)
+    factor = cfg.environment.sliding_window if cfg.environment.sliding_window > 0 else 1
     with hardware.connect(
         car_id=cfg.car_id,
         port_number=cfg.port_number,
-        control_frequency=cfg.control_frequency,
+        control_frequency=cfg.control_frequency * factor,
     ) as controller, jax.disable_jit():
         if cfg.policy_id is not None:
             assert cfg.playback_policy is None

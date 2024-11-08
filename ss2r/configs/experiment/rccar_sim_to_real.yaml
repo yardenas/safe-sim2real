@@ -8,7 +8,7 @@ defaults:
 environment:
   action_delay: 1
   observation_delay: 0
-  sliding_window: 0
+  sliding_window: 5
   dt: 0.03333333
 
 
