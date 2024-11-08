@@ -44,6 +44,7 @@ def main(cfg):
     check_trajectory = load_trajectory(cfg.check_trajectory)
     cfg.episode_length = len(baseline_trajectory.action)
     model = make_env(cfg)
+    model.step = jax.jit(model.step)
     asarray = lambda x: np.asarray(x)
     baseline_trajectory = jax.tree_map(
         asarray, baseline_trajectory, is_leaf=lambda x: isinstance(x, list)

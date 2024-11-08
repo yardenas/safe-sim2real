@@ -7,6 +7,9 @@ defaults:
 hydra:
   run:
     dir: ${log_dir}/check-rccar/${now:%Y-%m-%d}/${now:%H-%M-%S}
+  sweep:
+    dir: ${log_dir}/${hydra.job.name}
+    subdir: ${hydra.job.override_dirname}/seed=${training.seed}
   job:
     config:
       override_dirname:
