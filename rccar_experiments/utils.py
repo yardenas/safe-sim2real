@@ -80,8 +80,6 @@ def make_env(cfg, controller=None):
         task_cfg.pop("observation_delay"),
     )
     sliding_window = task_cfg.pop("sliding_window")
-    if sliding_window > 0:
-        task_cfg["dt"] = task_cfg["dt"] / sliding_window
     env = rccar.RCCar(train_car_params["nominal"], **task_cfg, hardware=dynamics)
     if action_delay > 0 or obs_delay > 0:
         env = ActionObservationDelayWrapper(

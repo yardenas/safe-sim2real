@@ -100,7 +100,6 @@ class FrameActionStack(Wrapper):
         state = state.replace(
             obs=self._get_stacked_obs(obs_buffer, action_buffer),
         )
-
         return state
 
     def _init_buffers(self, state):
