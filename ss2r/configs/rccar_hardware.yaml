@@ -1,6 +1,8 @@
 defaults:
   - _self_
   - environment: rccar
+  - override /environment/train_car_params: car_2_blend
+  - override /environment/eval_car_params: car_2_blend
 
 hydra:
   run:
@@ -28,7 +30,7 @@ wandb:
 
 seed: 0
 num_trajectories: 100
-episode_length: 100
+episode_length: 500
 action_repeat: 1
 safety_budget: 1
 safe: false
@@ -38,3 +40,4 @@ control_frequency: 32.59
 policy_id: null
 playback_policy: null
 out_path_name: null
+no_controller: false
