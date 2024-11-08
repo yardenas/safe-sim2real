@@ -44,6 +44,7 @@ def main(cfg):
     check_trajectory = load_trajectory(cfg.check_trajectory)
     cfg.episode_length = len(baseline_trajectory.action)
     model = make_env(cfg)
+    model.step = jax.jit(model.step)
     asarray = lambda x: np.asarray(x)
     baseline_trajectory = jax.tree_map(
         asarray, baseline_trajectory, is_leaf=lambda x: isinstance(x, list)
@@ -51,7 +52,7 @@ def main(cfg):
     check_trajectory = jax.tree_map(
         asarray, check_trajectory, is_leaf=lambda x: isinstance(x, list)
     )
-    model_trajectory = play_recorded_trajectory(baseline_trajectory.action, model)
+    model_trajectory = play_recorded_trajectory(check_trajectory.action, model)
     model_trajectory = jax.tree_map(
         asarray, model_trajectory, is_leaf=lambda x: isinstance(x, list)
     )

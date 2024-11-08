@@ -6,16 +6,16 @@ defaults:
 
   
 environment:
-  action_delay: 0
+  action_delay: 1
   observation_delay: 0
-  sliding_window: 0
+  sliding_window: 5
   dt: 0.03333333
 
 
 training:
   num_envs: 128
   num_timesteps: 2000000
-  episode_length: 100
+  episode_length: 500
   train_domain_randomization: true
   eval_domain_randomization: true
   privileged: true

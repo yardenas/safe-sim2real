@@ -14,17 +14,19 @@ class ActionObservationDelayWrapper(Wrapper):
     def reset(self, rng: jax.Array) -> State:
         state = self.env.reset(rng)
         # Initialize the action and observation buffers as part of the state.info
-        zero_action = jp.zeros_like(state.obs)
-        action_buffer = jp.tile(
-            zero_action[None], (self.action_delay + 1,) + zero_action.shape
-        )
-        obs_buffer = jp.tile(state.obs[None], (self.obs_delay + 1,) + state.obs.shape)
+        action_buffer, obs_buffer = self._init_buffers(state)
         # Store buffers in the state info for later access
         state.info["action_buffer"] = action_buffer
         state.info["obs_buffer"] = obs_buffer
-        state.info["first_pipeline_state"] = state.pipeline_state
-        state.info["first_obs"] = state.obs
         return state
+
+    def _init_buffers(self, state):
+        # Initialize the action and observation buffers as part of the state.info
+        zero_action = jp.zeros(self.env.action_size)
+        action_buffer = jp.tile(zero_action[None], (self.action_delay + 1, 1))
+        obs_buffer = jp.tile(state.obs[None], (self.obs_delay + 1, 1))
+        # Store buffers in the state info for later access
+        return action_buffer, obs_buffer
 
     def step(self, state: State, action: jax.Array) -> State:
         # Retrieve the buffers from the state info
@@ -48,20 +50,14 @@ class ActionObservationDelayWrapper(Wrapper):
                 done = jp.reshape(done, [x.shape[0]] + [1] * (len(x.shape) - 1))  # type: ignore
             return jp.where(done, x, y)
 
-        pipeline_state = jax.tree_map(
-            where_done, state.info["first_pipeline_state"], state.pipeline_state
-        )
-        obs = where_done(state.info["first_obs"], delayed_obs)
+        init_action, init_obs = self._init_buffers(state)
+        new_obs_buffer = where_done(init_obs, new_obs_buffer)
+        new_action_buffer = where_done(init_action, new_action_buffer)
         # Update the buffers in state.info and return the updated state
+        state.info["action_buffer"] = new_action_buffer
+        state.info["obs_buffer"] = new_obs_buffer
         state = state.replace(
-            pipeline_state=pipeline_state,
-            obs=obs,
-            info={
-                "action_buffer": new_action_buffer,
-                "obs_buffer": new_obs_buffer,
-                "first_pipeline_state": state.info["first_pipeline_state"],
-                "first_obs": state.info["first_obs"],
-            },
+            obs=delayed_obs,
         )
         return state
 
@@ -91,56 +87,43 @@ class FrameActionStack(Wrapper):
 
     @property
     def observation_size(self) -> int:
-        return self.single_obs_shape * self.num_stack + self.single_action_shape * (
-            self.num_stack - 1
-        )
+        return self.num_stack * (self.single_obs_shape + self.single_action_shape)
 
     def reset(self, rng: jax.Array) -> State:
         """Reset the environment and initialize the frame and action stacks."""
         state = self.env.reset(rng)
-
         # Create initial observation stack (filled with initial observation)
-        obs_stack = jp.tile(state.obs[None], (self.num_stack,) + state.obs.shape)
-
-        # Create initial action stack (filled with zeros)
-        zero_action = jp.zeros(self.single_action_shape)
-        action_stack = jp.tile(
-            zero_action[None], (self.num_stack - 1,) + zero_action.shape
-        )
-
-        # Store stacks in state info
-        state.info["obs_stack"] = obs_stack
-        state.info["action_stack"] = action_stack
-
+        action_buffer, obs_buffer = self._init_buffers(state)
+        state.info["action_stack"] = action_buffer
+        state.info["obs_stack"] = obs_buffer
         # Create the stacked observation
         state = state.replace(
-            obs=self._get_stacked_obs(obs_stack, action_stack),
-            info={
-                **state.info,
-                "obs_stack": obs_stack,
-                "action_stack": action_stack,
-                "first_obs": state.obs,
-            },
+            obs=self._get_stacked_obs(obs_buffer, action_buffer),
         )
-
         return state
+
+    def _init_buffers(self, state):
+        # Initialize the action and observation buffers as part of the state.info
+        zero_action = jp.zeros(self.single_action_shape)
+        action_buffer = jp.tile(zero_action[None], (self.num_stack, 1))
+        obs_buffer = jp.tile(state.obs[None], (self.num_stack, 1))
+        # Store buffers in the state info for later access
+        return action_buffer, obs_buffer
 
     def step(self, state: State, action: jax.Array) -> State:
         """Step the environment and update the stacks."""
         # Get current stacks
-        obs_stack = state.info["obs_stack"]
-        action_stack = state.info["action_stack"]
-
+        action_buffer = state.info["action_stack"]
+        obs_buffer = state.info["obs_stack"]
         # Step the environment
         state = self.env.step(state, action)
-
         # Update observation stack
-        new_obs_stack = jp.roll(obs_stack, shift=-1, axis=0)
-        new_obs_stack = new_obs_stack.at[-1].set(state.obs)
+        new_obs_buffer = jp.roll(obs_buffer, shift=-1, axis=0)
+        new_obs_buffer = new_obs_buffer.at[-1].set(state.obs)
 
         # Update action stack
-        new_action_stack = jp.roll(action_stack, shift=-1, axis=0)
-        new_action_stack = new_action_stack.at[-1].set(action)
+        new_action_buffer = jp.roll(action_buffer, shift=-1, axis=0)
+        new_action_buffer = new_action_buffer.at[-1].set(action)
 
         # Handle done states
         def where_done(x, y):
@@ -150,19 +133,16 @@ class FrameActionStack(Wrapper):
             return jp.where(done, x, y)
 
         # Create the stacked observation
-        stacked_obs = self._get_stacked_obs(new_obs_stack, new_action_stack)
-        obs = where_done(state.info["first_obs"], stacked_obs)
-
+        stacked_obs = self._get_stacked_obs(new_obs_buffer, new_action_buffer)
+        init_action, init_obs = self._init_buffers(state)
+        new_obs_buffer = where_done(init_obs, new_obs_buffer)
+        new_action_buffer = where_done(init_action, new_action_buffer)
         # Update state
+        state.info["action_stack"] = new_action_buffer
+        state.info["obs_stack"] = new_obs_buffer
         state = state.replace(
-            obs=obs,
-            info={
-                **state.info,
-                "obs_stack": new_obs_stack,
-                "action_stack": new_action_stack,
-            },
+            obs=stacked_obs,
         )
-
         return state
 
     def _get_stacked_obs(

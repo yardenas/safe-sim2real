@@ -7,6 +7,9 @@ defaults:
 hydra:
   run:
     dir: ${log_dir}/check-rccar/${now:%Y-%m-%d}/${now:%H-%M-%S}
+  sweep:
+    dir: ${log_dir}/${hydra.job.name}
+    subdir: ${hydra.job.override_dirname}/seed=${training.seed}
   job:
     config:
       override_dirname:
@@ -15,12 +18,6 @@ hydra:
           - training.seed
           - wandb
     chdir: true
-
-environment:
-  action_delay: 3
-  observation_delay: 3
-  sliding_window: 3
-  dt: 0.03333333
 
 log_dir: outputs
 baseline_trajectory: /home/yarden/ethz/rl/safe-sim2real/data/baseline.pkl

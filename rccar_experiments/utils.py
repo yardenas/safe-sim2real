@@ -28,11 +28,14 @@ def collect_trajectory(
     t = time.time()
     trajectory = Trajectory([], [], [], [])
     elapsed = []
+    delay = []
     state = env.reset(rng)
     while not state.done:
         trajectory.observation.append(state.obs)
         rng, key = jax.random.split(rng)
+        tp = time.time()
         action, _ = policy(state.obs, key)
+        delay.append(time.time() - tp)
         trajectory.action.append(action)
         state = env.step(state, action)
         trajectory.reward.append(state.reward)
@@ -45,6 +48,7 @@ def collect_trajectory(
         "eval/walltime": epoch_eval_time,
         **eval_metrics,
         "eval/average_time": np.mean(elapsed),
+        "eval/average_delay": np.mean(delay),
     }
     metrics = {key: float(value) for key, value in metrics.items()}
     return metrics, trajectory

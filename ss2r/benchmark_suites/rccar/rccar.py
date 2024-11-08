@@ -210,10 +210,10 @@ class RCCar(Env):
             init_state = self.dynamics_model.mocap_state()
         else:
             init_pos = self.init_pose[:2] + jax.random.uniform(
-                key_pos, shape=(2,), minval=-0.10, maxval=0.10
+                key_pos, shape=(2,), minval=-1.75, maxval=1.75
             )
             init_theta = self.init_pose[2:] + jax.random.uniform(
-                key_pos, shape=(1,), minval=-0.10 * jnp.pi, maxval=0.10 * jnp.pi
+                key_pos, shape=(1,), minval=-jnp.pi, maxval=jnp.pi
             )
             init_vel = jnp.zeros((3,)) + jnp.array(
                 [0.005, 0.005, 0.02]
@@ -221,7 +221,7 @@ class RCCar(Env):
             init_state = jnp.concatenate([init_pos, init_theta, init_vel])
         init_state = self._obs(init_state, rng=key_obs)
         return State(
-            pipeline_state=None,
+            pipeline_state=init_state,
             obs=init_state,
             reward=jnp.array(0.0),
             done=jnp.array(0.0),
@@ -232,7 +232,7 @@ class RCCar(Env):
         assert action.shape[-1:] == self.dim_action
         action = jnp.clip(action, -1.0, 1.0)
         action = action.at[1].set(self.max_throttle * action[1])
-        obs = state.obs
+        obs = state.pipeline_state
         if self.encode_angle:
             dynamics_state = decode_angles(obs, self.angle_idx)
         next_dynamics_state, step_info = self.dynamics_model.step(
@@ -245,7 +245,7 @@ class RCCar(Env):
         done = jnp.asarray(0.0)
         info = {**state.info, "cost": cost, **step_info}
         next_state = State(
-            pipeline_state=state.pipeline_state,
+            pipeline_state=next_obs,
             obs=next_obs,
             reward=reward,
             done=done,
