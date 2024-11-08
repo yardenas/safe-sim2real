@@ -210,7 +210,7 @@ class RCCar(Env):
             init_state = self.dynamics_model.mocap_state()
         else:
             init_pos = self.init_pose[:2] + jax.random.uniform(
-                key_pos, shape=(2,), minval=-1.0, maxval=1.0
+                key_pos, shape=(2,), minval=-1.75, maxval=1.75
             )
             init_theta = self.init_pose[2:] + jax.random.uniform(
                 key_pos, shape=(1,), minval=-jnp.pi, maxval=jnp.pi
