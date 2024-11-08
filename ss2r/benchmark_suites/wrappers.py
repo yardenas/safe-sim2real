@@ -14,17 +14,21 @@ class ActionObservationDelayWrapper(Wrapper):
     def reset(self, rng: jax.Array) -> State:
         state = self.env.reset(rng)
         # Initialize the action and observation buffers as part of the state.info
-        zero_action = jp.zeros_like(state.obs)
-        action_buffer = jp.tile(
-            zero_action[None], (self.action_delay + 1,) + zero_action.shape
-        )
-        obs_buffer = jp.tile(state.obs[None], (self.obs_delay + 1,) + state.obs.shape)
+        action_buffer, obs_buffer = self._init_buffers(state)
         # Store buffers in the state info for later access
         state.info["action_buffer"] = action_buffer
         state.info["obs_buffer"] = obs_buffer
         state.info["first_pipeline_state"] = state.pipeline_state
         state.info["first_obs"] = state.obs
         return state
+
+    def _init_buffers(self, state):
+        # Initialize the action and observation buffers as part of the state.info
+        zero_action = jp.zeros(self.env.action_size)
+        action_buffer = jp.tile(zero_action[None], (self.action_delay + 1, 1))
+        obs_buffer = jp.tile(state.obs[None], (self.obs_delay + 1, 1))
+        # Store buffers in the state info for later access
+        return action_buffer, obs_buffer
 
     def step(self, state: State, action: jax.Array) -> State:
         # Retrieve the buffers from the state info
@@ -52,16 +56,15 @@ class ActionObservationDelayWrapper(Wrapper):
             where_done, state.info["first_pipeline_state"], state.pipeline_state
         )
         obs = where_done(state.info["first_obs"], delayed_obs)
+        init_action, init_obs = self._init_buffers(state)
+        new_obs_buffer = where_done(init_obs, new_obs_buffer)
+        new_action_buffer = where_done(init_action, new_action_buffer)
         # Update the buffers in state.info and return the updated state
+        state.info["action_buffer"] = new_action_buffer
+        state.info["obs_buffer"] = new_obs_buffer
         state = state.replace(
             pipeline_state=pipeline_state,
             obs=obs,
-            info={
-                "action_buffer": new_action_buffer,
-                "obs_buffer": new_obs_buffer,
-                "first_pipeline_state": state.info["first_pipeline_state"],
-                "first_obs": state.info["first_obs"],
-            },
         )
         return state
 
