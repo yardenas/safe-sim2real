@@ -221,7 +221,7 @@ class RCCar(Env):
             init_state = jnp.concatenate([init_pos, init_theta, init_vel])
         init_state = self._obs(init_state, rng=key_obs)
         return State(
-            pipeline_state=None,
+            pipeline_state=init_state,
             obs=init_state,
             reward=jnp.array(0.0),
             done=jnp.array(0.0),
@@ -232,7 +232,7 @@ class RCCar(Env):
         assert action.shape[-1:] == self.dim_action
         action = jnp.clip(action, -1.0, 1.0)
         action = action.at[1].set(self.max_throttle * action[1])
-        obs = state.obs
+        obs = state.pipeline_state
         if self.encode_angle:
             dynamics_state = decode_angles(obs, self.angle_idx)
         next_dynamics_state, step_info = self.dynamics_model.step(
@@ -245,7 +245,7 @@ class RCCar(Env):
         done = jnp.asarray(0.0)
         info = {**state.info, "cost": cost, **step_info}
         next_state = State(
-            pipeline_state=state.pipeline_state,
+            pipeline_state=next_obs,
             obs=next_obs,
             reward=reward,
             done=done,
