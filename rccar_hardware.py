@@ -60,6 +60,7 @@ def main(cfg):
     traj_count = 0
     rng = jax.random.PRNGKey(cfg.seed)
     logger = TrainingLogger(cfg)
+    # FIXME (yarden): this does not comply with the sim-to-real training, should be removed
     factor = cfg.environment.sliding_window if cfg.environment.sliding_window > 0 else 1
     with hardware.connect(
         car_id=cfg.car_id,
