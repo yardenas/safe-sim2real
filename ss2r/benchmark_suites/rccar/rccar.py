@@ -305,10 +305,8 @@ def render(env, policy, steps, rng):
     trajectory = jax.tree_map(lambda x: x[:, 0], trajectory.obs)
     if env.encode_angle:
         trajectory = decode_angles(trajectory, 2)
-    obstacle_position, obstacle_radius = env.obstacle[:2], env.obstacle[2]
     images = [
-        draw_scene(trajectory, timestep, obstacle_position, obstacle_radius)
-        for timestep in range(steps)
+        draw_scene(trajectory, timestep, env.obstacles) for timestep in range(steps)
     ]
     return np.asanyarray(images).transpose(0, 3, 1, 2)
 
