@@ -153,7 +153,7 @@ def cost_fn(state: jax.Array, obstacle_position, obstacle_radius) -> jax.Array:
     distance = jnp.linalg.norm(xy - obstacle_position)
     obstacle = jnp.where(distance >= obstacle_radius, 0.0, 1.0)
     x, y = state[..., 0], state[..., 1]
-    in_bounds = lambda x, lower, upper: jnp.where(x >= lower & x <= upper, 0.0, 1.0)
+    in_bounds = lambda x, lower, upper: jnp.where((x >= lower) & (x <= upper), 0.0, 1.0)
     in_x = in_bounds(x, *X_LIM)
     in_y = in_bounds(y, *Y_LIM)
     return obstacle + in_x + in_y
