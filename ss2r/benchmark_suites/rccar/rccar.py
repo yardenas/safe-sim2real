@@ -155,7 +155,7 @@ def cost_fn(xy, obstacle_position, obstacle_radius) -> jax.Array:
     in_bounds = lambda x, lower, upper: jnp.where((x >= lower) & (x <= upper), 0.0, 1.0)
     in_x = in_bounds(x, *X_LIM)
     in_y = in_bounds(y, *Y_LIM)
-    return obstacle + in_x + in_y, jnp.asarray((in_x + in_y) > 0.0)
+    return obstacle + in_x + in_y, jnp.asarray((in_x + in_y) > 0.0, dtype=jnp.float32)
 
 
 class RCCar(Env):
