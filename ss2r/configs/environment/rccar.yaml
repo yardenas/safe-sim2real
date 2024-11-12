@@ -12,9 +12,9 @@ margin_factor: 20.0
 max_throttle: 0.4
 use_obs_noise: false
 obstacles:
-  - [1.75, 0, 0.6] # x, y, radius
-  - [0.75, -0.75, 0.35]
-  - [0.75, 0.75, 0.35]
+  - [2., 0, 0.35] # x, y, radius
+  - [1., -1., 0.35]
+  - [1., 1., 0.35]
 observation_delay: 0
 action_delay: 0
 sliding_window: 0
