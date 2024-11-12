@@ -290,7 +290,7 @@ def draw_scene(trajectory, timestep, obstacles):
     ax.set_ylim(-pos_domain_size, pos_domain_size)
     colors = ["red", "white", "blue"]
     radii = [0.3, 0.2, 0.1]
-    obs = trajectory.obs[..., :2]
+    obs = trajectory.obs[..., 2:]
     if obs.shape[-1] == 7:
         obs = decode_angles(obs, 2)
     target_center = trajectory.pipeline_state[1][timestep]
