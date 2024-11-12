@@ -148,11 +148,10 @@ class RCCarEnvReward:
         return reward
 
 
-def cost_fn(state: jax.Array, obstacle_position, obstacle_radius) -> jax.Array:
-    xy = state[..., :2]
+def cost_fn(xy, obstacle_position, obstacle_radius) -> jax.Array:
+    x, y = xy[..., 0], xy[..., 1]
     distance = jnp.linalg.norm(xy - obstacle_position)
     obstacle = jnp.where(distance >= obstacle_radius, 0.0, 1.0)
-    x, y = state[..., 0], state[..., 1]
     in_bounds = lambda x, lower, upper: jnp.where((x >= lower) & (x <= upper), 0.0, 1.0)
     in_x = in_bounds(x, *X_LIM)
     in_y = in_bounds(y, *Y_LIM)
@@ -217,8 +216,29 @@ class RCCar(Env):
         if isinstance(self.dynamics_model, HardwareDynamics):
             init_state = self.dynamics_model.mocap_state()
         else:
-            init_pos = self.init_pose[:2] + jax.random.uniform(
-                key_pos, shape=(2,), minval=-1.75, maxval=1.75
+
+            def sample_init_pos(ins):
+                _, key = ins
+                key, nkey = jax.random.split(key, 2)
+                x_key, y_key = jax.random.split(key, 2)
+                init_x = self.init_pose[:1] + jax.random.uniform(
+                    x_key, shape=(1,), minval=-0.75, maxval=2.25
+                )
+                init_y = self.init_pose[1:2] + jax.random.uniform(
+                    y_key, shape=(1,), minval=-1.5, maxval=1.5
+                )
+                init_pos = jnp.concatenate([init_x, init_y])
+                return init_pos, nkey
+
+            # Iterate until found a feasible initial position. Compare first key to make sure that sampling actually happens.
+            init_pos, key_pos = jax.lax.while_loop(
+                lambda ins: (
+                    cost_fn(ins[0], jnp.asarray(self.obstacle[:2]), self.obstacle[2])
+                    > 0.0
+                )
+                | ((ins[1] == key_pos).all()),
+                sample_init_pos,
+                (self.init_pose[:2], key_pos),
             )
             init_theta = self.init_pose[2:] + jax.random.uniform(
                 key_pos, shape=(1,), minval=-jnp.pi, maxval=jnp.pi
@@ -249,7 +269,7 @@ class RCCar(Env):
         # FIXME (yarden): hard-coded key is bad here.
         next_obs = self._obs(next_dynamics_state, rng=jax.random.PRNGKey(0))
         reward = self.reward_model.forward(obs=None, action=action, next_obs=next_obs)
-        cost = cost_fn(obs, jnp.asarray(self.obstacle[:2]), self.obstacle[2])
+        cost = cost_fn(obs[..., :2], jnp.asarray(self.obstacle[:2]), self.obstacle[2])
         done = jnp.asarray(0.0)
         info = {**state.info, "cost": cost, **step_info}
         next_state = State(
@@ -287,44 +307,93 @@ def render(env, policy, steps, rng):
         trajectory = decode_angles(trajectory, 2)
     obstacle_position, obstacle_radius = env.obstacle[:2], env.obstacle[2]
     images = [
-        draw_scene(trajectory, timestep, obstacle_position, obstacle_radius)
+        draw_scene(
+            trajectory,
+            timestep,
+            obstacle_position,
+            obstacle_radius,
+        )
         for timestep in range(steps)
     ]
     return np.asanyarray(images).transpose(0, 3, 1, 2)
 
 
-def draw_scene(obs, timestep, obstacle_position, obstacle_radius):
+def draw_scene(
+    obs,
+    timestep,
+    obstacle_position,
+    obstacle_radius,
+):
     from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
     from matplotlib.figure import Figure
     from matplotlib.patches import Circle, Rectangle
+    from matplotlib.patches import Rectangle as Region
 
+    X_LIM_NEG, X_LIM_POS = X_LIM
+    Y_LIM_NEG, Y_LIM_POS = Y_LIM
     obstacle_position = jnp.array([obstacle_position[1], -obstacle_position[0]])
-    # Create a figure and axis
     fig = Figure(figsize=(2.5, 2.5), dpi=300)
     canvas = FigureCanvas(fig)
     ax = fig.gca()
-    pos_domain_size = 3.5
+    pos_domain_size = (
+        max(abs(X_LIM_NEG), abs(X_LIM_POS), abs(Y_LIM_NEG), abs(Y_LIM_POS)) + 0.5
+    )
     ax.set_xlim(-pos_domain_size, pos_domain_size)
     ax.set_ylim(-pos_domain_size, pos_domain_size)
+    left_region = Region(
+        (-pos_domain_size, -pos_domain_size),
+        (pos_domain_size + X_LIM_NEG, 2 * pos_domain_size),
+        color="red",
+        alpha=0.1,
+    )
+    ax.add_patch(left_region)
+    right_region = Region(
+        (X_LIM_POS, -pos_domain_size),
+        (pos_domain_size - X_LIM_POS, 2 * pos_domain_size),
+        color="red",
+        alpha=0.1,
+    )
+    ax.add_patch(right_region)
+    bottom_region = Region(
+        (-pos_domain_size, -pos_domain_size),
+        (2 * pos_domain_size, pos_domain_size + Y_LIM_NEG),
+        color="red",
+        alpha=0.1,
+    )
+    ax.add_patch(bottom_region)
+    top_region = Region(
+        (-pos_domain_size, Y_LIM_POS),
+        (2 * pos_domain_size, pos_domain_size - Y_LIM_POS),
+        color="red",
+        alpha=0.1,
+    )
+    ax.add_patch(top_region)
     target_center = (0, 0)
     colors = ["red", "white", "blue"]
     radii = [0.3, 0.2, 0.1]
-
     for radius, color in zip(radii, colors):
         circle = Circle(target_center, radius, color=color, ec="black", lw=0.5)
         ax.add_patch(circle)
-    # Rotate coordinates if required
     rotated_trajectory = rotate_coordinates(obs, encode_angle=False)
-    # Plot the car's position and velocity at the specified timestep
     x, y = rotated_trajectory[timestep, 0], rotated_trajectory[timestep, 1]
     vx, vy = rotated_trajectory[timestep, 3], rotated_trajectory[timestep, 4]
+    is_outside = x < X_LIM_NEG or x > X_LIM_POS or y < Y_LIM_NEG or y > Y_LIM_POS
+    if is_outside:
+        ax.text(
+            0,
+            pos_domain_size - 0.5,
+            "WARNING: Car outside limits!",
+            color="red",
+            horizontalalignment="center",
+            fontsize=8,
+        )
     car_width, car_length = 0.07, 0.2
     car = Rectangle(
         (x - car_length / 2, y - car_width / 2),
         car_length,
         car_width,
         angle=rotated_trajectory[timestep, 2] * 180 / np.pi,
-        color="green",
+        color="green" if not is_outside else "red",
         alpha=0.7,
         ec="black",
         rotation_point="center",
@@ -351,8 +420,11 @@ def draw_scene(obs, timestep, obstacle_position, obstacle_radius):
         headwidth=3,
         linewidth=0.5,
     )
+    ax.axvline(x=X_LIM_NEG, color="red", linestyle="--", alpha=0.3, linewidth=0.5)
+    ax.axvline(x=X_LIM_POS, color="red", linestyle="--", alpha=0.3, linewidth=0.5)
+    ax.axhline(y=Y_LIM_NEG, color="red", linestyle="--", alpha=0.3, linewidth=0.5)
+    ax.axhline(y=Y_LIM_POS, color="red", linestyle="--", alpha=0.3, linewidth=0.5)
     ax.grid(True, linewidth=0.5, c="gainsboro", zorder=0)
-    # Render figure to canvas and retrieve RGB array
     canvas.draw()
     image = np.frombuffer(canvas.tostring_rgb(), dtype="uint8").copy()
     image = image.reshape(*reversed(canvas.get_width_height()), 3)
