@@ -201,7 +201,9 @@ class RCCar(Env):
             margin_factor=margin_factor,
         )
 
-    def _obs(self, state: jnp.array, rng: jax.random.PRNGKey) -> jnp.array:
+    def _obs(
+        self, state: jnp.array, rng: jax.random.PRNGKey, goal: jnp.array
+    ) -> jnp.array:
         """Adds observation noise to the state"""
         assert state.shape[-1] == 6
         # add observation noise
@@ -216,6 +218,7 @@ class RCCar(Env):
         assert (obs.shape[-1] == 7 and self.encode_angle) or (
             obs.shape[-1] == 6 and not self.encode_angle
         )
+        obs = obs.at[:2].set(obs[:2] - goal[:2])
         return obs
 
     def sample_pos(self, key):
@@ -257,10 +260,10 @@ class RCCar(Env):
                 [0.005, 0.005, 0.02]
             ) * jax.random.normal(key_vel, shape=(3,))
             init_state = jnp.concatenate([init_pos, init_theta, init_vel])
-        init_state = self._obs(init_state, rng=key_obs)
+        init_obs = self._obs(init_state, rng=key_obs)
         return State(
             pipeline_state=(init_state, goal, key_pos),
-            obs=init_state,
+            obs=init_obs,
             reward=jnp.array(0.0),
             done=jnp.array(0.0),
             info={"cost": jnp.array(0.0)},
