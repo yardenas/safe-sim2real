@@ -270,8 +270,6 @@ def render(env, policy, steps, rng):
 
     _, trajectory = rollout(env, policy, steps, rng)
     trajectory = jax.tree_map(lambda x: x[:, 0], trajectory)
-    if env.encode_angle:
-        trajectory = decode_angles(trajectory, 2)
     images = [
         draw_scene(trajectory, timestep, env.obstacles) for timestep in range(steps)
     ]
@@ -292,7 +290,9 @@ def draw_scene(trajectory, timestep, obstacles):
     ax.set_ylim(-pos_domain_size, pos_domain_size)
     colors = ["red", "white", "blue"]
     radii = [0.3, 0.2, 0.1]
-    obs = trajectory.obs
+    obs = trajectory.obs[..., :2]
+    if obs.shape[-1] == 7:
+        obs = decode_angles(obs, 2)
     target_center = trajectory.pipeline_state[1][timestep]
 
     for radius, color in zip(radii, colors):
