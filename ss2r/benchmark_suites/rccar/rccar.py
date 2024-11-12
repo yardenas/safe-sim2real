@@ -17,7 +17,7 @@ OBS_NOISE_STD_SIM_CAR: jnp.array = 0.1 * jnp.exp(
     jnp.array([-4.5, -4.5, -4.0, -2.5, -2.5, -1.0])
 )
 
-X_LIM = (-0.8, 2.5)
+X_LIM = (-0.8, 3.5)
 Y_LIM = (-1.8, 1.8)
 
 
@@ -155,7 +155,7 @@ def cost_fn(xy, obstacle_position, obstacle_radius) -> jax.Array:
     in_bounds = lambda x, lower, upper: jnp.where((x >= lower) & (x <= upper), 0.0, 1.0)
     in_x = in_bounds(x, *X_LIM)
     in_y = in_bounds(y, *Y_LIM)
-    return obstacle + in_x + in_y
+    return obstacle + in_x + in_y, jnp.asarray((in_x + in_y) > 0.0)
 
 
 class RCCar(Env):
@@ -222,7 +222,7 @@ class RCCar(Env):
                 key, nkey = jax.random.split(key, 2)
                 x_key, y_key = jax.random.split(key, 2)
                 init_x = self.init_pose[:1] + jax.random.uniform(
-                    x_key, shape=(1,), minval=-0.75, maxval=2.25
+                    x_key, shape=(1,), minval=-0.75, maxval=3.0
                 )
                 init_y = self.init_pose[1:2] + jax.random.uniform(
                     y_key, shape=(1,), minval=-1.5, maxval=1.5
@@ -233,7 +233,7 @@ class RCCar(Env):
             # Iterate until found a feasible initial position. Compare first key to make sure that sampling actually happens.
             init_pos, key_pos = jax.lax.while_loop(
                 lambda ins: (
-                    cost_fn(ins[0], jnp.asarray(self.obstacle[:2]), self.obstacle[2])
+                    cost_fn(ins[0], jnp.asarray(self.obstacle[:2]), self.obstacle[2])[0]
                     > 0.0
                 )
                 | ((ins[1] == key_pos).all()),
@@ -269,8 +269,9 @@ class RCCar(Env):
         # FIXME (yarden): hard-coded key is bad here.
         next_obs = self._obs(next_dynamics_state, rng=jax.random.PRNGKey(0))
         reward = self.reward_model.forward(obs=None, action=action, next_obs=next_obs)
-        cost = cost_fn(obs[..., :2], jnp.asarray(self.obstacle[:2]), self.obstacle[2])
-        done = jnp.asarray(0.0)
+        cost, done = cost_fn(
+            obs[..., :2], jnp.asarray(self.obstacle[:2]), self.obstacle[2]
+        )
         info = {**state.info, "cost": cost, **step_info}
         next_state = State(
             pipeline_state=next_obs,
