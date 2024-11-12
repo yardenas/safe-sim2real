@@ -104,7 +104,6 @@ def decode_angles(state: jnp.array, angle_idx: int) -> jnp.array:
 class RCCarEnvReward:
     def __init__(
         self,
-        goal: jax.Array,
         encode_angle: bool = False,
         ctrl_cost_weight: float = 0.005,
         bound: float = 0.1,
@@ -112,7 +111,6 @@ class RCCarEnvReward:
     ):
         self._angle_idx = 2
         self.dim_action = (2,)
-        self.goal = goal
         self.ctrl_cost_weight = ctrl_cost_weight
         self.encode_angle = encode_angle
         self.tolerance_reward = functools.partial(
@@ -135,12 +133,14 @@ class RCCarEnvReward:
         """Computes the reward/penalty for the given action"""
         return -(action**2).sum(-1)
 
-    def state_reward(self, obs: jax.Array, next_obs: jax.Array) -> jax.Array:
+    def state_reward(
+        self, obs: jax.Array, next_obs: jax.Array, goal: jax.Array
+    ) -> jax.Array:
         """Computes the reward for the given observations"""
         if self.encode_angle:
             next_obs = decode_angles(next_obs, angle_idx=self._angle_idx)
-        pos_diff = next_obs[..., :2] - self.goal[:2]
-        theta_diff = next_obs[..., 2] - self.goal[2]
+        pos_diff = next_obs[..., :2] - goal[:2]
+        theta_diff = next_obs[..., 2] - goal[2]
         pos_dist = jnp.sqrt(jnp.sum(jnp.square(pos_diff), axis=-1))
         theta_dist = jnp.abs(((theta_diff + jnp.pi) % (2 * jnp.pi)) - jnp.pi)
         total_dist = jnp.sqrt(pos_dist**2 + theta_dist**2)
@@ -182,7 +182,6 @@ class RCCar(Env):
         *,
         hardware: HardwareDynamics | None = None,
     ):
-        self.goal = jnp.array([0.0, 0.0, 0.0])
         self.obstacles = obstacles
         self.init_pose = jnp.array([1.42, -1.04, jnp.pi])
         self.angle_idx = 2
@@ -197,7 +196,6 @@ class RCCar(Env):
         self.sys = CarParams(**car_model_params)
         self.use_obs_noise = use_obs_noise
         self.reward_model = RCCarEnvReward(
-            goal=self.goal,
             ctrl_cost_weight=ctrl_cost_weight,
             encode_angle=self.encode_angle,
             margin_factor=margin_factor,
@@ -220,33 +218,38 @@ class RCCar(Env):
         )
         return obs
 
+    def sample_pos(self, key):
+        def sample_init_pos(ins):
+            _, key = ins
+            key, nkey = jax.random.split(key, 2)
+            x_key, y_key = jax.random.split(key, 2)
+            init_x = self.init_pose[:1] + jax.random.uniform(
+                x_key, shape=(1,), minval=0.0, maxval=3.0
+            )
+            init_y = self.init_pose[1:2] + jax.random.uniform(
+                y_key, shape=(1,), minval=-1.5, maxval=1.5
+            )
+            init_pos = jnp.concatenate([init_x, init_y])
+            return init_pos, nkey
+
+        # Iterate until found a feasible initial position. Compare first key to make sure that sampling actually happens.
+        pos, key_pos = jax.lax.while_loop(
+            lambda ins: (cost_fn(ins[0], self.obstacles) > 0.0)
+            | ((ins[1] == key_pos).all()),
+            sample_init_pos,
+            (jnp.zeros_like(self.init_pose[:2]), key),
+        )
+        return pos, key_pos
+
     def reset(self, rng: jax.Array) -> State:
         """Resets the environment to a random initial state close to the initial pose"""
         key_pos, key_vel, key_obs = jax.random.split(rng, 3)
+
         if isinstance(self.dynamics_model, HardwareDynamics):
             init_state = self.dynamics_model.mocap_state()
+            goal, key_pos = self.sample_pos(key_pos)
         else:
-
-            def sample_init_pos(ins):
-                _, key = ins
-                key, nkey = jax.random.split(key, 2)
-                x_key, y_key = jax.random.split(key, 2)
-                init_x = self.init_pose[:1] + jax.random.uniform(
-                    x_key, shape=(1,), minval=0.0, maxval=3.0
-                )
-                init_y = self.init_pose[1:2] + jax.random.uniform(
-                    y_key, shape=(1,), minval=-1.5, maxval=1.5
-                )
-                init_pos = jnp.concatenate([init_x, init_y])
-                return init_pos, nkey
-
-            # Iterate until found a feasible initial position. Compare first key to make sure that sampling actually happens.
-            init_pos, key_pos = jax.lax.while_loop(
-                lambda ins: (cost_fn(ins[0], self.obstacles) > 0.0)
-                | ((ins[1] == key_pos).all()),
-                sample_init_pos,
-                (self.init_pose[:2], key_pos),
-            )
+            init_pos, key_pos = self.sample_pos(key_pos)
             init_theta = self.init_pose[2:] + jax.random.uniform(
                 key_pos, shape=(1,), minval=-jnp.pi, maxval=jnp.pi
             )
@@ -256,7 +259,7 @@ class RCCar(Env):
             init_state = jnp.concatenate([init_pos, init_theta, init_vel])
         init_state = self._obs(init_state, rng=key_obs)
         return State(
-            pipeline_state=init_state,
+            pipeline_state=(init_state, goal, key_pos),
             obs=init_state,
             reward=jnp.array(0.0),
             done=jnp.array(0.0),
@@ -276,11 +279,15 @@ class RCCar(Env):
         # FIXME (yarden): hard-coded key is bad here.
         next_obs = self._obs(next_dynamics_state, rng=jax.random.PRNGKey(0))
         reward = self.reward_model.forward(obs=None, action=action, next_obs=next_obs)
+        key = state.pipeline_state[3]
+        goal, key = jax.lax.cond(
+            reward > 0.99, self.sample_pos, lambda _: state.pipeline_state[1], key, key
+        )
         cost = cost_fn(obs[..., :2], self.obstacles)
         done = 1.0 - in_arena(next_obs[..., :2], 1.3)
         info = {**state.info, "cost": cost, **step_info}
         next_state = State(
-            pipeline_state=next_obs,
+            pipeline_state=(next_obs, goal, key),
             obs=next_obs,
             reward=reward,
             done=done,
@@ -309,7 +316,7 @@ def render(env, policy, steps, rng):
     import numpy as np
 
     _, trajectory = rollout(env, policy, steps, rng)
-    trajectory = jax.tree_map(lambda x: x[:, 0], trajectory.obs)
+    trajectory = jax.tree_map(lambda x: x[:, 0], trajectory)
     if env.encode_angle:
         trajectory = decode_angles(trajectory, 2)
     images = [
@@ -318,7 +325,7 @@ def render(env, policy, steps, rng):
     return np.asanyarray(images).transpose(0, 3, 1, 2)
 
 
-def draw_scene(obs, timestep, obstacles):
+def draw_scene(trajectory, timestep, obstacles):
     from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
     from matplotlib.figure import Figure
     from matplotlib.patches import Circle, Rectangle
@@ -330,9 +337,10 @@ def draw_scene(obs, timestep, obstacles):
     pos_domain_size = 3.5
     ax.set_xlim(-pos_domain_size, pos_domain_size)
     ax.set_ylim(-pos_domain_size, pos_domain_size)
-    target_center = (0, 0)
     colors = ["red", "white", "blue"]
     radii = [0.3, 0.2, 0.1]
+    obs = trajectory.obs
+    target_center = trajectory.pipeline_state[1][timestep]
 
     for radius, color in zip(radii, colors):
         circle = Circle(target_center, radius, color=color, ec="black", lw=0.5)
