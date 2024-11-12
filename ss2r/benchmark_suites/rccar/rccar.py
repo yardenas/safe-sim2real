@@ -17,6 +17,9 @@ OBS_NOISE_STD_SIM_CAR: jnp.array = 0.1 * jnp.exp(
     jnp.array([-4.5, -4.5, -4.0, -2.5, -2.5, -1.0])
 )
 
+X_LIM = (-0.8, 2.5)
+Y_LIM = (-1.8, 1.8)
+
 
 def domain_randomization(sys, rng, cfg):
     def sample_from_bounds(value, key):
@@ -148,7 +151,12 @@ class RCCarEnvReward:
 def cost_fn(state: jax.Array, obstacle_position, obstacle_radius) -> jax.Array:
     xy = state[..., :2]
     distance = jnp.linalg.norm(xy - obstacle_position)
-    return jnp.where(distance >= obstacle_radius, 0.0, 1.0)
+    obstacle = jnp.where(distance >= obstacle_radius, 0.0, 1.0)
+    x, y = state[..., 0], state[..., 1]
+    in_bounds = lambda x, lower, upper: jnp.where(x >= lower & x <= upper, 0.0, 1.0)
+    in_x = in_bounds(x, *X_LIM)
+    in_y = in_bounds(y, *Y_LIM)
+    return obstacle + in_x + in_y
 
 
 class RCCar(Env):
