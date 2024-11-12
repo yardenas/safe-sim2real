@@ -18,7 +18,7 @@ OBS_NOISE_STD_SIM_CAR: jnp.array = 0.1 * jnp.exp(
 )
 
 X_LIM = (-0.3, 3.5)
-Y_LIM = (-1.8, 1.8)
+Y_LIM = (-1.7, 1.7)
 
 
 def domain_randomization(sys, rng, cfg):
