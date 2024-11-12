@@ -13,8 +13,8 @@ max_throttle: 0.4
 use_obs_noise: false
 obstacles:
   - [1.75, 0, 0.6] # x, y, radius
-  - [0.75, -0.75, 0.2]
-  - [0.75, 0.75, 0.2]
+  - [0.75, -0.75, 0.35]
+  - [0.75, 0.75, 0.35]
 observation_delay: 0
 action_delay: 0
 sliding_window: 0
