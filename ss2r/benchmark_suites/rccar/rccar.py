@@ -149,16 +149,23 @@ class RCCarEnvReward:
 
 
 def cost_fn(xy, obstacles) -> jax.Array:
-    x, y = xy[..., 0], xy[..., 1]
     total = 0.0
     for obstacle in obstacles:
         position, radius = jnp.asarray(obstacle[:2]), obstacle[2]
         distance = jnp.linalg.norm(xy - position)
         total += jnp.where(distance >= radius, 0.0, 1.0)
-    in_bounds = lambda x, lower, upper: jnp.where((x >= lower) & (x <= upper), 0.0, 1.0)
+    out = 1.0 - in_arena(xy)
+    return total + out
+
+
+def in_arena(xy, scale=1.0):
+    x, y = xy[..., 0], xy[..., 1]
+    in_bounds = lambda x, lower, upper: jnp.where(
+        (x >= lower * scale) & (x <= upper * scale), True, False
+    )
     in_x = in_bounds(x, *X_LIM)
     in_y = in_bounds(y, *Y_LIM)
-    return total + in_x + in_y
+    return jnp.asarray(in_x & in_y, dtype=jnp.float32)
 
 
 class RCCar(Env):
@@ -270,7 +277,7 @@ class RCCar(Env):
         next_obs = self._obs(next_dynamics_state, rng=jax.random.PRNGKey(0))
         reward = self.reward_model.forward(obs=None, action=action, next_obs=next_obs)
         cost = cost_fn(obs[..., :2], self.obstacles)
-        done = jnp.asarray(0.0)
+        done = in_arena(next_obs[..., :2], 1.2)
         info = {**state.info, "cost": cost, **step_info}
         next_state = State(
             pipeline_state=next_obs,
