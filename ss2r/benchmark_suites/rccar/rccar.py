@@ -327,11 +327,11 @@ def draw_scene(
     from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
     from matplotlib.figure import Figure
     from matplotlib.patches import Circle, Rectangle
-    from matplotlib.patches import Rectangle as Region
 
     X_LIM_NEG, X_LIM_POS = X_LIM
     Y_LIM_NEG, Y_LIM_POS = Y_LIM
     obstacle_position = jnp.array([obstacle_position[1], -obstacle_position[0]])
+
     fig = Figure(figsize=(2.5, 2.5), dpi=300)
     canvas = FigureCanvas(fig)
     ax = fig.gca()
@@ -340,43 +340,55 @@ def draw_scene(
     )
     ax.set_xlim(-pos_domain_size, pos_domain_size)
     ax.set_ylim(-pos_domain_size, pos_domain_size)
-    left_region = Region(
-        (-pos_domain_size, -pos_domain_size),
-        (pos_domain_size + X_LIM_NEG, 2 * pos_domain_size),
+
+    # Draw constraint regions using correct Rectangle interface
+    left_region = Rectangle(
+        xy=(-pos_domain_size, -pos_domain_size),
+        width=pos_domain_size + X_LIM_NEG,
+        height=2 * pos_domain_size,
         color="red",
         alpha=0.1,
     )
     ax.add_patch(left_region)
-    right_region = Region(
-        (X_LIM_POS, -pos_domain_size),
-        (pos_domain_size - X_LIM_POS, 2 * pos_domain_size),
+
+    right_region = Rectangle(
+        xy=(X_LIM_POS, -pos_domain_size),
+        width=pos_domain_size - X_LIM_POS,
+        height=2 * pos_domain_size,
         color="red",
         alpha=0.1,
     )
     ax.add_patch(right_region)
-    bottom_region = Region(
-        (-pos_domain_size, -pos_domain_size),
-        (2 * pos_domain_size, pos_domain_size + Y_LIM_NEG),
+
+    bottom_region = Rectangle(
+        xy=(-pos_domain_size, -pos_domain_size),
+        width=2 * pos_domain_size,
+        height=pos_domain_size + Y_LIM_NEG,
         color="red",
         alpha=0.1,
     )
     ax.add_patch(bottom_region)
-    top_region = Region(
-        (-pos_domain_size, Y_LIM_POS),
-        (2 * pos_domain_size, pos_domain_size - Y_LIM_POS),
+
+    top_region = Rectangle(
+        xy=(-pos_domain_size, Y_LIM_POS),
+        width=2 * pos_domain_size,
+        height=pos_domain_size - Y_LIM_POS,
         color="red",
         alpha=0.1,
     )
     ax.add_patch(top_region)
+
     target_center = (0, 0)
     colors = ["red", "white", "blue"]
     radii = [0.3, 0.2, 0.1]
     for radius, color in zip(radii, colors):
         circle = Circle(target_center, radius, color=color, ec="black", lw=0.5)
         ax.add_patch(circle)
+
     rotated_trajectory = rotate_coordinates(obs, encode_angle=False)
     x, y = rotated_trajectory[timestep, 0], rotated_trajectory[timestep, 1]
     vx, vy = rotated_trajectory[timestep, 3], rotated_trajectory[timestep, 4]
+
     is_outside = x < X_LIM_NEG or x > X_LIM_POS or y < Y_LIM_NEG or y > Y_LIM_POS
     if is_outside:
         ax.text(
@@ -387,11 +399,12 @@ def draw_scene(
             horizontalalignment="center",
             fontsize=8,
         )
+
     car_width, car_length = 0.07, 0.2
     car = Rectangle(
-        (x - car_length / 2, y - car_width / 2),
-        car_length,
-        car_width,
+        xy=(x - car_length / 2, y - car_width / 2),
+        width=car_length,
+        height=car_width,
         angle=rotated_trajectory[timestep, 2] * 180 / np.pi,
         color="green" if not is_outside else "red",
         alpha=0.7,
@@ -399,6 +412,7 @@ def draw_scene(
         rotation_point="center",
     )
     ax.add_patch(car)
+
     obstacle = Circle(
         obstacle_position,
         obstacle_radius,
@@ -408,6 +422,7 @@ def draw_scene(
         lw=1.5,
     )
     ax.add_patch(obstacle)
+
     ax.quiver(
         x,
         y,
@@ -420,11 +435,14 @@ def draw_scene(
         headwidth=3,
         linewidth=0.5,
     )
+
     ax.axvline(x=X_LIM_NEG, color="red", linestyle="--", alpha=0.3, linewidth=0.5)
     ax.axvline(x=X_LIM_POS, color="red", linestyle="--", alpha=0.3, linewidth=0.5)
     ax.axhline(y=Y_LIM_NEG, color="red", linestyle="--", alpha=0.3, linewidth=0.5)
     ax.axhline(y=Y_LIM_POS, color="red", linestyle="--", alpha=0.3, linewidth=0.5)
+
     ax.grid(True, linewidth=0.5, c="gainsboro", zorder=0)
+
     canvas.draw()
     image = np.frombuffer(canvas.tostring_rgb(), dtype="uint8").copy()
     image = image.reshape(*reversed(canvas.get_width_height()), 3)
