@@ -19,7 +19,7 @@ training:
   train_domain_randomization: true
   eval_domain_randomization: true
   privileged: true
-  safety_budget: 1.
+  safety_budget: 5.
 
 
 agent:
