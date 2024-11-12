@@ -148,14 +148,17 @@ class RCCarEnvReward:
         return reward
 
 
-def cost_fn(xy, obstacle_position, obstacle_radius) -> jax.Array:
+def cost_fn(xy, obstacles) -> jax.Array:
     x, y = xy[..., 0], xy[..., 1]
-    distance = jnp.linalg.norm(xy - obstacle_position)
-    obstacle = jnp.where(distance >= obstacle_radius, 0.0, 1.0)
+    total = 0.0
+    for obstacle in obstacles:
+        position, radius = jnp.asarray(obstacle[:2]), obstacle[2]
+        distance = jnp.linalg.norm(xy - position)
+        total += jnp.where(distance >= radius, 0.0, 1.0)
     in_bounds = lambda x, lower, upper: jnp.where((x >= lower) & (x <= upper), 0.0, 1.0)
     in_x = in_bounds(x, *X_LIM)
     in_y = in_bounds(y, *Y_LIM)
-    return obstacle + in_x + in_y
+    return total + in_x + in_y
 
 
 class RCCar(Env):
@@ -168,12 +171,12 @@ class RCCar(Env):
         margin_factor: float = 10.0,
         max_throttle: float = 1.0,
         dt: float = 1 / 30.0,
-        obstacle: tuple[float, float, float] = (0.75, -0.75, 0.2),
+        obstacles: list[tuple[float, float, float]] = [(0.75, -0.75, 0.2)],
         *,
         hardware: HardwareDynamics | None = None,
     ):
         self.goal = jnp.array([0.0, 0.0, 0.0])
-        self.obstacle = tuple(obstacle)
+        self.obstacles = obstacles
         self.init_pose = jnp.array([1.42, -1.04, jnp.pi])
         self.angle_idx = 2
         self._obs_noise_stds = OBS_NOISE_STD_SIM_CAR
@@ -232,10 +235,7 @@ class RCCar(Env):
 
             # Iterate until found a feasible initial position. Compare first key to make sure that sampling actually happens.
             init_pos, key_pos = jax.lax.while_loop(
-                lambda ins: (
-                    cost_fn(ins[0], jnp.asarray(self.obstacle[:2]), self.obstacle[2])
-                    > 0.0
-                )
+                lambda ins: (cost_fn(ins[0], self.obstacles) > 0.0)
                 | ((ins[1] == key_pos).all()),
                 sample_init_pos,
                 (self.init_pose[:2], key_pos),
@@ -269,7 +269,7 @@ class RCCar(Env):
         # FIXME (yarden): hard-coded key is bad here.
         next_obs = self._obs(next_dynamics_state, rng=jax.random.PRNGKey(0))
         reward = self.reward_model.forward(obs=None, action=action, next_obs=next_obs)
-        cost = cost_fn(obs[..., :2], jnp.asarray(self.obstacle[:2]), self.obstacle[2])
+        cost = cost_fn(obs[..., :2], self.obstacles)
         done = jnp.asarray(0.0)
         info = {**state.info, "cost": cost, **step_info}
         next_state = State(
@@ -313,12 +313,11 @@ def render(env, policy, steps, rng):
     return np.asanyarray(images).transpose(0, 3, 1, 2)
 
 
-def draw_scene(obs, timestep, obstacle_position, obstacle_radius):
+def draw_scene(obs, timestep, obstacles):
     from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
     from matplotlib.figure import Figure
     from matplotlib.patches import Circle, Rectangle
 
-    obstacle_position = jnp.array([obstacle_position[1], -obstacle_position[0]])
     # Create a figure and axis
     fig = Figure(figsize=(2.5, 2.5), dpi=300)
     canvas = FigureCanvas(fig)
@@ -350,15 +349,13 @@ def draw_scene(obs, timestep, obstacle_position, obstacle_radius):
         rotation_point="center",
     )
     ax.add_patch(car)
-    obstacle = Circle(
-        obstacle_position,
-        obstacle_radius,
-        color="gray",
-        alpha=0.5,
-        ec="black",
-        lw=1.5,
-    )
-    ax.add_patch(obstacle)
+    for obstacle in obstacles:
+        position, radius = obstacle[:2], obstacle[2]
+        obstacle_position = jnp.array([position[1], -position[0]])
+        obstacle = Circle(
+            obstacle_position, radius, color="gray", alpha=0.5, ec="black", lw=1.5
+        )
+        ax.add_patch(obstacle)
     ax.quiver(
         x,
         y,
