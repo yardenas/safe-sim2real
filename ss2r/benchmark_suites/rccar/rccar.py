@@ -155,7 +155,7 @@ def cost_fn(xy, obstacle_position, obstacle_radius) -> jax.Array:
     in_bounds = lambda x, lower, upper: jnp.where((x >= lower) & (x <= upper), 0.0, 1.0)
     in_x = in_bounds(x, *X_LIM)
     in_y = in_bounds(y, *Y_LIM)
-    return obstacle + in_x + in_y, jnp.asarray((in_x + in_y) > 0.0, dtype=jnp.float32)
+    return obstacle + in_x + in_y
 
 
 class RCCar(Env):
@@ -233,7 +233,7 @@ class RCCar(Env):
             # Iterate until found a feasible initial position. Compare first key to make sure that sampling actually happens.
             init_pos, key_pos = jax.lax.while_loop(
                 lambda ins: (
-                    cost_fn(ins[0], jnp.asarray(self.obstacle[:2]), self.obstacle[2])[0]
+                    cost_fn(ins[0], jnp.asarray(self.obstacle[:2]), self.obstacle[2])
                     > 0.0
                 )
                 | ((ins[1] == key_pos).all()),
@@ -269,9 +269,8 @@ class RCCar(Env):
         # FIXME (yarden): hard-coded key is bad here.
         next_obs = self._obs(next_dynamics_state, rng=jax.random.PRNGKey(0))
         reward = self.reward_model.forward(obs=None, action=action, next_obs=next_obs)
-        cost, done = cost_fn(
-            obs[..., :2], jnp.asarray(self.obstacle[:2]), self.obstacle[2]
-        )
+        cost = cost_fn(obs[..., :2], jnp.asarray(self.obstacle[:2]), self.obstacle[2])
+        done = jnp.asarray(0.0)
         info = {**state.info, "cost": cost, **step_info}
         next_state = State(
             pipeline_state=next_obs,
