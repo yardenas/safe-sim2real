@@ -277,7 +277,7 @@ class RCCar(Env):
         next_obs = self._obs(next_dynamics_state, rng=jax.random.PRNGKey(0))
         reward = self.reward_model.forward(obs=None, action=action, next_obs=next_obs)
         cost = cost_fn(obs[..., :2], self.obstacles)
-        done = in_arena(next_obs[..., :2], 1.2)
+        done = 1.0 - in_arena(next_obs[..., :2], 1.2)
         info = {**state.info, "cost": cost, **step_info}
         next_state = State(
             pipeline_state=next_obs,
