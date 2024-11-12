@@ -17,7 +17,7 @@ OBS_NOISE_STD_SIM_CAR: jnp.array = 0.1 * jnp.exp(
     jnp.array([-4.5, -4.5, -4.0, -2.5, -2.5, -1.0])
 )
 
-X_LIM = (-0.8, 3.5)
+X_LIM = (-0.3, 3.5)
 Y_LIM = (-1.8, 1.8)
 
 
@@ -222,7 +222,7 @@ class RCCar(Env):
                 key, nkey = jax.random.split(key, 2)
                 x_key, y_key = jax.random.split(key, 2)
                 init_x = self.init_pose[:1] + jax.random.uniform(
-                    x_key, shape=(1,), minval=-0.75, maxval=3.0
+                    x_key, shape=(1,), minval=0.0, maxval=3.0
                 )
                 init_y = self.init_pose[1:2] + jax.random.uniform(
                     y_key, shape=(1,), minval=-1.5, maxval=1.5
