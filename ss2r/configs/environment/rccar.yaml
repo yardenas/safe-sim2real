@@ -18,3 +18,4 @@ obstacles:
 observation_delay: 0
 action_delay: 0
 sliding_window: 0
+sample_init_pose: true
