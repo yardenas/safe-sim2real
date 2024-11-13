@@ -8,11 +8,10 @@ import numpy as np
 
 from rccar_experiments.utils import (
     DummyPolicy,
-    Trajectory,
     collect_trajectory,
     make_env,
 )
-from ss2r.benchmark_suites.rccar.rccar import decode_angles, draw_scene
+from ss2r.benchmark_suites.rccar.rccar import draw_scene
 
 _LOG = logging.getLogger(__name__)
 
@@ -21,16 +20,6 @@ def load_trajectory(path):
     with open(path, "rb") as f:
         traj = pickle.load(f)
     return traj
-
-
-def decode_angle(trajectory):
-    obs = decode_angles(trajectory.observation, 2)
-    return Trajectory(
-        observation=obs,
-        action=trajectory.action,
-        reward=trajectory.reward,
-        cost=trajectory.cost,
-    )
 
 
 def play_recorded_trajectory(actions, env):
@@ -56,9 +45,6 @@ def main(cfg):
     model_trajectory = jax.tree_map(
         asarray, model_trajectory, is_leaf=lambda x: isinstance(x, list)
     )
-    if cfg.decode_check:
-        check_trajectory = decode_angle(check_trajectory)
-    model_trajectory = decode_angle(model_trajectory)
     horizon = min(
         len(baseline_trajectory.observation),
         len(check_trajectory.observation),
