@@ -19,7 +19,7 @@ training:
   train_domain_randomization: true
   eval_domain_randomization: true
   privileged: true
-  safety_budget: 1.
+  safety_budget: 10.
 
 
 agent:
@@ -28,3 +28,6 @@ agent:
   min_replay_size: 100
   max_replay_size: 100000
   hidden_layer_sizes: [64, 64]
+  safety_discounting: 0.965
+  lagrange_multiplier: 0.1
+  penalty_multiplier: 5e-6

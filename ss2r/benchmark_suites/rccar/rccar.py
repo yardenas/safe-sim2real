@@ -17,6 +17,9 @@ OBS_NOISE_STD_SIM_CAR: jnp.array = 0.1 * jnp.exp(
     jnp.array([-4.5, -4.5, -4.0, -2.5, -2.5, -1.0])
 )
 
+X_LIM = (-0.3, 1.5)
+Y_LIM = (-1.25, 1.25)
+
 
 def domain_randomization(sys, rng, cfg):
     def sample_from_bounds(value, key):
@@ -145,10 +148,24 @@ class RCCarEnvReward:
         return reward
 
 
-def cost_fn(state: jax.Array, obstacle_position, obstacle_radius) -> jax.Array:
-    xy = state[..., :2]
-    distance = jnp.linalg.norm(xy - obstacle_position)
-    return jnp.where(distance >= obstacle_radius, 0.0, 1.0)
+def cost_fn(xy, obstacles) -> jax.Array:
+    total = 0.0
+    for obstacle in obstacles:
+        position, radius = jnp.asarray(obstacle[:2]), obstacle[2]
+        distance = jnp.linalg.norm(xy - position)
+        total += jnp.where(distance >= radius, 0.0, 1.0)
+    out = 1.0 - in_arena(xy)
+    return total + out
+
+
+def in_arena(xy, scale=1.0):
+    x, y = xy[..., 0], xy[..., 1]
+    in_bounds = lambda x, lower, upper: jnp.where(
+        (x >= lower * scale) & (x <= upper * scale), True, False
+    )
+    in_x = in_bounds(x, *X_LIM)
+    in_y = in_bounds(y, *Y_LIM)
+    return jnp.asarray(in_x & in_y, dtype=jnp.float32)
 
 
 class RCCar(Env):
@@ -161,12 +178,12 @@ class RCCar(Env):
         margin_factor: float = 10.0,
         max_throttle: float = 1.0,
         dt: float = 1 / 30.0,
-        obstacle: tuple[float, float, float] = (0.75, -0.75, 0.2),
+        obstacles: list[tuple[float, float, float]] = [(0.75, -0.75, 0.2)],
         *,
         hardware: HardwareDynamics | None = None,
     ):
         self.goal = jnp.array([0.0, 0.0, 0.0])
-        self.obstacle = tuple(obstacle)
+        self.obstacles = obstacles
         self.init_pose = jnp.array([1.42, -1.04, jnp.pi])
         self.angle_idx = 2
         self._obs_noise_stds = OBS_NOISE_STD_SIM_CAR
@@ -209,8 +226,26 @@ class RCCar(Env):
         if isinstance(self.dynamics_model, HardwareDynamics):
             init_state = self.dynamics_model.mocap_state()
         else:
-            init_pos = self.init_pose[:2] + jax.random.uniform(
-                key_pos, shape=(2,), minval=-1.75, maxval=1.75
+
+            def sample_init_pos(ins):
+                _, key = ins
+                key, nkey = jax.random.split(key, 2)
+                x_key, y_key = jax.random.split(key, 2)
+                init_x = self.init_pose[:1] + jax.random.uniform(
+                    x_key, shape=(1,), minval=0.0, maxval=3.0
+                )
+                init_y = self.init_pose[1:2] + jax.random.uniform(
+                    y_key, shape=(1,), minval=-1.5, maxval=1.5
+                )
+                init_pos = jnp.concatenate([init_x, init_y])
+                return init_pos, nkey
+
+            # Iterate until found a feasible initial position. Compare first key to make sure that sampling actually happens.
+            init_pos, key_pos = jax.lax.while_loop(
+                lambda ins: (cost_fn(ins[0], self.obstacles) > 0.0)
+                | ((ins[1] == key_pos).all()),
+                sample_init_pos,
+                (self.init_pose[:2], key_pos),
             )
             init_theta = self.init_pose[2:] + jax.random.uniform(
                 key_pos, shape=(1,), minval=-jnp.pi, maxval=jnp.pi
@@ -241,8 +276,8 @@ class RCCar(Env):
         # FIXME (yarden): hard-coded key is bad here.
         next_obs = self._obs(next_dynamics_state, rng=jax.random.PRNGKey(0))
         reward = self.reward_model.forward(obs=None, action=action, next_obs=next_obs)
-        cost = cost_fn(obs, jnp.asarray(self.obstacle[:2]), self.obstacle[2])
-        done = jnp.asarray(0.0)
+        cost = cost_fn(obs[..., :2], self.obstacles)
+        done = 1.0 - in_arena(next_obs[..., :2], 1.6)
         info = {**state.info, "cost": cost, **step_info}
         next_state = State(
             pipeline_state=next_obs,
@@ -277,20 +312,17 @@ def render(env, policy, steps, rng):
     trajectory = jax.tree_map(lambda x: x[:, 0], trajectory.obs)
     if env.encode_angle:
         trajectory = decode_angles(trajectory, 2)
-    obstacle_position, obstacle_radius = env.obstacle[:2], env.obstacle[2]
     images = [
-        draw_scene(trajectory, timestep, obstacle_position, obstacle_radius)
-        for timestep in range(steps)
+        draw_scene(trajectory, timestep, env.obstacles) for timestep in range(steps)
     ]
     return np.asanyarray(images).transpose(0, 3, 1, 2)
 
 
-def draw_scene(obs, timestep, obstacle_position, obstacle_radius):
+def draw_scene(obs, timestep, obstacles):
     from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
     from matplotlib.figure import Figure
     from matplotlib.patches import Circle, Rectangle
 
-    obstacle_position = jnp.array([obstacle_position[1], -obstacle_position[0]])
     # Create a figure and axis
     fig = Figure(figsize=(2.5, 2.5), dpi=300)
     canvas = FigureCanvas(fig)
@@ -322,15 +354,13 @@ def draw_scene(obs, timestep, obstacle_position, obstacle_radius):
         rotation_point="center",
     )
     ax.add_patch(car)
-    obstacle = Circle(
-        obstacle_position,
-        obstacle_radius,
-        color="gray",
-        alpha=0.5,
-        ec="black",
-        lw=1.5,
-    )
-    ax.add_patch(obstacle)
+    for obstacle in obstacles:
+        position, radius = obstacle[:2], obstacle[2]
+        obstacle_position = jnp.array([position[1], -position[0]])
+        obstacle = Circle(
+            obstacle_position, radius, color="gray", alpha=0.5, ec="black", lw=1.5
+        )
+        ax.add_patch(obstacle)
     ax.quiver(
         x,
         y,
