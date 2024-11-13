@@ -160,7 +160,7 @@ class RCCar(Env):
             obs = state
         if self.encode_angle:
             obs = encode_angles(obs, self.angle_idx)
-        obs = jnp.concat([obs[:2] - goal[:2], obs], axis=-1)
+        obs = jnp.concat([obs[:2] - goal, obs], axis=-1)
         assert (obs.shape[-1] == 9 and self.encode_angle) or (
             obs.shape[-1] == 8 and not self.encode_angle
         )
@@ -290,9 +290,7 @@ def draw_scene(trajectory, timestep, obstacles):
     ax.set_ylim(-pos_domain_size, pos_domain_size)
     colors = ["red", "white", "blue"]
     radii = [0.3, 0.2, 0.1]
-    obs = trajectory.obs[..., 2:]
-    if obs.shape[-1] == 7:
-        obs = decode_angles(obs, 2)
+    obs = trajectory.pipeline_state[0]
     target_center = trajectory.pipeline_state[1][timestep]
 
     for radius, color in zip(radii, colors):
