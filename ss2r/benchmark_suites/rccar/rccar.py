@@ -230,8 +230,10 @@ class RCCar(Env):
         goal_dist = jnp.linalg.norm(next_obs[:2])
         prev_goal_dist = state.pipeline_state[3]
         reward = prev_goal_dist - goal_dist
+        goal_achieved = goal_dist < 0.1
+        reward += goal_achieved.astype(jnp.float32)
         goal, key = jax.lax.cond(
-            goal_dist < 0.1,
+            goal_achieved,
             lambda key: self.sample_pos(key, jnp.zeros_like(self.init_pose[:2])),
             lambda _: (state.pipeline_state[1], key),
             nkey,
