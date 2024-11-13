@@ -400,14 +400,7 @@ def train(
         else:
             new_target_qc_params = None
         if aux:
-            cond = aux["lagrangian_cond"]
-            new_lagrangian_params = sac_losses.update_augmented_lagrangian(
-                cond,
-                training_state.lagrangian_params.penalty_multiplier,
-                penalty_multiplier_factor,
-            )
             additional_metrics = {
-                "lagrange_multiplier": new_lagrangian_params.lagrange_multiplier,
                 **aux,
             }
         else:

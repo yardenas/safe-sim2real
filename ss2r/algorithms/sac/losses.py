@@ -143,23 +143,17 @@ def make_losses(
         )
         min_qr = jnp.min(qr_action, axis=-1)
         aux = {}
+        actor_loss = (alpha * log_prob - min_qr).mean()
         if qc_params is not None:
             qc_action = qc_network.apply(
                 normalizer_params, qc_params, transitions.observation, action
             )
             mean_qc = jnp.mean(qc_action, axis=-1)
             constraint = safety_budget - mean_qc.mean()
-            psi, cond = augmented_lagrangian(
-                constraint,
-                lagrangian_params.lagrange_multiplier,
-                lagrangian_params.penalty_multiplier,
+            actor_loss = jnp.where(
+                jnp.greater(constraint, 0.0), actor_loss, -constraint
             )
-            actor_loss = psi + jnp.mean(alpha * log_prob - min_qr)
-            aux["lagrangian_cond"] = cond
             aux["constraint_estimate"] = constraint
-            aux["cost"] = mean_qc.mean()
-        else:
-            actor_loss = jnp.mean(alpha * log_prob - min_qr)
         return actor_loss, aux
 
     return alpha_loss, critic_loss, actor_loss
