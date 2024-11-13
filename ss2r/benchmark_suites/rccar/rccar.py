@@ -226,7 +226,7 @@ class RCCar(Env):
         goal_dist = jnp.linalg.norm(next_dynamics_state[:2] - goal)
         prev_goal_dist = state.pipeline_state[3]
         reward = prev_goal_dist - goal_dist
-        goal_achieved = goal_dist < 0.15
+        goal_achieved = jnp.less_equal(goal_dist, 0.15)
         reward += goal_achieved.astype(jnp.float32)
         goal, key = jax.lax.cond(
             goal_achieved,
