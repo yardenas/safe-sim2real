@@ -223,11 +223,10 @@ class RCCar(Env):
         key = state.pipeline_state[2]
         goal = state.pipeline_state[1]
         nkey, key = jax.random.split(key, 2)
-        next_obs = self._obs(next_dynamics_state, key, goal)
-        goal_dist = jnp.linalg.norm(next_obs[:2])
+        goal_dist = jnp.linalg.norm(next_dynamics_state[:2] - goal)
         prev_goal_dist = state.pipeline_state[3]
         reward = prev_goal_dist - goal_dist
-        goal_achieved = goal_dist < 0.1
+        goal_achieved = goal_dist < 0.15
         reward += goal_achieved.astype(jnp.float32)
         goal, key = jax.lax.cond(
             goal_achieved,
@@ -235,6 +234,7 @@ class RCCar(Env):
             lambda _: (state.pipeline_state[1], key),
             nkey,
         )
+        next_obs = self._obs(next_dynamics_state, key, goal)
         cost = cost_fn(next_dynamics_state[:2], self.obstacles)
         done = jnp.zeros_like(1.0 - in_arena(next_dynamics_state[:2], 1.2))
         info = {**state.info, "cost": cost, **step_info}
