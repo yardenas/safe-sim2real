@@ -235,8 +235,8 @@ class RCCar(Env):
             lambda _: (state.pipeline_state[1], key),
             nkey,
         )
-        cost = cost_fn(next_obs[..., 2:4], self.obstacles)
-        done = jnp.zeros_like(1.0 - in_arena(next_obs[..., 2:4], 1.2))
+        cost = cost_fn(next_dynamics_state[:2], self.obstacles)
+        done = jnp.zeros_like(1.0 - in_arena(next_dynamics_state[:2], 1.2))
         info = {**state.info, "cost": cost, **step_info}
         next_state = State(
             pipeline_state=(next_dynamics_state, goal, nkey, goal_dist),
