@@ -8,7 +8,6 @@ task_name: rccar
 dt: 0.033
 max_throttle: 0.4
 use_obs_noise: false
-reward_scale: 1.
 obstacles:
   - [2., 0, 0.35] # x, y, radius
   - [1., -1., 0.35]
