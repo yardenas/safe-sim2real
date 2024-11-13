@@ -62,7 +62,8 @@ def make_losses(
         log_prob = parametric_action_distribution.log_prob(dist_params, action)
         alpha = jnp.exp(log_alpha)
         alpha_loss = alpha * jax.lax.stop_gradient(-log_prob - target_entropy)
-        return jnp.mean(alpha_loss)
+        alpha_loss = jnp.mean(alpha_loss)
+        return jnp.clip(alpha_loss, a_min=-100.0, a_max=100.0)
 
     def critic_loss(
         q_params: Params,
@@ -112,6 +113,7 @@ def make_losses(
         truncation = transitions.extras["state_extras"]["truncation"]
         q_error *= jnp.expand_dims(1 - truncation, -1)
         q_loss = 0.5 * jnp.mean(jnp.square(q_error))
+        q_loss = jnp.clip(q_loss, a_min=-1000.0, a_max=1000.0)
         return q_loss
 
     def actor_loss(
@@ -143,6 +145,7 @@ def make_losses(
         )
         min_qr = jnp.min(qr_action, axis=-1)
         aux = {}
+        actor_loss = (alpha * log_prob - min_qr).mean()
         if qc_params is not None:
             qc_action = qc_network.apply(
                 normalizer_params, qc_params, transitions.observation, action
@@ -154,12 +157,11 @@ def make_losses(
                 lagrangian_params.lagrange_multiplier,
                 lagrangian_params.penalty_multiplier,
             )
-            actor_loss = psi + jnp.mean(alpha * log_prob - min_qr)
+            actor_loss = psi + actor_loss
             aux["lagrangian_cond"] = cond
             aux["constraint_estimate"] = constraint
             aux["cost"] = mean_qc.mean()
-        else:
-            actor_loss = jnp.mean(alpha * log_prob - min_qr)
+        actor_loss = jnp.clip(actor_loss, a_min=-1000.0, a_max=1000.0)
         return actor_loss, aux
 
     return alpha_loss, critic_loss, actor_loss

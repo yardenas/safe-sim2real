@@ -17,8 +17,8 @@ OBS_NOISE_STD_SIM_CAR: jnp.array = 0.1 * jnp.exp(
     jnp.array([-4.5, -4.5, -4.0, -2.5, -2.5, -1.0])
 )
 
-X_LIM = (-0.3, 1.5)
-Y_LIM = (-1.25, 1.25)
+X_LIM = (-0.3, 3.0)
+Y_LIM = (-1.5, 1.5)
 
 
 def domain_randomization(sys, rng, cfg):
@@ -231,12 +231,8 @@ class RCCar(Env):
                 _, key = ins
                 key, nkey = jax.random.split(key, 2)
                 x_key, y_key = jax.random.split(key, 2)
-                init_x = self.init_pose[:1] + jax.random.uniform(
-                    x_key, shape=(1,), minval=0.0, maxval=3.0
-                )
-                init_y = self.init_pose[1:2] + jax.random.uniform(
-                    y_key, shape=(1,), minval=-1.5, maxval=1.5
-                )
+                init_x = jax.random.uniform(x_key, shape=(1,), minval=1.25, maxval=3.0)
+                init_y = jax.random.uniform(y_key, shape=(1,), minval=-1.5, maxval=1.5)
                 init_pos = jnp.concatenate([init_x, init_y])
                 return init_pos, nkey
 
@@ -277,7 +273,7 @@ class RCCar(Env):
         next_obs = self._obs(next_dynamics_state, rng=jax.random.PRNGKey(0))
         reward = self.reward_model.forward(obs=None, action=action, next_obs=next_obs)
         cost = cost_fn(obs[..., :2], self.obstacles)
-        done = 1.0 - in_arena(next_obs[..., :2], 1.6)
+        done = 1.0 - in_arena(next_obs[..., :2], 2.0)
         info = {**state.info, "cost": cost, **step_info}
         next_state = State(
             pipeline_state=next_obs,
