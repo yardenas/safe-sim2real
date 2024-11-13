@@ -124,7 +124,5 @@ class SACCost(QTransformation):
         next_q = q_fn(transitions.next_observation, next_action)
         next_v = next_q.mean(axis=-1)
         cost = transitions.extras["state_extras"]["cost"]
-        target_q = jax.lax.stop_gradient(
-            cost * reward_scaling + transitions.discount * gamma * next_v
-        )
+        target_q = jax.lax.stop_gradient(cost + transitions.discount * gamma * next_v)
         return target_q
