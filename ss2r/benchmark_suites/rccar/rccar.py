@@ -290,7 +290,9 @@ def draw_scene(trajectory, timestep, obstacles):
     colors = ["red", "white", "blue"]
     radii = [0.3, 0.2, 0.1]
     obs = trajectory.pipeline_state[0]
+    transpose = lambda x, y: jnp.array([y, -x])
     target_center = trajectory.pipeline_state[1][timestep]
+    target_center = transpose(target_center[0], target_center[1])
 
     for radius, color in zip(radii, colors):
         circle = Circle(target_center, radius, color=color, ec="black", lw=0.5)
@@ -314,7 +316,7 @@ def draw_scene(trajectory, timestep, obstacles):
     ax.add_patch(car)
     for obstacle in obstacles:
         position, radius = obstacle[:2], obstacle[2]
-        obstacle_position = jnp.array([position[1], -position[0]])
+        obstacle_position = transpose(position[0], position[1])
         obstacle = Circle(
             obstacle_position, radius, color="gray", alpha=0.5, ec="black", lw=1.5
         )
