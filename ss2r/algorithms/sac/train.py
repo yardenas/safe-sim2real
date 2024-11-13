@@ -403,6 +403,7 @@ def train(
             additional_metrics = {
                 **aux,
             }
+            new_lagrangian_params = training_state.lagrangian_params
         else:
             new_lagrangian_params = training_state.lagrangian_params
             additional_metrics = {}
