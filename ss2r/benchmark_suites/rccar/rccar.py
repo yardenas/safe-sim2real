@@ -125,9 +125,11 @@ class RCCar(Env):
         max_throttle: float = 1.0,
         dt: float = 1 / 30.0,
         obstacles: list[tuple[float, float, float]] = [(0.75, -0.75, 0.2)],
+        reward_scale: float = 1.0,
         *,
         hardware: HardwareDynamics | None = None,
     ):
+        self.reward_scale = reward_scale
         self.obstacles = obstacles
         self.init_pose = jnp.array([1.42, -1.04, jnp.pi])
         self.angle_idx = 2
@@ -225,7 +227,7 @@ class RCCar(Env):
         nkey, key = jax.random.split(key, 2)
         goal_dist = jnp.linalg.norm(next_dynamics_state[:2] - goal)
         prev_goal_dist = state.pipeline_state[3]
-        reward = prev_goal_dist - goal_dist
+        reward = (prev_goal_dist - goal_dist) * self.reward_scale
         goal_achieved = jnp.less_equal(goal_dist, 0.4)
         reward += goal_achieved.astype(jnp.float32)
         goal, key = jax.lax.cond(
