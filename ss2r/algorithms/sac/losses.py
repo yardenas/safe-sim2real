@@ -112,6 +112,7 @@ def make_losses(
         truncation = transitions.extras["state_extras"]["truncation"]
         q_error *= jnp.expand_dims(1 - truncation, -1)
         q_loss = 0.5 * jnp.mean(jnp.square(q_error))
+        q_loss = jnp.clip(q_loss, a_min=-1000.0, a_max=1000.0)
         return q_loss
 
     def actor_loss(
@@ -153,6 +154,7 @@ def make_losses(
             actor_loss = jnp.where(
                 jnp.greater(constraint, 0.0), actor_loss, -constraint
             )
+            actor_loss = jnp.clip(actor_loss, a_min=-1000.0, a_max=1000.0)
             aux["constraint_estimate"] = constraint
         return actor_loss, aux
 
