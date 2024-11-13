@@ -63,7 +63,7 @@ def make_losses(
         alpha = jnp.exp(log_alpha)
         alpha_loss = alpha * jax.lax.stop_gradient(-log_prob - target_entropy)
         alpha_loss = jnp.mean(alpha_loss)
-        return jnp.clip(alpha_loss, a_min=-100.0, a_max=100.0)
+        return jnp.clip(alpha_loss, a_min=-10.0, a_max=10.0)
 
     def critic_loss(
         q_params: Params,
