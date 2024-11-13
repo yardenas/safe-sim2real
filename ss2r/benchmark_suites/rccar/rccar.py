@@ -233,7 +233,7 @@ class RCCar(Env):
                 _, key = ins
                 key, nkey = jax.random.split(key, 2)
                 x_key, y_key = jax.random.split(key, 2)
-                if not self.sample_init_pose:
+                if self.sample_init_pose:
                     init_x = jax.random.uniform(
                         x_key, shape=(1,), minval=1.25, maxval=3.0
                     )
