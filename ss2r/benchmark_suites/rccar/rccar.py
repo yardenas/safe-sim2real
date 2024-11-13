@@ -159,7 +159,7 @@ class RCCar(Env):
             obs = state
         if self.encode_angle:
             obs = encode_angles(obs, self.angle_idx)
-        obs = jnp.concat([obs[:2] - goal, obs], axis=-1)
+        obs = jnp.concat([goal, obs], axis=-1)
         assert (obs.shape[-1] == 9 and self.encode_angle) or (
             obs.shape[-1] == 8 and not self.encode_angle
         )
