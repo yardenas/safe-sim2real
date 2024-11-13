@@ -104,8 +104,7 @@ def cost_fn(xy, obstacles) -> jax.Array:
         position, radius = jnp.asarray(obstacle[:2]), obstacle[2]
         distance = jnp.linalg.norm(xy - position)
         total += jnp.where(distance >= radius, 0.0, 1.0)
-    out = 1.0 - in_arena(xy)
-    return total + out
+    return total
 
 
 def in_arena(xy, scale=1.0):
@@ -122,9 +121,7 @@ class RCCar(Env):
     def __init__(
         self,
         car_model_params: dict,
-        ctrl_cost_weight: float = 0.005,
         use_obs_noise: bool = False,
-        margin_factor: float = 10.0,
         max_throttle: float = 1.0,
         dt: float = 1 / 30.0,
         obstacles: list[tuple[float, float, float]] = [(0.75, -0.75, 0.2)],
