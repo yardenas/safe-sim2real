@@ -233,32 +233,26 @@ class RCCar(Env):
                 _, key = ins
                 key, nkey = jax.random.split(key, 2)
                 x_key, y_key = jax.random.split(key, 2)
-                if self.sample_init_pose:
-                    init_x = jax.random.uniform(
-                        x_key, shape=(1,), minval=1.25, maxval=3.0
-                    )
-                    init_y = jax.random.uniform(
-                        y_key, shape=(1,), minval=-1.5, maxval=1.5
-                    )
-                    init_pos = jnp.concatenate([init_x, init_y])
-                else:
-                    init_pos = self.init_pose[:2] + jax.random.uniform(
-                        key_pos, shape=(2,), minval=-0.10, maxval=0.10
-                    )
+                init_x = jax.random.uniform(x_key, shape=(1,), minval=1.25, maxval=3.0)
+                init_y = jax.random.uniform(y_key, shape=(1,), minval=-1.5, maxval=1.5)
+                init_pos = jnp.concatenate([init_x, init_y])
                 return init_pos, nkey
 
             # Iterate until found a feasible initial position. Compare first key to make sure that sampling actually happens.
-            init_pos, key_pos = jax.lax.while_loop(
-                lambda ins: (cost_fn(ins[0], self.obstacles) > 0.0)
-                | ((ins[1] == key_pos).all()),
-                sample_init_pos,
-                (self.init_pose[:2], key_pos),
-            )
             if self.sample_init_pose:
+                init_pos, key_pos = jax.lax.while_loop(
+                    lambda ins: (cost_fn(ins[0], self.obstacles) > 0.0)
+                    | ((ins[1] == key_pos).all()),
+                    sample_init_pos,
+                    (self.init_pose[:2], key_pos),
+                )
                 init_theta = self.init_pose[2:] + jax.random.uniform(
                     key_pos, shape=(1,), minval=-jnp.pi, maxval=jnp.pi
                 )
             else:
+                init_pos = self.init_pose[:2] + jax.random.uniform(
+                    key_pos, shape=(2,), minval=-0.10, maxval=0.10
+                )
                 init_theta = self.init_pose[2:] + jax.random.uniform(
                     key_pos, shape=(1,), minval=-0.10 * jnp.pi, maxval=0.10 * jnp.pi
                 )
