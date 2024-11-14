@@ -11,7 +11,11 @@ ctrl_cost_weight: 0.005
 margin_factor: 20.0
 max_throttle: 0.4
 use_obs_noise: false
-obstacle: [0.75, -0.75, 0.3] # x, y, radius
+obstacles:
+  - [0.75, 0.75, 0.3] # x, y, radius
+  - [0.75, 0., 0.3]
+  - [0.75, -0.75, 0.3]
 observation_delay: 0
 action_delay: 0
 sliding_window: 0
+sample_init_pose: true
