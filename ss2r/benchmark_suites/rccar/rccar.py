@@ -155,6 +155,7 @@ def cost_fn(xy, obstacles) -> jax.Array:
         distance = jnp.linalg.norm(xy - position)
         total += jnp.where(distance >= radius, 0.0, 1.0)
     out = 1.0 - in_arena(xy)
+    # FIXME (yarden): decide what to do with the zero here.
     return total + out * 0
 
 
