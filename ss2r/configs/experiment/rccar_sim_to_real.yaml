@@ -10,16 +10,17 @@ environment:
   observation_delay: 0
   sliding_window: 5
   dt: 0.03333333
+  sample_init_pose: false
 
 
 training:
   num_envs: 128
   num_timesteps: 2000000
-  episode_length: 500
+  episode_length: 250
   train_domain_randomization: true
   eval_domain_randomization: true
   privileged: true
-  safety_budget: 10.
+  safety_budget: 0.
 
 
 agent:
@@ -28,6 +29,6 @@ agent:
   min_replay_size: 100
   max_replay_size: 100000
   hidden_layer_sizes: [64, 64]
-  safety_discounting: 0.965
+  safety_discounting: 0.99
   lagrange_multiplier: 0.1
   penalty_multiplier: 5e-6

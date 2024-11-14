@@ -155,8 +155,12 @@ def make_losses(
             actor_loss = jnp.where(
                 jnp.greater(constraint, 0.0), actor_loss, -constraint
             )
+            actor_loss = psi + actor_loss
+            aux["lagrangian_cond"] = cond
             actor_loss = jnp.clip(actor_loss, a_min=-1000.0, a_max=1000.0)
             aux["constraint_estimate"] = constraint
+            aux["cost"] = mean_qc.mean()
+        actor_loss = jnp.clip(actor_loss, a_min=-1000.0, a_max=1000.0)
         return actor_loss, aux
 
     return alpha_loss, critic_loss, actor_loss
