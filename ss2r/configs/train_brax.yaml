@@ -1,7 +1,7 @@
 defaults:
   - _self_
   - agent: sac
-  - environment: cartpole
+  - environment: rccar
 
 hydra:
   run:
