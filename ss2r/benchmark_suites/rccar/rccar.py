@@ -140,11 +140,8 @@ class RCCarEnvReward:
         if self.encode_angle:
             next_obs = decode_angles(next_obs, angle_idx=self._angle_idx)
         pos_diff = next_obs[..., :2] - self.goal[:2]
-        theta_diff = next_obs[..., 2] - self.goal[2]
         pos_dist = jnp.sqrt(jnp.sum(jnp.square(pos_diff), axis=-1))
-        theta_dist = jnp.abs(((theta_diff + jnp.pi) % (2 * jnp.pi)) - jnp.pi)
-        total_dist = jnp.sqrt(pos_dist**2 + theta_dist**2)
-        reward = self.tolerance_reward(total_dist)
+        reward = self.tolerance_reward(pos_dist)
         return reward
 
 
@@ -155,8 +152,7 @@ def cost_fn(xy, obstacles, *, scale_factor=1.0) -> jax.Array:
         distance = jnp.linalg.norm(xy - position)
         total += jnp.where(distance >= radius * scale_factor, 0.0, 1.0)
     out = 1.0 - in_arena(xy)
-    # FIXME (yarden): decide what to do with the zero here.
-    return total + out * 0
+    return total + out
 
 
 def in_arena(xy, scale=1.0):
@@ -234,7 +230,7 @@ class RCCar(Env):
                 _, key = ins
                 key, nkey = jax.random.split(key, 2)
                 x_key, y_key = jax.random.split(key, 2)
-                init_x = jax.random.uniform(x_key, shape=(1,), minval=1.25, maxval=3.0)
+                init_x = jax.random.uniform(x_key, shape=(1,), minval=-0.2, maxval=3.0)
                 init_y = jax.random.uniform(y_key, shape=(1,), minval=-1.5, maxval=1.5)
                 init_pos = jnp.concatenate([init_x, init_y])
                 return init_pos, nkey
@@ -243,7 +239,7 @@ class RCCar(Env):
             if self.sample_init_pose:
                 init_pos, key_pos = jax.lax.while_loop(
                     lambda ins: (
-                        cost_fn(ins[0], self.obstacles, scale_factor=2.5) > 0.0
+                        cost_fn(ins[0], self.obstacles, scale_factor=1.1) > 0.0
                     )
                     | ((ins[1] == key_pos).all()),
                     sample_init_pos,
