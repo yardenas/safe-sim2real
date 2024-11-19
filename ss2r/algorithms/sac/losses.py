@@ -22,16 +22,16 @@ import jax
 import jax.nn as jnn
 import jax.numpy as jnp
 from brax.training import types
-from brax.training.agents.sac import networks as sac_networks
 from brax.training.types import Params, PRNGKey
 
+from ss2r.algorithms.sac.networks import SafeSACNetworks
 from ss2r.algorithms.sac.robustness import QTransformation, SACBase
 
 Transition: TypeAlias = types.Transition
 
 
 def make_losses(
-    sac_network: sac_networks.SACNetworks,
+    sac_network: SafeSACNetworks,
     reward_scaling: float,
     discounting: float,
     safety_discounting: float,
@@ -147,6 +147,7 @@ def make_losses(
         aux = {}
         actor_loss = (alpha * log_prob - min_qr).mean()
         if qc_params is not None:
+            assert qc_network is not None
             qc_action = qc_network.apply(
                 normalizer_params, qc_params, transitions.observation, action
             )

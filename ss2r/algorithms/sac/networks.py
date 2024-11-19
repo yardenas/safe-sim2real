@@ -19,6 +19,7 @@ from typing import Any, Callable, Protocol, Sequence, TypeVar
 import brax.training.agents.sac.networks as sac_networks
 import flax
 import jax
+import jax.nn as jnn
 import jax.numpy as jnp
 from brax.training import distribution, networks, types
 from flax import linen
@@ -142,6 +143,10 @@ def make_sac_networks(
             preprocess_observations_fn=preprocess_observations_fn,
             hidden_layer_sizes=hidden_layer_sizes,
             activation=activation,
+        )
+        old_apply = qc_network.apply
+        qc_network.apply = lambda *args, **kwargs: jnn.softplus(
+            old_apply(*args, **kwargs)
         )
     else:
         qc_network = None
