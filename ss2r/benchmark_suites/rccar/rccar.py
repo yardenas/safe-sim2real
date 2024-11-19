@@ -145,7 +145,7 @@ class RCCarEnvReward:
         return reward
 
 
-def cost_fn(xy, obstacles, *, scale_factor=1.0) -> jax.Array:
+def cost_fn(xy, obstacles, *, scale_factor=1.0, use_arena=True) -> jax.Array:
     total = 0.0
     for obstacle in obstacles:
         position, radius = jnp.asarray(obstacle[:2]), obstacle[2]
@@ -230,12 +230,8 @@ class RCCar(Env):
                 _, key = ins
                 key, nkey = jax.random.split(key, 2)
                 x_key, y_key = jax.random.split(key, 2)
-                init_x = jax.random.uniform(
-                    x_key, shape=(1,), minval=X_LIM[0], maxval=X_LIM[1]
-                )
-                init_y = jax.random.uniform(
-                    y_key, shape=(1,), minval=Y_LIM[0], maxval=Y_LIM[1]
-                )
+                init_x = jax.random.uniform(x_key, shape=(1,), minval=-0.3, maxval=3.0)
+                init_y = jax.random.uniform(y_key, shape=(1,), minval=-2.5, maxval=2.5)
                 init_pos = jnp.concatenate([init_x, init_y])
                 return init_pos, nkey
 
@@ -243,7 +239,10 @@ class RCCar(Env):
             if self.sample_init_pose:
                 init_pos, key_pos = jax.lax.while_loop(
                     lambda ins: (
-                        cost_fn(ins[0], self.obstacles, scale_factor=1.1) > 0.0
+                        cost_fn(
+                            ins[0], self.obstacles, scale_factor=1.1, use_arena=False
+                        )
+                        > 0.0
                     )
                     | ((ins[1] == key_pos).all()),
                     sample_init_pos,
