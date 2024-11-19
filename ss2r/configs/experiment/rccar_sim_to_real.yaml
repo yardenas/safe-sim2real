@@ -10,7 +10,7 @@ environment:
   observation_delay: 0
   sliding_window: 5
   dt: 0.03333333
-  sample_init_pose: false
+  sample_init_pose: true
 
 
 training:
