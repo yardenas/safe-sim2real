@@ -18,7 +18,7 @@ OBS_NOISE_STD_SIM_CAR: jnp.array = 0.1 * jnp.exp(
 )
 
 X_LIM = (-0.3, 3.0)
-Y_LIM = (-1.5, 1.5)
+Y_LIM = (-2.3, 1.5)
 
 
 def domain_randomization(sys, rng, cfg):
@@ -230,8 +230,12 @@ class RCCar(Env):
                 _, key = ins
                 key, nkey = jax.random.split(key, 2)
                 x_key, y_key = jax.random.split(key, 2)
-                init_x = jax.random.uniform(x_key, shape=(1,), minval=-0.2, maxval=3.0)
-                init_y = jax.random.uniform(y_key, shape=(1,), minval=-1.5, maxval=1.5)
+                init_x = jax.random.uniform(
+                    x_key, shape=(1,), minval=X_LIM[0], maxval=X_LIM[1]
+                )
+                init_y = jax.random.uniform(
+                    y_key, shape=(1,), minval=Y_LIM[0], maxval=Y_LIM[1]
+                )
                 init_pos = jnp.concatenate([init_x, init_y])
                 return init_pos, nkey
 
