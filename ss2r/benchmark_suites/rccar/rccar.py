@@ -148,12 +148,12 @@ class RCCarEnvReward:
         return reward
 
 
-def cost_fn(xy, obstacles) -> jax.Array:
+def cost_fn(xy, obstacles, *, scale_factor=1.0) -> jax.Array:
     total = 0.0
     for obstacle in obstacles:
         position, radius = jnp.asarray(obstacle[:2]), obstacle[2]
         distance = jnp.linalg.norm(xy - position)
-        total += jnp.where(distance >= radius, 0.0, 1.0)
+        total += jnp.where(distance >= radius * scale_factor, 0.0, 1.0)
     out = 1.0 - in_arena(xy)
     # FIXME (yarden): decide what to do with the zero here.
     return total + out * 0
@@ -242,7 +242,9 @@ class RCCar(Env):
             # Iterate until found a feasible initial position. Compare first key to make sure that sampling actually happens.
             if self.sample_init_pose:
                 init_pos, key_pos = jax.lax.while_loop(
-                    lambda ins: (cost_fn(ins[0], self.obstacles) > 0.0)
+                    lambda ins: (
+                        cost_fn(ins[0], self.obstacles, scale_factor=2.5) > 0.0
+                    )
                     | ((ins[1] == key_pos).all()),
                     sample_init_pos,
                     (self.init_pose[:2], key_pos),
