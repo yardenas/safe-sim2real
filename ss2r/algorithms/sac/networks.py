@@ -129,7 +129,7 @@ def make_sac_networks(
         hidden_layer_sizes=hidden_layer_sizes,
         activation=activation,
     )
-    qr_network = networks.make_q_network(
+    qr_network = make_q_network(
         observation_size,
         action_size + domain_randomization_size,
         preprocess_observations_fn=preprocess_observations_fn,
@@ -137,7 +137,7 @@ def make_sac_networks(
         activation=activation,
     )
     if safe:
-        qc_network = networks.make_q_network(
+        qc_network = make_q_network(
             observation_size,
             action_size + domain_randomization_size,
             preprocess_observations_fn=preprocess_observations_fn,
