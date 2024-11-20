@@ -36,9 +36,6 @@ class UCBCost(QTransformation):
         next_obs = transitions.extras["state_extras"]["state_propagation"]["next_obs"]
         next_action, _ = policy(transitions.next_observation)
         if domain_params is not None:
-            domain_params = jnp.tile(
-                domain_params[:, None], (1, next_action.shape[1], 1)
-            )
             next_action = jnp.concatenate([next_action, domain_params], axis=-1)
         next_q = q_fn(transitions.next_observation, next_action)
         next_v = next_q.mean(axis=-1)
