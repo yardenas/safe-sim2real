@@ -230,7 +230,7 @@ class RCCar(Env):
                 _, key = ins
                 key, nkey = jax.random.split(key, 2)
                 x_key, y_key = jax.random.split(key, 2)
-                init_x = jax.random.uniform(x_key, shape=(1,), minval=-0.3, maxval=3.0)
+                init_x = jax.random.uniform(x_key, shape=(1,), minval=1.0, maxval=3.0)
                 init_y = jax.random.uniform(y_key, shape=(1,), minval=-2.5, maxval=2.5)
                 init_pos = jnp.concatenate([init_x, init_y])
                 return init_pos, nkey
@@ -240,7 +240,7 @@ class RCCar(Env):
                 init_pos, key_pos = jax.lax.while_loop(
                     lambda ins: (
                         cost_fn(
-                            ins[0], self.obstacles, scale_factor=1.1, use_arena=False
+                            ins[0], self.obstacles, scale_factor=1.5, use_arena=False
                         )
                         > 0.0
                     )
