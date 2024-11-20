@@ -152,7 +152,7 @@ def cost_fn(xy, obstacles, *, scale_factor=1.0, use_arena=True) -> jax.Array:
         distance = jnp.linalg.norm(xy - position)
         total += jnp.where(distance >= radius * scale_factor, 0.0, 1.0)
     out = 1.0 - in_arena(xy)
-    return total + out
+    return total + out * use_arena
 
 
 def in_arena(xy, scale=1.0):
