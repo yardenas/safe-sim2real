@@ -281,12 +281,12 @@ def train(
     if domain_parameters is not None:
         extras["state_extras"]["domain_parameters"] = domain_parameters[0]  # type: ignore
     if safe:
-        if propagation is not None:
-            extras["state_extras"]["state_propagation"] = {  # type: ignore
-                "next_obs": jnp.tile(dummy_obs, (num_envs,) + (1,) * dummy_obs.ndim),
-                "rng": rng,
-            }
         extras["state_extras"]["cost"] = 0.0  # type: ignore
+    if propagation is not None:
+        extras["state_extras"]["state_propagation"] = {  # type: ignore
+            "next_obs": jnp.tile(dummy_obs, (num_envs,) + (1,) * dummy_obs.ndim),
+            "rng": rng,
+        }
 
     dummy_transition = Transition(  # pytype: disable=wrong-arg-types  # jax-ndarray
         observation=dummy_obs,
