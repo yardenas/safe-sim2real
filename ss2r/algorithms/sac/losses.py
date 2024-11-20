@@ -196,5 +196,5 @@ def update_augmented_lagrangian(
     new_penalty_multiplier = jnp.clip(
         penalty_multiplier * (1.0 + penalty_multiplier_factor), penalty_multiplier, 1.0
     )
-    new_lagrange_multiplier = jnp.clip(cond, a_min=0.0, a_max=100.0)
+    new_lagrange_multiplier = jnp.clip(cond, a_min=0.0, a_max=5.0)
     return LagrangianParams(new_lagrange_multiplier, new_penalty_multiplier)
