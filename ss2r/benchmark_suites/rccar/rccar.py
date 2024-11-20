@@ -152,7 +152,7 @@ def cost_fn(xy, obstacles, *, scale_factor=1.0, use_arena=True) -> jax.Array:
         distance = jnp.linalg.norm(xy - position)
         total += jnp.where(distance >= radius * scale_factor, 0.0, 1.0)
     out = 1.0 - in_arena(xy)
-    return total + out
+    return total + out * use_arena
 
 
 def in_arena(xy, scale=1.0):
@@ -230,8 +230,8 @@ class RCCar(Env):
                 _, key = ins
                 key, nkey = jax.random.split(key, 2)
                 x_key, y_key = jax.random.split(key, 2)
-                init_x = jax.random.uniform(x_key, shape=(1,), minval=-0.3, maxval=3.0)
-                init_y = jax.random.uniform(y_key, shape=(1,), minval=-2.5, maxval=2.5)
+                init_x = jax.random.uniform(x_key, shape=(1,), minval=1.0, maxval=3.0)
+                init_y = jax.random.uniform(y_key, shape=(1,), minval=-2.3, maxval=1.5)
                 init_pos = jnp.concatenate([init_x, init_y])
                 return init_pos, nkey
 
@@ -240,7 +240,7 @@ class RCCar(Env):
                 init_pos, key_pos = jax.lax.while_loop(
                     lambda ins: (
                         cost_fn(
-                            ins[0], self.obstacles, scale_factor=1.1, use_arena=False
+                            ins[0], self.obstacles, scale_factor=1.5, use_arena=False
                         )
                         > 0.0
                     )
