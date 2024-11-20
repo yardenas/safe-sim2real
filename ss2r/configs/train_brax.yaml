@@ -21,7 +21,7 @@ hydra:
 log_dir: outputs
 
 writers:
-  - wandb
+  # - wandb
   - jsonl
   - stderr
 
