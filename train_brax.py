@@ -21,7 +21,7 @@ def get_state_path() -> str:
 
 
 def get_robustness(cfg):
-    if cfg.agent.robustness is None:
+    if cfg.agent.robustness is None or cfg.agent.robustness.name == "neutral":
         return rb.SACCost()
     assert cfg.agent.propagation == "ts1"
     if cfg.agent.robustness.name == "cvar":
