@@ -35,7 +35,7 @@ from brax.v1 import envs as envs_v1
 
 import ss2r.algorithms.sac.losses as sac_losses
 import ss2r.algorithms.sac.networks as sac_networks
-from ss2r.algorithms.sac.robustness import SACCost
+from ss2r.algorithms.sac.robustness import QTransformation, SACCost
 from ss2r.algorithms.sac.wrappers import DomainRandomizationParams, StatePropagation
 from ss2r.rl.evaluation import ConstraintsEvaluator
 
@@ -136,7 +136,6 @@ def train(
     num_envs: int = 1,
     num_eval_envs: int = 128,
     num_trajectories_per_env: int = 1,
-    cost_penalty: float | None = None,
     propagation: str | None = None,
     learning_rate: float = 1e-4,
     critic_learning_rate: float = 1e-4,
@@ -169,8 +168,7 @@ def train(
     lagrange_multiplier: float = 1e-9,
     penalty_multiplier: float = 1.0,
     penalty_multiplier_factor: float = 1.0,
-    cost_q_transform: str | None = None,
-    cvar_confidence: float = 0.95,
+    robustness: QTransformation = SACCost(),
 ):
     """SAC training."""
     process_id = jax.process_index()
@@ -369,7 +367,7 @@ def train(
                 transitions,
                 key_critic,
                 True,
-                SACCost(),
+                robustness,
                 optimizer_state=training_state.qc_optimizer_state,
             )
             cost_metrics = {
