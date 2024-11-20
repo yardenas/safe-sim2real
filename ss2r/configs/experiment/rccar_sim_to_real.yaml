@@ -3,6 +3,7 @@ defaults:
   - override /environment: rccar
   - override /environment/train_car_params: car_2_blend
   - override /environment/eval_car_params: car_2_blend
+  - override /agent/robustness: cvar
 
   
 environment:
@@ -32,3 +33,5 @@ agent:
   safety_discounting: 0.99
   lagrange_multiplier: 0.1
   penalty_multiplier: 5e-6
+  propagation: ts1
+  num_trajectories_per_env: 128

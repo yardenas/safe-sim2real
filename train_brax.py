@@ -9,6 +9,7 @@ from omegaconf import OmegaConf
 
 import ss2r.algorithms.sac.networks as sac_networks
 from ss2r import benchmark_suites
+from ss2r.algorithms.sac import robustness as rb
 from ss2r.common.logging import TrainingLogger
 
 _LOG = logging.getLogger(__name__)
@@ -17,6 +18,21 @@ _LOG = logging.getLogger(__name__)
 def get_state_path() -> str:
     log_path = os.getcwd()
     return log_path
+
+
+def get_robustness(cfg):
+    if cfg.agent.robustness is None or cfg.agent.robustness.name == "neutral":
+        return rb.SACCost()
+    assert cfg.agent.propagation == "ts1"
+    if cfg.agent.robustness.name == "cvar":
+        robustness = rb.CVaR(cfg.agent.robustness.cvar_confidence)
+    elif cfg.agent.robustness.name == "ucb":
+        robustness = rb.UCB(cfg.agent.robustness.cost_penalty)
+    elif cfg.agent.robustness.name == "ucb_cost":
+        robustness = rb.UCBCost(cfg.agent.robustness.cost_penalty)
+    else:
+        raise ValueError("Unknown robustness")
+    return robustness
 
 
 def get_train_fn(cfg):
@@ -41,64 +57,22 @@ def get_train_fn(cfg):
         hidden_layer_sizes = agent_cfg.pop("hidden_layer_sizes")
         activation = getattr(jnn, agent_cfg.pop("activation"))
         del agent_cfg["name"]
+        if "robustness" in agent_cfg:
+            del agent_cfg["robustness"]
         network_factory = functools.partial(
             sac_networks.make_sac_networks,
             hidden_layer_sizes=hidden_layer_sizes,
             activation=activation,
         )
+        robustness = get_robustness(cfg)
         train_fn = functools.partial(
             sac.train,
             **agent_cfg,
             **training_cfg,
             network_factory=network_factory,
             checkpoint_logdir=f"{get_state_path()}/ckpt",
+            robustness=robustness,
         )
-    elif cfg.agent.name == "sac_lenart":
-        import jax
-        from jax.nn import swish
-        from mbpo.optimizers.policy_optimizers.sac.sac_brax_env import SAC
-
-        def train(environment, eval_env, wrap_env, progress_fn, domain_parameters):
-            num_env_steps_between_updates = 1
-            num_envs = 128
-            optimizer = SAC(
-                environment=environment,
-                num_timesteps=500000,
-                episode_length=100,
-                action_repeat=1,
-                num_env_steps_between_updates=num_env_steps_between_updates,
-                num_envs=num_envs,
-                num_eval_envs=128,
-                lr_alpha=3e-4,
-                lr_policy=3e-4,
-                lr_q=3e-4,
-                wd_alpha=0.0,
-                wd_policy=0.0,
-                wd_q=0.0,
-                max_grad_norm=1e5,
-                discounting=0.99,
-                batch_size=128,
-                num_evals=20,
-                normalize_observations=True,
-                reward_scaling=1.0,
-                tau=0.005,
-                min_replay_size=10**2,
-                max_replay_size=10**5,
-                grad_updates_per_step=num_env_steps_between_updates * num_envs,
-                deterministic_eval=True,
-                init_log_alpha=0.0,
-                policy_hidden_layer_sizes=(64, 64),
-                policy_activation=swish,
-                critic_hidden_layer_sizes=(64, 64),
-                critic_activation=swish,
-                return_best_model=True,
-                eval_environment=eval_env,
-            )
-            optimizer.run_training(
-                jax.random.PRNGKey(cfg.training.seed), progress_fn=progress_fn
-            )
-
-        return train
     else:
         raise ValueError(f"Unknown agent name: {cfg.agent.name}")
     return train_fn

@@ -18,10 +18,6 @@ def ts1(state, rng):
     return sampled_state
 
 
-def std_bonus(state, lambda_):
-    return lambda_ * jnp.std(state.obs, axis=0).mean()
-
-
 class StatePropagation(Wrapper):
     """
     Wrapper for adding action and observation delays in Brax envs, using JAX.
