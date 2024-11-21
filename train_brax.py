@@ -89,6 +89,8 @@ def get_train_fn(cfg):
             network_factory=network_factory,
             checkpoint_logdir=f"{get_state_path()}/ckpt",
             robustness=robustness,
+            penalizer=penalizer,
+            penalizer_params=penalizer_params,
         )
     else:
         raise ValueError(f"Unknown agent name: {cfg.agent.name}")
