@@ -31,7 +31,8 @@ agent:
   max_replay_size: 100000
   hidden_layer_sizes: [64, 64]
   safety_discounting: 0.99
-  lagrange_multiplier: 0.1
-  penalty_multiplier: 5e-6
+  penalizer:
+    lagrange_multiplier: 0.1
+    penalty_multiplier: 5e-6
   propagation: ts1
   num_trajectories_per_env: 128

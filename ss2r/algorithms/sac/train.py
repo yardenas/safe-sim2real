@@ -35,6 +35,7 @@ from brax.v1 import envs as envs_v1
 
 import ss2r.algorithms.sac.losses as sac_losses
 import ss2r.algorithms.sac.networks as sac_networks
+from ss2r.algorithms.sac.penalizers import Penalizer
 from ss2r.algorithms.sac.robustness import QTransformation, SACCost
 from ss2r.algorithms.sac.wrappers import DomainRandomizationParams, StatePropagation
 from ss2r.rl.evaluation import ConstraintsEvaluator
@@ -65,7 +66,7 @@ class TrainingState:
     alpha_optimizer_state: optax.OptState
     alpha_params: Params
     normalizer_params: running_statistics.RunningStatisticsState
-    lagrangian_params: sac_losses.LagrangianParams
+    penalizer_params: Params
 
 
 def _unpmap(v):
@@ -81,8 +82,7 @@ def _init_training_state(
     policy_optimizer: optax.GradientTransformation,
     qr_optimizer: optax.GradientTransformation,
     qc_optimizer: optax.GradientTransformation | None,
-    lagrange_multiplier: float,
-    penalty_multiplier: float,
+    penalizer_params: Params | None,
 ) -> TrainingState:
     """Inits the training state and replicates it over devices."""
     key_policy, key_qr, key_qc = jax.random.split(key, 3)
@@ -118,9 +118,7 @@ def _init_training_state(
         alpha_optimizer_state=alpha_optimizer_state,
         alpha_params=log_alpha,
         normalizer_params=normalizer_params,
-        lagrangian_params=sac_losses.LagrangianParams(
-            lagrange_multiplier, penalty_multiplier
-        ),
+        penalizer_params=penalizer_params,
     )  #  type: ignore
     return jax.device_put_replicated(
         training_state, jax.local_devices()[:local_devices_to_use]
@@ -165,12 +163,10 @@ def train(
     privileged: bool = False,
     safe: bool = False,
     safety_budget: float = float("inf"),
-    lagrange_multiplier: float = 1e-9,
-    penalty_multiplier: float = 1.0,
-    penalty_multiplier_factor: float = 1.0,
+    penalizer: Penalizer | None = None,
+    penalizer_params: Params | None = None,
     robustness: QTransformation = SACCost(),
 ):
-    """SAC training."""
     process_id = jax.process_index()
     local_devices_to_use = jax.local_device_count()
     if max_devices_per_host is not None:
@@ -386,7 +382,8 @@ def train(
             transitions,
             key_actor,
             safety_budget,
-            training_state.lagrangian_params,
+            penalizer,
+            training_state.penalizer_params,
             optimizer_state=training_state.policy_optimizer_state,
         )
         polyak = lambda target, new: jax.tree_util.tree_map(
@@ -398,18 +395,12 @@ def train(
         else:
             new_target_qc_params = None
         if aux:
-            cond = aux["lagrangian_cond"]
-            new_lagrangian_params = sac_losses.update_augmented_lagrangian(
-                cond,
-                training_state.lagrangian_params.penalty_multiplier,
-                penalty_multiplier_factor,
-            )
+            new_penalizer_params = aux.pop("penalizer_params")
             additional_metrics = {
-                "lagrange_multiplier": new_lagrangian_params.lagrange_multiplier,
                 **aux,
             }
         else:
-            new_lagrangian_params = training_state.lagrangian_params
+            new_penalizer_params = training_state.penalizer_params
             additional_metrics = {}
 
         metrics = {
@@ -435,7 +426,7 @@ def train(
             alpha_optimizer_state=alpha_optimizer_state,
             alpha_params=alpha_params,
             normalizer_params=training_state.normalizer_params,
-            lagrangian_params=new_lagrangian_params,
+            penalizer_params=new_penalizer_params,
         )  # type: ignore
         return (new_training_state, key), metrics
 
@@ -604,8 +595,7 @@ def train(
         policy_optimizer=policy_optimizer,
         qr_optimizer=qr_optimizer,
         qc_optimizer=qc_optimizer,
-        lagrange_multiplier=lagrange_multiplier,
-        penalty_multiplier=penalty_multiplier,
+        penalizer_params=penalizer_params,
     )
     del global_key
 

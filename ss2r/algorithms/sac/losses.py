@@ -16,7 +16,7 @@
 
 See: https://arxiv.org/pdf/1812.05905.pdf
 """
-from typing import Any, NamedTuple, TypeAlias
+from typing import Any, TypeAlias
 
 import jax
 import jax.numpy as jnp
@@ -24,6 +24,7 @@ from brax.training import types
 from brax.training.types import Params, PRNGKey
 
 from ss2r.algorithms.sac.networks import SafeSACNetworks
+from ss2r.algorithms.sac.penalizers import Penalizer
 from ss2r.algorithms.sac.robustness import QTransformation, SACBase
 
 Transition: TypeAlias = types.Transition
@@ -124,8 +125,9 @@ def make_losses(
         transitions: Transition,
         key: PRNGKey,
         safety_budget: float,
-        lagrangian_params: LagrangianParams,
-    ) -> jnp.ndarray:
+        penalizer: Penalizer,
+        penalizer_params: Any,
+    ) -> tuple[jnp.ndarray, dict[str, Any]]:
         dist_params = policy_network.apply(
             normalizer_params, policy_params, transitions.observation
         )
@@ -152,49 +154,15 @@ def make_losses(
             )
             mean_qc = jnp.mean(qc_action, axis=-1)
             constraint = safety_budget - mean_qc.mean()
-            psi, cond = augmented_lagrangian(
-                constraint,
-                lagrangian_params.lagrange_multiplier,
-                lagrangian_params.penalty_multiplier,
+            actor_loss, penalizer_aux, penalizer_params = penalizer(
+                actor_loss, constraint, penalizer_params
             )
-            actor_loss = psi + actor_loss
-            aux["lagrangian_cond"] = cond
+            actor_loss = jnp.clip(actor_loss, a_min=-1000.0, a_max=1000.0)
             aux["constraint_estimate"] = constraint
             aux["cost"] = mean_qc.mean()
+            aux["penalizer_params"] = penalizer_params
+            aux |= penalizer_aux
         actor_loss = jnp.clip(actor_loss, a_min=-1000.0, a_max=1000.0)
         return actor_loss, aux
 
     return alpha_loss, critic_loss, actor_loss
-
-
-class LagrangianParams(NamedTuple):
-    lagrange_multiplier: jax.Array
-    penalty_multiplier: jax.Array
-
-
-def augmented_lagrangian(
-    constraint: jax.Array,
-    lagrange_multiplier: jax.Array,
-    penalty_multiplier: jax.Array,
-) -> jax.Array:
-    # Nocedal-Wright 2006 Numerical Optimization, Eq. 17.65, p. 546
-    # (with a slight change of notation)
-    g = -constraint
-    c = penalty_multiplier
-    cond = lagrange_multiplier + c * g
-    psi = jnp.where(
-        jnp.greater(cond, 0.0),
-        lagrange_multiplier * g + c / 2.0 * g**2,
-        -1.0 / (2.0 * c) * lagrange_multiplier**2,
-    )
-    return psi, cond
-
-
-def update_augmented_lagrangian(
-    cond: jax.Array, penalty_multiplier: jax.Array, penalty_multiplier_factor: float
-):
-    new_penalty_multiplier = jnp.clip(
-        penalty_multiplier * (1.0 + penalty_multiplier_factor), penalty_multiplier, 1.0
-    )
-    new_lagrange_multiplier = jnp.clip(cond, a_min=0.0, a_max=100.0)
-    return LagrangianParams(new_lagrange_multiplier, new_penalty_multiplier)

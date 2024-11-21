@@ -10,6 +10,7 @@ from omegaconf import OmegaConf
 import ss2r.algorithms.sac.networks as sac_networks
 from ss2r import benchmark_suites
 from ss2r.algorithms.sac import robustness as rb
+from ss2r.algorithms.sac.penalizers import CRPO, AugmentedLagrangian, LagrangianParams
 from ss2r.common.logging import TrainingLogger
 
 _LOG = logging.getLogger(__name__)
@@ -18,6 +19,21 @@ _LOG = logging.getLogger(__name__)
 def get_state_path() -> str:
     log_path = os.getcwd()
     return log_path
+
+
+def get_penalizer(cfg):
+    if cfg.agent.penalizer.name == "lagrangian":
+        penalizer = AugmentedLagrangian(cfg.agent.penalizer.penalty_multiplier_factor)
+        penalizer_state = LagrangianParams(
+            cfg.agent.penalizer.lagrange_multiplier,
+            cfg.agent.penalizer.penalty_multiplier,
+        )
+    elif cfg.agent.penalizer.name == "crpo":
+        penalizer = CRPO(cfg.agent.penalizer.eta)
+        penalizer_state = None
+    else:
+        raise ValueError(f"Unknown penalizer {cfg.agent.penalizer.name}")
+    return penalizer, penalizer_state
 
 
 def get_robustness(cfg):
@@ -59,11 +75,14 @@ def get_train_fn(cfg):
         del agent_cfg["name"]
         if "robustness" in agent_cfg:
             del agent_cfg["robustness"]
+        if "penalizer" in agent_cfg:
+            del agent_cfg["penalizer"]
         network_factory = functools.partial(
             sac_networks.make_sac_networks,
             hidden_layer_sizes=hidden_layer_sizes,
             activation=activation,
         )
+        penalizer, penalizer_params = get_penalizer(cfg)
         robustness = get_robustness(cfg)
         train_fn = functools.partial(
             sac.train,
@@ -72,6 +91,8 @@ def get_train_fn(cfg):
             network_factory=network_factory,
             checkpoint_logdir=f"{get_state_path()}/ckpt",
             robustness=robustness,
+            penalizer=penalizer,
+            penalizer_params=penalizer_params,
         )
     else:
         raise ValueError(f"Unknown agent name: {cfg.agent.name}")
