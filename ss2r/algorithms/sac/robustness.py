@@ -19,7 +19,33 @@ class QTransformation(Protocol):
         ...
 
 
-class LCB(QTransformation):
+class UCBCost(QTransformation):
+    def __init__(self, lambda_: float) -> None:
+        self.lambda_ = lambda_
+
+    def __call__(
+        self,
+        transitions: Transition,
+        q_fn: Callable[[Params, jax.Array], jax.Array],
+        policy: Callable[[jax.Array], tuple[jax.Array, jax.Array]],
+        gamma: float,
+        domain_params: jax.Array | None = None,
+        alpha: jax.Array | None = None,
+        reward_scaling: float = 1.0,
+    ):
+        next_obs = transitions.extras["state_extras"]["state_propagation"]["next_obs"]
+        next_action, _ = policy(transitions.next_observation)
+        if domain_params is not None:
+            next_action = jnp.concatenate([next_action, domain_params], axis=-1)
+        next_q = q_fn(transitions.next_observation, next_action)
+        next_v = next_q.mean(axis=-1)
+        std = jnp.std(next_obs, axis=1).mean(-1)
+        cost = transitions.extras["state_extras"]["cost"] + self.lambda_ * std
+        target_q = jax.lax.stop_gradient(cost + transitions.discount * gamma * next_v)
+        return target_q
+
+
+class UCB(QTransformation):
     def __init__(self, lambda_: float) -> None:
         self.lambda_ = lambda_
 
@@ -43,11 +69,9 @@ class LCB(QTransformation):
         next_q = q_fn(next_obs, next_action)
         next_v = next_q.mean(axis=-1)
         std = jnp.std(next_v, axis=-1)
+        next_v = next_v.mean(axis=-1) + self.lambda_ * std
         cost = transitions.extras["state_extras"]["cost"]
-        cost += self.lambda_ * std
-        target_q = jax.lax.stop_gradient(
-            cost * reward_scaling + transitions.discount * gamma * next_v
-        )
+        target_q = jax.lax.stop_gradient(cost + transitions.discount * gamma * next_v)
         return target_q
 
 
@@ -78,9 +102,7 @@ class CVaR(QTransformation):
         cvar_index = int((1 - self.confidence) * next_v.shape[1])
         next_v = jnp.mean(sort_next_v[:, :cvar_index], axis=-1)
         cost = transitions.extras["state_extras"]["cost"]
-        target_q = jax.lax.stop_gradient(
-            cost * reward_scaling + transitions.discount * gamma * next_v
-        )
+        target_q = jax.lax.stop_gradient(cost + transitions.discount * gamma * next_v)
         return target_q
 
 
