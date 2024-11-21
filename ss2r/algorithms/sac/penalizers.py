@@ -1,7 +1,6 @@
 from typing import Any, NamedTuple, Protocol, TypeVar
 
 import jax
-import jax.nn as jnn
 import jax.numpy as jnp
 
 Params = TypeVar("Params")
