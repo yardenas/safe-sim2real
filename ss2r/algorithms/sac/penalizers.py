@@ -39,7 +39,7 @@ class AugmentedLagrangian:
     def __call__(
         self, actor_loss: jax.Array, constraint: jax.Array, params: LagrangianParams
     ) -> tuple[jax.Array, dict[str, Any], Params]:
-        psi, cond = augmented_lagrangian(actor_loss, constraint, params)
+        psi, cond = augmented_lagrangian(constraint, *params)
         new_params = update_augmented_lagrangian(
             cond, params.penalty_multiplier, self.penalty_multiplier_factor
         )
