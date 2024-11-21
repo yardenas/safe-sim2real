@@ -75,6 +75,8 @@ def get_train_fn(cfg):
         del agent_cfg["name"]
         if "robustness" in agent_cfg:
             del agent_cfg["robustness"]
+        if "penalizer" in agent_cfg:
+            del agent_cfg["penalizer"]
         network_factory = functools.partial(
             sac_networks.make_sac_networks,
             hidden_layer_sizes=hidden_layer_sizes,
