@@ -285,8 +285,14 @@ class RCCar(Env):
         next_obs = self._obs(next_dynamics_state, rng=jax.random.PRNGKey(0))
         reward = self.reward_model.forward(obs=None, action=action, next_obs=next_obs)
         cost = cost_fn(obs[..., :2], self.obstacles)
+        negative_vel = -obs[..., 4:6]
         next_obs = jnp.where(
-            cost == 0.0, next_obs, next_obs.at[..., 4:6].set(-obs[..., 4:6] * 0.03)
+            cost == 0.0, next_obs, next_obs.at[..., 4:6].set(negative_vel * 0.05)
+        )
+        next_obs = jnp.where(
+            cost == 0.0,
+            next_obs,
+            next_obs.at[..., :2].set(obs[..., :2] + negative_vel * 0.1),
         )
         vx, vy = state.pipeline_state[..., 4:6]
         energy = 0.5 * self.sys.m * (vx**2 + vy**2)
