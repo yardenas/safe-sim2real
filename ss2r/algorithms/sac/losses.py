@@ -145,7 +145,8 @@ def make_losses(
         )
         min_qr = jnp.min(qr_action, axis=-1)
         aux = {}
-        actor_loss = (alpha * log_prob - min_qr).mean()
+        actor_loss = -min_qr.mean()
+        exploration_loss = (alpha * log_prob).mean()
         if qc_params is not None:
             assert qc_network is not None
             qc_action = qc_network.apply(
@@ -160,6 +161,7 @@ def make_losses(
             aux["cost"] = mean_qc.mean()
             aux["penalizer_params"] = penalizer_params
             aux |= penalizer_aux
+        actor_loss += exploration_loss
         return actor_loss, aux
 
     return alpha_loss, critic_loss, actor_loss
