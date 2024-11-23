@@ -286,7 +286,7 @@ class RCCar(Env):
         reward = self.reward_model.forward(obs=None, action=action, next_obs=next_obs)
         cost = cost_fn(obs[..., :2], self.obstacles)
         next_obs = jnp.where(
-            cost != 0.0, next_obs, next_obs.at[..., 4:6].set(-obs[..., 4:6] * 0.03)
+            cost == 0.0, next_obs, next_obs.at[..., 4:6].set(-obs[..., 4:6] * 0.03)
         )
         vx, vy = state.pipeline_state[..., 4:6]
         energy = 0.5 * self.sys.m * (vx**2 + vy**2)
