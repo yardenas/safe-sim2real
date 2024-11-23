@@ -286,6 +286,9 @@ class RCCar(Env):
         reward = self.reward_model.forward(obs=None, action=action, next_obs=next_obs)
         cost = cost_fn(obs[..., :2], self.obstacles)
         negative_vel = -obs[..., 4:6]
+        # FIXME (yarden): this is great for sim, but what about real?
+        # One way: don't override the state in that case.
+        # Another way: let it collide in reality, detect real collisions, and measure the energy loss
         next_obs = jnp.where(
             cost == 0.0, next_obs, next_obs.at[..., 4:6].set(negative_vel * 0.05)
         )
