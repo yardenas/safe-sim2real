@@ -18,7 +18,7 @@ OBS_NOISE_STD_SIM_CAR: jnp.array = 0.1 * jnp.exp(
 )
 
 X_LIM = (-0.3, 3.0)
-Y_LIM = (-2.3, 1.5)
+Y_LIM = (-2.1, 1.5)
 
 
 def domain_randomization(sys, rng, cfg):
@@ -285,8 +285,13 @@ class RCCar(Env):
         next_obs = self._obs(next_dynamics_state, rng=jax.random.PRNGKey(0))
         reward = self.reward_model.forward(obs=None, action=action, next_obs=next_obs)
         cost = cost_fn(obs[..., :2], self.obstacles)
+        next_obs = jnp.where(
+            cost > 0.0, next_obs, next_obs.at[..., 4:6].set(-obs[..., 4:6] * 0.03)
+        )
+        vx, vy = state.pipeline_state[..., 4:6]
+        energy = 0.5 * self.sys.m * (vx**2 + vy**2)
         done = 1.0 - in_arena(next_obs[..., :2], 2.0)
-        info = {**state.info, "cost": cost, **step_info}
+        info = {**state.info, "cost": energy, **step_info}
         next_state = State(
             pipeline_state=next_obs,
             obs=next_obs,
