@@ -155,7 +155,7 @@ def make_losses(
             mean_qc = jnp.mean(qc_action, axis=-1)
             constraint = safety_budget - mean_qc.mean()
             actor_loss, penalizer_aux, penalizer_params = penalizer(
-                actor_loss, constraint, penalizer_params
+                actor_loss, constraint, jax.lax.stop_gradient(penalizer_params)
             )
             actor_loss = jnp.clip(actor_loss, a_min=-1000.0, a_max=1000.0)
             aux["constraint_estimate"] = constraint
