@@ -262,9 +262,13 @@ def train(
 
     alpha_optimizer = optax.adam(learning_rate=3e-4)
 
-    policy_optimizer = optax.adam(learning_rate=learning_rate)
-    qr_optimizer = optax.adam(learning_rate=critic_learning_rate)
-    qc_optimizer = optax.adam(learning_rate=cost_critic_learning_rate) if safe else None
+    make_optimizer = lambda lr, grad_clip_norm: optax.chain(
+        optax.clip_by_global_norm(grad_clip_norm),
+        optax.radam(learning_rate=lr),
+    )
+    policy_optimizer = make_optimizer(learning_rate, 10.0)
+    qr_optimizer = make_optimizer(critic_learning_rate, 10.0)
+    qc_optimizer = make_optimizer(cost_critic_learning_rate, 10.0) if safe else None
 
     dummy_obs = jnp.zeros((obs_size,))
     dummy_action = jnp.zeros((action_size,))
