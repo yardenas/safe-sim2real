@@ -98,7 +98,7 @@ class CVaR(QTransformation):
             next_action = jnp.concatenate([next_action, domain_params], axis=-1)
         next_q = q_fn(next_obs, next_action)
         next_v = next_q.mean(axis=-1)
-        sort_next_v = jnp.sort(next_v, axis=-1)
+        sort_next_v = jnp.sort(next_v, axis=-1, descending=True)
         cvar_index = int((1 - self.confidence) * next_v.shape[1])
         next_v = jnp.mean(sort_next_v[:, :cvar_index], axis=-1)
         cost = transitions.extras["state_extras"]["cost"]
