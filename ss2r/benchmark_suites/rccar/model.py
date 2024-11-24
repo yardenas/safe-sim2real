@@ -41,6 +41,7 @@ class CarParams:
     blend_ratio_ub: jax.Array = jnp.array([0.5477225575])
     blend_ratio_lb: jax.Array = jnp.array([0.4472135955])
     angle_offset: jax.Array = jnp.array([0.02791893])
+    max_throttle: jax.Array = jnp.array([0.4])
 
 
 def rotate_vector(v, theta):

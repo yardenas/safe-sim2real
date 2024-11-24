@@ -173,7 +173,6 @@ class RCCar(Env):
         encode_angle: bool = True,
         use_obs_noise: bool = False,
         margin_factor: float = 10.0,
-        max_throttle: float = 1.0,
         dt: float = 1 / 30.0,
         obstacles: list[tuple[float, float, float]] = [(0.75, -0.75, 0.2)],
         sample_init_pose: bool = True,
@@ -189,7 +188,6 @@ class RCCar(Env):
         self.dim_action = (2,)
         self.dim_state = (7,) if encode_angle else (6,)
         self.encode_angle = encode_angle
-        self.max_throttle = jnp.clip(max_throttle, 0.0, 1.0)
         self.dynamics_model: RaceCarDynamics | HardwareDynamics = (
             RaceCarDynamics(dt=dt) if hardware is None else hardware
         )
@@ -274,7 +272,7 @@ class RCCar(Env):
     def step(self, state: State, action: jax.Array) -> State:
         assert action.shape[-1:] == self.dim_action
         action = jnp.clip(action, -1.0, 1.0)
-        action = action.at[1].set(self.max_throttle * action[1])
+        action = action.at[1].set(self.sys.max_throttle * action[1])
         obs = state.pipeline_state
         if self.encode_angle:
             dynamics_state = decode_angles(obs, self.angle_idx)
