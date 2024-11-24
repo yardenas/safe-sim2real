@@ -298,7 +298,7 @@ class RCCar(Env):
         vx, vy = state.pipeline_state[..., 4:6]
         energy = 0.5 * self.sys.m * (vx**2 + vy**2)
         done = 1.0 - in_arena(next_obs[..., :2], 2.0)
-        info = {**state.info, "cost": energy, **step_info}
+        info = {**state.info, "cost": jnp.where(cost > 0.0, energy, 0.0), **step_info}
         next_state = State(
             pipeline_state=next_obs,
             obs=next_obs,
