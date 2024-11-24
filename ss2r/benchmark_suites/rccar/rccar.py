@@ -238,7 +238,7 @@ class RCCar(Env):
                 init_pos, key_pos = jax.lax.while_loop(
                     lambda ins: (
                         cost_fn(
-                            ins[0], self.obstacles, scale_factor=1.5, use_arena=False
+                            ins[0], self.obstacles, scale_factor=1.5, use_arena=True
                         )
                         > 0.0
                     )
