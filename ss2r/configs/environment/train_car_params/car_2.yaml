@@ -4,7 +4,7 @@ nominal:
   l_f: 0.13
   l_r: 0.17
   angle_offset: 0.0
-  b_f: 2.58
+  b_f: 2.75
   b_r: 5.0
   blend_ratio_lb: 0.01
   blend_ratio_ub: 0.01

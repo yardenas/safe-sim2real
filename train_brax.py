@@ -132,7 +132,9 @@ def main(cfg):
             progress_fn=functools.partial(report, logger, steps),
         )
         if cfg.training.render:
-            rng = jax.random.split(jax.random.PRNGKey(cfg.training.seed), 5)
+            rng = jax.random.split(
+                jax.random.PRNGKey(cfg.training.seed), cfg.training.num_eval_envs
+            )
             video = benchmark_suites.render_fns[cfg.environment.task_name](
                 eval_env,
                 make_policy(params, deterministic=True),
