@@ -1,6 +1,6 @@
 defaults:
   - robustness: null
-  - penalizer: lagrangian
+  - penalizer: crpo
 
 name: sac
 learning_rate: 3e-4
