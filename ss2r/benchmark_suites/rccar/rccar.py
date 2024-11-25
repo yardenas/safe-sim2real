@@ -266,7 +266,8 @@ class RCCar(Env):
 def render(env, policy, steps, rng):
     import numpy as np
 
-    _, trajectory = rollout(env, policy, steps, rng)
+    state = env.reset(rng)
+    _, trajectory = rollout(env, policy, steps, rng[0], state)
     trajectory = jax.tree_map(lambda x: x[:, 0], trajectory.obs)
     if env.encode_angle:
         trajectory = decode_angles(trajectory, 2)
