@@ -37,7 +37,11 @@ def get_penalizer(cfg):
 
 
 def get_robustness(cfg):
-    if cfg.agent.robustness is None or cfg.agent.robustness.name == "neutral":
+    if (
+        "robustness" not in cfg.agent
+        or cfg.agent.robustness is None
+        or cfg.agent.robustness.name == "neutral"
+    ):
         return rb.SACCost()
     assert cfg.agent.propagation == "ts1"
     if cfg.agent.robustness.name == "cvar":
@@ -128,11 +132,14 @@ def main(cfg):
             progress_fn=functools.partial(report, logger, steps),
         )
         if cfg.training.render:
+            rng = jax.random.split(
+                jax.random.PRNGKey(cfg.training.seed), cfg.training.num_eval_envs
+            )
             video = benchmark_suites.render_fns[cfg.environment.task_name](
                 eval_env,
                 make_policy(params, deterministic=True),
                 cfg.training.episode_length,
-                jax.random.PRNGKey(cfg.training.seed),
+                rng,
             )
             logger.log_video(video, steps.count, "eval/video")
         if cfg.training.store_policy:

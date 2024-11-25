@@ -6,11 +6,6 @@ defaults:
 domain_name: rccar
 task_name: rccar
 dt: 0.033
-encode_angle: true
-ctrl_cost_weight: 0.005
-margin_factor: 20.0
-max_throttle: 0.4
-use_obs_noise: false
 obstacles:
   - [0.75, -0.55, 0.25]
   - [0.75, -0.15, 0.25]
