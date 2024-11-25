@@ -38,7 +38,7 @@ def get_penalizer(cfg):
 
 def get_robustness(cfg):
     if (
-        "agent.robustness" not in cfg
+        "robustness" not in cfg.agent
         or cfg.agent.robustness is None
         or cfg.agent.robustness.name == "neutral"
     ):
