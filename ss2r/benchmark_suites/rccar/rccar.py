@@ -137,18 +137,12 @@ class RCCar(Env):
         )
         self.sys = CarParams(**car_model_params)
 
-    def _obs(self, state: jnp.array, rng: jax.random.PRNGKey) -> jnp.array:
+    def _obs(self, state: jnp.array) -> jnp.array:
         """Adds observation noise to the state"""
         assert state.shape[-1] == 6
         # add observation noise
-        if self.use_obs_noise:
-            obs = state + self._obs_noise_stds * jax.random.normal(
-                rng, shape=self.dim_state
-            )
-        else:
-            obs = state
         if self.encode_angle:
-            obs = encode_angles(obs, self.angle_idx)
+            obs = encode_angles(state, self.angle_idx)
         assert (obs.shape[-1] == 7 and self.encode_angle) or (
             obs.shape[-1] == 6 and not self.encode_angle
         )
@@ -197,7 +191,7 @@ class RCCar(Env):
                 [0.005, 0.005, 0.02]
             ) * jax.random.normal(key_vel, shape=(3,))
             init_state = jnp.concatenate([init_pos, init_theta, init_vel])
-        init_obs = self._obs(init_state, key_obs)
+        init_obs = self._obs(init_state)
         return State(
             pipeline_state=(init_state, key_pos, jnp.linalg.norm(init_pos)),
             obs=init_obs,
@@ -238,7 +232,7 @@ class RCCar(Env):
                 dynamics_state[..., :2] + negative_vel * 0.1
             ),
         )
-        next_obs = self._obs(next_dynamics_state, rng=key)
+        next_obs = self._obs(next_dynamics_state)
         vx, vy = next_dynamics_state[..., 3:5]
         energy = 0.5 * self.sys.m * (vx**2 + vy**2)
         done = 1.0 - in_arena(next_obs[..., :2], 2.0)
