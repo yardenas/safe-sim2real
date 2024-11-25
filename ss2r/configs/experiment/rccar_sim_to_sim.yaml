@@ -4,15 +4,21 @@ defaults:
   - override /environment/train_car_params: car_2
   - override /environment/eval_car_params: car_2_blend
 
+environment:
+  action_delay: 1
+  observation_delay: 0
+  sliding_window: 5
+  dt: 0.03333333
+  sample_init_pose: true
+
 training:
   num_envs: 128
   num_timesteps: 500000
-  episode_length: 100
+  episode_length: 250
   train_domain_randomization: true
-  eval_domain_randomization: false
+  eval_domain_randomization: true
   privileged: true
-  safety_budget: 1.
-
+  safety_budget: 0.0
 
 agent:
   grad_updates_per_step: 128
@@ -20,3 +26,9 @@ agent:
   min_replay_size: 100
   max_replay_size: 100000
   hidden_layer_sizes: [64, 64]
+  safety_discounting: 0.99
+  penalizer:
+    lagrange_multiplier: 0.1
+    penalty_multiplier: 5e-6
+  propagation: ts1
+  num_trajectories_per_env: 128
