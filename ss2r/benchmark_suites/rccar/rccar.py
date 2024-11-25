@@ -233,7 +233,7 @@ class RCCar(Env):
             ),
         )
         next_obs = self._obs(next_dynamics_state)
-        vx, vy = next_dynamics_state[..., 3:5]
+        vx, vy = dynamics_state[..., 3:5]
         energy = 0.5 * self.sys.m * (vx**2 + vy**2)
         done = 1.0 - in_arena(next_obs[..., :2], 2.0)
         info = {**state.info, "cost": jnp.where(cost > 0.0, energy, 0.0), **step_info}
