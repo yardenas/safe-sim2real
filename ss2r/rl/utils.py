@@ -8,13 +8,8 @@ def rollout(
     policy: Policy,
     steps: int,
     rng: jax.Array,
-    state: State | None = None,
+    state: State,
 ) -> tuple[State, State]:
-    parallel_envs = env._sys_v.m.shape
-    keys = jax.random.split(rng, parallel_envs[0])
-    if state is None:
-        state = env.reset(keys)
-
     def f(carry, _):
         state, current_key = carry
         current_key, next_key = jax.random.split(current_key)
