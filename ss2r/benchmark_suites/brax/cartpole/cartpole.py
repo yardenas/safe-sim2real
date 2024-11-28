@@ -23,8 +23,11 @@ def domain_randomization(sys, rng, cfg):
         )
         mass_sample = pole_mass + mass_sample
         rng, _ = jax.random.split(rng)
-        gear = jax.random.uniform(rng, minval=cfg.gear[0], maxval=cfg.gear[1])
-        return mass_sample, gear
+        gear = sys.actuator.gear.copy()[0]
+        gear_sample = (
+            jax.random.uniform(rng, minval=cfg.gear[0], maxval=cfg.gear[1]) + gear
+        )
+        return mass_sample, gear_sample
 
     mass_sample, actuator_gear = randomize(rng)
     in_axes = jax.tree_map(lambda x: None, sys)
