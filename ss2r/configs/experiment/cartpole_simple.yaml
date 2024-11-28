@@ -7,8 +7,8 @@ training:
   safe: true
   num_envs: 256
   safety_budget: 75
-  train_domain_randomization: true
-  eval_domain_randomization: true
+  train_domain_randomization: false
+  eval_domain_randomization: false
   
 agent:
   grad_updates_per_step: 256

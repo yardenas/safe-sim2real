@@ -1,0 +1,23 @@
+# @package _global_
+defaults:
+  - override /environment: cartpole
+
+training:
+  num_timesteps: 500000
+  safe: true
+  num_envs: 256
+  safety_budget: 75
+  train_domain_randomization: true
+  eval_domain_randomization: true
+
+environment:
+  train_params:
+    mass: [0., 1.]
+    gear: [0., 0.]
+
+  eval_params:
+    mass: [0., 1.]
+    gear: [5., 20.]
+
+agent:
+  grad_updates_per_step: 256
