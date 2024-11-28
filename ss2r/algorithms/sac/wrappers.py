@@ -66,7 +66,7 @@ def get_randomized_values(sys_v, in_axes):
     randomized_values = [
         leaf for leaf, axis in zip(sys_v_leaves, in_axes_leaves) if axis is not None
     ]
-    randomized_values = [x[:, None] for x in randomized_values if x.ndim == 1]
+    randomized_values = [x[:, None] if x.ndim == 1 else x for x in randomized_values]
     randomized_array = jnp.concatenate(randomized_values, axis=1)
     return randomized_array
 
