@@ -119,7 +119,7 @@ def test_parameterization(use_domain_randomization, similar_rate):
     cfg = make_test_config(
         [
             f"training.num_envs={_ENVS}",
-            "environment=rccar",
+            "environment=cartpole",
             "training.train_domain_randomization=" + str(use_domain_randomization),
             "environment.task_name=cartpole_swingup",
         ]
