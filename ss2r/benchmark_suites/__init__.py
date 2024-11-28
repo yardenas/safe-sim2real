@@ -100,7 +100,7 @@ def make_brax_envs(cfg):
     train_key, eval_key = jax.random.split(jax.random.PRNGKey(cfg.training.seed))
     train_randomization_fn = (
         prepare_randomization_fn(
-            train_key, cfg.training.num_envs, task_cfg, task_cfg.task_name
+            train_key, cfg.training.num_envs, task_cfg.train_params, task_cfg.task_name
         )
         if cfg.training.train_domain_randomization
         else None
@@ -112,7 +112,7 @@ def make_brax_envs(cfg):
         randomization_fn=train_randomization_fn,
     )
     eval_randomization_fn = prepare_randomization_fn(
-        eval_key, cfg.training.num_eval_envs, task_cfg, task_cfg.task_name
+        eval_key, cfg.training.num_eval_envs, task_cfg.eval_params, task_cfg.task_name
     )
     eval_env = envs.training.wrap(
         eval_env,
@@ -127,9 +127,13 @@ def make_brax_envs(cfg):
 
 randomization_fns = {
     "cartpole_swingup": cartpole.domain_randomization,
+    "cartpole_swingup_safe": cartpole.domain_randomization,
     "cartpole_swingup_sparse": cartpole.domain_randomization,
     "cartpole_balance": cartpole.domain_randomization,
-    "inverted_pendulum": cartpole.domain_randomization,
+    "cartpole_balance_safe": cartpole.domain_randomization,
+    "cartpole_balance_sparse": cartpole.domain_randomization,
+    "cartpole_balance_sparse_safe": cartpole.domain_randomization,
+    "cartpole_swingup_sparse_safe": cartpole.domain_randomization,
     "rccar": rccar.domain_randomization,
 }
 
