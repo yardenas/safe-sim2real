@@ -62,11 +62,12 @@ class StatePropagation(Wrapper):
 
 def get_randomized_values(sys_v, in_axes):
     sys_v_leaves, _ = jax.tree.flatten(sys_v)
-    in_axes_leaves, _ = jax.tree.flatten(in_axes)
+    in_axes_leaves, _ = jax.tree.flatten(in_axes, is_leaf=lambda x: x is None)
     randomized_values = [
         leaf for leaf, axis in zip(sys_v_leaves, in_axes_leaves) if axis is not None
     ]
-    randomized_array = jnp.array(randomized_values).T
+    randomized_values = [x[:, None] for x in randomized_values if x.ndim == 1]
+    randomized_array = jnp.concatenate(randomized_values, axis=1)
     return randomized_array
 
 
