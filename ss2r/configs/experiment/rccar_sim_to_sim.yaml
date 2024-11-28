@@ -3,6 +3,7 @@ defaults:
   - override /environment: rccar
   - override /environment/train_car_params: car_2
   - override /environment/eval_car_params: car_2_blend
+  - override /agent/robustness: cvar
 
 environment:
   action_delay: 1
