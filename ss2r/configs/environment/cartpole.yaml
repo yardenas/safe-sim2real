@@ -5,7 +5,7 @@ task_name: cartpole_swingup_safe
 
 # Sample uniformly around the nominal value
 train_params:
-  mass: [0., 0.] # mass of the pole, not cart.
+  mass: [0., 1.] # mass of the pole, not cart.
   gear: [5., 20.]
 
 eval_params:

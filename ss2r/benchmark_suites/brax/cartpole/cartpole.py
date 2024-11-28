@@ -16,33 +16,36 @@ def domain_randomization(sys, rng, cfg):
     @jax.vmap
     def randomize(rng):
         # Hardcoding _POLE_MASS to avoid weird jax issues.
-        pole_mass = jnp.asarray([1.0, 0.0])
+        pole_mass = jnp.asarray([1.0, 0.1])
         mask = jnp.asarray([0.0, 1.0])
         mass_sample = (
             jax.random.uniform(rng, minval=cfg.mass[0], maxval=cfg.mass[1]) * mask
         )
         mass_sample = pole_mass + mass_sample
-        actuator_gain = sys.actuator_gainprm.copy()
-        actuator_bias = sys.actuator_biasprm.copy()
+        rng, _ = jax.random.split(rng)
         gear = jax.random.uniform(rng, minval=cfg.gear[0], maxval=cfg.gear[1])
-        gear_gain_sample = actuator_gain.at[:, 0].add(gear)
-        gear_bias_sample = actuator_bias.at[:, 1].add(-gear)
-        return mass_sample, gear_gain_sample, gear_bias_sample
+        return mass_sample, gear
 
-    mass_sample, gear_gain, gear_bias = randomize(rng)
+    mass_sample, actuator_gear = randomize(rng)
     in_axes = jax.tree_map(lambda x: None, sys)
     in_axes = in_axes.tree_replace(
-        {"link.inertia.mass": 0, "actuator_gainprm": 0, "actuator_biasprm": 0}
+        {
+            "link.inertia.mass": 0,
+            "actuator.gear": 0,
+        }
     )
     sys = sys.tree_replace(
         {
             "link.inertia.mass": mass_sample,
-            "actuator_gainprm": gear_gain,
-            "actuator_biasprm": gear_bias,
+            "actuator.gear": actuator_gear[:, None],
         }
     )
     samples = jnp.stack(
-        [mass_sample[:, -1], gear_gain[:, 0, 0], gear_bias[:, 0, 1]], axis=-1
+        [
+            mass_sample[:, -1],
+            actuator_gear,
+        ],
+        axis=-1,
     )
     return sys, in_axes, samples
 
