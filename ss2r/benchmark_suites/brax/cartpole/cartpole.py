@@ -1,14 +1,14 @@
+import itertools
 import os
 from typing import Any
 
 import jax
 import jax.numpy as jnp
 from brax import base
-from brax.envs import register_environment
+from brax.envs import Env, Wrapper, register_environment
 from brax.envs.base import PipelineEnv, State
 from brax.io import mjcf
 
-from ss2r.algorithms.state_sampler import StateSampler
 from ss2r.benchmark_suites import rewards
 
 
@@ -56,8 +56,23 @@ def domain_randomization_gear(sys, rng, cfg):
     return sys, in_axes, samples
 
 
-def sample_state(state_sampler: StateSampler):
-    pass
+class ConstraintWrapper(Wrapper):
+    def __init__(self, env: Env, slider_position_bound: float):
+        assert isinstance(env, Cartpole)
+        super().__init__(env)
+        self.slider_position_bound = slider_position_bound
+
+    def reset(self, rng: jax.Array) -> State:
+        state = self.env.reset(rng)
+        state.info["cost"] = jnp.zeros_like(state.reward)
+        return state
+
+    def step(self, state: State, action: jax.Array) -> State:
+        nstate = self.env.step(state, action)
+        slider_pos = self.env.cart_position(nstate.pipeline_state)
+        cost = (jnp.abs(slider_pos) >= self.slider_position_bound).astype(jnp.float32)
+        nstate.info["cost"] = cost
+        return nstate
 
 
 class Cartpole(PipelineEnv):
@@ -150,13 +165,25 @@ class Cartpole(PipelineEnv):
         )
 
 
-register_environment(
-    "cartpole_swingup_sparse",
-    lambda **kwargs: Cartpole(swingup=True, sparse=True, **kwargs),
-)
-register_environment(
-    "cartpole_swingup", lambda **kwargs: Cartpole(swingup=True, **kwargs)
-)
-register_environment(
-    "cartpole_balance", lambda **kwargs: Cartpole(swingup=False, **kwargs)
-)
+for safe, sparse, swingup in itertools.product(
+    [True, False], [True, False], [True, False]
+):
+    name = ["cartpole"]
+    safe_str = "safe" if safe else ""
+    task_str = "swingup" if swingup else "balance"
+    name.append(task_str)
+    if sparse:
+        name.append("sparse")
+    if safe:
+        name.append("safe")
+
+        def make(**kwargs):
+            slider_position_bound = kwargs.pop("slider_position_bound", 0.25)
+            return ConstraintWrapper(
+                Cartpole(sparse=sparse, swingup=swingup, **kwargs),
+                slider_position_bound,
+            )
+    else:
+        make = lambda **kwargs: Cartpole(sparse=sparse, swingup=swingup, **kwargs)
+    name_str = "_".join(name)
+    register_environment(name_str, make)
