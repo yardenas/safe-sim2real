@@ -10,7 +10,7 @@ def render(env, policy, steps, rng):
     state = env.reset(rng)
     _, trajectory = rollout(env, policy, steps, rng[0], state)
     videos = []
-    for i in range(3):
+    for i in range(1):
         ep_trajectory = jax.tree_map(lambda x: x[:, i], trajectory.pipeline_state)
         ep_trajectory = pytrees_unstack(ep_trajectory)
         video = image.render_array(env.sys, ep_trajectory)
