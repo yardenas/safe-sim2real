@@ -12,7 +12,9 @@ class ConstraintEvalWrapper(EvalWrapper):
     def reset(self, rng: jax.Array) -> State:
         reset_state = self.env.reset(rng)
         reset_state.metrics["reward"] = reset_state.reward
-        reset_state.metrics["cost"] = reset_state.info.get("cost", jnp.array(0.0))
+        reset_state.metrics["cost"] = reset_state.info.get(
+            "cost", jnp.zeros_like(reset_state.reward)
+        )
         eval_metrics = EvalMetrics(
             episode_metrics=jax.tree_util.tree_map(jnp.zeros_like, reset_state.metrics),
             active_episodes=jnp.ones_like(reset_state.reward),
@@ -28,7 +30,7 @@ class ConstraintEvalWrapper(EvalWrapper):
         del state.info["eval_metrics"]
         nstate = self.env.step(state, action)
         nstate.metrics["reward"] = nstate.reward
-        nstate.metrics["cost"] = nstate.info.get("cost", jnp.array(0.0))
+        nstate.metrics["cost"] = nstate.info.get("cost", jnp.zeros_like(nstate.reward))
         episode_steps = jnp.where(
             state_metrics.active_episodes,
             nstate.info.get("steps", jnp.zeros_like(state_metrics.episode_steps)),

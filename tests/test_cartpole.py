@@ -121,6 +121,7 @@ def test_parameterization(use_domain_randomization, similar_rate):
             f"training.num_envs={_ENVS}",
             "environment=rccar",
             "training.train_domain_randomization=" + str(use_domain_randomization),
+            "environment.task_name=cartpole_swingup",
         ]
     )
     env, *_ = benchmark_suites.make(cfg)
