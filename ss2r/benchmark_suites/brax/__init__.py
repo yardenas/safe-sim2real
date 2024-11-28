@@ -7,7 +7,7 @@ from ss2r.rl.utils import rollout
 
 
 def render(env, policy, steps, rng):
-    state = env.reset(rng[:3])
+    state = env.reset(rng)
     _, trajectory = rollout(env, policy, steps, rng[0], state)
     videos = []
     for i in range(3):
