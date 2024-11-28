@@ -12,12 +12,12 @@ training:
 
 environment:
   train_params:
-    mass: [0., 1.]
+    mass: [-0.09, 0.]
     gear: [0., 0.]
 
   eval_params:
-    mass: [0., 1.]
-    gear: [5., 20.]
+    mass: [0.0, 0.0]
+    gear: [0., 50.]
 
 agent:
   grad_updates_per_step: 256
