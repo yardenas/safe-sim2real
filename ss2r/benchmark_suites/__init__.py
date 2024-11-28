@@ -135,5 +135,12 @@ randomization_fns = {
 
 render_fns = {
     "cartpole_swingup": brax.render,
+    "cartpole_swingup_safe": brax.render,
+    "cartpole_swingup_sparse": brax.render,
+    "cartpole_balance": brax.render,
+    "cartpole_balance_safe": brax.render,
+    "cartpole_balance_sparse": brax.render,
+    "cartpole_balance_sparse_safe": brax.render,
+    "cartpole_swingup_sparse_safe": brax.render,
     "rccar": rccar.render,
 }
