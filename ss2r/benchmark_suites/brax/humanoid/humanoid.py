@@ -107,8 +107,10 @@ class ConstraintWrapper(Wrapper):
 
     def step(self, state: State, action: jax.Array) -> State:
         nstate = self.env.step(state, action)
-        slider_pos = self.env.cart_position(nstate.pipeline_state)
-        cost = (jnp.abs(slider_pos) >= self.max_force).astype(jnp.float32)
+        head_touch = self.env.head_touch(nstate.pipeline_state)
+        torso_touch = self.env.head_touch(nstate.pipeline_state)
+        force = jnp.max(jnp.array([head_touch, torso_touch]), axis=0)
+        cost = (force >= self.max_force).astype(jnp.float32)
         nstate.info["cost"] = cost
         return nstate
 
@@ -463,6 +465,9 @@ class Humanoid(PipelineEnv):
     def head_touch(self, pipeline_state: base.State) -> jax.Array:
         return jnp.linalg.norm(pipeline_state.sensordata["head_touch"].copy())
 
+    def torso_touch(self, pipeline_state: base.State) -> jax.Array:
+        return jnp.linalg.norm(pipeline_state.sensordata["torso_touch"].copy())
+
 
 for safe in [True, False]:
     name = ["humnaoid"]
@@ -473,8 +478,7 @@ for safe in [True, False]:
         def make(**kwargs):
             max_force = kwargs.pop("max_force", 30.0)
             return ConstraintWrapper(
-                Humanoid(**kwargs, terminate_when_unhealthy=False),
-                max_force,
+                Humanoid(**kwargs, terminate_when_unhealthy=False), max_force
             )
     else:
         make = lambda **kwargs: Humanoid(**kwargs, terminate_when_unhealthy=False)
