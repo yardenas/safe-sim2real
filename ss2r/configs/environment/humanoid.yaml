@@ -4,6 +4,10 @@ defaults:
 
 backend: mjx
 task_name: humanoid_safe
+task_params: 
+  max_force: 10.
+  terminate_when_unhealthy: False
+  
 
 # Sample uniformly around the nominal value
 train_params:

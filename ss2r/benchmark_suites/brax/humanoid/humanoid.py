@@ -205,10 +205,8 @@ for safe in [True, False]:
 
         def make(**kwargs):
             max_force = kwargs.pop("max_force", 30.0)
-            return ConstraintWrapper(
-                Humanoid(**kwargs, terminate_when_unhealthy=False), max_force
-            )
+            return ConstraintWrapper(Humanoid(**kwargs), max_force)
     else:
-        make = lambda **kwargs: Humanoid(**kwargs, terminate_when_unhealthy=False)
+        make = lambda **kwargs: Humanoid(**kwargs)
     name_str = "_".join(name)
     register_environment(name_str, make)

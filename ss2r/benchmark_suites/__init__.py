@@ -95,9 +95,11 @@ def make_rccar_envs(cfg):
 def make_brax_envs(cfg):
     task_cfg = get_task_config(cfg)
     train_env = envs.get_environment(
-        task_cfg.task_name, backend=cfg.environment.backend
+        task_cfg.task_name, backend=cfg.environment.backend, **task_cfg.task_params
     )
-    eval_env = envs.get_environment(task_cfg.task_name, backend=cfg.environment.backend)
+    eval_env = envs.get_environment(
+        task_cfg.task_name, backend=cfg.environment.backend, **task_cfg.task_params
+    )
     train_key, eval_key = jax.random.split(jax.random.PRNGKey(cfg.training.seed))
     train_randomization_fn = (
         prepare_randomization_fn(
