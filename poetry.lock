@@ -536,13 +536,13 @@ resolved_reference = "527d6982713f8ad7ac9821ebf7a00899dde2cc79"
 
 [[package]]
 name = "dm-control"
-version = "1.0.19"
+version = "1.0.25"
 description = "Continuous control environments and MuJoCo Python bindings."
 optional = false
-python-versions = ">=3.8"
+python-versions = ">=3.9"
 files = [
-    {file = "dm_control-1.0.19-py3-none-any.whl", hash = "sha256:2c130d378e1b7394d6125651e61fe99fafcd01a0974cd9bcf3ecf4f8a6713998"},
-    {file = "dm_control-1.0.19.tar.gz", hash = "sha256:9e4d9aa9343c9c5ea874643ccf4ee5ec37f31002e041813387b5834bc8f3d223"},
+    {file = "dm_control-1.0.25-py3-none-any.whl", hash = "sha256:156c935231e35f174324ff78d30a167a686a841dcc6e22aecbd48c49e7df3872"},
+    {file = "dm_control-1.0.25.tar.gz", hash = "sha256:28cb07d8f4bbcda49d7ea6a967b5b3b48d29f4bce770d27f71a87af54c8a4f80"},
 ]
 
 [package.dependencies]
@@ -552,7 +552,7 @@ dm-tree = "!=0.1.2"
 glfw = "*"
 labmaze = "*"
 lxml = "*"
-mujoco = ">=3.1.5"
+mujoco = ">=3.2.5"
 numpy = ">=1.9.0"
 protobuf = ">=3.19.4"
 pyopengl = ">=3.1.4"
