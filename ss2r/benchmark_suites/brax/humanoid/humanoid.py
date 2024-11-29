@@ -131,6 +131,12 @@ class Humanoid(humanoid.Humanoid):
         dir = os.path.dirname(__file__)
         path = os.path.join(dir, "humanoid.xml")
         sys = mjcf.load(path)
+        self.head_id = mujoco.mj_name2id(
+            sys.mj_model, mujoco.mjtObj.mjOBJ_SENSOR.value, "head_touch"
+        )
+        self.torso_id = mujoco.mj_name2id(
+            sys.mj_model, mujoco.mjtObj.mjOBJ_SENSOR.value, "torso_touch"
+        )
 
         n_frames = 5
 
@@ -185,10 +191,10 @@ class Humanoid(humanoid.Humanoid):
         )
 
     def head_touch(self, pipeline_state: base.State) -> jax.Array:
-        return jnp.linalg.norm(pipeline_state.sensordata["head_touch"].copy())
+        return jnp.linalg.norm(pipeline_state.sensordata[self.head_id])
 
     def torso_touch(self, pipeline_state: base.State) -> jax.Array:
-        return jnp.linalg.norm(pipeline_state.sensordata["torso_touch"].copy())
+        return jnp.linalg.norm(pipeline_state.sensordata[self.torso_id])
 
 
 for safe in [True, False]:
