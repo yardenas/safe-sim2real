@@ -5,6 +5,7 @@ from brax import envs
 
 from ss2r.benchmark_suites import brax
 from ss2r.benchmark_suites.brax.cartpole import cartpole
+from ss2r.benchmark_suites.brax.humanoid import humanoid
 from ss2r.benchmark_suites.rccar import rccar
 from ss2r.benchmark_suites.utils import get_domain_name, get_task_config
 from ss2r.benchmark_suites.wrappers import (
@@ -135,6 +136,8 @@ randomization_fns = {
     "cartpole_balance_sparse_safe": cartpole.domain_randomization,
     "cartpole_swingup_sparse_safe": cartpole.domain_randomization,
     "rccar": rccar.domain_randomization,
+    "humanoid": humanoid.domain_randomization,
+    "humanoid_safe": humanoid.domain_randomization,
 }
 
 render_fns = {

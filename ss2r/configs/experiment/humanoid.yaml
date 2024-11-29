@@ -1,0 +1,13 @@
+# @package _global_
+defaults:
+  - override /environment: humanoid
+
+training:
+  num_timesteps: 5000000
+  safe: false
+  num_envs: 256
+  train_domain_randomization: false
+  eval_domain_randomization: false
+  
+agent:
+  grad_updates_per_step: 256
