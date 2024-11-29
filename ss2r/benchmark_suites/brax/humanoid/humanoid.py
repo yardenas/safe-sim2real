@@ -95,10 +95,10 @@ def domain_randomization_gear(sys, rng, cfg):
 
 
 class ConstraintWrapper(Wrapper):
-    def __init__(self, env: Env, slider_position_bound: float):
+    def __init__(self, env: Env, max_force: float):
         assert isinstance(env, humanoid.Humanoid)
         super().__init__(env)
-        self.slider_position_bound = slider_position_bound
+        self.max_force = max_force
 
     def reset(self, rng: jax.Array) -> State:
         state = self.env.reset(rng)
@@ -108,7 +108,7 @@ class ConstraintWrapper(Wrapper):
     def step(self, state: State, action: jax.Array) -> State:
         nstate = self.env.step(state, action)
         slider_pos = self.env.cart_position(nstate.pipeline_state)
-        cost = (jnp.abs(slider_pos) >= self.slider_position_bound).astype(jnp.float32)
+        cost = (jnp.abs(slider_pos) >= self.max_force).astype(jnp.float32)
         nstate.info["cost"] = cost
         return nstate
 
@@ -271,7 +271,7 @@ class Humanoid(PipelineEnv):
         healthy_z_range=(1.0, 2.0),
         reset_noise_scale=1e-2,
         exclude_current_positions_from_observation=True,
-        backend="generalized",
+        backend="mjx",
         **kwargs,
     ):
         dir = os.path.dirname(__file__)
@@ -460,6 +460,9 @@ class Humanoid(PipelineEnv):
             x_i,
         )  # pytype: disable=bad-return-type  # jax-ndarray
 
+    def head_touch(self, pipeline_state: base.State) -> jax.Array:
+        return jnp.linalg.norm(pipeline_state.sensordata["head_touch"].copy())
+
 
 for safe in [True, False]:
     name = ["humnaoid"]
@@ -468,12 +471,12 @@ for safe in [True, False]:
         name.append("safe")
 
         def make(**kwargs):
-            slider_position_bound = kwargs.pop("slider_position_bound", 0.25)
+            max_force = kwargs.pop("max_force", 30.0)
             return ConstraintWrapper(
                 Humanoid(**kwargs, terminate_when_unhealthy=False),
-                slider_position_bound,
+                max_force,
             )
     else:
-        make = lambda **kwargs: Humanoid(**kwargs)
+        make = lambda **kwargs: Humanoid(**kwargs, terminate_when_unhealthy=False)
     name_str = "_".join(name)
     register_environment(name_str, make)
