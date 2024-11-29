@@ -90,7 +90,7 @@
                 <body name="right_lower_arm" pos=".18 -.18 -.18">
                     <joint armature="0.0028" axis="0 -1 1" name="right_elbow" pos="0 0 0" range="-90 50" stiffness="0" type="hinge"/>
                     <geom fromto="0.01 0.01 0.01 .17 .17 .17" name="right_larm" size="0.031" type="capsule"/>
-                    <geom name="right_hand" pos=".18 .18 .18" size="0.04" type="sphere"/>
+                    <geom name="right_hand" pos=".18 .18 .18" size="0.04" type="sphere" contype="1" />
                     <camera pos="0 0 0"/>
                 </body>
             </body>
@@ -101,7 +101,7 @@
                 <body name="left_lower_arm" pos=".18 .18 -.18">
                     <joint armature="0.0028" axis="0 -1 -1" name="left_elbow" pos="0 0 0" range="-90 50" stiffness="0" type="hinge"/>
                     <geom fromto="0.01 -0.01 0.01 .17 -.17 .17" name="left_larm" size="0.031" type="capsule"/>
-                    <geom name="left_hand" pos=".18 -.18 .18" size="0.04" type="sphere"/>
+                    <geom name="left_hand" pos=".18 -.18 .18" size="0.04" type="sphere" contype="1" />
                 </body>
             </body>
         </body>
