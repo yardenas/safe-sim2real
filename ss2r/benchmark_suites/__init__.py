@@ -149,5 +149,7 @@ render_fns = {
     "cartpole_balance_sparse": brax.render,
     "cartpole_balance_sparse_safe": brax.render,
     "cartpole_swingup_sparse_safe": brax.render,
+    "humanoid": brax.render,
+    "humanoid_safe": brax.render,
     "rccar": rccar.render,
 }
