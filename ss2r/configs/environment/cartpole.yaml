@@ -2,6 +2,10 @@ defaults:
   - brax_base
 
 task_name: cartpole_swingup_safe
+task_params:
+  sparse: false
+  swingup: true
+  slider_position_bound: 0.25
 
 # Sample uniformly around the nominal value
 train_params:

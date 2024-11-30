@@ -1,4 +1,3 @@
-import itertools
 import os
 from typing import Any
 
@@ -189,25 +188,19 @@ class Cartpole(PipelineEnv):
         )
 
 
-for safe, sparse, swingup in itertools.product(
-    [True, False], [True, False], [True, False]
-):
+for safe in [True, False]:
     name = ["cartpole"]
     safe_str = "safe" if safe else ""
-    task_str = "swingup" if swingup else "balance"
-    name.append(task_str)
-    if sparse:
-        name.append("sparse")
     if safe:
         name.append("safe")
 
         def make(**kwargs):
             slider_position_bound = kwargs.pop("slider_position_bound", 0.25)
             return ConstraintWrapper(
-                Cartpole(sparse=sparse, swingup=swingup, **kwargs),
+                Cartpole(**kwargs),
                 slider_position_bound,
             )
     else:
-        make = lambda **kwargs: Cartpole(sparse=sparse, swingup=swingup, **kwargs)
+        make = lambda **kwargs: Cartpole(**kwargs)
     name_str = "_".join(name)
     register_environment(name_str, make)
