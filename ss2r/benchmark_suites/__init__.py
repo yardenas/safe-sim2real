@@ -129,28 +129,16 @@ def make_brax_envs(cfg):
 
 
 randomization_fns = {
-    "cartpole_swingup": cartpole.domain_randomization,
-    "cartpole_swingup_safe": cartpole.domain_randomization,
-    "cartpole_swingup_sparse": cartpole.domain_randomization,
-    "cartpole_balance": cartpole.domain_randomization,
-    "cartpole_balance_safe": cartpole.domain_randomization,
-    "cartpole_balance_sparse": cartpole.domain_randomization,
-    "cartpole_balance_sparse_safe": cartpole.domain_randomization,
-    "cartpole_swingup_sparse_safe": cartpole.domain_randomization,
+    "cartpole": cartpole.domain_randomization,
+    "cartpole_safe": cartpole.domain_randomization,
     "rccar": rccar.domain_randomization,
     "humanoid": humanoid.domain_randomization,
     "humanoid_safe": humanoid.domain_randomization,
 }
 
 render_fns = {
-    "cartpole_swingup": brax.render,
-    "cartpole_swingup_safe": brax.render,
-    "cartpole_swingup_sparse": brax.render,
-    "cartpole_balance": brax.render,
-    "cartpole_balance_safe": brax.render,
-    "cartpole_balance_sparse": brax.render,
-    "cartpole_balance_sparse_safe": brax.render,
-    "cartpole_swingup_sparse_safe": brax.render,
+    "cartpole": brax.render,
+    "cartpole_safe": brax.render,
     "humanoid": functools.partial(brax.render, camera="track"),
     "humanoid_safe": functools.partial(brax.render, camera="track"),
     "rccar": rccar.render,
