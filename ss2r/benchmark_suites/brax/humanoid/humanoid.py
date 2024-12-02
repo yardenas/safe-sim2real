@@ -107,8 +107,12 @@ class ConstraintWrapper(Wrapper):
 
     def step(self, state: State, action: jax.Array) -> State:
         nstate = self.env.step(state, action)
-        cost = state.done
+        head_touch = self.env.head_touch(nstate.pipeline_state)
+        torso_touch = self.env.head_touch(nstate.pipeline_state)
+        force = jnp.max(jnp.array([head_touch, torso_touch]), axis=0)
+        cost = (force >= self.max_force).astype(jnp.float32)
         nstate.info["cost"] = cost
+        nstate = nstate.replace(done=cost)
         return nstate
 
 
