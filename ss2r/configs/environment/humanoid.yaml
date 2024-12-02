@@ -6,7 +6,7 @@ backend: mjx
 task_name: humanoid_safe
 task_params: 
   max_force: 10.
-  terminate_when_unhealthy: True
+  terminate_when_unhealthy: false
   healthy_z_range: [1.0, 2.0]
   
 

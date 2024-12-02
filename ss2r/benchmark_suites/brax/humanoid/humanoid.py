@@ -112,6 +112,7 @@ class ConstraintWrapper(Wrapper):
         force = jnp.max(jnp.array([head_touch, torso_touch]), axis=0)
         cost = (force >= self.max_force).astype(jnp.float32)
         nstate.info["cost"] = cost
+        nstate.replace(done=cost)
         return nstate
 
 
@@ -175,11 +176,8 @@ class Humanoid(humanoid.Humanoid):
                     "opt.ls_iterations": 4,
                 }
             )
-
         kwargs["n_frames"] = kwargs.get("n_frames", n_frames)
-
         PipelineEnv.__init__(self, sys=sys, backend=backend, **kwargs)
-
         self._forward_reward_weight = forward_reward_weight
         self._ctrl_cost_weight = ctrl_cost_weight
         self._healthy_reward = healthy_reward
