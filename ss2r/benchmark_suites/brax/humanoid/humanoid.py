@@ -125,12 +125,14 @@ class Humanoid(humanoid.Humanoid):
         self.sensor_names = [
             "head_touch",
             "torso_touch",
-            "left_hand_touch",
+            "lwaist_touch",
+            "pelvis_touch",
+            "right_thigh_touch",
+            "right_shin_touch",
+            "left_thigh_touch",
+            "left_shin_touch",
             "right_hand_touch",
-            "left_foot_touch",
-            "right_foot_touch",
-            "left_knee_touch",
-            "right_knee_touch",
+            "left_hand_touch",
         ]
         self.sensor_ids = [
             mujoco.mj_name2id(sys.mj_model, mujoco.mjtObj.mjOBJ_SENSOR.value, name)

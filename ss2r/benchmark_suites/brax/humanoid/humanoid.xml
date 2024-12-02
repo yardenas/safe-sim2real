@@ -66,7 +66,6 @@
                             <site name="right_shin_touch" class="touch" type="capsule" size=".06 .3" pos="0 0 -.15"/>
                             <body name="right_foot" pos="0 0 -0.45">
                                 <geom contype="1" name="right_foot" pos="0 0 0.1" size="0.075" type="sphere"/>
-                                <site name="right_foot_touch" class="touch" type="sphere" size="0.1" pos="0 0 0.1"/>
                             </body>
                         </body>
                     </body>
@@ -82,7 +81,6 @@
                             <site name="left_shin_touch" class="touch" type="capsule" size=".06 .3" pos="0 0 -.15"/>
                             <body name="left_foot" pos="0 0 -0.45">
                                 <geom contype="1" name="left_foot" type="sphere" size="0.075" pos="0 0 0.1"/>
-                                <site name="left_foot_touch" class="touch" type="sphere" size="0.1" pos="0 0 0.1"/>
                             </body>
                         </body>
                     </body>
@@ -96,6 +94,7 @@
                     <joint armature="0.0028" axis="0 -1 1" name="right_elbow" pos="0 0 0" range="-90 50" stiffness="0" type="hinge"/>
                     <geom fromto="0.01 0.01 0.01 .17 .17 .17" name="right_larm" size="0.031" type="capsule"/>
                     <geom name="right_hand" pos=".18 .18 .18" size="0.04" type="sphere" contype="1" />
+                    <site name="right_hand_touch" class="touch" type="sphere" size="0.05" pos="0.18 0.18 0.18"/>
                     <camera pos="0 0 0"/>
                 </body>
             </body>
@@ -107,6 +106,7 @@
                     <joint armature="0.0028" axis="0 -1 -1" name="left_elbow" pos="0 0 0" range="-90 50" stiffness="0" type="hinge"/>
                     <geom fromto="0.01 -0.01 0.01 .17 -.17 .17" name="left_larm" size="0.031" type="capsule"/>
                     <geom name="left_hand" pos=".18 -.18 .18" size="0.04" type="sphere" contype="1" />
+                    <site name="left_hand_touch" class="touch" type="sphere" size="0.05" pos="0.18 0.18 0.18"/>
                 </body>
             </body>
         </body>
@@ -137,9 +137,9 @@
         <touch name="pelvis_touch" site="pelvis_touch"/>
         <touch name="right_thigh_touch" site="right_thigh_touch"/>
         <touch name="right_shin_touch" site="right_shin_touch"/>
-        <touch name="right_foot_touch" site="right_foot_touch"/>
         <touch name="left_thigh_touch" site="left_thigh_touch"/>
         <touch name="left_shin_touch" site="left_shin_touch"/>
-        <touch name="left_foot_touch" site="left_foot_touch"/>
+        <touch name="right_hand_touch" site="right_hand_touch"/>
+        <touch name="left_hand_touch" site="left_hand_touch"/>
     </sensor>
 </mujoco>
