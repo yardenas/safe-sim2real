@@ -112,7 +112,7 @@ class ConstraintWrapper(Wrapper):
         force = jnp.max(jnp.array([head_touch, torso_touch]), axis=0)
         cost = (force >= self.max_force).astype(jnp.float32)
         nstate.info["cost"] = cost
-        nstate.replace(done=cost)
+        nstate = nstate.replace(done=cost)
         return nstate
 
 
