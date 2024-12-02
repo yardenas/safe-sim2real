@@ -12,7 +12,6 @@ training:
 environment:
   task_params: 
     max_force: 50.
-    terminate_when_unhealthy: false
   
 
 agent:
