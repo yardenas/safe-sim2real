@@ -1,4 +1,3 @@
-import itertools
 import os
 from typing import Any
 
@@ -50,33 +49,6 @@ def domain_randomization(sys, rng, cfg):
         ],
         axis=-1,
     )
-    return sys, in_axes, samples
-
-
-def domain_randomization_length(sys, rng, cfg):
-    @jax.vmap
-    def randomize(rng):
-        offset = jax.random.uniform(rng, shape=(3,), minval=-0.1, maxval=0.1)
-        pos = sys.link.transform.pos.at[0].set(offset)
-        return pos
-
-    pos = randomize(rng)
-    sys_v = sys.tree_replace({"link.inertia.transform.pos": pos})
-    in_axes = jax.tree.map(lambda x: None, sys)
-    in_axes = in_axes.tree_replace({"link.inertia.transform.pos": 0})
-    return sys_v, in_axes, pos
-
-
-def domain_randomization_gear(sys, rng, cfg):
-    @jax.vmap
-    def randomize(rng):
-        sample = jax.random.uniform(rng, minval=cfg.min, maxval=cfg.max)
-        return sample
-
-    samples = randomize(rng)
-    in_axes = jax.tree_map(lambda x: None, sys)
-    in_axes = in_axes.tree_replace({"actuator.gear": 0})
-    sys = sys.tree_replace({"actuator.gear": samples})
     return sys, in_axes, samples
 
 
@@ -189,25 +161,18 @@ class Cartpole(PipelineEnv):
         )
 
 
-for safe, sparse, swingup in itertools.product(
-    [True, False], [True, False], [True, False]
-):
+for safe in [True, False]:
     name = ["cartpole"]
     safe_str = "safe" if safe else ""
-    task_str = "swingup" if swingup else "balance"
-    name.append(task_str)
-    if sparse:
-        name.append("sparse")
+
+    def make(**kwargs):
+        slider_position_bound = kwargs.pop("slider_position_bound", 0.25)
+        env = Cartpole(**kwargs)
+        if safe:
+            env = ConstraintWrapper(env, slider_position_bound)
+        return env
+
     if safe:
         name.append("safe")
-
-        def make(**kwargs):
-            slider_position_bound = kwargs.pop("slider_position_bound", 0.25)
-            return ConstraintWrapper(
-                Cartpole(sparse=sparse, swingup=swingup, **kwargs),
-                slider_position_bound,
-            )
-    else:
-        make = lambda **kwargs: Cartpole(sparse=sparse, swingup=swingup, **kwargs)
     name_str = "_".join(name)
     register_environment(name_str, make)
