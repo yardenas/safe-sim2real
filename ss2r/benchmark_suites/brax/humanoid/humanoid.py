@@ -80,20 +80,6 @@ def domain_randomization_length(sys, rng, cfg):
     return sys_v, in_axes, pos
 
 
-# TODO (yarden): reimeplement this. Start with friction and motor parameters.
-def domain_randomization_gear(sys, rng, cfg):
-    @jax.vmap
-    def randomize(rng):
-        sample = jax.random.uniform(rng, minval=cfg.min, maxval=cfg.max)
-        return sample
-
-    samples = randomize(rng)
-    in_axes = jax.tree_map(lambda x: None, sys)
-    in_axes = in_axes.tree_replace({"actuator.gear": 0})
-    sys = sys.tree_replace({"actuator.gear": samples})
-    return sys, in_axes, samples
-
-
 class ConstraintWrapper(Wrapper):
     def __init__(self, env: Env, max_force: float):
         assert isinstance(env, Humanoid)
