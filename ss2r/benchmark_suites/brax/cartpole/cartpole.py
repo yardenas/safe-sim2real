@@ -52,33 +52,6 @@ def domain_randomization(sys, rng, cfg):
     return sys, in_axes, samples
 
 
-def domain_randomization_length(sys, rng, cfg):
-    @jax.vmap
-    def randomize(rng):
-        offset = jax.random.uniform(rng, shape=(3,), minval=-0.1, maxval=0.1)
-        pos = sys.link.transform.pos.at[0].set(offset)
-        return pos
-
-    pos = randomize(rng)
-    sys_v = sys.tree_replace({"link.inertia.transform.pos": pos})
-    in_axes = jax.tree.map(lambda x: None, sys)
-    in_axes = in_axes.tree_replace({"link.inertia.transform.pos": 0})
-    return sys_v, in_axes, pos
-
-
-def domain_randomization_gear(sys, rng, cfg):
-    @jax.vmap
-    def randomize(rng):
-        sample = jax.random.uniform(rng, minval=cfg.min, maxval=cfg.max)
-        return sample
-
-    samples = randomize(rng)
-    in_axes = jax.tree_map(lambda x: None, sys)
-    in_axes = in_axes.tree_replace({"actuator.gear": 0})
-    sys = sys.tree_replace({"actuator.gear": samples})
-    return sys, in_axes, samples
-
-
 class ConstraintWrapper(Wrapper):
     def __init__(self, env: Env, slider_position_bound: float):
         assert isinstance(env, Cartpole)
