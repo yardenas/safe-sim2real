@@ -106,7 +106,7 @@
                     <joint armature="0.0028" axis="0 -1 -1" name="left_elbow" pos="0 0 0" range="-90 50" stiffness="0" type="hinge"/>
                     <geom fromto="0.01 -0.01 0.01 .17 -.17 .17" name="left_larm" size="0.031" type="capsule"/>
                     <geom name="left_hand" pos=".18 -.18 .18" size="0.04" type="sphere" contype="1" />
-                    <site name="left_hand_touch" class="touch" type="sphere" size="0.05" pos="0.18 0.18 0.18"/>
+                    <site name="left_hand_touch" class="touch" type="sphere" size="0.05" pos="0.18 -0.18 0.18"/>
                 </body>
             </body>
         </body>
