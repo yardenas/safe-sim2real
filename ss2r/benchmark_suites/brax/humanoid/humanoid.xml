@@ -65,7 +65,7 @@
                             <geom fromto="0 0 0 0 0 -.3" name="right_shin1" size="0.049" type="capsule" contype="1"/>
                             <site name="right_shin_touch" class="touch" type="capsule" size=".06 .3" pos="0 0 -.15"/>
                             <body name="right_foot" pos="0 0 -0.45">
-                                <geom contype="1" name="right_foot" pos="0 0 0.1" size="0.075" type="sphere"/>
+                                <geom contype="1" name="right_foot" pos="0 0 0.1" size="0.075" type="sphere" user="0"/>
                             </body>
                         </body>
                     </body>
@@ -80,7 +80,7 @@
                             <geom fromto="0 0 0 0 0 -.3" name="left_shin1" size="0.049" type="capsule" contype="1"/>
                             <site name="left_shin_touch" class="touch" type="capsule" size=".06 .3" pos="0 0 -.15"/>
                             <body name="left_foot" pos="0 0 -0.45">
-                                <geom contype="1" name="left_foot" type="sphere" size="0.075" pos="0 0 0.1"/>
+                                <geom contype="1" name="left_foot" type="sphere" size="0.075" pos="0 0 0.1" user="0" />
                             </body>
                         </body>
                     </body>
