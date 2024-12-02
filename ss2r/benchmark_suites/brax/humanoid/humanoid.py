@@ -29,40 +29,64 @@ from brax.io import mjcf
 def domain_randomization(sys, rng, cfg):
     @jax.vmap
     def randomize(rng):
-        # Hardcoding _POLE_MASS to avoid weird jax issues.
-        pole_mass = jnp.asarray([1.0, 0.1])
-        mask = jnp.asarray([0.0, 1.0])
-        mass_sample = (
-            jax.random.uniform(rng, minval=cfg.mass[0], maxval=cfg.mass[1]) * mask
+        rng, rng_ = jax.random.split(rng)
+        friction = jax.random.uniform(
+            rng_, minval=cfg.friction[0], maxval=cfg.friction[1]
         )
-        mass_sample = pole_mass + mass_sample
-        rng, _ = jax.random.split(rng)
-        gear = sys.actuator.gear.copy()[0]
-        gear_sample = (
-            jax.random.uniform(rng, minval=cfg.gear[0], maxval=cfg.gear[1]) + gear
+        friction_sample = sys.geom_friction.copy()
+        friction_sample = friction_sample.at[0, 1:].add(friction)
+        rng = jax.random.split(rng, 4)
+        # Ensure symmetry
+        names_ids = {
+            k: mujoco.mj_name2id(sys.mj_model, mujoco.mjtObj.mjOBJ_ACTUATOR.value, k)
+            for k in [
+                "right_hip_x",
+                "left_hip_x",
+                "right_hip_y",
+                "left_hip_y",
+                "right_hip_z",
+                "left_hip_z",
+                "left_knee",
+                "right_knee",
+            ]
+        }
+        gear_sample = sys.actuator.gear.copy()
+        hip_x = jax.random.uniform(rng[0], minval=cfg.hip.x[0], maxval=cfg.hip.x[1])
+        hip_y = jax.random.uniform(rng[1], minval=cfg.hip.y[0], maxval=cfg.hip.y[1])
+        hip_z = jax.random.uniform(rng[2], minval=cfg.hip.z[0], maxval=cfg.hip.z[1])
+        knee = jax.random.uniform(rng[3], minval=cfg.knee[0], maxval=cfg.knee[1])
+        name_values = {
+            "right_hip_x": hip_x,
+            "left_hip_x": hip_x,
+            "right_hip_y": hip_y,
+            "left_hip_y": hip_y,
+            "right_hip_z": hip_z,
+            "left_hip_z": hip_z,
+            "left_knee": knee,
+            "right_knee": knee,
+        }
+        for name, value in name_values.items():
+            actuator_id = names_ids[name]
+            gear_sample = gear_sample.at[actuator_id].add(value)
+        return (
+            friction_sample,
+            gear_sample,
+            jnp.stack([friction, hip_x, hip_y, hip_z, knee]),
         )
-        return mass_sample, gear_sample
 
-    mass_sample, actuator_gear = randomize(rng)
+    friction_sample, gear_sample, samples = randomize(rng)
     in_axes = jax.tree_map(lambda x: None, sys)
     in_axes = in_axes.tree_replace(
         {
-            "link.inertia.mass": 0,
+            "geom_friction": 0,
             "actuator.gear": 0,
         }
     )
     sys = sys.tree_replace(
         {
-            "link.inertia.mass": mass_sample,
-            "actuator.gear": actuator_gear[:, None],
+            "geom_friction": friction_sample,
+            "actuator.gear": gear_sample,
         }
-    )
-    samples = jnp.stack(
-        [
-            mass_sample[:, -1],
-            actuator_gear,
-        ],
-        axis=-1,
     )
     return sys, in_axes, samples
 

@@ -8,11 +8,6 @@ training:
   num_envs: 256
   train_domain_randomization: false
   eval_domain_randomization: false
-  
-environment:
-  task_params: 
-    max_force: 50.
-  
 
 agent:
   grad_updates_per_step: 256
