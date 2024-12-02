@@ -14,6 +14,7 @@
 
 # pylint:disable=g-multiple-import
 """Trains a humanoid to run in the +x direction."""
+import functools
 import os
 
 import jax
@@ -201,7 +202,7 @@ for safe in [True, False]:
     name = ["humanoid"]
     safe_str = "safe" if safe else ""
 
-    def make(**kwargs):
+    def make(safe, **kwargs):
         max_force = kwargs.pop("max_force", 30.0)
         env = Humanoid(**kwargs)
         if safe:
@@ -211,4 +212,4 @@ for safe in [True, False]:
     if safe:
         name.append("safe")
     name_str = "_".join(name)
-    register_environment(name_str, make)
+    register_environment(name_str, functools.partial(make, safe))
