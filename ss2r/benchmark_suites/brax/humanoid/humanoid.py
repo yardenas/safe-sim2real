@@ -93,9 +93,13 @@ class ConstraintWrapper(Wrapper):
 
     def step(self, state: State, action: jax.Array) -> State:
         nstate = self.env.step(state, action)
-        head_touch = self.env.head_touch(nstate.pipeline_state)
-        torso_touch = self.env.head_touch(nstate.pipeline_state)
-        force = jnp.max(jnp.array([head_touch, torso_touch]), axis=0)
+        forces = jnp.array(
+            [
+                self.env.get_sensor_reading(nstate.pipeline_state, sensor_id)
+                for sensor_id in self.env.sensor_ids
+            ]
+        )
+        force = jnp.max(forces)
         cost = (force >= self.max_force).astype(jnp.float32)
         nstate.info["cost"] = cost
         nstate = nstate.replace(done=cost)
@@ -118,12 +122,20 @@ class Humanoid(humanoid.Humanoid):
         dir = os.path.dirname(__file__)
         path = os.path.join(dir, "humanoid.xml")
         sys = mjcf.load(path)
-        self.head_id = mujoco.mj_name2id(
-            sys.mj_model, mujoco.mjtObj.mjOBJ_SENSOR.value, "head_touch"
-        )
-        self.torso_id = mujoco.mj_name2id(
-            sys.mj_model, mujoco.mjtObj.mjOBJ_SENSOR.value, "torso_touch"
-        )
+        self.sensor_names = [
+            "head_touch",
+            "torso_touch",
+            "left_hand_touch",
+            "right_hand_touch",
+            "left_foot_touch",
+            "right_foot_touch",
+            "left_knee_touch",
+            "right_knee_touch",
+        ]
+        self.sensor_ids = [
+            mujoco.mj_name2id(sys.mj_model, mujoco.mjtObj.mjOBJ_SENSOR.value, name)
+            for name in self.sensor_names
+        ]
 
         n_frames = 5
 
@@ -174,11 +186,13 @@ class Humanoid(humanoid.Humanoid):
             exclude_current_positions_from_observation
         )
 
-    def head_touch(self, pipeline_state: base.State) -> jax.Array:
-        return jnp.linalg.norm(pipeline_state.sensordata[self.head_id])
-
-    def torso_touch(self, pipeline_state: base.State) -> jax.Array:
-        return jnp.linalg.norm(pipeline_state.sensordata[self.torso_id])
+    def get_sensor_reading(
+        self, pipeline_state: base.State, sensor_id: int
+    ) -> jax.Array:
+        """
+        Returns the sensor reading for a given sensor ID.
+        """
+        return jnp.linalg.norm(pipeline_state.sensordata[sensor_id])
 
 
 for safe in [True, False]:
