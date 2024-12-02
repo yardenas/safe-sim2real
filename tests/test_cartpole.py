@@ -82,7 +82,9 @@ def set_dmc_initial_state(env, init_state):
 def test_brax_dmc_cartpole():
     jax.config.update("jax_enable_x64", True)
     num_steps = 1000
-    brax_env = envs.get_environment(env_name="cartpole_swingup", backend="generalized")
+    brax_env = envs.get_environment(
+        env_name="cartpole", backend="generalized", swingup=True
+    )
     dmc_env = suite.load(domain_name="cartpole", task_name="swingup")
     brax_env.reset(rng=jax.random.PRNGKey(0))
     dmc_env.reset()
@@ -121,7 +123,7 @@ def test_parameterization(use_domain_randomization, similar_rate):
             f"training.num_envs={_ENVS}",
             "environment=cartpole",
             "training.train_domain_randomization=" + str(use_domain_randomization),
-            "environment.task_name=cartpole_swingup",
+            "environment.task_name=cartpole",
         ]
     )
     env, *_ = benchmark_suites.make(cfg)

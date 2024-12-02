@@ -1,2 +1,3 @@
 domain_name: brax
 backend: generalized
+task_params: {}

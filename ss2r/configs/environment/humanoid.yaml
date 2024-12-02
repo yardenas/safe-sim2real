@@ -1,11 +1,14 @@
 defaults:
   - brax_base
+  - _self_
 
-task_name: cartpole_swingup_safe
-task_params:
-  sparse: false
-  swingup: false
-  slider_position_bound: 0.25
+backend: mjx
+task_name: humanoid_safe
+task_params: 
+  max_force: 10.
+  terminate_when_unhealthy: true
+  healthy_z_range: [1.0, 2.0]
+  
 
 # Sample uniformly around the nominal value
 train_params:
