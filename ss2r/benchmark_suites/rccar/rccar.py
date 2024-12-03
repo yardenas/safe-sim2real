@@ -221,18 +221,19 @@ class RCCar(Env):
         # FIXME (yarden): this is great for sim, but what about real?
         # One way: don't override the state in that case, but let it collide in reality, just compute costs here.
         # Another way: let it collide in reality, detect real collisions, and measure the energy loss
-        next_dynamics_state = jnp.where(
-            cost == 0.0,
-            next_dynamics_state,
-            dynamics_state.at[..., 3:5].set(negative_vel * 0.05),
-        )
-        next_dynamics_state = jnp.where(
-            cost == 0.0,
-            next_dynamics_state,
-            next_dynamics_state.at[..., :2].set(
-                dynamics_state[..., :2] + negative_vel * 0.1
-            ),
-        )
+        if not isinstance(self.dynamics_model, HardwareDynamics):
+            next_dynamics_state = jnp.where(
+                cost == 0.0,
+                next_dynamics_state,
+                dynamics_state.at[..., 3:5].set(negative_vel * 0.05),
+            )
+            next_dynamics_state = jnp.where(
+                cost == 0.0,
+                next_dynamics_state,
+                next_dynamics_state.at[..., :2].set(
+                    dynamics_state[..., :2] + negative_vel * 0.1
+                ),
+            )
         next_obs = self._obs(next_dynamics_state)
         vx, vy = dynamics_state[..., 3:5]
         energy = 0.5 * self.sys.m * (vx**2 + vy**2)
