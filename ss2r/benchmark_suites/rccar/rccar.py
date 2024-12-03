@@ -121,6 +121,7 @@ class RCCar(Env):
         dt: float = 1 / 30.0,
         obstacles: list[tuple[float, float, float]] = [(0.75, -0.75, 0.2)],
         sample_init_pose: bool = True,
+        control_penalty_scale: float = 0.0,
         *,
         hardware: HardwareDynamics | None = None,
     ):
@@ -128,6 +129,7 @@ class RCCar(Env):
         self.obstacles = obstacles
         self.init_pose = jnp.array([1.42, -1.04, jnp.pi])
         self.sample_init_pose = sample_init_pose
+        self.control_penalty_scale = control_penalty_scale
         self.angle_idx = 2
         self.dim_action = (2,)
         self.encode_angle = True
@@ -216,6 +218,7 @@ class RCCar(Env):
         reward = prev_goal_dist - goal_dist
         goal_achieved = jnp.less_equal(goal_dist, 0.3)
         reward += goal_achieved.astype(jnp.float32)
+        reward -= jnp.linalg.norm(action) * self.control_penalty_scale
         cost = cost_fn(dynamics_state[..., :2], self.obstacles)
         # FIXME (yarden): this is great for sim, but what about real?
         # One way: don't override the state in that case, but let it collide in reality, just compute costs here.
