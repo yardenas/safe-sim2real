@@ -217,11 +217,11 @@ class RCCar(Env):
         goal_achieved = jnp.less_equal(goal_dist, 0.3)
         reward += goal_achieved.astype(jnp.float32)
         cost = cost_fn(dynamics_state[..., :2], self.obstacles)
-        negative_vel = -dynamics_state[..., 3:5]
         # FIXME (yarden): this is great for sim, but what about real?
         # One way: don't override the state in that case, but let it collide in reality, just compute costs here.
         # Another way: let it collide in reality, detect real collisions, and measure the energy loss
         if not isinstance(self.dynamics_model, HardwareDynamics):
+            negative_vel = -dynamics_state[..., 3:5]
             next_dynamics_state = jnp.where(
                 cost == 0.0,
                 next_dynamics_state,
