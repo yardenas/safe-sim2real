@@ -34,7 +34,8 @@ def domain_randomization(sys, rng, cfg):
             rng_, minval=cfg.friction[0], maxval=cfg.friction[1]
         )
         friction_sample = sys.geom_friction.copy()
-        friction_sample = friction_sample.at[0, 1:].add(friction)
+        friction_sample = friction_sample.at[0, 0].add(friction)
+        friction_sample = jnp.clip(friction_sample, a_min=0.0, a_max=1.0)
         rng = jax.random.split(rng, 4)
         # Ensure symmetry
         names_ids = {
