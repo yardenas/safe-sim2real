@@ -216,7 +216,7 @@ class RCCar(Env):
         goal_dist = jnp.linalg.norm(next_dynamics_state[:2])
         prev_goal_dist = state.pipeline_state[2]
         reward = prev_goal_dist - goal_dist
-        goal_achieved = jnp.less_equal(goal_dist, 0.3)
+        goal_achieved = jnp.less_equal(goal_dist, 0.35)
         reward += goal_achieved.astype(jnp.float32)
         cost = cost_fn(dynamics_state[..., :2], self.obstacles)
         # FIXME (yarden): this is great for sim, but what about real?
