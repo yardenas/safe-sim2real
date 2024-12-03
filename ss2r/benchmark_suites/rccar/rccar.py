@@ -121,6 +121,7 @@ class RCCar(Env):
         dt: float = 1 / 30.0,
         obstacles: list[tuple[float, float, float]] = [(0.75, -0.75, 0.2)],
         sample_init_pose: bool = True,
+        control_penalty_scale: float = 0.0,
         *,
         hardware: HardwareDynamics | None = None,
     ):
@@ -128,6 +129,7 @@ class RCCar(Env):
         self.obstacles = obstacles
         self.init_pose = jnp.array([1.42, -1.04, jnp.pi])
         self.sample_init_pose = sample_init_pose
+        self.control_penalty_scale = control_penalty_scale
         self.angle_idx = 2
         self.dim_action = (2,)
         self.encode_angle = True
@@ -153,6 +155,7 @@ class RCCar(Env):
         key_pos, key_vel, key_obs = jax.random.split(rng, 3)
         if isinstance(self.dynamics_model, HardwareDynamics):
             init_state = self.dynamics_model.mocap_state()
+            init_pos = init_state[:2]
         else:
 
             def sample_init_pos(ins):
@@ -213,25 +216,26 @@ class RCCar(Env):
         goal_dist = jnp.linalg.norm(next_dynamics_state[:2])
         prev_goal_dist = state.pipeline_state[2]
         reward = prev_goal_dist - goal_dist
-        goal_achieved = jnp.less_equal(goal_dist, 0.3)
+        goal_achieved = jnp.less_equal(goal_dist, 0.35)
         reward += goal_achieved.astype(jnp.float32)
         cost = cost_fn(dynamics_state[..., :2], self.obstacles)
-        negative_vel = -dynamics_state[..., 3:5]
         # FIXME (yarden): this is great for sim, but what about real?
         # One way: don't override the state in that case, but let it collide in reality, just compute costs here.
         # Another way: let it collide in reality, detect real collisions, and measure the energy loss
-        next_dynamics_state = jnp.where(
-            cost == 0.0,
-            next_dynamics_state,
-            dynamics_state.at[..., 3:5].set(negative_vel * 0.05),
-        )
-        next_dynamics_state = jnp.where(
-            cost == 0.0,
-            next_dynamics_state,
-            next_dynamics_state.at[..., :2].set(
-                dynamics_state[..., :2] + negative_vel * 0.1
-            ),
-        )
+        if not isinstance(self.dynamics_model, HardwareDynamics):
+            negative_vel = -dynamics_state[..., 3:5]
+            next_dynamics_state = jnp.where(
+                cost == 0.0,
+                next_dynamics_state,
+                dynamics_state.at[..., 3:5].set(negative_vel * 0.05),
+            )
+            next_dynamics_state = jnp.where(
+                cost == 0.0,
+                next_dynamics_state,
+                next_dynamics_state.at[..., :2].set(
+                    dynamics_state[..., :2] + negative_vel * 0.1
+                ),
+            )
         next_obs = self._obs(next_dynamics_state)
         vx, vy = dynamics_state[..., 3:5]
         energy = 0.5 * self.sys.m * (vx**2 + vy**2)
