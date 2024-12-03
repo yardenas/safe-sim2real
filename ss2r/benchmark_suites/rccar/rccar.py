@@ -153,6 +153,7 @@ class RCCar(Env):
         key_pos, key_vel, key_obs = jax.random.split(rng, 3)
         if isinstance(self.dynamics_model, HardwareDynamics):
             init_state = self.dynamics_model.mocap_state()
+            init_pos = init_state[:2]
         else:
 
             def sample_init_pos(ins):
