@@ -104,10 +104,10 @@ def domain_randomization_length(sys, rng, cfg):
 
 
 class ConstraintWrapper(Wrapper):
-    def __init__(self, env: Env, max_angle_scale: float):
+    def __init__(self, env: Env, angle_tolerance: float):
         assert isinstance(env, humanoid.Humanoid)
         super().__init__(env)
-        self.max_angle_scale = max_angle_scale
+        self.angle_tolerance = angle_tolerance * jnp.pi / 180
         joint_names = [
             "abdomen_z",
             "abdomen_y",
@@ -145,16 +145,43 @@ class ConstraintWrapper(Wrapper):
         return state
 
     def step(self, state: State, action: jax.Array) -> State:
-        nstate = self.env.step(state, action)
+        with jax.disable_jit(False):
+            nstate = jax.jit(self.env.step)(state, action)
         joint_angles = nstate.pipeline_state.qpos[self.joint_ids]
         cost = jnp.zeros_like(nstate.reward)
-        for angle, joint_range in zip(joint_angles, self.joint_ranges):
-            cost += (
-                (angle < (joint_range[0] * self.max_angle_scale))
-                | (angle >= (joint_range[1] * self.max_angle_scale))
-            ).astype(jnp.float32)
+        for i, (angle, joint_range) in enumerate(zip(joint_angles, self.joint_ranges)):
+            normalized_angle = normalize_angle(
+                angle, lower_bound=-jnp.pi, upper_bound=jnp.pi
+            )
+            lower_limit = normalize_angle(
+                joint_range[0] + self.angle_tolerance,
+                lower_bound=-jnp.pi,
+                upper_bound=jnp.pi,
+            )
+            upper_limit = normalize_angle(
+                joint_range[1] - self.angle_tolerance,
+                lower_bound=-jnp.pi,
+                upper_bound=jnp.pi,
+            )
+            is_out_of_range_case1 = (normalized_angle < lower_limit) & (
+                normalized_angle >= upper_limit
+            )
+            is_out_of_range_case2 = (normalized_angle < lower_limit) | (
+                normalized_angle >= upper_limit
+            )
+            out_of_range = jnp.where(
+                upper_limit < lower_limit, is_out_of_range_case1, is_out_of_range_case2
+            )
+            cost += out_of_range
+            print(f"Joint {i} out of range: {cost}")
         nstate.info["cost"] = (cost > 0).astype(jnp.float32)
         return nstate
+
+
+def normalize_angle(angle, lower_bound=-jnp.pi, upper_bound=jnp.pi):
+    """Normalize angle to be within [lower_bound, upper_bound)."""
+    range_width = upper_bound - lower_bound
+    return (angle - lower_bound) % range_width + lower_bound
 
 
 for safe in [True, False]:
@@ -162,10 +189,10 @@ for safe in [True, False]:
     safe_str = "safe" if safe else ""
 
     def make(safe, **kwargs):
-        max_angle_scale = kwargs.pop("max_angle_scale", 30.0)
+        angle_tolerance = kwargs.pop("angle_tolerance", 30.0)
         env = humanoid.Humanoid(**kwargs)
         if safe:
-            env = ConstraintWrapper(env, max_angle_scale)
+            env = ConstraintWrapper(env, angle_tolerance)
         return env
 
     if safe:
