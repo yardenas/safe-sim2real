@@ -154,12 +154,12 @@ class ConstraintWrapper(Wrapper):
                 angle, lower_bound=-jnp.pi, upper_bound=jnp.pi
             )
             lower_limit = normalize_angle(
-                joint_range[0] + self.angle_tolerance,
+                joint_range[0] - self.angle_tolerance,
                 lower_bound=-jnp.pi,
                 upper_bound=jnp.pi,
             )
             upper_limit = normalize_angle(
-                joint_range[1] - self.angle_tolerance,
+                joint_range[1] + self.angle_tolerance,
                 lower_bound=-jnp.pi,
                 upper_bound=jnp.pi,
             )
