@@ -107,10 +107,40 @@ def domain_randomization_length(sys, rng, cfg):
 
 
 class ConstraintWrapper(Wrapper):
-    def __init__(self, env: Env, max_force: float):
+    def __init__(self, env: Env, max_angle_scale: float):
         assert isinstance(env, Humanoid)
         super().__init__(env)
-        self.max_force = max_force
+        self.max_angle_scale = max_angle_scale
+        joint_names = [
+            "abdomen_z",
+            "abdomen_y",
+            "abdomen_x",
+            "right_hip_x",
+            "right_hip_z",
+            "right_hip_y",
+            "right_knee",
+            "left_hip_x",
+            "left_hip_z",
+            "left_hip_y",
+            "left_knee",
+            "right_shoulder1",
+            "right_shoulder2",
+            "right_elbow",
+            "left_shoulder1",
+            "left_shoulder2",
+            "left_elbow",
+        ]
+        self.joint_ids = jnp.asarray(
+            [
+                self.env.sys.mj_model.jnt_qposadr[
+                    mujoco.mj_name2id(
+                        env.sys.mj_model, mujoco.mjtObj.mjOBJ_JOINT.value, name
+                    )
+                ]
+                for name in joint_names
+            ]
+        )
+        self.joint_ranges = self.env.sys.jnt_range[1:] * 180 / jnp.pi
 
     def reset(self, rng: jax.Array) -> State:
         state = self.env.reset(rng)
@@ -119,8 +149,14 @@ class ConstraintWrapper(Wrapper):
 
     def step(self, state: State, action: jax.Array) -> State:
         nstate = self.env.step(state, action)
-        cost = nstate.done
-        nstate.info["cost"] = cost
+        joint_angles = nstate.pipeline_state.qpos[self.joint_ids]
+        cost = jnp.zeros_like(nstate.reward)
+        for angle, joint_range in zip(joint_angles, self.joint_ranges):
+            cost += (
+                (angle < (joint_range[0] * self.max_angle_scale))
+                | (angle >= (joint_range[1] * self.max_angle_scale))
+            ).astype(jnp.float32)
+        nstate.info["cost"] = (cost > 0).astype(jnp.float32)
         return nstate
 
 
@@ -208,10 +244,10 @@ for safe in [True, False]:
     safe_str = "safe" if safe else ""
 
     def make(safe, **kwargs):
-        max_force = kwargs.pop("max_force", 30.0)
+        max_angle_scale = kwargs.pop("max_angle_scale", 30.0)
         env = Humanoid(**kwargs)
         if safe:
-            env = ConstraintWrapper(env, max_force)
+            env = ConstraintWrapper(env, max_angle_scale)
         return env
 
     if safe:
