@@ -15,15 +15,12 @@
 # pylint:disable=g-multiple-import
 """Trains a humanoid to run in the +x direction."""
 import functools
-import os
 
 import jax
 import jax.numpy as jnp
 import mujoco
-from brax import base
-from brax.envs import Env, PipelineEnv, Wrapper, humanoid, register_environment
+from brax.envs import Env, Wrapper, humanoid, register_environment
 from brax.envs.base import State
-from brax.io import mjcf
 
 
 def domain_randomization(sys, rng, cfg):
@@ -108,7 +105,7 @@ def domain_randomization_length(sys, rng, cfg):
 
 class ConstraintWrapper(Wrapper):
     def __init__(self, env: Env, max_angle_scale: float):
-        assert isinstance(env, Humanoid)
+        assert isinstance(env, humanoid.Humanoid)
         super().__init__(env)
         self.max_angle_scale = max_angle_scale
         joint_names = [
@@ -140,7 +137,7 @@ class ConstraintWrapper(Wrapper):
                 for name in joint_names
             ]
         )
-        self.joint_ranges = self.env.sys.jnt_range[1:] * 180 / jnp.pi
+        self.joint_ranges = self.env.sys.jnt_range[1:]
 
     def reset(self, rng: jax.Array) -> State:
         state = self.env.reset(rng)
@@ -160,92 +157,13 @@ class ConstraintWrapper(Wrapper):
         return nstate
 
 
-class Humanoid(humanoid.Humanoid):
-    def __init__(
-        self,
-        forward_reward_weight=1.25,
-        ctrl_cost_weight=0.1,
-        healthy_reward=5.0,
-        terminate_when_unhealthy=True,
-        healthy_z_range=(1.0, 2.0),
-        reset_noise_scale=1e-2,
-        exclude_current_positions_from_observation=True,
-        backend="mjx",
-        **kwargs,
-    ):
-        dir = os.path.dirname(__file__)
-        path = os.path.join(dir, "humanoid.xml")
-        sys = mjcf.load(path)
-        self.head_id = mujoco.mj_name2id(
-            sys.mj_model, mujoco.mjtObj.mjOBJ_SENSOR.value, "head_touch"
-        )
-        self.torso_id = mujoco.mj_name2id(
-            sys.mj_model, mujoco.mjtObj.mjOBJ_SENSOR.value, "torso_touch"
-        )
-
-        n_frames = 5
-
-        if backend in ["spring", "positional"]:
-            sys = sys.tree_replace({"opt.timestep": 0.0015})
-            n_frames = 10
-            gear = jnp.array(
-                [
-                    350.0,
-                    350.0,
-                    350.0,
-                    350.0,
-                    350.0,
-                    350.0,
-                    350.0,
-                    350.0,
-                    350.0,
-                    350.0,
-                    350.0,
-                    100.0,
-                    100.0,
-                    100.0,
-                    100.0,
-                    100.0,
-                    100.0,
-                ]
-            )  # pyformat: disable
-            sys = sys.replace(actuator=sys.actuator.replace(gear=gear))
-
-        if backend == "mjx":
-            sys = sys.tree_replace(
-                {
-                    "opt.solver": mujoco.mjtSolver.mjSOL_NEWTON,
-                    "opt.disableflags": mujoco.mjtDisableBit.mjDSBL_EULERDAMP,
-                    "opt.iterations": 1,
-                    "opt.ls_iterations": 4,
-                }
-            )
-        kwargs["n_frames"] = kwargs.get("n_frames", n_frames)
-        PipelineEnv.__init__(self, sys=sys, backend=backend, **kwargs)
-        self._forward_reward_weight = forward_reward_weight
-        self._ctrl_cost_weight = ctrl_cost_weight
-        self._healthy_reward = healthy_reward
-        self._terminate_when_unhealthy = terminate_when_unhealthy
-        self._healthy_z_range = healthy_z_range
-        self._reset_noise_scale = reset_noise_scale
-        self._exclude_current_positions_from_observation = (
-            exclude_current_positions_from_observation
-        )
-
-    def head_touch(self, pipeline_state: base.State) -> jax.Array:
-        return jnp.linalg.norm(pipeline_state.sensordata[self.head_id])
-
-    def torso_touch(self, pipeline_state: base.State) -> jax.Array:
-        return jnp.linalg.norm(pipeline_state.sensordata[self.torso_id])
-
-
 for safe in [True, False]:
     name = ["humanoid"]
     safe_str = "safe" if safe else ""
 
     def make(safe, **kwargs):
         max_angle_scale = kwargs.pop("max_angle_scale", 30.0)
-        env = Humanoid(**kwargs)
+        env = humanoid.Humanoid(**kwargs)
         if safe:
             env = ConstraintWrapper(env, max_angle_scale)
         return env
