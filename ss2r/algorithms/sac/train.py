@@ -129,7 +129,6 @@ def train(
     environment: Union[envs_v1.Env, envs.Env],
     num_timesteps,
     episode_length: int,
-    wrap_env: bool = True,
     action_repeat: int = 1,
     num_envs: int = 1,
     num_eval_envs: int = 128,
@@ -210,31 +209,6 @@ def train(
     assert num_envs % device_count == 0
     env = environment
     rng = jax.random.PRNGKey(seed)
-    if wrap_env:
-        if isinstance(env, envs.Env):
-            wrap_for_training = envs.training.wrap
-        else:
-            wrap_for_training = envs_v1.wrappers.wrap_for_training
-
-        rng, key = jax.random.split(rng)
-        v_randomization_fn = None
-        if randomization_fn is not None:
-            v_randomization_fn = functools.partial(
-                randomization_fn,
-                rng=jax.random.split(
-                    key, num_envs // jax.process_count() // local_devices_to_use
-                ),
-            )
-            sys, in_axes, domain_parameters = v_randomization_fn(env.sys)
-            vf_randomization_fn = lambda *_: (sys, in_axes)
-        else:
-            vf_randomization_fn = None
-        env = wrap_for_training(
-            env,
-            episode_length=episode_length,
-            action_repeat=action_repeat,
-            randomization_fn=vf_randomization_fn,
-        )
     if privileged:
         env = DomainRandomizationParams(env)
         domain_parameters = env.domain_parameters
@@ -623,21 +597,6 @@ def train(
 
     if not eval_env:
         eval_env = environment
-    if wrap_env:
-        if randomization_fn is not None:
-            v_randomization_fn = functools.partial(
-                randomization_fn, rng=jax.random.split(eval_key, num_eval_envs)
-            )
-            vf_randomization_fn = lambda sys: v_randomization_fn(sys)[:-1]  # type: ignore
-        else:
-            vf_randomization_fn = None
-        eval_env = wrap_for_training(
-            eval_env,
-            episode_length=episode_length,
-            action_repeat=action_repeat,
-            randomization_fn=vf_randomization_fn,
-        )
-
     evaluator = ConstraintsEvaluator(
         eval_env,
         functools.partial(make_policy, deterministic=deterministic_eval),

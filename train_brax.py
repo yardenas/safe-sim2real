@@ -128,7 +128,6 @@ def main(cfg):
         make_policy, params, _ = train_fn(
             environment=train_env,
             eval_env=eval_env,
-            wrap_env=False,
             progress_fn=functools.partial(report, logger, steps),
         )
         if cfg.training.render:
