@@ -10,6 +10,7 @@ training:
   train_domain_randomization: true
   eval_domain_randomization: true
   safety_budget: 100.
+  privileged: true
 
 train_params:
   friction: [0., 0.]
