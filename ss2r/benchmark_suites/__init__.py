@@ -3,7 +3,7 @@ import functools
 import jax
 from brax import envs
 
-from ss2r.benchmark_suites import brax
+from ss2r.benchmark_suites import brax, wrappers
 from ss2r.benchmark_suites.brax.cartpole import cartpole
 from ss2r.benchmark_suites.brax.humanoid import humanoid
 from ss2r.benchmark_suites.rccar import rccar
@@ -27,7 +27,7 @@ def prepare_randomization_fn(key, num_envs, cfg, task_name):
     v_randomization_fn = functools.partial(
         randomize_fn, rng=jax.random.split(key, num_envs)
     )
-    vf_randomization_fn = lambda sys: v_randomization_fn(sys)[:-1]  # type: ignore
+    vf_randomization_fn = lambda sys: v_randomization_fn(sys)  # type: ignore
     return vf_randomization_fn
 
 
@@ -108,7 +108,7 @@ def make_brax_envs(cfg):
         if cfg.training.train_domain_randomization
         else None
     )
-    train_env = envs.training.wrap(
+    train_env = wrappers.wrap(
         train_env,
         episode_length=cfg.training.episode_length,
         action_repeat=cfg.training.action_repeat,
@@ -117,7 +117,7 @@ def make_brax_envs(cfg):
     eval_randomization_fn = prepare_randomization_fn(
         eval_key, cfg.training.num_eval_envs, task_cfg.eval_params, task_cfg.task_name
     )
-    eval_env = envs.training.wrap(
+    eval_env = wrappers.wrap(
         eval_env,
         episode_length=cfg.training.episode_length,
         action_repeat=cfg.training.action_repeat,
