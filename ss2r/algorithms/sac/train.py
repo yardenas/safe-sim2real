@@ -37,7 +37,7 @@ import ss2r.algorithms.sac.losses as sac_losses
 import ss2r.algorithms.sac.networks as sac_networks
 from ss2r.algorithms.sac.penalizers import Penalizer
 from ss2r.algorithms.sac.robustness import QTransformation, SACCost
-from ss2r.algorithms.sac.wrappers import DomainRandomizationParams, StatePropagation
+from ss2r.algorithms.sac.wrappers import StatePropagation
 from ss2r.rl.evaluation import ConstraintsEvaluator
 
 Metrics: TypeAlias = types.Metrics
@@ -210,7 +210,6 @@ def train(
     env = environment
     rng = jax.random.PRNGKey(seed)
     if privileged:
-        env = DomainRandomizationParams(env)
         domain_parameters = env.domain_parameters
     else:
         domain_parameters = None
