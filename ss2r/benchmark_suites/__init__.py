@@ -60,7 +60,7 @@ def make_rccar_envs(cfg):
         if cfg.training.train_domain_randomization
         else None
     )
-    train_env = envs.training.wrap(
+    train_env = wrappers.wrap(
         train_env,
         episode_length=cfg.training.episode_length,
         action_repeat=cfg.training.action_repeat,
@@ -83,7 +83,7 @@ def make_rccar_envs(cfg):
         if cfg.training.eval_domain_randomization
         else None
     )
-    eval_env = envs.training.wrap(
+    eval_env = wrappers.wrap(
         eval_env,
         episode_length=cfg.training.episode_length,
         action_repeat=cfg.training.action_repeat,
