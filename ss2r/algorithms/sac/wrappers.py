@@ -58,27 +58,3 @@ class StatePropagation(Wrapper):
         nstate = self.propagation_fn(nstate, key)
         nstate.info["state_propagation"]["next_obs"] = orig_next_obs
         return nstate
-
-
-def get_randomized_values(sys_v, in_axes):
-    sys_v_leaves, _ = jax.tree.flatten(sys_v)
-    in_axes_leaves, _ = jax.tree.flatten(in_axes, is_leaf=lambda x: x is None)
-    randomized_values = [
-        leaf for leaf, axis in zip(sys_v_leaves, in_axes_leaves) if axis is not None
-    ]
-    randomized_values = [x[:, None] if x.ndim == 1 else x for x in randomized_values]
-    randomized_array = jnp.concatenate(randomized_values, axis=1)
-    return randomized_array
-
-
-class DomainRandomizationParams(Wrapper):
-    def __init__(self, env):
-        super().__init__(env)
-        self.domain_parameters = get_randomized_values(
-            self.env._sys_v, self.env._in_axes
-        )
-
-    def reset(self, rng: jax.Array) -> State:
-        state = self.env.reset(rng)
-        state.info["domain_parameters"] = self.domain_parameters
-        return state
