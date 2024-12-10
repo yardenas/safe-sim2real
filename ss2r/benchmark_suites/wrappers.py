@@ -1,6 +1,10 @@
+from typing import Callable, Optional, Tuple
+
 import jax
-import jax.numpy as jp
-from brax.envs import State, Wrapper
+from brax.base import System
+from brax.envs import wrappers
+from brax.envs.base import Env, State, Wrapper
+from jax import numpy as jp
 
 
 class ActionObservationDelayWrapper(Wrapper):
@@ -155,3 +159,65 @@ class FrameActionStack(Wrapper):
         flat_actions = action_stack.reshape(-1)
         # Concatenate them
         return jp.concatenate([flat_obs, flat_actions])
+
+
+class DomainRandomizationVmapWrapper(Wrapper):
+    def __init__(
+        self,
+        env: Env,
+        randomization_fn: Callable[[System], Tuple[System, System, jax.Array]],
+    ):
+        super().__init__(env)
+        self._sys_v, self._in_axes, self.domain_params = randomization_fn(self.sys)
+
+    def _env_fn(self, sys: System) -> Env:
+        env = self.env
+        env.unwrapped.sys = sys
+        return env
+
+    def reset(self, rng: jax.Array) -> State:
+        def reset(sys, rng):
+            env = self._env_fn(sys=sys)
+            return env.reset(rng)
+
+        state = jax.vmap(reset, in_axes=[self._in_axes, 0])(self._sys_v, rng)
+        return state
+
+    def step(self, state: State, action: jax.Array) -> State:
+        def step(sys, s, a):
+            env = self._env_fn(sys=sys)
+            return env.step(s, a)
+
+        res = jax.vmap(step, in_axes=[self._in_axes, 0, 0])(self._sys_v, state, action)
+        return res
+
+
+def wrap(
+    env: Env,
+    episode_length: int = 1000,
+    action_repeat: int = 1,
+    randomization_fn: Optional[
+        Callable[[System], Tuple[System, System, jax.Array]]
+    ] = None,
+) -> Wrapper:
+    """Common wrapper pattern for all training agents.
+
+    Args:
+      env: environment to be wrapped
+      episode_length: length of episode
+      action_repeat: how many repeated actions to take per step
+      randomization_fn: randomization function that produces a vectorized system
+        and in_axes to vmap over
+
+    Returns:
+      An environment that is wrapped with Episode and AutoReset wrappers.  If the
+      environment did not already have batch dimensions, it is additional Vmap
+      wrapped.
+    """
+    env = wrappers.training.EpisodeWrapper(env, episode_length, action_repeat)
+    if randomization_fn is None:
+        env = wrappers.training.VmapWrapper(env)
+    else:
+        env = DomainRandomizationVmapWrapper(env, randomization_fn)
+    env = wrappers.training.AutoResetWrapper(env)
+    return env
