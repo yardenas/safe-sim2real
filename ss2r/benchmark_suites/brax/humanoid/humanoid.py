@@ -89,20 +89,6 @@ def domain_randomization(sys, rng, cfg):
     return sys, in_axes, samples
 
 
-def domain_randomization_length(sys, rng, cfg):
-    @jax.vmap
-    def randomize(rng):
-        offset = jax.random.uniform(rng, shape=(3,), minval=-0.1, maxval=0.1)
-        pos = sys.link.transform.pos.at[0].set(offset)
-        return pos
-
-    pos = randomize(rng)
-    sys_v = sys.tree_replace({"link.inertia.transform.pos": pos})
-    in_axes = jax.tree.map(lambda x: None, sys)
-    in_axes = in_axes.tree_replace({"link.inertia.transform.pos": 0})
-    return sys_v, in_axes, pos
-
-
 class ConstraintWrapper(Wrapper):
     def __init__(self, env: Env, angle_tolerance: float):
         assert isinstance(env, humanoid.Humanoid)
@@ -173,7 +159,6 @@ class ConstraintWrapper(Wrapper):
                 upper_limit < lower_limit, is_out_of_range_case1, is_out_of_range_case2
             )
             cost += out_of_range
-            print(f"Joint {i} out of range: {cost}")
         nstate.info["cost"] = (cost > 0).astype(jnp.float32)
         return nstate
 
