@@ -85,7 +85,7 @@ def draw_optimum(ax, x, y):
         marker="*",
         edgecolor="black",
         linewidth=0.5,
-        label="Optimum on $p^\star$",
+        label="Optimum on $\mathcal{{M}}^\star$",
     )
 
 
