@@ -14,7 +14,7 @@
 
 """SAC networks."""
 
-from typing import Any, Callable, Protocol, Sequence, TypeVar
+from typing import Any, Callable, Sequence, TypeVar
 
 import brax.training.agents.sac.networks as sac_networks
 import flax
@@ -39,17 +39,30 @@ class SafeSACNetworks:
     qc_network: networks.FeedForwardNetwork | None
 
 
-class DomainRandomizationNetworkFactory(Protocol[NetworkType]):
-    def __call__(
-        self,
-        observation_size: int,
-        action_size: int,
-        preprocess_observations_fn: types.PreprocessObservationFn = types.identity_observation_preprocessor,
-        *,
-        domain_randomization_size: int = 0,
-        safe: bool = False,
-    ) -> NetworkType:
-        pass
+class BroNet(linen.Module):
+    layer_sizes: Sequence[int]
+    activation: Callable
+    kernel_init: Callable = jax.nn.initializers.lecun_uniform()
+
+    @linen.compact
+    def __call__(self, x):
+        assert all(size == self.layer_sizes[0] for size in self.layer_sizes)
+        x = linen.Dense(features=self.layer_sizes[0], kernel_init=self.kernel_init)(x)
+        x = linen.LayerNorm()(x)
+        x = self.activation(x)
+        for _ in range(len(self.layer_sizes)):
+            residual = x
+            x = linen.Dense(features=self.layer_sizes[0], kernel_init=self.kernel_init)(
+                x
+            )
+            x = linen.LayerNorm()(x)
+            x = self.activation(x)
+            x = linen.Dense(features=self.layer_sizes[0], kernel_init=self.kernel_init)(
+                x
+            )
+            x = linen.LayerNorm()(x)
+            x += residual
+        return x
 
 
 class MLP(linen.Module):
@@ -74,6 +87,7 @@ def make_q_network(
     hidden_layer_sizes: Sequence[int] = (256, 256),
     activation: ActivationFn = linen.relu,
     n_critics: int = 2,
+    use_bro: bool = True,
 ) -> networks.FeedForwardNetwork:
     """Creates a value network."""
 
@@ -86,8 +100,9 @@ def make_q_network(
         def __call__(self, obs: jnp.ndarray, actions: jnp.ndarray):
             hidden = jnp.concatenate([obs, actions], axis=-1)
             res = []
+            net = BroNet if use_bro else MLP
             for _ in range(self.n_critics):
-                q = MLP(
+                q = net(  # type: ignore
                     layer_sizes=list(hidden_layer_sizes) + [1],
                     activation=activation,
                     kernel_init=jax.nn.initializers.lecun_uniform(),
@@ -114,6 +129,7 @@ def make_sac_networks(
     preprocess_observations_fn: types.PreprocessObservationFn = types.identity_observation_preprocessor,
     hidden_layer_sizes: Sequence[int] = (256, 256),
     activation: networks.ActivationFn = linen.relu,
+    use_bro: bool = True,
     *,
     domain_randomization_size: int = 0,
     safe: bool = False,
