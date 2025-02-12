@@ -67,8 +67,24 @@ class TrainingState:
     penalizer_params: Params
 
 
-def _unpmap(v):
-    return jax.tree_util.tree_map(lambda x: x[0], v)
+def _scan(f, init, xs, length=None, reverse=False, unroll=1, *, use_lax=True):
+    if use_lax:
+        return jax.lax.scan(f, init, xs, length=length, reverse=reverse, unroll=unroll)
+    else:
+        xs_flat, xs_tree = jax.tree_flatten(xs)
+        carry = init
+        ys = []
+        maybe_reversed = reversed if reverse else lambda x: x
+        for i in maybe_reversed(range(length)):
+            xs_slice = [
+                jax._src.lax.loops._index_array(i, jax._src.core.get_aval(x), x)
+                for x in xs_flat
+            ]
+            carry, y = f(carry, jax.tree_unflatten(xs_tree, xs_slice))
+        ys.append(y)
+        stack = lambda *ys: jax.numpy.stack(ys)
+        stacked_y = jax.tree_map(stack, *maybe_reversed(ys))
+        return carry, stacked_y
 
 
 def _init_training_state(
@@ -196,6 +212,7 @@ def train(
         domain_parameters = None
     if propagation is not None:
         env = StatePropagation(env)
+        env = envs.training.VmapWrapper(env)
 
     obs_size = env.observation_size
     action_size = env.action_size
@@ -261,21 +278,21 @@ def train(
     )
     alpha_update = (
         gradients.gradient_update_fn(  # pytype: disable=wrong-arg-types  # jax-ndarray
-            alpha_loss, alpha_optimizer
+            alpha_loss, alpha_optimizer, pmap_axis_name=None
         )
     )
     critic_update = (
         gradients.gradient_update_fn(  # pytype: disable=wrong-arg-types  # jax-ndarray
-            critic_loss, qr_optimizer
+            critic_loss, qr_optimizer, pmap_axis_name=None
         )
     )
     if safe:
         cost_critic_update = gradients.gradient_update_fn(  # pytype: disable=wrong-arg-types  # jax-ndarray
-            critic_loss, qc_optimizer
+            critic_loss, qc_optimizer, pmap_axis_name=None
         )
     actor_update = (
         gradients.gradient_update_fn(  # pytype: disable=wrong-arg-types  # jax-ndarray
-            actor_loss, policy_optimizer
+            actor_loss, policy_optimizer, pmap_axis_name=None, has_aux=True
         )
     )
 
@@ -468,7 +485,7 @@ def train(
             )
             return (new_training_state, env_state, buffer_state, new_key), ()
 
-        return jax.lax.scan(
+        return _scan(
             f,
             (training_state, env_state, buffer_state, key),
             (),
@@ -487,7 +504,7 @@ def train(
             ts, es, bs, metrics = training_step(ts, es, bs, k)
             return (ts, es, bs, new_key), metrics
 
-        (training_state, env_state, buffer_state, key), metrics = jax.lax.scan(
+        (training_state, env_state, buffer_state, key), metrics = _scan(
             f,
             (training_state, env_state, buffer_state, key),
             (),
@@ -553,7 +570,7 @@ def train(
     env_state = env.reset(env_keys)
 
     # Replay buffer init
-    buffer_state = replay_buffer.init(jax.random.split(rb_key, 1))
+    buffer_state = replay_buffer.init(rb_key)
 
     if not eval_env:
         eval_env = environment
@@ -579,14 +596,11 @@ def train(
     # Create and initialize the replay buffer.
     t = time.time()
     prefill_key, local_key = jax.random.split(local_key)
-    prefill_keys = jax.random.split(prefill_key, 1)
     training_state, env_state, buffer_state, _ = prefill_replay_buffer(
-        training_state, env_state, buffer_state, prefill_keys
+        training_state, env_state, buffer_state, prefill_key
     )
 
-    replay_size = (
-        jnp.sum(jax.vmap(replay_buffer.size)(buffer_state)) * jax.process_count()
-    )
+    replay_size = jnp.sum(replay_buffer.size(buffer_state))
     logging.info("replay size after prefill %s", replay_size)
     assert replay_size >= min_replay_size
     training_walltime = time.time() - t
@@ -594,17 +608,15 @@ def train(
     current_step = 0
     for _ in range(num_evals_after_init):
         logging.info("step %s", current_step)
-
         # Optimization
         epoch_key, local_key = jax.random.split(local_key)
-        epoch_keys = jax.random.split(epoch_key, 1)
         (
             training_state,
             env_state,
             buffer_state,
             training_metrics,
         ) = training_epoch_with_timing(
-            training_state, env_state, buffer_state, epoch_keys
+            training_state, env_state, buffer_state, epoch_key
         )
         current_step = int(training_state.env_steps)
 
