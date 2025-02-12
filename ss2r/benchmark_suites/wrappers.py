@@ -168,7 +168,7 @@ class DomainRandomizationVmapWrapper(Wrapper):
         randomization_fn: Callable[[System], Tuple[System, System, jax.Array]],
     ):
         super().__init__(env)
-        self._sys_v, self._in_axes, self.domain_params = randomization_fn(self.sys)
+        self._sys_v, self._in_axes, self.domain_parameters = randomization_fn(self.sys)
 
     def _env_fn(self, sys: System) -> Env:
         env = self.env
@@ -178,17 +178,21 @@ class DomainRandomizationVmapWrapper(Wrapper):
     def reset(self, rng: jax.Array) -> State:
         def reset(sys, rng):
             env = self._env_fn(sys=sys)
-            return env.reset(rng)
+            res = env.reset(rng)
+            return res
 
         state = jax.vmap(reset, in_axes=[self._in_axes, 0])(self._sys_v, rng)
+        state.info["domain_parameters"] = self.domain_parameters
         return state
 
     def step(self, state: State, action: jax.Array) -> State:
         def step(sys, s, a):
             env = self._env_fn(sys=sys)
-            return env.step(s, a)
+            res = env.step(s, a)
+            return res
 
         res = jax.vmap(step, in_axes=[self._in_axes, 0, 0])(self._sys_v, state, action)
+        res.info["domain_parameters"] = self.domain_parameters
         return res
 
 
