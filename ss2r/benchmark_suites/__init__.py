@@ -66,6 +66,7 @@ def make_rccar_envs(cfg):
         action_repeat=cfg.training.action_repeat,
         randomization_fn=train_randomization_fn,
     )
+    train_env = wrappers.training.VmapWrapper(train_env)
     eval_env = rccar.RCCar(eval_car_params["nominal"], **task_cfg)
     if action_delay > 0 or obs_delay > 0:
         eval_env = ActionObservationDelayWrapper(
@@ -114,6 +115,7 @@ def make_brax_envs(cfg):
         action_repeat=cfg.training.action_repeat,
         randomization_fn=train_randomization_fn,
     )
+    train_env = wrappers.training.VmapWrapper(train_env)
     eval_randomization_fn = prepare_randomization_fn(
         eval_key, cfg.training.num_eval_envs, task_cfg.eval_params, task_cfg.task_name
     )
