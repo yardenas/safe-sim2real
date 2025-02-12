@@ -12,8 +12,7 @@ try:
     import carl
 
     DUMMY_CONTROLLER = False
-except ImportError as e:
-    print("Could not import carl: ", e)
+except ImportError:
     DUMMY_CONTROLLER = True
 
 
