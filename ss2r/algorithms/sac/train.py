@@ -213,10 +213,8 @@ def train(
     if propagation is not None:
         env = StatePropagation(env)
         env = envs.training.VmapWrapper(env)
-
     obs_size = env.observation_size
     action_size = env.action_size
-
     normalize_fn = lambda x, y: x
     if normalize_observations:
         normalize_fn = running_statistics.normalize
@@ -231,9 +229,7 @@ def train(
         safe=safe,
     )
     make_policy = sac_networks.make_inference_fn(sac_network)
-
     alpha_optimizer = optax.adam(learning_rate=3e-4)
-
     make_optimizer = lambda lr, grad_clip_norm: optax.chain(
         optax.clip_by_global_norm(grad_clip_norm),
         optax.radam(learning_rate=lr),
@@ -241,7 +237,6 @@ def train(
     policy_optimizer = make_optimizer(learning_rate, 10.0)
     qr_optimizer = make_optimizer(critic_learning_rate, 10.0)
     qc_optimizer = make_optimizer(cost_critic_learning_rate, 10.0) if safe else None
-
     dummy_obs = jnp.zeros((obs_size,))
     dummy_action = jnp.zeros((action_size,))
     extras = {
@@ -254,7 +249,6 @@ def train(
         extras["state_extras"]["domain_parameters"] = domain_parameters[0]  # type: ignore
     if safe:
         extras["state_extras"]["cost"] = 0.0  # type: ignore
-
     dummy_transition = Transition(  # pytype: disable=wrong-arg-types  # jax-ndarray
         observation=dummy_obs,
         action=dummy_action,
@@ -268,7 +262,6 @@ def train(
         dummy_data_sample=dummy_transition,
         sample_batch_size=batch_size * grad_updates_per_step,
     )
-
     alpha_loss, critic_loss, actor_loss = sac_losses.make_losses(
         sac_network=sac_network,
         reward_scaling=reward_scaling,
@@ -424,19 +417,16 @@ def train(
         normalizer_params = running_statistics.update(
             normalizer_params, transitions.observation
         )
-        if transitions.observation.ndim == 3:
-            transitions = jax.tree_util.tree_map(lambda x: x[0], transitions)
         buffer_state = replay_buffer.insert(buffer_state, transitions)
         return normalizer_params, env_state, buffer_state
 
-    def training_step(
+    def run_experience_step(
         training_state: TrainingState,
         env_state: envs.State,
         buffer_state: ReplayBufferState,
         key: PRNGKey,
-    ) -> Tuple[
-        TrainingState, Union[envs.State, envs_v1.State], ReplayBufferState, Metrics
-    ]:
+    ) -> Tuple[TrainingState, envs.State, ReplayBufferState, PRNGKey]:
+        """Runs the non-jittable experience collection step."""
         experience_key, training_key = jax.random.split(key)
         normalizer_params, env_state, buffer_state = get_experience(
             training_state.normalizer_params,
@@ -449,6 +439,16 @@ def train(
             normalizer_params=normalizer_params,
             env_steps=training_state.env_steps + env_steps_per_actor_step,
         )
+        return training_state, env_state, buffer_state, training_key
+
+    @jax.jit
+    def training_step_jitted(
+        training_state: TrainingState,
+        env_state: envs.State,
+        buffer_state: ReplayBufferState,
+        training_key: PRNGKey,
+    ) -> Tuple[TrainingState, envs.State, ReplayBufferState, Metrics]:
+        """Runs the jittable training step after experience collection."""
         buffer_state, transitions = replay_buffer.sample(buffer_state)
         # Change the front dimension of transitions so 'update_step' is called
         # grad_updates_per_step times by the scan.
@@ -461,6 +461,20 @@ def train(
         )
         metrics["buffer_current_size"] = replay_buffer.size(buffer_state)
         return training_state, env_state, buffer_state, metrics
+
+    def training_step(
+        training_state: TrainingState,
+        env_state: envs.State,
+        buffer_state: ReplayBufferState,
+        key: PRNGKey,
+    ) -> Tuple[TrainingState, envs.State, ReplayBufferState, Metrics]:
+        """Splits training into experience collection and a jitted training step."""
+        training_state, env_state, buffer_state, training_key = run_experience_step(
+            training_state, env_state, buffer_state, key
+        )
+        return training_step_jitted(
+            training_state, env_state, buffer_state, training_key
+        )
 
     def prefill_replay_buffer(
         training_state: TrainingState,
