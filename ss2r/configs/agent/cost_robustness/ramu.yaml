@@ -1,3 +1,4 @@
+name: ramu
 epsilon: 0.1
 n_samples: 5
 wang_eta: 0.75
