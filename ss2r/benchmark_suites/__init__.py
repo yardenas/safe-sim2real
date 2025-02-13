@@ -1,5 +1,4 @@
 import functools
-from argparse import Namespace
 
 import jax
 from brax import envs
@@ -136,57 +135,8 @@ def make_brax_envs(cfg):
 
 def make_extreme_parkour_envs(cfg):
     task_cfg = get_task_config(cfg)
-    args = Namespace(
-        checkpoint=-1,
-        cols=None,
-        compute_device_id=0,
-        daggerid=None,
-        debug=False,
-        delay=False,
-        device="cuda:0",
-        distill_only_heading=False,
-        draw=False,
-        experiment_name=None,
-        exptid="123-45-hi",
-        flex=False,
-        graphics_device_id=0,
-        headless=True,
-        hitid=None,
-        horovod=False,
-        load_run=None,
-        mask_obs=False,
-        max_iterations=None,
-        no_wandb=True,
-        nodelay=False,
-        num_envs=None,
-        num_threads=0,
-        physics_engine=SimType.SIM_PHYSX,
-        physx=False,
-        pipeline="gpu",
-        proj_name="parkour_new",
-        resume=False,
-        resumeid=None,
-        rl_device="cuda:0",
-        rows=None,
-        run_name=None,
-        save=False,
-        seed=None,
-        sim_device="cuda:0",
-        sim_device_id=0,
-        sim_device_type="cuda",
-        slices=0,
-        subscenes=0,
-        task="go1",
-        task_both=False,
-        teacher=None,
-        use_camera=False,
-        use_gpu=True,
-        use_gpu_pipeline=True,
-        use_jit=False,
-        use_latent=False,
-        web=False,
-    )
-    env, env_cfg = task_registry.make_env(name=args.task, args=args)
+    args = task_cfg
+    env, _ = task_registry.make_env(name=args.task, args=args)
     env = ConstrainedLeggedRobot(env)
     env = ExtremeParkourBridge(env)
     return env
