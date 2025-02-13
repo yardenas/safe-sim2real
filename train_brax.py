@@ -44,10 +44,8 @@ def get_robustness(cfg):
     ):
         return rb.SACCost()
     assert cfg.agent.propagation == "ts1"
-    if cfg.agent.robustness.name == "cvar":
-        robustness = rb.CVaR(cfg.agent.robustness.cvar_confidence)
-    elif cfg.agent.robustness.name == "ucb":
-        robustness = rb.UCB(cfg.agent.robustness.cost_penalty)
+    if cfg.agent.robustness.name == "ramu":
+        robustness = rb.RAMU(**cfg.agent.robustness)
     elif cfg.agent.robustness.name == "ucb_cost":
         robustness = rb.UCBCost(cfg.agent.robustness.cost_penalty)
     else:

@@ -61,14 +61,20 @@ class StatePropagation(Wrapper):
 
 
 class ModelDisagreement(Wrapper):
+    def __init__(self, env):
+        super().__init__(env)
+        assert isinstance(env.env, StatePropagation)
+
     def reset(self, rng: jax.Array) -> State:
         state = self.env.reset(rng)
-        std = jnp.std(state.obs, axis=1).mean(-1)
+        next_obs = state.info["state_propagation"]["next_obs"]
+        std = jnp.std(next_obs, axis=1).mean(-1)
         state.info["disagreement"] = std
         return state
 
     def step(self, state: State, action: jax.Array) -> State:
         nstate = self.env.step(state, action)
-        std = jnp.std(state.obs, axis=1).mean(-1)
-        nstate.info["disagreement"] = std
+        next_obs = state.info["state_propagation"]["next_obs"]
+        std = jnp.std(next_obs, axis=1).mean(-1)
+        state.info["disagreement"] = std
         return nstate
