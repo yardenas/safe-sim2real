@@ -43,10 +43,10 @@ def get_cost_robustness(cfg):
         or cfg.agent.cost_robustness.name == "neutral"
     ):
         return rb.SACCost()
-    assert cfg.agent.propagation == "ts1"
     if cfg.agent.cost_robustness.name == "ramu":
         robustness = rb.RAMU(**cfg.agent.cost_robustness)
     elif cfg.agent.cost_robustness.name == "ucb_cost":
+        assert cfg.agent.propagation == "ts1"
         robustness = rb.UCBCost(cfg.agent.cost_robustness.cost_penalty)
     else:
         raise ValueError("Unknown robustness")
@@ -60,10 +60,10 @@ def get_reward_robustness(cfg):
         or cfg.agent.reward_robustness.name == "neutral"
     ):
         return rb.SACBase()
-    assert cfg.agent.propagation == "ts1"
     if cfg.agent.reward_robustness.name == "ramu":
         robustness = rb.RAMUReward(**cfg.agent.reward_robustness)
     elif cfg.agent.reward_robustness.name == "lcb_reward":
+        assert cfg.agent.propagation == "ts1"
         robustness = rb.LCBReward(cfg.agent.reward_robustness.reward_penalty)
     else:
         raise ValueError("Unknown robustness")
