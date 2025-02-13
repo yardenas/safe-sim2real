@@ -11,7 +11,9 @@ from bridge import ExtremeParkourBridge
 from ss2r.benchmark_suites.utils import get_task_config
 
 # Load the configuration file
-config_path = os.path.expanduser('~/safe/safe-sim2real/configs/environment/extremeparkour.yaml')
+config_path = os.path.expanduser(
+    "~/safe/safe-sim2real/configs/environment/extremeparkour.yaml"
+)
 cfg = OmegaConf.load(config_path)
 
 task_cfg = get_task_config(cfg)
