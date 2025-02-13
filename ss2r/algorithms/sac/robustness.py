@@ -16,6 +16,7 @@ class QTransformation(Protocol):
         domain_params: jax.Array | None = None,
         alpha: jax.Array | None = None,
         reward_scaling: float = 1.0,
+        key: jax.Array | None = None,
     ):
         ...
 
@@ -33,6 +34,7 @@ class UCBCost(QTransformation):
         domain_params: jax.Array | None = None,
         alpha: jax.Array | None = None,
         reward_scaling: float = 1.0,
+        key: jax.Array | None = None,
     ):
         next_action, _ = policy(transitions.next_observation)
         if domain_params is not None:
@@ -64,31 +66,29 @@ class RAMU(QTransformation):
         domain_params: jax.Array | None = None,
         alpha: jax.Array | None = None,
         reward_scaling: float = 1.0,
+        key: jax.Array | None = None,
     ):
-        next_action, _ = policy(transitions.next_observation)
-        sampled_next_obs = sample(
+        sampled_next_obs = ramu_sample(
             self.epsilon,
             self.n_samples,
             transitions.observation,
             transitions.next_observation,
+            key,
         )
-        if domain_params is not None:
-            domain_params = jnp.tile(
-                domain_params[:, None], (1, next_action.shape[1], 1)
-            )
-            next_action = jnp.concatenate([next_action, domain_params], axis=-1)
+        next_action, _ = policy(sampled_next_obs)
+        assert domain_params is None
         next_q = q_fn(sampled_next_obs, next_action)
         next_v = next_q.mean(axis=-1)
-        next_v = ramu(self.n_samples, self.wang_eta, next_v)
+        next_v = wang(self.n_samples, self.wang_eta, next_v)
         cost = transitions.extras["state_extras"]["cost"]
         target_q = jax.lax.stop_gradient(cost + transitions.discount * gamma * next_v)
         return target_q
 
 
-def sample(epsilon, n_samples, observation, next_observation):
+def ramu_sample(epsilon, n_samples, observation, next_observation, key):
     delta = next_observation - observation
     x = jax.random.uniform(
-        0,
+        key,
         (n_samples, *delta.shape),
         minval=-2.0 * epsilon,
         maxval=2.0 * epsilon,
@@ -96,11 +96,12 @@ def sample(epsilon, n_samples, observation, next_observation):
     return observation + (delta) * (1.0 + x)
 
 
-def ramu(n_samples, wang_eta, next_v, descending=False):
+def wang(n_samples, wang_eta, next_v, descending=False):
     quantiles = jnp.linspace(0, 1, n_samples + 1)
     quantiles = norm.cdf(norm.ppf(quantiles) + wang_eta)
     probs = (quantiles[1:] - quantiles[:-1]) * n_samples
-    next_v = (jnp.sort(next_v, axis=-1, descending=descending) * probs).mean(-1)
+    probs = jnp.tile(probs[:, None], (1, next_v.shape[1]))
+    next_v = (jnp.sort(next_v, descending=descending) * probs).mean(0)
     return next_v
 
 
@@ -114,6 +115,7 @@ class SACBase(QTransformation):
         domain_params: jax.Array | None = None,
         alpha: jax.Array | None = None,
         reward_scaling: float = 1.0,
+        key: jax.Array | None = None,
     ):
         next_action, next_log_prob = policy(transitions.next_observation)
         if domain_params is not None:
@@ -142,14 +144,16 @@ class RAMUReward(QTransformation):
         domain_params: jax.Array | None = None,
         alpha: jax.Array | None = None,
         reward_scaling: float = 1.0,
+        key: jax.Array | None = None,
     ):
-        next_action, next_log_prob = policy(transitions.next_observation)
-        sampled_next_obs = sample(
+        sampled_next_obs = ramu_sample(
             self.epsilon,
             self.n_samples,
             transitions.observation,
             transitions.next_observation,
+            key,
         )
+        next_action, next_log_prob = policy(sampled_next_obs)
         if domain_params is not None:
             domain_params = jnp.tile(
                 domain_params[:, None], (1, next_action.shape[1], 1)
@@ -157,7 +161,7 @@ class RAMUReward(QTransformation):
             next_action = jnp.concatenate([next_action, domain_params], axis=-1)
         next_q = q_fn(sampled_next_obs, next_action)
         next_v = next_q.min(axis=-1)
-        next_v = ramu(self.n_samples, self.wang_eta, next_v)
+        next_v = wang(self.n_samples, self.wang_eta, next_v)
         next_v -= alpha * next_log_prob
         target_q = jax.lax.stop_gradient(
             transitions.reward * reward_scaling + transitions.discount * gamma * next_v
@@ -178,6 +182,7 @@ class LCBReward(QTransformation):
         domain_params: jax.Array | None = None,
         alpha: jax.Array | None = None,
         reward_scaling: float = 1.0,
+        key: jax.Array | None = None,
     ):
         next_action, next_log_prob = policy(transitions.next_observation)
         if domain_params is not None:
@@ -203,6 +208,7 @@ class SACCost(QTransformation):
         domain_params: jax.Array | None = None,
         alpha: jax.Array | None = None,
         reward_scaling: float = 1.0,
+        key: jax.Array | None = None,
     ):
         next_action, _ = policy(transitions.next_observation)
         if domain_params is not None:

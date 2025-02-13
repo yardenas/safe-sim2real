@@ -10,7 +10,7 @@ training:
   safety_budget: 75
   train_domain_randomization: false
   eval_domain_randomization: true
-  privileged: true
+  privileged: false
 
 environment:
   train_params:

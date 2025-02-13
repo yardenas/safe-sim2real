@@ -44,6 +44,7 @@ def get_cost_robustness(cfg):
     ):
         return rb.SACCost()
     if cfg.agent.cost_robustness.name == "ramu":
+        del cfg.agent.cost_robustness.name
         robustness = rb.RAMU(**cfg.agent.cost_robustness)
     elif cfg.agent.cost_robustness.name == "ucb_cost":
         assert cfg.agent.propagation == "ts1"
@@ -61,6 +62,7 @@ def get_reward_robustness(cfg):
     ):
         return rb.SACBase()
     if cfg.agent.reward_robustness.name == "ramu":
+        del cfg.agent.reward_robustness.name
         robustness = rb.RAMUReward(**cfg.agent.reward_robustness)
     elif cfg.agent.reward_robustness.name == "lcb_reward":
         assert cfg.agent.propagation == "ts1"
