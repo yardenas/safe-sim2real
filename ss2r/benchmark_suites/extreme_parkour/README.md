@@ -6,8 +6,6 @@
 # Create conda environment with Python 3.8
 conda create -n parkour python=3.8
 conda activate parkour
-
-cd ~
 ```
 
 ## Install Dependencies
@@ -17,12 +15,13 @@ pip install torch torchvision torchaudio --index-url https://download.pytorch.or
 ```
 
 ## Install Isaac Gym and Modified Extreme Parkour Repository
-
+Clone the repository
 ```sh
+cd ~
 git clone git@github.com:bungeru/safe-extreme-parkour-RL.git
 cd safe-extreme-parkour-RL
 ```
-
+Install packages
 ```sh
 # Download the Isaac Gym binaries from https://developer.nvidia.com/isaac-gym
 # Originally trained with Preview3, but haven't seen bugs using Preview4.
