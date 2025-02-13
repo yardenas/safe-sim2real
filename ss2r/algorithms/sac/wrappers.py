@@ -58,3 +58,17 @@ class StatePropagation(Wrapper):
         nstate = self.propagation_fn(nstate, key)
         nstate.info["state_propagation"]["next_obs"] = orig_next_obs
         return nstate
+
+
+class ModelDisagreement(Wrapper):
+    def reset(self, rng: jax.Array) -> State:
+        state = self.env.reset(rng)
+        std = jnp.std(state.obs, axis=1).mean(-1)
+        state.info["disagreement"] = std
+        return state
+
+    def step(self, state: State, action: jax.Array) -> State:
+        nstate = self.env.step(state, action)
+        std = jnp.std(state.obs, axis=1).mean(-1)
+        nstate.info["disagreement"] = std
+        return nstate

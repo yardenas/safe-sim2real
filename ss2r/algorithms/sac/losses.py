@@ -16,6 +16,7 @@
 
 See: https://arxiv.org/pdf/1812.05905.pdf
 """
+
 from typing import Any, TypeAlias
 
 import jax
@@ -25,7 +26,7 @@ from brax.training.types import Params, PRNGKey
 
 from ss2r.algorithms.sac.networks import SafeSACNetworks
 from ss2r.algorithms.sac.penalizers import Penalizer
-from ss2r.algorithms.sac.robustness import QTransformation, SACBase
+from ss2r.algorithms.sac.robustness import QTransformation
 
 Transition: TypeAlias = types.Transition
 
@@ -70,11 +71,10 @@ def make_losses(
         policy_params: Params,
         normalizer_params: Any,
         target_q_params: Params,
-        alpha: jnp.ndarray,
         transitions: Transition,
         key: PRNGKey,
+        target_q_fn: QTransformation,
         safe: bool = False,
-        target_q_fn: QTransformation = SACBase(),
     ) -> jnp.ndarray:
         domain_params = transitions.extras["state_extras"].get(
             "domain_parameters", None
@@ -105,9 +105,7 @@ def make_losses(
         q_fn = lambda obs, action: q_network.apply(
             normalizer_params, target_q_params, obs, action
         )
-        target_q = target_q_fn(
-            transitions, q_fn, policy, gamma, domain_params, alpha, reward_scaling
-        )
+        target_q = target_q_fn(transitions, q_fn, policy, gamma, domain_params)
         q_error = q_old_action - jnp.expand_dims(target_q, -1)
         # Better bootstrapping for truncated episodes.
         truncation = transitions.extras["state_extras"]["truncation"]
