@@ -46,7 +46,7 @@ class BroNet(linen.Module):
 
     @linen.compact
     def __call__(self, x):
-        assert all(size == self.layer_sizes[0] for size in self.layer_sizes)
+        assert all(size == self.layer_sizes[0] for size in self.layer_sizes[:-1])
         x = linen.Dense(features=self.layer_sizes[0], kernel_init=self.kernel_init)(x)
         x = linen.LayerNorm()(x)
         x = self.activation(x)
