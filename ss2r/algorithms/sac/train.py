@@ -213,6 +213,8 @@ def train(
     if propagation is not None:
         env = StatePropagation(env)
         env = envs.training.VmapWrapper(env)
+    else:
+        assert num_trajectories_per_env == 1
     obs_size = env.observation_size
     action_size = env.action_size
     normalize_fn = lambda x, y: x
@@ -297,7 +299,6 @@ def train(
         key, key_alpha, key_critic, key_cost_critic, key_actor = jax.random.split(
             key, 5
         )
-
         alpha_loss, alpha_params, alpha_optimizer_state = alpha_update(
             training_state.alpha_params,
             training_state.policy_params,
@@ -375,7 +376,6 @@ def train(
             **cost_metrics,
             **additional_metrics,
         }
-
         new_training_state = TrainingState(
             policy_optimizer_state=policy_optimizer_state,
             policy_params=policy_params,
@@ -581,6 +581,8 @@ def train(
         env_keys,
         (num_trajectories_per_env, -1) + env_keys.shape[1:],
     )
+    if num_trajectories_per_env == 1:
+        env_keys = env_keys.squeeze(0)
     env_state = env.reset(env_keys)
 
     # Replay buffer init
