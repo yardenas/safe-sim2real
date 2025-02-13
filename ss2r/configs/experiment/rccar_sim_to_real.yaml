@@ -3,7 +3,7 @@ defaults:
   - override /environment: rccar
   - override /environment/train_car_params: car_2_blend
   - override /environment/eval_car_params: car_2_blend
-  - override /agent/robustness: cvar
+  - override /agent/cost_robustness: ucb_cost
 
   
 environment:

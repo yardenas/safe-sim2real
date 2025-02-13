@@ -1,16 +1,15 @@
 # @package _global_
 defaults:
   - override /environment: cartpole
-  - override /agent/cost_robustness: ucb_cost
 
 training:
   num_timesteps: 500000
   safe: true
   num_envs: 256
   safety_budget: 75
-  train_domain_randomization: true
+  train_domain_randomization: false
   eval_domain_randomization: true
-  privileged: true
+  privileged: false
 
 environment:
   train_params:
@@ -23,5 +22,5 @@ environment:
 
 agent:
   grad_updates_per_step: 256
-  num_trajectories_per_env: 128
-  propagation: ts1
+  num_trajectories_per_env: 1
+  propagation: standard

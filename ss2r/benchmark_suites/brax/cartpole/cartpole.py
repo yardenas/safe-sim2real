@@ -164,15 +164,16 @@ class Cartpole(PipelineEnv):
 for safe in [True, False]:
     name = ["cartpole"]
     safe_str = "safe" if safe else ""
-
-    def make(**kwargs):
-        slider_position_bound = kwargs.pop("slider_position_bound", 0.25)
-        env = Cartpole(**kwargs)
-        if safe:
-            env = ConstraintWrapper(env, slider_position_bound)
-        return env
-
     if safe:
         name.append("safe")
+
+        def make(**kwargs):
+            slider_position_bound = kwargs.pop("slider_position_bound", 0.25)
+            return ConstraintWrapper(
+                Cartpole(**kwargs),
+                slider_position_bound,
+            )
+    else:
+        make = lambda **kwargs: Cartpole(**kwargs)
     name_str = "_".join(name)
     register_environment(name_str, make)

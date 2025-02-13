@@ -26,7 +26,7 @@ import jax
 import jax.numpy as jnp
 import optax
 from absl import logging
-from brax import base, envs
+from brax import envs
 from brax.io import model
 from brax.training import acting, gradients, replay_buffers, types
 from brax.training.acme import running_statistics, specs
@@ -36,8 +36,8 @@ from brax.v1 import envs as envs_v1
 import ss2r.algorithms.sac.losses as sac_losses
 import ss2r.algorithms.sac.networks as sac_networks
 from ss2r.algorithms.sac.penalizers import Penalizer
-from ss2r.algorithms.sac.robustness import QTransformation, SACCost
-from ss2r.algorithms.sac.wrappers import StatePropagation
+from ss2r.algorithms.sac.robustness import QTransformation, SACBase, SACCost
+from ss2r.algorithms.sac.wrappers import ModelDisagreement, StatePropagation
 from ss2r.rl.evaluation import ConstraintsEvaluator
 
 Metrics: TypeAlias = types.Metrics
@@ -166,15 +166,13 @@ def train(
     progress_fn: Callable[[int, Metrics], None] = lambda *args: None,
     checkpoint_logdir: Optional[str] = None,
     eval_env: Optional[envs.Env] = None,
-    randomization_fn: Optional[
-        Callable[[base.System, jnp.ndarray], Tuple[base.System, base.System, jax.Array]]
-    ] = None,
     privileged: bool = False,
     safe: bool = False,
     safety_budget: float = float("inf"),
     penalizer: Penalizer | None = None,
     penalizer_params: Params | None = None,
-    robustness: QTransformation = SACCost(),
+    reward_robustness: QTransformation = SACBase(),
+    cost_robustness: QTransformation = SACCost(),
 ):
     if min_replay_size >= num_timesteps:
         raise ValueError(
@@ -213,6 +211,7 @@ def train(
     if propagation is not None:
         env = StatePropagation(env)
         env = envs.training.VmapWrapper(env)
+        env = ModelDisagreement(env)
     else:
         assert num_trajectories_per_env == 1
     obs_size = env.observation_size
@@ -251,6 +250,8 @@ def train(
         extras["state_extras"]["domain_parameters"] = domain_parameters[0]  # type: ignore
     if safe:
         extras["state_extras"]["cost"] = 0.0  # type: ignore
+    if propagation is not None:
+        extras["state_extras"]["disagreement"] = 0.0  # type: ignore
     dummy_transition = Transition(  # pytype: disable=wrong-arg-types  # jax-ndarray
         observation=dummy_obs,
         action=dummy_action,
@@ -316,6 +317,7 @@ def train(
             alpha,
             transitions,
             key_critic,
+            reward_robustness,
             optimizer_state=training_state.qr_optimizer_state,
         )
         if safe:
@@ -327,8 +329,8 @@ def train(
                 alpha,
                 transitions,
                 key_critic,
+                cost_robustness,
                 True,
-                robustness,
                 optimizer_state=training_state.qc_optimizer_state,
             )
             cost_metrics = {
@@ -411,6 +413,11 @@ def train(
             extra_fields += ("domain_parameters",)  # type: ignore
         if safe:
             extra_fields += ("cost",)  # type: ignore
+        if propagation is not None:
+            extra_fields += ("disagreement",)  # type: ignore
+        # TODO (yarden): if I ever need to sample states based on value functions
+        # one way to code it is to add a function to the StatePropagation wrapper
+        # that receives a function that takes states and returns their corresponding value functions
         env_state, transitions = acting.actor_step(
             env, env_state, policy, key, extra_fields=extra_fields
         )

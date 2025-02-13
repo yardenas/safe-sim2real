@@ -1,7 +1,7 @@
 # @package _global_
 defaults:
   - override /environment: humanoid
-  - override /agent/robustness: cvar
+  - override /agent/cost_robustness: ucb_cost
 
 training:
   num_timesteps: 5000000
