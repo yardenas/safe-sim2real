@@ -1,10 +1,9 @@
 import isaacgym  # noqa
 import jax
 import jax.dlpack
-import legged_gym.envs  # noqa
 import torch
-from brax.envs.base import Env, ObservationSize, State
-from legged_gym.utils import get_args, task_registry
+from brax.envs.base import Env, State
+import legged_gym.envs  # noqa
 
 
 def jax2torch(x):
@@ -31,7 +30,7 @@ def torch2jax(x):
 
 class ExtremeParkourBridge(Env):
     def __init__(self, env):
-        self._env = env
+        self.env = env
 
     def reset(self, rng: jax.Array) -> State:
         pass
@@ -39,16 +38,25 @@ class ExtremeParkourBridge(Env):
     def step(self, state: State, action: jax.Array) -> State:
         action = jax2torch(action)
 
-        obs_buf, privileged_obs_buf, rew_buf, reset_buf, extras = self._env.step(action)
+        obs_buf, privileged_obs_buf, rew_buf, reset_buf, extras = self.env.step(action)
 
         obs_buf = torch2jax(obs_buf)
         rew_buf = torch2jax(rew_buf)
         reset_buf = torch2jax(reset_buf)
-        print(extras)
         extras = torch2jax(extras)
 
+        # TODO check with Chenhao if this is correct (do we need the forces and what is rigid body state?)
+        pipeline_state = {
+            "actor_root": self.env.gym.aquire_actor_root_state_tensor(self.env.sim),
+            "dof_state": self.env.gym.acquire_dof_state_tensor(self.env.sim),
+            "dof_force": self.env.gym.acquire_dof_force_tensor(self.env.sim),
+            "rigid_body_state": self.env.gym.acquire_rigid_body_state_tensor(
+                self.env.sim
+            ),
+        }
+
         return State(
-            pipeline_state=None,
+            pipeline_state=pipeline_state,
             obs=obs_buf,
             reward=rew_buf,
             done=reset_buf,
@@ -56,7 +64,7 @@ class ExtremeParkourBridge(Env):
         )
 
     # The simulation is running 6144 agents in parallel
-    def observation_size(self) -> ObservationSize:
+    def observation_size(self) -> int:
         return 753
 
     def action_size(self) -> int:
@@ -64,19 +72,3 @@ class ExtremeParkourBridge(Env):
 
     def backend(self) -> str:
         return "IsaacGym"
-
-
-if __name__ == "__main__":
-    args = get_args()
-    args.headless = True
-    env, env_cfg = task_registry.make_env(name=args.task, args=args)
-    env = ExtremeParkourBridge(env)
-    rng = jax.random.PRNGKey(0)
-    state = env.reset(rng)
-    action = jax.random.uniform(rng, (6144, env.action_size()))
-
-    for _ in range(10):
-        state = env.step(state, action)
-        print(f"Observation: {state.obs}, Reward: {state.reward}, Done: {state.done}")
-
-print("Everything is working fine")

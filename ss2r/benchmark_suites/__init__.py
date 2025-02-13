@@ -2,7 +2,7 @@ import functools
 
 import jax
 from brax import envs
-from legged_gym.envs import ConstrainedLeggedRobot
+from legged_gym.envs.constraint_wrapper import ConstrainedLeggedRobot
 from legged_gym.utils import task_registry
 
 from ss2r.benchmark_suites import brax, wrappers
