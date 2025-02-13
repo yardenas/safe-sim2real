@@ -1,11 +1,15 @@
 import functools
+from argparse import Namespace
 
 import jax
 from brax import envs
+from legged_gym.envs import ConstrainedLeggedRobot
+from legged_gym.utils import task_registry
 
 from ss2r.benchmark_suites import brax, wrappers
 from ss2r.benchmark_suites.brax.cartpole import cartpole
 from ss2r.benchmark_suites.brax.humanoid import humanoid
+from ss2r.benchmark_suites.extreme_parkour.bridge import ExtremeParkourBridge
 from ss2r.benchmark_suites.rccar import rccar
 from ss2r.benchmark_suites.utils import get_domain_name, get_task_config
 from ss2r.benchmark_suites.wrappers import (
@@ -20,6 +24,8 @@ def make(cfg):
         return make_brax_envs(cfg)
     elif domain_name == "rccar":
         return make_rccar_envs(cfg)
+    elif domain_name == "extreme-parkour":
+        return make_extreme_parkour_envs(cfg)
 
 
 def prepare_randomization_fn(key, num_envs, cfg, task_name):
@@ -126,6 +132,64 @@ def make_brax_envs(cfg):
         else None,
     )
     return train_env, eval_env
+
+
+def make_extreme_parkour_envs(cfg):
+    task_cfg = get_task_config(cfg)
+    args = Namespace(
+        checkpoint=-1,
+        cols=None,
+        compute_device_id=0,
+        daggerid=None,
+        debug=False,
+        delay=False,
+        device="cuda:0",
+        distill_only_heading=False,
+        draw=False,
+        experiment_name=None,
+        exptid="123-45-hi",
+        flex=False,
+        graphics_device_id=0,
+        headless=True,
+        hitid=None,
+        horovod=False,
+        load_run=None,
+        mask_obs=False,
+        max_iterations=None,
+        no_wandb=True,
+        nodelay=False,
+        num_envs=None,
+        num_threads=0,
+        physics_engine=SimType.SIM_PHYSX,
+        physx=False,
+        pipeline="gpu",
+        proj_name="parkour_new",
+        resume=False,
+        resumeid=None,
+        rl_device="cuda:0",
+        rows=None,
+        run_name=None,
+        save=False,
+        seed=None,
+        sim_device="cuda:0",
+        sim_device_id=0,
+        sim_device_type="cuda",
+        slices=0,
+        subscenes=0,
+        task="go1",
+        task_both=False,
+        teacher=None,
+        use_camera=False,
+        use_gpu=True,
+        use_gpu_pipeline=True,
+        use_jit=False,
+        use_latent=False,
+        web=False,
+    )
+    env, env_cfg = task_registry.make_env(name=args.task, args=args)
+    env = ConstrainedLeggedRobot(env)
+    env = ExtremeParkourBridge(env)
+    return env
 
 
 randomization_fns = {
