@@ -1,7 +1,7 @@
 defaults:
   - brax_base
 
-task_name: cartpole_swingup_safe
+task_name: cartpole_safe
 task_params:
   sparse: false
   swingup: false

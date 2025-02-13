@@ -116,12 +116,16 @@ class SACBase(QTransformation):
         domain_params: jax.Array | None = None,
         alpha: jax.Array | None = None,
         reward_scaling: float = 1.0,
+        use_bro: bool = True,
     ):
         next_action, next_log_prob = policy(transitions.next_observation)
         if domain_params is not None:
             next_action = jnp.concatenate([next_action, domain_params], axis=-1)
         next_q = q_fn(transitions.next_observation, next_action)
-        next_v = next_q.min(axis=-1)
+        if use_bro:
+            next_v = next_q.mean(axis=-1)
+        else:
+            next_v = next_q.min(axis=-1)
         next_v -= alpha * next_log_prob
         target_q = jax.lax.stop_gradient(
             transitions.reward * reward_scaling + transitions.discount * gamma * next_v
