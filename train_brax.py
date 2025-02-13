@@ -39,15 +39,15 @@ def get_penalizer(cfg):
 def get_cost_robustness(cfg):
     if (
         "cost_robustness" not in cfg.agent
-        or cfg.agent.robustness is None
-        or cfg.agent.robustness.name == "neutral"
+        or cfg.agent.cost_robustness is None
+        or cfg.agent.cost_robustness.name == "neutral"
     ):
         return rb.SACCost()
     assert cfg.agent.propagation == "ts1"
-    if cfg.agent.robustness.name == "ramu":
-        robustness = rb.RAMU(**cfg.agent.robustness)
-    elif cfg.agent.robustness.name == "ucb_cost":
-        robustness = rb.UCBCost(cfg.agent.robustness.cost_penalty)
+    if cfg.agent.cost_robustness.name == "ramu":
+        robustness = rb.RAMU(**cfg.agent.cost_robustness)
+    elif cfg.agent.cost_robustness.name == "ucb_cost":
+        robustness = rb.UCBCost(cfg.agent.cost_robustness.cost_penalty)
     else:
         raise ValueError("Unknown robustness")
     return robustness
@@ -56,15 +56,15 @@ def get_cost_robustness(cfg):
 def get_reward_robustness(cfg):
     if (
         "reward_robustness" not in cfg.agent
-        or cfg.agent.robustness is None
-        or cfg.agent.robustness.name == "neutral"
+        or cfg.agent.reward_robustness is None
+        or cfg.agent.reward_robustness.name == "neutral"
     ):
-        return rb.SACReward()
+        return rb.SACBase()
     assert cfg.agent.propagation == "ts1"
-    if cfg.agent.robustness.name == "ramu":
-        robustness = rb.RAMUReward(**cfg.agent.robustness)
-    elif cfg.agent.robustness.name == "lcb_reward":
-        robustness = rb.LCBReward(cfg.agent.robustness.reward_penalty)
+    if cfg.agent.reward_robustness.name == "ramu":
+        robustness = rb.RAMUReward(**cfg.agent.reward_robustness)
+    elif cfg.agent.reward_robustness.name == "lcb_reward":
+        robustness = rb.LCBReward(cfg.agent.reward_robustness.reward_penalty)
     else:
         raise ValueError("Unknown robustness")
     return robustness
@@ -92,8 +92,10 @@ def get_train_fn(cfg):
         hidden_layer_sizes = agent_cfg.pop("hidden_layer_sizes")
         activation = getattr(jnn, agent_cfg.pop("activation"))
         del agent_cfg["name"]
-        if "robustness" in agent_cfg:
-            del agent_cfg["robustness"]
+        if "cost_robustness" in agent_cfg:
+            del agent_cfg["cost_robustness"]
+        if "reward_robustness" in agent_cfg:
+            del agent_cfg["reward_robustness"]
         if "penalizer" in agent_cfg:
             del agent_cfg["penalizer"]
         network_factory = functools.partial(
