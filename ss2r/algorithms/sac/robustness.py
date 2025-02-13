@@ -93,15 +93,14 @@ def ramu_sample(epsilon, n_samples, observation, next_observation, key):
         minval=-2.0 * epsilon,
         maxval=2.0 * epsilon,
     )
-    return observation + (delta) * (1.0 + x)
+    return observation + delta * (1.0 + x)
 
 
-def wang(n_samples, wang_eta, next_v, descending=False):
+def wang(n_samples, wang_eta, next_v, descending=True):
     quantiles = jnp.linspace(0, 1, n_samples + 1)
     quantiles = norm.cdf(norm.ppf(quantiles) + wang_eta)
     probs = (quantiles[1:] - quantiles[:-1]) * n_samples
-    probs = jnp.tile(probs[:, None], (1, next_v.shape[1]))
-    next_v = (jnp.sort(next_v, descending=descending) * probs).mean(0)
+    next_v = (jnp.sort(next_v, axis=0, descending=descending) * probs[:, None]).mean(0)
     return next_v
 
 
