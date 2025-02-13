@@ -71,6 +71,7 @@ def make_losses(
         policy_params: Params,
         normalizer_params: Any,
         target_q_params: Params,
+        alpha: jnp.ndarray,
         transitions: Transition,
         key: PRNGKey,
         target_q_fn: QTransformation,
@@ -105,7 +106,9 @@ def make_losses(
         q_fn = lambda obs, action: q_network.apply(
             normalizer_params, target_q_params, obs, action
         )
-        target_q = target_q_fn(transitions, q_fn, policy, gamma, domain_params)
+        target_q = target_q_fn(
+            transitions, q_fn, policy, gamma, domain_params, alpha, reward_scaling
+        )
         q_error = q_old_action - jnp.expand_dims(target_q, -1)
         # Better bootstrapping for truncated episodes.
         truncation = transitions.extras["state_extras"]["truncation"]

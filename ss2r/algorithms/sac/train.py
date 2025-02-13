@@ -171,7 +171,8 @@ def train(
     safety_budget: float = float("inf"),
     penalizer: Penalizer | None = None,
     penalizer_params: Params | None = None,
-    robustness: QTransformation = SACCost(),
+    reward_robustness: QTransformation = SACBase(),
+    cost_robustness: QTransformation = SACCost(),
 ):
     if min_replay_size >= num_timesteps:
         raise ValueError(
@@ -313,9 +314,10 @@ def train(
             training_state.policy_params,
             training_state.normalizer_params,
             training_state.target_qr_params,
+            alpha,
             transitions,
             key_critic,
-            SACBase(alpha, reward_scaling),
+            reward_robustness,
             optimizer_state=training_state.qr_optimizer_state,
         )
         if safe:
@@ -324,9 +326,10 @@ def train(
                 training_state.policy_params,
                 training_state.normalizer_params,
                 training_state.target_qc_params,
+                alpha,
                 transitions,
                 key_critic,
-                robustness,
+                cost_robustness,
                 True,
                 optimizer_state=training_state.qc_optimizer_state,
             )

@@ -36,9 +36,9 @@ def get_penalizer(cfg):
     return penalizer, penalizer_state
 
 
-def get_robustness(cfg):
+def get_cost_robustness(cfg):
     if (
-        "robustness" not in cfg.agent
+        "cost_robustness" not in cfg.agent
         or cfg.agent.robustness is None
         or cfg.agent.robustness.name == "neutral"
     ):
@@ -48,6 +48,23 @@ def get_robustness(cfg):
         robustness = rb.RAMU(**cfg.agent.robustness)
     elif cfg.agent.robustness.name == "ucb_cost":
         robustness = rb.UCBCost(cfg.agent.robustness.cost_penalty)
+    else:
+        raise ValueError("Unknown robustness")
+    return robustness
+
+
+def get_reward_robustness(cfg):
+    if (
+        "reward_robustness" not in cfg.agent
+        or cfg.agent.robustness is None
+        or cfg.agent.robustness.name == "neutral"
+    ):
+        return rb.SACReward()
+    assert cfg.agent.propagation == "ts1"
+    if cfg.agent.robustness.name == "ramu":
+        robustness = rb.RAMUReward(**cfg.agent.robustness)
+    elif cfg.agent.robustness.name == "lcb_reward":
+        robustness = rb.LCBReward(cfg.agent.robustness.reward_penalty)
     else:
         raise ValueError("Unknown robustness")
     return robustness
@@ -85,14 +102,16 @@ def get_train_fn(cfg):
             activation=activation,
         )
         penalizer, penalizer_params = get_penalizer(cfg)
-        robustness = get_robustness(cfg)
+        cost_robustness = get_cost_robustness(cfg)
+        reward_robustness = get_reward_robustness(cfg)
         train_fn = functools.partial(
             sac.train,
             **agent_cfg,
             **training_cfg,
             network_factory=network_factory,
             checkpoint_logdir=f"{get_state_path()}/ckpt",
-            robustness=robustness,
+            cost_robustness=cost_robustness,
+            reward_robustness=reward_robustness,
             penalizer=penalizer,
             penalizer_params=penalizer_params,
         )
