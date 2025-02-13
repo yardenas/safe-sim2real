@@ -1,5 +1,5 @@
-domain_name: parkour
-task_name: parkour
+domain_name: "extremeparkour"
+task_name: "extremeparkour"
 
 checkpoint: -1
 cols: null
