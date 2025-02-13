@@ -324,7 +324,6 @@ def train(
                 training_state.policy_params,
                 training_state.normalizer_params,
                 training_state.target_qc_params,
-                alpha,
                 transitions,
                 key_critic,
                 robustness,
