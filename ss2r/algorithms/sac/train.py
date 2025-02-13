@@ -28,13 +28,14 @@ import optax
 from absl import logging
 from brax import base, envs
 from brax.io import model
-from brax.training import acting, gradients, pmap, replay_buffers, types
+from brax.training import acting, pmap, replay_buffers, types
 from brax.training.acme import running_statistics, specs
 from brax.training.types import Params, PRNGKey
 from brax.v1 import envs as envs_v1
 
 import ss2r.algorithms.sac.losses as sac_losses
 import ss2r.algorithms.sac.networks as sac_networks
+from ss2r.algorithms.sac import gradients
 from ss2r.algorithms.sac.penalizers import Penalizer
 from ss2r.algorithms.sac.robustness import QTransformation, SACCost
 from ss2r.algorithms.sac.wrappers import StatePropagation
@@ -245,7 +246,6 @@ def train(
     policy_optimizer = make_optimizer(learning_rate, 10.0)
     qr_optimizer = make_optimizer(critic_learning_rate, 10.0)
     qc_optimizer = make_optimizer(cost_critic_learning_rate, 10.0) if safe else None
-
     dummy_obs = jnp.zeros((obs_size,))
     dummy_action = jnp.zeros((action_size,))
     extras = {
@@ -328,6 +328,7 @@ def train(
             transitions,
             key_critic,
             optimizer_state=training_state.qr_optimizer_state,
+            params=training_state.qr_params,
         )
         if safe:
             cost_critic_loss, qc_params, qc_optimizer_state = cost_critic_update(
@@ -341,6 +342,7 @@ def train(
                 True,
                 robustness,
                 optimizer_state=training_state.qc_optimizer_state,
+                params=training_state.qc_params,
             )
             cost_metrics = {
                 "cost_critic_loss": cost_critic_loss,
@@ -361,6 +363,7 @@ def train(
             penalizer,
             training_state.penalizer_params,
             optimizer_state=training_state.policy_optimizer_state,
+            params=training_state.policy_params,
         )
         polyak = lambda target, new: jax.tree_util.tree_map(
             lambda x, y: x * (1 - tau) + y * tau, target, new

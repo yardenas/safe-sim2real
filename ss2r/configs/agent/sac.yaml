@@ -20,4 +20,4 @@ deterministic_eval: true
 hidden_layer_sizes: [128, 128]
 activation: swish
 propagation: standard
-use_bro: true
+use_bro: false

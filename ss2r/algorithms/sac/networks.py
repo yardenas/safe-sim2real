@@ -151,6 +151,7 @@ def make_sac_networks(
         preprocess_observations_fn=preprocess_observations_fn,
         hidden_layer_sizes=hidden_layer_sizes,
         activation=activation,
+        use_bro=use_bro,
     )
     if safe:
         qc_network = make_q_network(
