@@ -2,10 +2,13 @@ import functools
 
 import jax
 from brax import envs
+from legged_gym.envs.constraint_wrapper import ConstrainedLeggedRobot
+from legged_gym.utils import task_registry
 
 from ss2r.benchmark_suites import brax, wrappers
 from ss2r.benchmark_suites.brax.cartpole import cartpole
 from ss2r.benchmark_suites.brax.humanoid import humanoid
+from ss2r.benchmark_suites.extreme_parkour.bridge import ExtremeParkourBridge
 from ss2r.benchmark_suites.rccar import rccar
 from ss2r.benchmark_suites.utils import get_domain_name, get_task_config
 from ss2r.benchmark_suites.wrappers import (
@@ -20,6 +23,8 @@ def make(cfg):
         return make_brax_envs(cfg)
     elif domain_name == "rccar":
         return make_rccar_envs(cfg)
+    elif domain_name == "extreme-parkour":
+        return make_extreme_parkour_envs(cfg)
 
 
 def prepare_randomization_fn(key, num_envs, cfg, task_name):
@@ -126,6 +131,15 @@ def make_brax_envs(cfg):
         else None,
     )
     return train_env, eval_env
+
+
+def make_extreme_parkour_envs(cfg):
+    task_cfg = get_task_config(cfg)
+    args = task_cfg
+    env, _ = task_registry.make_env(name=args.task, args=args)
+    env = ConstrainedLeggedRobot(env)
+    env = ExtremeParkourBridge(env)
+    return env
 
 
 randomization_fns = {
