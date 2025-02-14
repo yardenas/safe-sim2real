@@ -19,7 +19,7 @@ environment:
 
   eval_params:
     mass: [0.0, 0.0]
-    gear: [0., 50.]
+    gear: [0., 300.]
 
 agent:
   grad_updates_per_step: 256
