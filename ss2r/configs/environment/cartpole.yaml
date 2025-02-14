@@ -9,9 +9,9 @@ task_params:
 
 # Sample uniformly around the nominal value
 train_params:
-  mass: [0., 1.] # mass of the pole, not cart.
+  gain: [0, 1]
   gear: [5., 20.]
 
 eval_params:
-  mass: [0., 1.]
+  gain: [0, 1]
   gear: [5., 20.]

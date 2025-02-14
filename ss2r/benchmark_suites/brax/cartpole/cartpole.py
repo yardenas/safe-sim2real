@@ -14,37 +14,33 @@ from ss2r.benchmark_suites import rewards
 def domain_randomization(sys, rng, cfg):
     @jax.vmap
     def randomize(rng):
-        # Hardcoding _POLE_MASS to avoid weird jax issues.
-        pole_mass = jnp.asarray([1.0, 0.1])
-        mask = jnp.asarray([0.0, 1.0])
-        mass_sample = (
-            jax.random.uniform(rng, minval=cfg.mass[0], maxval=cfg.mass[1]) * mask
-        )
-        mass_sample = pole_mass + mass_sample
+        gain = sys.actuator.gain.copy()
+        gain_sample = jax.random.uniform(rng, minval=cfg.gain[0], maxval=cfg.gain[1])
+        gain = gain.at[0].add(gain_sample)
         rng, _ = jax.random.split(rng)
         gear = sys.actuator.gear.copy()[0]
         gear_sample = (
             jax.random.uniform(rng, minval=cfg.gear[0], maxval=cfg.gear[1]) + gear
         )
-        return mass_sample, gear_sample
+        return gain, gear_sample
 
-    mass_sample, actuator_gear = randomize(rng)
+    actuator_gain, actuator_gear = randomize(rng)
     in_axes = jax.tree_map(lambda x: None, sys)
     in_axes = in_axes.tree_replace(
         {
-            "link.inertia.mass": 0,
+            "actuator.gain": 0,
             "actuator.gear": 0,
         }
     )
     sys = sys.tree_replace(
         {
-            "link.inertia.mass": mass_sample,
+            "actuator.gain": actuator_gain,
             "actuator.gear": actuator_gear[:, None],
         }
     )
     samples = jnp.stack(
         [
-            mass_sample[:, -1],
+            actuator_gain[:, 0],
             actuator_gear,
         ],
         axis=-1,
