@@ -16,6 +16,7 @@
 
 See: https://arxiv.org/pdf/1812.05905.pdf
 """
+
 from typing import Any, TypeAlias
 
 import jax
@@ -25,7 +26,7 @@ from brax.training.types import Params, PRNGKey
 
 from ss2r.algorithms.sac.networks import SafeSACNetworks
 from ss2r.algorithms.sac.penalizers import Penalizer
-from ss2r.algorithms.sac.robustness import QTransformation, SACBase
+from ss2r.algorithms.sac.robustness import QTransformation
 
 Transition: TypeAlias = types.Transition
 
@@ -73,8 +74,8 @@ def make_losses(
         alpha: jnp.ndarray,
         transitions: Transition,
         key: PRNGKey,
+        target_q_fn: QTransformation,
         safe: bool = False,
-        target_q_fn: QTransformation = SACBase(),
     ) -> jnp.ndarray:
         domain_params = transitions.extras["state_extras"].get(
             "domain_parameters", None
@@ -88,6 +89,7 @@ def make_losses(
         q_old_action = q_network.apply(
             normalizer_params, q_params, transitions.observation, action
         )
+        key, another_key = jax.random.split(key)
 
         def policy(obs: jax.Array) -> tuple[jax.Array, jax.Array]:
             next_dist_params = policy_network.apply(
@@ -106,7 +108,14 @@ def make_losses(
             normalizer_params, target_q_params, obs, action
         )
         target_q = target_q_fn(
-            transitions, q_fn, policy, gamma, domain_params, alpha, reward_scaling
+            transitions,
+            q_fn,
+            policy,
+            gamma,
+            domain_params,
+            alpha,
+            reward_scaling,
+            another_key,
         )
         q_error = q_old_action - jnp.expand_dims(target_q, -1)
         # Better bootstrapping for truncated episodes.

@@ -1,5 +1,6 @@
 defaults:
-  - robustness: null
+  - cost_robustness: null
+  - reward_robustness: null
   - penalizer: crpo
 
 name: sac
