@@ -13,12 +13,12 @@ training:
 
 environment:
   train_params:
-    gain: [0, 1]
+    gain: [0, 5]
     gear: [0., 0.]
 
   eval_params:
-    gain: [0, 1]
-    gear: [0., 50.]
+    gain: [0, 5]
+    gear: [0., 300.]
 
 agent:
   grad_updates_per_step: 256
