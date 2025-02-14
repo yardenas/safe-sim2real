@@ -13,11 +13,11 @@ training:
 
 environment:
   train_params:
-    damping: [-1e-4, 0.]
+    gain: [0, 1]
     gear: [0., 0.]
 
   eval_params:
-    damping: [-1e-4, 0.]
+    gain: [0, 1]
     gear: [0., 50.]
 
 agent:
