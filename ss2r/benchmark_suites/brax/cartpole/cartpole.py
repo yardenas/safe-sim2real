@@ -174,6 +174,10 @@ for safe in [True, False]:
                 slider_position_bound,
             )
     else:
-        make = lambda **kwargs: Cartpole(**kwargs)
+
+        def make(**kwargs):
+            kwargs.pop("slider_position_bound")
+            return Cartpole(**kwargs)
+
     name_str = "_".join(name)
     register_environment(name_str, make)
