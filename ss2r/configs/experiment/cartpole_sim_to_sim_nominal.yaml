@@ -13,11 +13,11 @@ training:
 
 environment:
   train_params:
-    gravity: [-0.5, 0.]
+    damping: [-1e-4, 0.]
     gear: [0., 0.]
 
   eval_params:
-    gravity: [-0.5, 0.]
+    damping: [-1e-4, 0.]
     gear: [0., 50.]
 
 agent:

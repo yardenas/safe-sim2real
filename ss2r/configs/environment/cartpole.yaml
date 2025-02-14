@@ -9,9 +9,9 @@ task_params:
 
 # Sample uniformly around the nominal value
 train_params:
-  gravity: [-0.5, 0.]
+  damping: [-1e-3, 0.]
   gear: [5., 20.]
 
 eval_params:
-  gravity: [-0.5, 0.]
+  damping: [-1e-3, 0.]
   gear: [5., 20.]
