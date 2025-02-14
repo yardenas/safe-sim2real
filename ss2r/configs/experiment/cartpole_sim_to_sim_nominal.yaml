@@ -17,7 +17,7 @@ environment:
     gear: [0., 0.]
 
   eval_params:
-    gain: [0, 5]
+    gain: [0, 0]
     gear: [0., 300.]
 
 agent:
