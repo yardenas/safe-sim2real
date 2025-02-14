@@ -176,7 +176,7 @@ for safe in [True, False]:
     else:
 
         def make(**kwargs):
-            kwargs.pop("slider_position_bound")
+            kwargs.pop("slider_position_bound", None)
             return Cartpole(**kwargs)
 
     name_str = "_".join(name)
