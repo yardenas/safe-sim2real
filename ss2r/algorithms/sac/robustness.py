@@ -1,4 +1,4 @@
-from typing import Callable, Protocol
+from typing import Callable, Optional, Protocol, Tuple
 
 import jax
 import jax.numpy as jnp
@@ -11,12 +11,12 @@ class QTransformation(Protocol):
         self,
         transitions: Transition,
         q_fn: Callable[[Params, jax.Array], jax.Array],
-        policy: Callable[[jax.Array], tuple[jax.Array, jax.Array]],
+        policy: Callable[[jax.Array], Tuple[jax.Array, jax.Array]],
         gamma: float,
-        domain_params: jax.Array | None = None,
-        alpha: jax.Array | None = None,
+        domain_params: Optional[jax.Array],
+        alpha: Optional[jax.Array] = None,
         reward_scaling: float = 1.0,
-        key: jax.Array | None = None,
+        key: Optional[jax.Array] = None,
     ):
         ...
 
@@ -29,12 +29,12 @@ class UCBCost(QTransformation):
         self,
         transitions: Transition,
         q_fn: Callable[[Params, jax.Array], jax.Array],
-        policy: Callable[[jax.Array], tuple[jax.Array, jax.Array]],
+        policy: Callable[[jax.Array], Tuple[jax.Array, jax.Array]],
         gamma: float,
-        domain_params: jax.Array | None = None,
-        alpha: jax.Array | None = None,
+        domain_params: Optional[jax.Array] = None,
+        alpha: Optional[jax.Array] = None,
         reward_scaling: float = 1.0,
-        key: jax.Array | None = None,
+        key: Optional[jax.Array] = None,
     ):
         next_action, _ = policy(transitions.next_observation)
         if domain_params is not None:
@@ -61,12 +61,12 @@ class RAMU(QTransformation):
         self,
         transitions: Transition,
         q_fn: Callable[[Params, jax.Array], jax.Array],
-        policy: Callable[[jax.Array], tuple[jax.Array, jax.Array]],
+        policy: Callable[[jax.Array], Tuple[jax.Array, jax.Array]],
         gamma: float,
-        domain_params: jax.Array | None = None,
-        alpha: jax.Array | None = None,
+        domain_params: Optional[jax.Array] = None,
+        alpha: Optional[jax.Array] = None,
         reward_scaling: float = 1.0,
-        key: jax.Array | None = None,
+        key: Optional[jax.Array] = None,
     ):
         sampled_next_obs = ramu_sample(
             self.epsilon,
@@ -109,12 +109,12 @@ class SACBase(QTransformation):
         self,
         transitions: Transition,
         q_fn: Callable[[Params, jax.Array], jax.Array],
-        policy: Callable[[jax.Array], tuple[jax.Array, jax.Array]],
+        policy: Callable[[jax.Array], Tuple[jax.Array, jax.Array]],
         gamma: float,
-        domain_params: jax.Array | None = None,
-        alpha: jax.Array | None = None,
+        domain_params: Optional[jax.Array] = None,
+        alpha: Optional[jax.Array] = None,
         reward_scaling: float = 1.0,
-        key: jax.Array | None = None,
+        key: Optional[jax.Array] = None,
     ):
         next_action, next_log_prob = policy(transitions.next_observation)
         if domain_params is not None:
@@ -138,12 +138,12 @@ class RAMUReward(QTransformation):
         self,
         transitions: Transition,
         q_fn: Callable[[Params, jax.Array], jax.Array],
-        policy: Callable[[jax.Array], tuple[jax.Array, jax.Array]],
+        policy: Callable[[jax.Array], Tuple[jax.Array, jax.Array]],
         gamma: float,
-        domain_params: jax.Array | None = None,
-        alpha: jax.Array | None = None,
+        domain_params: Optional[jax.Array] = None,
+        alpha: Optional[jax.Array] = None,
         reward_scaling: float = 1.0,
-        key: jax.Array | None = None,
+        key: Optional[jax.Array] = None,
     ):
         sampled_next_obs = ramu_sample(
             self.epsilon,
@@ -176,12 +176,12 @@ class LCBReward(QTransformation):
         self,
         transitions: Transition,
         q_fn: Callable[[Params, jax.Array], jax.Array],
-        policy: Callable[[jax.Array], tuple[jax.Array, jax.Array]],
+        policy: Callable[[jax.Array], Tuple[jax.Array, jax.Array]],
         gamma: float,
-        domain_params: jax.Array | None = None,
-        alpha: jax.Array | None = None,
+        domain_params: Optional[jax.Array] = None,
+        alpha: Optional[jax.Array] = None,
         reward_scaling: float = 1.0,
-        key: jax.Array | None = None,
+        key: Optional[jax.Array] = None,
     ):
         next_action, next_log_prob = policy(transitions.next_observation)
         if domain_params is not None:
@@ -202,12 +202,12 @@ class SACCost(QTransformation):
         self,
         transitions: Transition,
         q_fn: Callable[[Params, jax.Array], jax.Array],
-        policy: Callable[[jax.Array], tuple[jax.Array, jax.Array]],
+        policy: Callable[[jax.Array], Tuple[jax.Array, jax.Array]],
         gamma: float,
-        domain_params: jax.Array | None = None,
-        alpha: jax.Array | None = None,
+        domain_params: Optional[jax.Array] = None,
+        alpha: Optional[jax.Array] = None,
         reward_scaling: float = 1.0,
-        key: jax.Array | None = None,
+        key: Optional[jax.Array] = None,
     ):
         next_action, _ = policy(transitions.next_observation)
         if domain_params is not None:

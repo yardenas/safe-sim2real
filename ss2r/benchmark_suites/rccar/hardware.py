@@ -1,6 +1,6 @@
 import sys
 from contextlib import contextmanager
-from typing import Any
+from typing import Any, Tuple
 
 import jax
 import numpy as np
@@ -69,7 +69,7 @@ class HardwareDynamics:
         self.controller = controller
 
     # FIXME (yarden): make sure that this really conforms to the actual state
-    def step(self, x: jax.Array, u: jax.Array, params: Any) -> tuple[jax.Array, dict]:
+    def step(self, x: jax.Array, u: jax.Array, params: Any) -> Tuple[jax.Array, dict]:
         scaled_action = np.array(u).copy()
         self.controller.control_mode()
         command_set_in_time = self.controller.set_command(scaled_action)

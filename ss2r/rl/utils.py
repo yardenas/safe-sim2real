@@ -1,3 +1,5 @@
+from typing import Tuple
+
 import jax
 from brax.envs import Env, State
 from brax.training.types import Policy
@@ -9,7 +11,7 @@ def rollout(
     steps: int,
     rng: jax.Array,
     state: State,
-) -> tuple[State, State]:
+) -> Tuple[State, State]:
     def f(carry, _):
         state, current_key = carry
         current_key, next_key = jax.random.split(current_key)

@@ -17,7 +17,7 @@
 See: https://arxiv.org/pdf/1812.05905.pdf
 """
 
-from typing import Any, TypeAlias
+from typing import Any, Dict, Optional, Tuple
 
 import jax
 import jax.numpy as jnp
@@ -27,8 +27,6 @@ from brax.training.types import Params, PRNGKey
 from ss2r.algorithms.sac.networks import SafeSACNetworks
 from ss2r.algorithms.sac.penalizers import Penalizer
 from ss2r.algorithms.sac.robustness import QTransformation
-
-Transition: TypeAlias = types.Transition
 
 
 def make_losses(
@@ -50,7 +48,7 @@ def make_losses(
         log_alpha: jnp.ndarray,
         policy_params: Params,
         normalizer_params: Any,
-        transitions: Transition,
+        transitions: types.Transition,
         key: PRNGKey,
     ) -> jnp.ndarray:
         """Eq 18 from https://arxiv.org/pdf/1812.05905.pdf."""
@@ -72,7 +70,7 @@ def make_losses(
         normalizer_params: Any,
         target_q_params: Params,
         alpha: jnp.ndarray,
-        transitions: Transition,
+        transitions: types.Transition,
         key: PRNGKey,
         target_q_fn: QTransformation,
         safe: bool = False,
@@ -91,7 +89,7 @@ def make_losses(
         )
         key, another_key = jax.random.split(key)
 
-        def policy(obs: jax.Array) -> tuple[jax.Array, jax.Array]:
+        def policy(obs: jax.Array) -> Tuple[jax.Array, jax.Array]:
             next_dist_params = policy_network.apply(
                 normalizer_params, policy_params, obs
             )
@@ -128,14 +126,14 @@ def make_losses(
         policy_params: Params,
         normalizer_params: Any,
         qr_params: Params,
-        qc_params: Params | None,
+        qc_params: Optional[Params],
         alpha: jnp.ndarray,
-        transitions: Transition,
+        transitions: types.Transition,
         key: PRNGKey,
         safety_budget: float,
         penalizer: Penalizer,
         penalizer_params: Any,
-    ) -> tuple[jnp.ndarray, dict[str, Any]]:
+    ) -> Tuple[jnp.ndarray, Dict[str, Any]]:
         dist_params = policy_network.apply(
             normalizer_params, policy_params, transitions.observation
         )
@@ -169,7 +167,7 @@ def make_losses(
             aux["constraint_estimate"] = constraint
             aux["cost"] = mean_qc.mean()
             aux["penalizer_params"] = penalizer_params
-            aux |= penalizer_aux
+            aux = {**penalizer_aux, **aux}
         actor_loss += exploration_loss
         return actor_loss, aux
 

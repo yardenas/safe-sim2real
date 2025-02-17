@@ -19,7 +19,7 @@ See: https://arxiv.org/pdf/1812.05905.pdf
 
 import functools
 import time
-from typing import Any, Callable, Optional, Tuple, TypeAlias, Union
+from typing import Any, Callable, Optional, Tuple, Union
 
 import flax
 import jax
@@ -40,11 +40,9 @@ from ss2r.algorithms.sac.robustness import QTransformation, SACBase, SACCost
 from ss2r.algorithms.sac.wrappers import ModelDisagreement, StatePropagation
 from ss2r.rl.evaluation import ConstraintsEvaluator
 
-Metrics: TypeAlias = types.Metrics
-Transition: TypeAlias = types.Transition
-InferenceParams: TypeAlias = Tuple[running_statistics.NestedMeanStd, Params]
+InferenceParams = Tuple[running_statistics.NestedMeanStd, Params]
 
-ReplayBufferState: TypeAlias = Any
+ReplayBufferState = Any
 
 
 @flax.struct.dataclass
@@ -54,11 +52,11 @@ class TrainingState:
     policy_optimizer_state: optax.OptState
     policy_params: Params
     qr_optimizer_state: optax.OptState
-    qc_optimizer_state: optax.OptState | None
+    qc_optimizer_state: Optional[optax.OptState]
     qr_params: Params
-    qc_params: Params | None
+    qc_params: Optional[Params]
     target_qr_params: Params
-    target_qc_params: Params | None
+    target_qc_params: Optional[Params]
     gradient_steps: jnp.ndarray
     env_steps: jnp.ndarray
     alpha_optimizer_state: optax.OptState
@@ -94,8 +92,8 @@ def _init_training_state(
     alpha_optimizer: optax.GradientTransformation,
     policy_optimizer: optax.GradientTransformation,
     qr_optimizer: optax.GradientTransformation,
-    qc_optimizer: optax.GradientTransformation | None,
-    penalizer_params: Params | None,
+    qc_optimizer: Optional[optax.GradientTransformation],
+    penalizer_params: Optional[Params],
 ) -> TrainingState:
     """Inits the training state and replicates it over devices."""
     key_policy, key_qr, key_qc = jax.random.split(key, 3)
@@ -144,7 +142,7 @@ def train(
     num_envs: int = 1,
     num_eval_envs: int = 128,
     num_trajectories_per_env: int = 1,
-    propagation: str | None = None,
+    propagation: Optional[str] = None,
     learning_rate: float = 1e-4,
     critic_learning_rate: float = 1e-4,
     cost_critic_learning_rate: float = 1e-4,
@@ -163,14 +161,14 @@ def train(
     network_factory: sac_networks.DomainRandomizationNetworkFactory[
         sac_networks.SafeSACNetworks
     ] = sac_networks.make_sac_networks,
-    progress_fn: Callable[[int, Metrics], None] = lambda *args: None,
+    progress_fn: Callable[[int, types.Metrics], None] = lambda *args: None,
     checkpoint_logdir: Optional[str] = None,
     eval_env: Optional[envs.Env] = None,
     privileged: bool = False,
     safe: bool = False,
     safety_budget: float = float("inf"),
-    penalizer: Penalizer | None = None,
-    penalizer_params: Params | None = None,
+    penalizer: Optional[Penalizer] = None,
+    penalizer_params: Optional[Params] = None,
     reward_robustness: QTransformation = SACBase(),
     cost_robustness: QTransformation = SACCost(),
 ):
@@ -252,13 +250,15 @@ def train(
         extras["state_extras"]["cost"] = 0.0  # type: ignore
     if propagation is not None:
         extras["state_extras"]["disagreement"] = 0.0  # type: ignore
-    dummy_transition = Transition(  # pytype: disable=wrong-arg-types  # jax-ndarray
-        observation=dummy_obs,
-        action=dummy_action,
-        reward=0.0,
-        discount=0.0,
-        next_observation=dummy_obs,
-        extras=extras,
+    dummy_transition = (
+        types.Transition(  # pytype: disable=wrong-arg-types  # jax-ndarray
+            observation=dummy_obs,
+            action=dummy_action,
+            reward=0.0,
+            discount=0.0,
+            next_observation=dummy_obs,
+            extras=extras,
+        )
     )
     replay_buffer = replay_buffers.UniformSamplingQueue(
         max_replay_size=max_replay_size,
@@ -293,8 +293,8 @@ def train(
     )
 
     def sgd_step(
-        carry: Tuple[TrainingState, PRNGKey], transitions: Transition
-    ) -> Tuple[Tuple[TrainingState, PRNGKey], Metrics]:
+        carry: Tuple[TrainingState, PRNGKey], transitions: types.Transition
+    ) -> Tuple[Tuple[TrainingState, PRNGKey], types.Metrics]:
         training_state, key = carry
 
         key, key_alpha, key_critic, key_cost_critic, key_actor = jax.random.split(
@@ -454,7 +454,7 @@ def train(
         env_state: envs.State,
         buffer_state: ReplayBufferState,
         training_key: PRNGKey,
-    ) -> Tuple[TrainingState, envs.State, ReplayBufferState, Metrics]:
+    ) -> Tuple[TrainingState, envs.State, ReplayBufferState, types.Metrics]:
         """Runs the jittable training step after experience collection."""
         buffer_state, transitions = replay_buffer.sample(buffer_state)
         # Change the front dimension of transitions so 'update_step' is called
@@ -474,7 +474,7 @@ def train(
         env_state: envs.State,
         buffer_state: ReplayBufferState,
         key: PRNGKey,
-    ) -> Tuple[TrainingState, envs.State, ReplayBufferState, Metrics]:
+    ) -> Tuple[TrainingState, envs.State, ReplayBufferState, types.Metrics]:
         """Splits training into experience collection and a jitted training step."""
         training_state, env_state, buffer_state, training_key = run_experience_step(
             training_state, env_state, buffer_state, key
@@ -518,7 +518,7 @@ def train(
         env_state: envs.State,
         buffer_state: ReplayBufferState,
         key: PRNGKey,
-    ) -> Tuple[TrainingState, envs.State, ReplayBufferState, Metrics]:
+    ) -> Tuple[TrainingState, envs.State, ReplayBufferState, types.Metrics]:
         def f(carry, unused_t):
             ts, es, bs, k = carry
             k, new_key = jax.random.split(k)
@@ -540,7 +540,7 @@ def train(
         env_state: envs.State,
         buffer_state: ReplayBufferState,
         key: PRNGKey,
-    ) -> Tuple[TrainingState, envs.State, ReplayBufferState, Metrics]:
+    ) -> Tuple[TrainingState, envs.State, ReplayBufferState, types.Metrics]:
         nonlocal training_walltime  # type: ignore
         t = time.time()
         (training_state, env_state, buffer_state, metrics) = training_epoch(

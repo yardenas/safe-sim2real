@@ -1,3 +1,5 @@
+from typing import List, Optional, Tuple, Union
+
 import jax
 import jax.flatten_util
 import jax.numpy as jnp
@@ -119,11 +121,11 @@ class RCCar(Env):
         self,
         car_model_params: dict,
         dt: float = 1 / 30.0,
-        obstacles: list[tuple[float, float, float]] = [(0.75, -0.75, 0.2)],
+        obstacles: List[Tuple[float, float, float]] = [(0.75, -0.75, 0.2)],
         sample_init_pose: bool = True,
         control_penalty_scale: float = 0.0,
         *,
-        hardware: HardwareDynamics | None = None,
+        hardware: Optional[HardwareDynamics] = None,
     ):
         self.goal = jnp.array([0.0, 0.0, 0.0])
         self.obstacles = obstacles
@@ -134,7 +136,7 @@ class RCCar(Env):
         self.dim_action = (2,)
         self.encode_angle = True
         self.dim_state = (7,) if self.encode_angle else (6,)
-        self.dynamics_model: RaceCarDynamics | HardwareDynamics = (
+        self.dynamics_model: Union[RaceCarDynamics, HardwareDynamics] = (
             RaceCarDynamics(dt=dt) if hardware is None else hardware
         )
         self.sys = CarParams(**car_model_params)

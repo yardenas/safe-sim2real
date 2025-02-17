@@ -14,7 +14,7 @@
 
 """SAC networks."""
 
-from typing import Any, Callable, Protocol, Sequence, TypeVar
+from typing import Any, Callable, Optional, Protocol, Sequence, TypeVar
 
 import brax.training.agents.sac.networks as sac_networks
 import flax
@@ -36,7 +36,7 @@ class SafeSACNetworks:
     policy_network: networks.FeedForwardNetwork
     qr_network: networks.FeedForwardNetwork
     parametric_action_distribution: distribution.ParametricDistribution
-    qc_network: networks.FeedForwardNetwork | None
+    qc_network: Optional[networks.FeedForwardNetwork]
 
 
 class DomainRandomizationNetworkFactory(Protocol[NetworkType]):

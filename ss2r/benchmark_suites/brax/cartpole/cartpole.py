@@ -1,5 +1,5 @@
 import os
-from typing import Any
+from typing import Any, Dict
 
 import jax
 import jax.numpy as jnp
@@ -92,7 +92,7 @@ class Cartpole(PipelineEnv):
         pipeline_state = self.pipeline_init(q, qd)
         obs = self._get_obs(pipeline_state)
         reward, done = jnp.zeros(2)
-        metrics: dict[str, Any] = {}
+        metrics: Dict[str, Any] = {}
         return State(pipeline_state, obs, reward, done, metrics)
 
     def step(self, state: State, action: jax.Array) -> State:

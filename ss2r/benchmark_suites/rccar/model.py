@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Tuple
 
 import jax
 import jax.numpy as jnp
@@ -185,7 +185,7 @@ class RaceCarDynamics:
         )
         return next_state
 
-    def step(self, x: jax.Array, u: jax.Array, params: Any) -> tuple[jax.Array, dict]:
+    def step(self, x: jax.Array, u: jax.Array, params: Any) -> Tuple[jax.Array, dict]:
         assert x.shape[-1] == 6
         theta_x = x[..., self.angle_idx]
         offset = jnp.clip(params.angle_offset, -jnp.pi, jnp.pi)

@@ -1,4 +1,4 @@
-from typing import Any, NamedTuple, Protocol, TypeVar
+from typing import Any, Dict, NamedTuple, Protocol, Tuple, TypeVar
 
 import jax
 import jax.numpy as jnp
@@ -9,7 +9,7 @@ Params = TypeVar("Params")
 class Penalizer(Protocol):
     def __call__(
         self, actor_loss: jax.Array, constraint: jax.Array, params: Params
-    ) -> tuple[jax.Array, dict[str, Any], Params]:
+    ) -> Tuple[jax.Array, Dict[str, Any], Params]:
         ...
 
 
@@ -19,7 +19,7 @@ class CRPO:
 
     def __call__(
         self, actor_loss: jax.Array, constraint: jax.Array, params: Params
-    ) -> tuple[jax.Array, dict[str, Any], Params]:
+    ) -> Tuple[jax.Array, Dict[str, Any], Params]:
         actor_loss = jnp.where(
             jnp.greater(constraint + self.eta, 0.0), actor_loss, -constraint
         )
@@ -37,7 +37,7 @@ class AugmentedLagrangian:
 
     def __call__(
         self, actor_loss: jax.Array, constraint: jax.Array, params: LagrangianParams
-    ) -> tuple[jax.Array, dict[str, Any], Params]:
+    ) -> Tuple[jax.Array, Dict[str, Any], Params]:
         psi, cond = augmented_lagrangian(constraint, *params)
         new_params = update_augmented_lagrangian(
             cond, params.penalty_multiplier, self.penalty_multiplier_factor

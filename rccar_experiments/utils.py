@@ -1,5 +1,5 @@
 import time
-from typing import NamedTuple
+from typing import List, NamedTuple, Tuple
 
 import jax
 import numpy as np
@@ -16,15 +16,15 @@ from ss2r.rl.evaluation import ConstraintEvalWrapper
 
 
 class Trajectory(NamedTuple):
-    observation: list[jax.Array]
-    action: list[jax.Array]
-    reward: list[jax.Array]
-    cost: list[jax.Array]
+    observation: List[jax.Array]
+    action: List[jax.Array]
+    reward: List[jax.Array]
+    cost: List[jax.Array]
 
 
 def collect_trajectory(
     env: rccar.RCCar, policy: Policy, rng: jax.Array
-) -> tuple[Metrics, Trajectory]:
+) -> Tuple[Metrics, Trajectory]:
     t = time.time()
     trajectory = Trajectory([], [], [], [])
     elapsed = []

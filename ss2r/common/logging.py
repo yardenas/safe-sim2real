@@ -3,7 +3,7 @@ import logging
 import os
 from queue import Queue
 from threading import Thread
-from typing import Any, Protocol
+from typing import Any, Dict, List, Optional, Protocol, Union
 
 import cloudpickle
 import numpy as np
@@ -17,7 +17,7 @@ _SUMMARY_DEFAULT = "summary"
 
 
 class Writer(Protocol):
-    def log(self, summary: dict[str, float], step: int):
+    def log(self, summary: Dict[str, float], step: int):
         ...
 
     def log_video(
@@ -25,7 +25,7 @@ class Writer(Protocol):
         images: npt.ArrayLike,
         step: int,
         name: str = "policy",
-        fps: int | float = 30,
+        fps: Union[int, float] = 30,
     ):
         ...
 
@@ -33,16 +33,16 @@ class Writer(Protocol):
         self,
         path: str,
         type: str,
-        name: str | None = None,
-        description: str | None = None,
-        metadata: dict[str, Any] | None = None,
+        name: Optional[str] = None,
+        description: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
     ):
         ...
 
 
 class TrainingLogger:
     def __init__(self, config: DictConfig) -> None:
-        self._writers: list[Writer] = []
+        self._writers: List[Writer] = []
         log_path = os.getcwd()
         for writer in config.writers:
             if writer == "wandb":
@@ -56,7 +56,7 @@ class TrainingLogger:
             else:
                 raise ValueError(f"Unknown writer: {writer}")
 
-    def log(self, summary: dict[str, float], step: int):
+    def log(self, summary: Dict[str, float], step: int):
         for writer in self._writers:
             writer.log(summary, int(step))
 
@@ -65,7 +65,7 @@ class TrainingLogger:
         images: npt.ArrayLike,
         step: int,
         name: str = "policy",
-        fps: int | float = 30,
+        fps: Union[int, float] = 30,
     ):
         for writer in self._writers:
             writer.log_video(images, step, name, fps)
@@ -74,9 +74,9 @@ class TrainingLogger:
         self,
         path: str,
         type: str,
-        name: str | None = None,
-        description: str | None = None,
-        metadata: dict[str, Any] | None = None,
+        name: Optional[str] = None,
+        description: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
     ):
         for writer in self._writers:
             writer.log_artifact(path, type, name, description, metadata)
@@ -86,7 +86,7 @@ class StdErrWriter:
     def __init__(self, logger_name: str = _SUMMARY_DEFAULT):
         self._logger = logging.getLogger(logger_name)
 
-    def log(self, summary: dict[str, float], step: int):
+    def log(self, summary: Dict[str, float], step: int):
         to_log = [[k, v] for k, v in summary.items()]
         self._logger.info(
             f"Step {step} summary:\n"
@@ -98,7 +98,7 @@ class StdErrWriter:
         images: npt.ArrayLike,
         step: int,
         name: str = "policy",
-        fps: int | float = 30,
+        fps: Union[int, float] = 30,
     ):
         pass
 
@@ -106,9 +106,9 @@ class StdErrWriter:
         self,
         path: str,
         type: str,
-        name: str | None = None,
-        description: str | None = None,
-        metadata: dict[str, Any] | None = None,
+        name: Optional[str] = None,
+        description: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
     ):
         pass
 
@@ -117,7 +117,7 @@ class JsonlWriter:
     def __init__(self, log_dir: str) -> None:
         self.log_dir = log_dir
 
-    def log(self, summary: dict[str, float], step: int):
+    def log(self, summary: Dict[str, float], step: int):
         with open(os.path.join(self.log_dir, f"{_SUMMARY_DEFAULT}.jsonl"), "a") as file:
             file.write(json.dumps({"step": step, **summary}) + "\n")
 
@@ -126,7 +126,7 @@ class JsonlWriter:
         images: npt.ArrayLike,
         step: int,
         name: str = "policy",
-        fps: int | float = 30,
+        fps: Union[int, float] = 30,
     ):
         pass
 
@@ -134,9 +134,9 @@ class JsonlWriter:
         self,
         path: str,
         type: str,
-        name: str | None = None,
-        description: str | None = None,
-        metadata: dict[str, Any] | None = None,
+        name: Optional[str] = None,
+        description: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
     ):
         pass
 
@@ -147,7 +147,7 @@ class TensorboardXWriter:
 
         self._writer = tensorboardX.SummaryWriter(log_dir)
 
-    def log(self, summary: dict[str, float], step: int):
+    def log(self, summary: Dict[str, float], step: int):
         for k, v in summary.items():
             self._writer.add_scalar(k, float(v), step)
 
@@ -156,7 +156,7 @@ class TensorboardXWriter:
         images: npt.ArrayLike,
         step: int,
         name: str = "policy",
-        fps: int | float = 30,
+        fps: Union[int, float] = 30,
         flush: bool = False,
     ):
         images = np.array(images, copy=False)
@@ -170,9 +170,9 @@ class TensorboardXWriter:
         self,
         path: str,
         type: str,
-        name: str | None = None,
-        description: str | None = None,
-        metadata: dict[str, Any] | None = None,
+        name: Optional[str] = None,
+        description: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
     ):
         pass
 
@@ -191,7 +191,7 @@ class WeightAndBiasesWriter:
         wandb.init(project="ss2r", resume=True, config=config_dict, **config.wandb)
         self._handle = wandb
 
-    def log(self, summary: dict[str, float], step: int):
+    def log(self, summary: Dict[str, float], step: int):
         self._handle.log(summary, step=step)
 
     def log_video(
@@ -199,7 +199,7 @@ class WeightAndBiasesWriter:
         images: npt.ArrayLike,
         step: int,
         name: str = "policy",
-        fps: int | float = 30,
+        fps: Union[int, float] = 30,
     ):
         self._handle.log(
             {
@@ -216,9 +216,9 @@ class WeightAndBiasesWriter:
         self,
         path: str,
         type: str,
-        name: str | None = None,
-        description: str | None = None,
-        metadata: dict[str, Any] | None = None,
+        name: Optional[str] = None,
+        description: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
     ):
         if name is None:
             name = self._handle.run.id
@@ -239,7 +239,7 @@ class StateWriter:
         self._thread = Thread(name="state_writer", target=self._worker)
         self._thread.start()
 
-    def write(self, data: dict[str, Any]):
+    def write(self, data: Dict[str, Any]):
         state_bytes = cloudpickle.dumps(data)
         self.queue.put(state_bytes)
         # Lazily open up a thread and let it drain the work queue. Thread exits
