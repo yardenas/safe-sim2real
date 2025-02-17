@@ -1254,6 +1254,22 @@ files = [
 ]
 
 [[package]]
+name = "ipdb"
+version = "0.13.13"
+description = "IPython-enabled pdb"
+optional = false
+python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
+files = [
+    {file = "ipdb-0.13.13-py3-none-any.whl", hash = "sha256:45529994741c4ab6d2388bfa5d7b725c2cf7fe9deffabdb8a6113aa5ed449ed4"},
+    {file = "ipdb-0.13.13.tar.gz", hash = "sha256:e3ac6018ef05126d442af680aad863006ec19d02290561ac88b8b1c0b0cfc726"},
+]
+
+[package.dependencies]
+decorator = {version = "*", markers = "python_version > \"3.6\" and python_version < \"3.11\""}
+ipython = {version = ">=7.31.1", markers = "python_version > \"3.6\" and python_version < \"3.11\""}
+tomli = {version = "*", markers = "python_version > \"3.6\" and python_version < \"3.11\""}
+
+[[package]]
 name = "ipykernel"
 version = "6.29.5"
 description = "IPython Kernel for Jupyter"
@@ -2982,6 +2998,115 @@ files = [
 typing-extensions = ">=4.6.0,<4.7.0 || >4.7.0"
 
 [[package]]
+name = "pydelatin"
+version = "0.2.8"
+description = "A wrapper for hmm"
+optional = false
+python-versions = ">=3.6"
+files = [
+    {file = "pydelatin-0.2.8-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:dc531514acb57a849580cb82cdd3d14643d467781e72712e3f57b2887aecd781"},
+    {file = "pydelatin-0.2.8-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:3d32901431d01e0e89a03958edda060c83fb7c6b4c90dd367c39fd5863f73ef0"},
+    {file = "pydelatin-0.2.8-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:a1cf6adc47dddb9da6e25964a3ac9ca6f08406aa3d3a0a97298b6fb18e474538"},
+    {file = "pydelatin-0.2.8-cp310-cp310-musllinux_1_2_i686.whl", hash = "sha256:a89c21e62130f8571c5565ab7f048aeea101fdcc4f2b719a84c292e78f9cceac"},
+    {file = "pydelatin-0.2.8-cp310-cp310-musllinux_1_2_x86_64.whl", hash = "sha256:7d4ab050a3460c388881e1c40598475baa4d647a995f790aafdf84e8907c7703"},
+    {file = "pydelatin-0.2.8-cp311-cp311-macosx_10_9_x86_64.whl", hash = "sha256:962f5c67d1738f0e41b159d80548e30b2d9427e59fc1446a1dda59d1466939bc"},
+    {file = "pydelatin-0.2.8-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:12fd4102782c27b40659c18af1287988b05783d2b7cecd77bf512f65378e5d95"},
+    {file = "pydelatin-0.2.8-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:b4f2c48e7c95e8b12e0e8f1448db8149824207f05e58474c4a944845b621b938"},
+    {file = "pydelatin-0.2.8-cp311-cp311-musllinux_1_2_i686.whl", hash = "sha256:af39d07b74e1f5ae6392e4d2f144581090f6e3d6bd369793ac09d64a38b21b94"},
+    {file = "pydelatin-0.2.8-cp311-cp311-musllinux_1_2_x86_64.whl", hash = "sha256:d8f582a3cf6b662fae662008be92e7f86bf3079fb98ffdcfb6ced304ea48a81f"},
+    {file = "pydelatin-0.2.8-cp312-cp312-macosx_10_9_x86_64.whl", hash = "sha256:165aef70518c832770361f2a405f75bbbc3762063ca860ad6db9fc74afdf7560"},
+    {file = "pydelatin-0.2.8-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:f981c42cf763ac4ef54c36314a6adae4f3ab8dca09ef242e22f1cb1fa7d90feb"},
+    {file = "pydelatin-0.2.8-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:787068472a6c461c4da78f35ac65e88facb70650b359604cf30519c81cb31cd2"},
+    {file = "pydelatin-0.2.8-cp312-cp312-musllinux_1_2_i686.whl", hash = "sha256:6fd16c27551259789cb016134c9e858996f7d30aac5ec61914459375e75f0973"},
+    {file = "pydelatin-0.2.8-cp312-cp312-musllinux_1_2_x86_64.whl", hash = "sha256:ff16fe21870833dacc39e4dd04dfba6a1667c6b2fc8581288a00cc44145d15e2"},
+    {file = "pydelatin-0.2.8-cp313-cp313-macosx_10_13_x86_64.whl", hash = "sha256:ebdf460fda9b0ca6391929d3137e3d37e8cb356bf18d051608e02353a2463a7a"},
+    {file = "pydelatin-0.2.8-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:5ff79e1182f465cb579c6e78c04dccbe5338ce58b647fa33b71ca2684091d595"},
+    {file = "pydelatin-0.2.8-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:2d7d8135acd71f3e54f4a9a35537b40a3fcc7f0b070ff4303e85d672a694a787"},
+    {file = "pydelatin-0.2.8-cp313-cp313-musllinux_1_2_i686.whl", hash = "sha256:99b927b88cd882eb6904dcb215ca8e6c58f53356a67dba7673893e4552cbaaac"},
+    {file = "pydelatin-0.2.8-cp313-cp313-musllinux_1_2_x86_64.whl", hash = "sha256:65ac6e5fb1b6367193a39a839e937acf536243ebcb79dbfe6b75c024698bb118"},
+    {file = "pydelatin-0.2.8-cp36-cp36m-macosx_10_9_x86_64.whl", hash = "sha256:4b12c6b21c688f7c8dc23fff5e64eb453c7e7d8bad580417fb48c6b13a58aa63"},
+    {file = "pydelatin-0.2.8-cp36-cp36m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:2f234d8c1bb3845092bb57f7fa2a6d0c0a2fe1c84f8b18bcf96363edcff7c261"},
+    {file = "pydelatin-0.2.8-cp36-cp36m-musllinux_1_2_i686.whl", hash = "sha256:aed2a0a3a10aba4e8a27b02d6742d799828144bc65430a97af796c4b9bc635d0"},
+    {file = "pydelatin-0.2.8-cp36-cp36m-musllinux_1_2_x86_64.whl", hash = "sha256:4cc006ff1d0b8170819e12673a989d196263657939f8e3d15527cb8e372fd3bf"},
+    {file = "pydelatin-0.2.8-cp37-cp37m-macosx_10_9_x86_64.whl", hash = "sha256:a9e1da8020f720ba1b04b159513db28fed11d0c14ccfa933c08b6821b15ad051"},
+    {file = "pydelatin-0.2.8-cp37-cp37m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:ff82c6a7342137efde348684272857cf72262c414c048db0230df87ed7a63c17"},
+    {file = "pydelatin-0.2.8-cp37-cp37m-musllinux_1_2_i686.whl", hash = "sha256:f3a488d19bb9f7b4ddd3502748a6927aee9205ebd80df3d81f69b6114c4a351e"},
+    {file = "pydelatin-0.2.8-cp37-cp37m-musllinux_1_2_x86_64.whl", hash = "sha256:e952185151ccbed8c8b986e4b022541ea7e1693e509213e427c3c3bae902eb07"},
+    {file = "pydelatin-0.2.8-cp38-cp38-macosx_10_9_x86_64.whl", hash = "sha256:20ba685d9ab7a822edd5bd062c211d7fceb0f998dd43f7785a842258cee46800"},
+    {file = "pydelatin-0.2.8-cp38-cp38-macosx_11_0_arm64.whl", hash = "sha256:2fd063eb7da7c39261f0de7852ddf75e5e690f875a9abe049316db8933aa1430"},
+    {file = "pydelatin-0.2.8-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:d797041be66ae2da9b03e5e90c6930a66e843111e08446b0c24c11bc3453c4a2"},
+    {file = "pydelatin-0.2.8-cp38-cp38-musllinux_1_2_i686.whl", hash = "sha256:0a979413249ba79f36b8cb298988545033b1b1e48af003539af11fc6f216b2e5"},
+    {file = "pydelatin-0.2.8-cp38-cp38-musllinux_1_2_x86_64.whl", hash = "sha256:308e8b6e0dd737dcf7b5f48a64006037b016ca66e2e380eac2c844550759aa0c"},
+    {file = "pydelatin-0.2.8-cp39-cp39-macosx_10_9_x86_64.whl", hash = "sha256:9db31337ad319375fce84e52b2abe7747cb123f117f67c748fc6ab1b55f79410"},
+    {file = "pydelatin-0.2.8-cp39-cp39-macosx_11_0_arm64.whl", hash = "sha256:65456b6c579b653a85690f533d65321eaeb4cacd463b1830ebd621ec28b9543a"},
+    {file = "pydelatin-0.2.8-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:60207c01fdb3e62767d157a1468ba56c5b9cc5343b81aa1bfa7f77cd91f14a73"},
+    {file = "pydelatin-0.2.8-cp39-cp39-musllinux_1_2_i686.whl", hash = "sha256:14806900f1cb194a992d485d44b87c101d3e09a8f97e2878a34b13593a278f1b"},
+    {file = "pydelatin-0.2.8-cp39-cp39-musllinux_1_2_x86_64.whl", hash = "sha256:3f3e2dac384e2eb3cc37d658223154a46913219f684cfa6d8ce780244503592e"},
+    {file = "pydelatin-0.2.8.tar.gz", hash = "sha256:3703dd37fc3fb5a2fc1ec681c530ccc95639885a93a5506fe057aed77d81fe6a"},
+]
+
+[package.dependencies]
+numpy = "*"
+
+[package.extras]
+test = ["imageio", "pytest", "pytest-benchmark"]
+
+[[package]]
+name = "pyfqmr"
+version = "0.3.0"
+description = "cython wrapper around C++ library for fast triangular mesh reduction"
+optional = false
+python-versions = "*"
+files = [
+    {file = "pyfqmr-0.3.0-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:a356b7542ea3f0d2460f51283a469480f171d47ea1c6289d87b9df367196b3d8"},
+    {file = "pyfqmr-0.3.0-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:67a904e098cf4eb18081a088ce2c55d08b4d35002580477becb4516cf171e8c4"},
+    {file = "pyfqmr-0.3.0-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:8a9ad392c3ba4092a3ecf86ca50e2c37eaf6a171fd36c4272576ed73d6642631"},
+    {file = "pyfqmr-0.3.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:e9f1d6b0c6b7e9c017c896a7b5941517a601bc922464ec6eb472da8cbfb69731"},
+    {file = "pyfqmr-0.3.0-cp310-cp310-musllinux_1_2_aarch64.whl", hash = "sha256:864ebbee02e9a451fdc2a071381b479e18c5619abf6be67eb077383f293272cf"},
+    {file = "pyfqmr-0.3.0-cp310-cp310-musllinux_1_2_x86_64.whl", hash = "sha256:e7968290a8050cc089c5b72da2b02af17ac05f34a7c7fb4e6939b076089dacfc"},
+    {file = "pyfqmr-0.3.0-cp310-cp310-win32.whl", hash = "sha256:c44235ce3fe45c97cc8e472d0a54afe089967a22ce8e990ab28c83257cbfbc72"},
+    {file = "pyfqmr-0.3.0-cp310-cp310-win_amd64.whl", hash = "sha256:d99a27ca97fa3a624281812f2262cdf0b0a287527cb7dbdf1ab98ed9cfe8a515"},
+    {file = "pyfqmr-0.3.0-cp311-cp311-macosx_10_9_x86_64.whl", hash = "sha256:f267dd34b2e5930bc881f7228dbb0a313708d3fcf672d2b6f604e30f9036d9f1"},
+    {file = "pyfqmr-0.3.0-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:228bd64804ca0963642cb161e98ecbf5f62fa364d26a734508d55df6a1dfe048"},
+    {file = "pyfqmr-0.3.0-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:c2ba77c60f003da1d4522628c2e4e2853b2a346424ba5d911050ae633c61184b"},
+    {file = "pyfqmr-0.3.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:db432e94b7504c60547879d849f58130c5a2e57b70d870e1a3f82feed06a2588"},
+    {file = "pyfqmr-0.3.0-cp311-cp311-musllinux_1_2_aarch64.whl", hash = "sha256:7c56a8dd54fe040ac323682e4405b43ee680daf6203fd12b81d44f474e5b2352"},
+    {file = "pyfqmr-0.3.0-cp311-cp311-musllinux_1_2_x86_64.whl", hash = "sha256:d8fe86b01ff873123b8886b8a356a3d4b7b7035fa18d87934bc156d31af6968c"},
+    {file = "pyfqmr-0.3.0-cp311-cp311-win32.whl", hash = "sha256:cb74d25ea8e1f237fd9712be630d3092c4fe19c9042c17e9fec1fdd3fa7114a0"},
+    {file = "pyfqmr-0.3.0-cp311-cp311-win_amd64.whl", hash = "sha256:549bdaa0085a917acdd23f9f462fce13ead61806f8d7ffcc71579b597551db05"},
+    {file = "pyfqmr-0.3.0-cp312-cp312-macosx_10_13_x86_64.whl", hash = "sha256:c4d0b0ec4bc57ee2f7e5ffc96f9830648972bb75df20c24079af1632d4da8f00"},
+    {file = "pyfqmr-0.3.0-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:80a13b9f8ad4a120067c4e5f260e44d29c209989250c61b543ed9616a9a05ae5"},
+    {file = "pyfqmr-0.3.0-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:31e051310af0f9ddc4dc51828ef82006342b0a1b8ecb364596995f35a20eeb9f"},
+    {file = "pyfqmr-0.3.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:f14269c188f0b8f2a40896bf94c57e68469719b206fe60b2c4f7fff1afaee269"},
+    {file = "pyfqmr-0.3.0-cp312-cp312-musllinux_1_2_aarch64.whl", hash = "sha256:54f9b7081163f0e9e65c749e1834d040c7c547adb736919311e4ebf579404943"},
+    {file = "pyfqmr-0.3.0-cp312-cp312-musllinux_1_2_x86_64.whl", hash = "sha256:30f1589746409a56b1a0b5b42987925cc69d40fea8d76e5bf5d7523b0c539407"},
+    {file = "pyfqmr-0.3.0-cp312-cp312-win32.whl", hash = "sha256:91312920fa65fffae31b7b65a972a5e5fb8f8b1b953bac8e93d6270c97f7b55b"},
+    {file = "pyfqmr-0.3.0-cp312-cp312-win_amd64.whl", hash = "sha256:d4336c8bb4e7923232d0314122686ed8fe7e63686a05a22d18ed30f7ace9eec7"},
+    {file = "pyfqmr-0.3.0-cp37-cp37m-macosx_10_9_x86_64.whl", hash = "sha256:e1774be16d47cdfa798e2e3122da5d3f8d071eeb46606bdfcfbf825baff8656d"},
+    {file = "pyfqmr-0.3.0-cp37-cp37m-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:e32a2c1f3a8b550f720858050ea605cec241990da12d234eb589897a9254b020"},
+    {file = "pyfqmr-0.3.0-cp37-cp37m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:718861a47e962b450febf575c9e563dc9396f198fd6bc7b71819b2672d13ab9c"},
+    {file = "pyfqmr-0.3.0-cp37-cp37m-win32.whl", hash = "sha256:e952934105af4c23c0c3900b57347c49d3fda2a5633132aad1205c73f0e6ba80"},
+    {file = "pyfqmr-0.3.0-cp37-cp37m-win_amd64.whl", hash = "sha256:6b8af0a43438ef861db2fc7d9c90631a52b6b1927033f7a713287d141948ad74"},
+    {file = "pyfqmr-0.3.0-cp38-cp38-macosx_10_9_x86_64.whl", hash = "sha256:8feaeb2905578dfa219755a507ed7fe9250c33639b427793798b1c1bc0d09cb8"},
+    {file = "pyfqmr-0.3.0-cp38-cp38-macosx_11_0_arm64.whl", hash = "sha256:00e22d1dcf5799d437a0e1038996a53b6c7bc2df72a24eb153573960c0997dce"},
+    {file = "pyfqmr-0.3.0-cp38-cp38-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:95f69a8c05fce3140b048c38d38918da8163a7ba61fc2ed7aa31eb2e8e6d9a94"},
+    {file = "pyfqmr-0.3.0-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:ca4210dd6bf5335d54da7bbc2548c8d25b65aa926958635d7032416d69fdedc9"},
+    {file = "pyfqmr-0.3.0-cp38-cp38-win32.whl", hash = "sha256:2c9e80371c98450642a48bdc0a203b6a3d0e667d1e3825500b389a22b9e313ff"},
+    {file = "pyfqmr-0.3.0-cp38-cp38-win_amd64.whl", hash = "sha256:a3bfb1cafc57c8432d04209a4ec0c30a676c94a0a44af5b6dd065abb4d93c545"},
+    {file = "pyfqmr-0.3.0-cp39-cp39-macosx_10_9_x86_64.whl", hash = "sha256:6a7e198b983d180d992851da1cd9a117e272be4cba6f75453f04a95d9e84e545"},
+    {file = "pyfqmr-0.3.0-cp39-cp39-macosx_11_0_arm64.whl", hash = "sha256:57d5ea6e6d690dc1804e477f7edf9d2e65f980e2b5cc53e601b776d0e5147425"},
+    {file = "pyfqmr-0.3.0-cp39-cp39-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:df44a27f055a19ee09ee65766ee71293d1b50df80441b5335e5f032545d55e84"},
+    {file = "pyfqmr-0.3.0-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:4c283d4be6c35709f6ab2a3f384d9e2190e4a7b0cfef8072ad17fef9485dbaf8"},
+    {file = "pyfqmr-0.3.0-cp39-cp39-musllinux_1_2_aarch64.whl", hash = "sha256:ed895f93597b14057a740deb36d5ea772989668fed4f1469ec7216e0c128caa2"},
+    {file = "pyfqmr-0.3.0-cp39-cp39-musllinux_1_2_x86_64.whl", hash = "sha256:2d4cec1de942f9ab8f7007ecef169e64187058f03b54bb8360b6636499827e2b"},
+    {file = "pyfqmr-0.3.0-cp39-cp39-win32.whl", hash = "sha256:a625169a6c05ff43372f68190410d7de01a91462aa019a9249a244c642b13a03"},
+    {file = "pyfqmr-0.3.0-cp39-cp39-win_amd64.whl", hash = "sha256:03863320d63ea04d38c8d571cc9c2433d87381e7ecb3c5e1c85db39241141e82"},
+]
+
+[package.dependencies]
+numpy = "*"
+
+[[package]]
 name = "pygments"
 version = "2.19.1"
 description = "Pygments is a syntax highlighting package written in Python."
@@ -4190,4 +4315,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.8,<3.9"
-content-hash = "1bbd983eb4d88ffe6c24641a8db480f3b4191194d9154d7d272671eebb7be2e8"
+content-hash = "68494229810d0a5ac897d2c4e3058c2f26302640e16b0795cbd9e0f7f28c37fb"

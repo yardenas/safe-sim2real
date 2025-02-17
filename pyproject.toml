@@ -20,8 +20,12 @@ tabulate = "^0.9.0"
 moviepy = "1.0.3"
 torch = { version = "2.3.1", source = "pytorch-gpu" }
 isaacgym = {path = "isaacgym/python", develop = true}
-rsl-rl = { path = "safe-extreme-parkour-RL/rsl_rl", develop = true }
-legged-gym = { path = "safe-extreme-parkour-RL/legged_gym", develop = true }
+rsl-rl = {path = "safe-extreme-parkour-RL/rsl_rl", develop = true}
+legged-gym = {path = "safe-extreme-parkour-RL/legged_gym", develop = true}
+ninja = "^1.11.1.3"
+pydelatin = "^0.2.8"
+ipdb = "^0.13.13"
+pyfqmr = "^0.3.0"
 
 
 [[tool.poetry.source]]
