@@ -1,9 +1,9 @@
-import isaacgym  # noqa
+import isaacgym  # type: ignore # noqa
 import jax
 import jax.dlpack
 import torch
 from brax.envs.base import Env, State
-import legged_gym.envs  # noqa
+import legged_gym.envs  # type: ignore # noqa
 
 
 def jax2torch(x):
