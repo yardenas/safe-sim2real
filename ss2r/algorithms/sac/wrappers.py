@@ -1,8 +1,8 @@
-from typing import Protocol
+from typing import Any, Protocol
 
-import equinox as eqx
 import jax
 import jax.numpy as jnp
+import numpy as np
 from brax.envs import State, Wrapper
 
 
@@ -11,10 +11,16 @@ class PropagationFn(Protocol):
         ...
 
 
+# https://github.com/patrick-kidger/equinox/blob/1b507b9dfcc6a3a65470dbaa8c4be6c0a0e2a16a/equinox/_filters.py#L19
+def is_array(element: Any) -> bool:
+    """Returns `True` if `element` is a JAX array or NumPy array."""
+    return isinstance(element, (np.ndarray, np.generic, jax.Array))
+
+
 def ts1(state, rng):
     num_envs = state.obs.shape[0]
     id_ = jax.random.randint(rng, (), 0, num_envs)
-    sampled_state = jax.tree_map(lambda x: x[id_], state, is_leaf=eqx.is_array)
+    sampled_state = jax.tree_map(lambda x: x[id_], state, is_leaf=is_array)
     return sampled_state
 
 

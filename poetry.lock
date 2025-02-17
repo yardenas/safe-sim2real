@@ -85,21 +85,21 @@ files = [
 
 [[package]]
 name = "brax"
-version = "0.12.1"
+version = "0.10.2"
 description = "A differentiable physics engine written in JAX."
 optional = false
 python-versions = "*"
 files = [
-    {file = "brax-0.12.1-py3-none-any.whl", hash = "sha256:fb38e9d4b1efdb0dc4f261f1f405dff4c7bd96becb6fb82d114bdecd0f235af0"},
-    {file = "brax-0.12.1.tar.gz", hash = "sha256:3d3b2a421785d1a12e5f8ebfade6115c66d250614066b4b704f961f96387afb7"},
+    {file = "brax-0.10.2-py3-none-any.whl", hash = "sha256:31f5a8f94c3dd70e50bb13a5d5c2458530f7e16a7786018840a45a4224a0b48d"},
+    {file = "brax-0.10.2.tar.gz", hash = "sha256:23971bfa0965ef64b7a8edff13a9c4dc5df493babce3b0a1ff6e242d257269bf"},
 ]
 
 [package.dependencies]
 absl-py = "*"
-dm_env = "*"
+dm-env = "*"
 etils = "*"
 flask = "*"
-flask_cors = "*"
+flask-cors = "*"
 flax = "*"
 grpcio = "*"
 gym = "*"
@@ -107,12 +107,11 @@ jax = ">=0.4.6"
 jaxlib = ">=0.4.6"
 jaxopt = "*"
 jinja2 = "*"
-ml_collections = "*"
+ml-collections = "*"
 mujoco = "*"
 mujoco-mjx = "*"
 numpy = "*"
 optax = "*"
-orbax-checkpoint = "*"
 Pillow = "*"
 pytinyrenderer = "*"
 scipy = "*"
@@ -3714,4 +3713,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.8,<3.9"
-content-hash = "bec1426839343337b86cd676d39295485f53cdf94649c14b60c7d57e2d2cd8fa"
+content-hash = "f65c9f016451aeb33faba3dda072b8c3a9ca3fb1822ee4b1fdcc256c07bcddc3"
