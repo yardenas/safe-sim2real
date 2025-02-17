@@ -1327,7 +1327,7 @@ test-extra = ["curio", "matplotlib (!=3.2.0)", "nbformat", "numpy (>=1.21)", "pa
 
 [[package]]
 name = "isaacgym"
-version = "1.0.preview4"
+version = "1.0rc4"
 description = "GPU-accelerated simulation and reinforcement learning toolkit"
 optional = false
 python-versions = ">=3.6,<3.9"
@@ -1361,12 +1361,12 @@ files = [
 
 [[package]]
 name = "jax"
-version = "0.4.9"
+version = "0.4.10"
 description = "Differentiate, compile, and transform Numpy code."
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "jax-0.4.9.tar.gz", hash = "sha256:1ed135cd08f48e4baf10f6eafdb4a4cdae781f9052b5838c09c91a9f4fa75f09"},
+    {file = "jax-0.4.10.tar.gz", hash = "sha256:1bf0f2720f778f2937301a16a4d5cd3497f13a4d6c970c24a88918a81816a888"},
 ]
 
 [package.dependencies]
@@ -1377,26 +1377,26 @@ scipy = ">=1.7"
 
 [package.extras]
 australis = ["protobuf (>=3.13,<4)"]
-ci = ["jaxlib (==0.4.7)"]
-cpu = ["jaxlib (==0.4.9)"]
-cuda = ["jaxlib (==0.4.9+cuda11.cudnn86)"]
-cuda11-cudnn82 = ["jaxlib (==0.4.9+cuda11.cudnn82)"]
-cuda11-cudnn86 = ["jaxlib (==0.4.9+cuda11.cudnn86)"]
-cuda11-local = ["jaxlib (==0.4.9+cuda11.cudnn86)"]
-cuda11-pip = ["jaxlib (==0.4.9+cuda11.cudnn86)", "nvidia-cublas-cu11 (>=11.11)", "nvidia-cuda-cupti-cu11 (>=11.8)", "nvidia-cuda-nvcc-cu11 (>=11.8)", "nvidia-cuda-runtime-cu11 (>=11.8)", "nvidia-cudnn-cu11 (>=8.6)", "nvidia-cufft-cu11 (>=10.9)", "nvidia-cusolver-cu11 (>=11.4)", "nvidia-cusparse-cu11 (>=11.7)"]
-cuda12-local = ["jaxlib (==0.4.9+cuda12.cudnn88)"]
-cuda12-pip = ["jaxlib (==0.4.9+cuda12.cudnn88)", "nvidia-cublas-cu12", "nvidia-cuda-cupti-cu12", "nvidia-cuda-nvcc-cu12", "nvidia-cuda-runtime-cu12", "nvidia-cudnn-cu12", "nvidia-cufft-cu12", "nvidia-cusolver-cu12", "nvidia-cusparse-cu12"]
+ci = ["jaxlib (==0.4.9)"]
+cpu = ["jaxlib (==0.4.10)"]
+cuda = ["jaxlib (==0.4.10+cuda11.cudnn86)"]
+cuda11-cudnn82 = ["jaxlib (==0.4.10+cuda11.cudnn82)"]
+cuda11-cudnn86 = ["jaxlib (==0.4.10+cuda11.cudnn86)"]
+cuda11-local = ["jaxlib (==0.4.10+cuda11.cudnn86)"]
+cuda11-pip = ["jaxlib (==0.4.10+cuda11.cudnn86)", "nvidia-cublas-cu11 (>=11.11)", "nvidia-cuda-cupti-cu11 (>=11.8)", "nvidia-cuda-nvcc-cu11 (>=11.8)", "nvidia-cuda-runtime-cu11 (>=11.8)", "nvidia-cudnn-cu11 (>=8.6)", "nvidia-cufft-cu11 (>=10.9)", "nvidia-cusolver-cu11 (>=11.4)", "nvidia-cusparse-cu11 (>=11.7)"]
+cuda12-local = ["jaxlib (==0.4.10+cuda12.cudnn88)"]
+cuda12-pip = ["jaxlib (==0.4.10+cuda12.cudnn88)", "nvidia-cublas-cu12", "nvidia-cuda-cupti-cu12", "nvidia-cuda-nvcc-cu12", "nvidia-cuda-runtime-cu12", "nvidia-cudnn-cu12", "nvidia-cufft-cu12", "nvidia-cusolver-cu12", "nvidia-cusparse-cu12"]
 minimum-jaxlib = ["jaxlib (==0.4.7)"]
-tpu = ["jaxlib (==0.4.9)", "libtpu-nightly (==0.1.dev20230509)", "requests"]
+tpu = ["jaxlib (==0.4.10)", "libtpu-nightly (==0.1.dev20230511)", "requests"]
 
 [[package]]
 name = "jaxlib"
-version = "0.4.9+cuda11.cudnn86"
+version = "0.4.10+cuda12.cudnn88"
 description = "XLA library for JAX"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "jaxlib-0.4.9+cuda11.cudnn86-cp38-cp38-manylinux2014_x86_64.whl", hash = "sha256:48792612a5d23e44aefd1365c5b5c7dd20e05fb1aa3cb6e2fa72ac665920bd32"},
+    {file = "jaxlib-0.4.10+cuda12.cudnn88-cp38-cp38-manylinux2014_x86_64.whl", hash = "sha256:e4cd21748c0a51038c00788e9ef761cdc2910fba7814a9900f45ce39b13aff50"},
 ]
 
 [package.dependencies]
@@ -1406,7 +1406,7 @@ scipy = ">=1.7"
 
 [package.source]
 type = "url"
-url = "https://storage.googleapis.com/jax-releases/cuda11/jaxlib-0.4.9+cuda11.cudnn86-cp38-cp38-manylinux2014_x86_64.whl"
+url = "https://storage.googleapis.com/jax-releases/cuda12/jaxlib-0.4.10+cuda12.cudnn88-cp38-cp38-manylinux2014_x86_64.whl"
 
 [[package]]
 name = "jaxopt"
@@ -3428,13 +3428,13 @@ stats = ["scipy (>=1.7)", "statsmodels (>=0.12)"]
 
 [[package]]
 name = "sentry-sdk"
-version = "2.21.0"
+version = "2.22.0"
 description = "Python client for Sentry (https://sentry.io)"
 optional = false
 python-versions = ">=3.6"
 files = [
-    {file = "sentry_sdk-2.21.0-py2.py3-none-any.whl", hash = "sha256:7623cfa9e2c8150948a81ca253b8e2bfe4ce0b96ab12f8cd78e3ac9c490fd92f"},
-    {file = "sentry_sdk-2.21.0.tar.gz", hash = "sha256:a6d38e0fb35edda191acf80b188ec713c863aaa5ad8d5798decb8671d02077b6"},
+    {file = "sentry_sdk-2.22.0-py2.py3-none-any.whl", hash = "sha256:3d791d631a6c97aad4da7074081a57073126c69487560c6f8bffcf586461de66"},
+    {file = "sentry_sdk-2.22.0.tar.gz", hash = "sha256:b4bf43bb38f547c84b2eadcefbe389b36ef75f3f38253d7a74d6b928c07ae944"},
 ]
 
 [package.dependencies]
@@ -3478,6 +3478,7 @@ sanic = ["sanic (>=0.8)"]
 sqlalchemy = ["sqlalchemy (>=1.2)"]
 starlette = ["starlette (>=0.19.1)"]
 starlite = ["starlite (>=1.48)"]
+statsig = ["statsig (>=0.55.3)"]
 tornado = ["tornado (>=6)"]
 unleash = ["UnleashClient (>=6.0.1)"]
 
@@ -4175,4 +4176,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.8,<3.9"
-content-hash = "25b605cd3953db42cbda171524d26e3e427553f154f215fc6b657c0624d192eb"
+content-hash = "33925c35ec2cfb783df08044452cbd6f0c22ea62be60573b2207ace3a13e9922"

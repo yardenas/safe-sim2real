@@ -8,10 +8,10 @@ readme = "README.md"
 [tool.poetry.dependencies]
 python = ">=3.8,<3.9"
 jmp = { git = "https://github.com/deepmind/jmp" }
-jaxlib = { url = "https://storage.googleapis.com/jax-releases/cuda11/jaxlib-0.4.9+cuda11.cudnn86-cp38-cp38-manylinux2014_x86_64.whl", extras = [
-    "cuda11_pip",
+jaxlib = { url = "https://storage.googleapis.com/jax-releases/cuda12/jaxlib-0.4.10+cuda12.cudnn88-cp38-cp38-manylinux2014_x86_64.whl", extras = [
+    "cuda12_pip",
 ] }
-jax = "0.4.9"
+jax = "0.4.10"
 optax = "0.1.7"
 brax = "0.10.4"
 tqdm = "^4.67.1"
