@@ -26,6 +26,7 @@ ninja = "^1.11.1.3"
 pydelatin = "^0.2.8"
 ipdb = "^0.13.13"
 pyfqmr = "^0.3.0"
+opencv-python = "^4.11.0.86"
 
 
 [[tool.poetry.source]]
