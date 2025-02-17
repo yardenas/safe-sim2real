@@ -1332,7 +1332,7 @@ description = "GPU-accelerated simulation and reinforcement learning toolkit"
 optional = false
 python-versions = ">=3.6,<3.9"
 files = []
-develop = false
+develop = true
 
 [package.dependencies]
 imageio = "*"
@@ -4190,4 +4190,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.8,<3.9"
-content-hash = "f735502e96dbffbbcb9ca43ed0266cbc93a268e58293a03c6d0036b4ba8840d1"
+content-hash = "1bbd983eb4d88ffe6c24641a8db480f3b4191194d9154d7d272671eebb7be2e8"
