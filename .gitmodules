@@ -1,0 +1,3 @@
+[submodule "safe-extreme-parkour-RL"]
+	path = safe-extreme-parkour-RL
+	url = git@github.com:bungeru/safe-extreme-parkour-RL.git
