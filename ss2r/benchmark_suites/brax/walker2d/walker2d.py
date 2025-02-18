@@ -103,7 +103,7 @@ class ConstraintWrapper(Wrapper):
     def __init__(self, env: Env, angle_tolerance: float):
         assert isinstance(env, walker2d.Walker2d)
         super().__init__(env)
-        self.angle_tolerance = angle_tolerance * jnp.pi / 180
+        self.angle_tolerance = angle_tolerance
         joint_names = [
             "thigh_joint",
             "leg_joint",

@@ -77,7 +77,7 @@ class ConstraintWrapper(Wrapper):
     def __init__(self, env: Env, angle_tolerance: float):
         assert isinstance(env, humanoid.Humanoid)
         super().__init__(env)
-        self.angle_tolerance = angle_tolerance * jnp.pi / 180
+        self.angle_tolerance = angle_tolerance
         joint_names = [
             "abdomen_z",
             "abdomen_y",
