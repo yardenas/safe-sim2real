@@ -132,13 +132,14 @@ def make_brax_envs(cfg):
     return train_env, eval_env
 
 def make_extremewalking_envs(cfg):
-    train_env = registry.load(cfg.task_name)
-    randomization_fn = registry.get_domain_randomizer(cfg.task_name)
+    task_cfg = get_task_config(cfg)
+    train_env = registry.load(task_cfg.task_name)
+    randomization_fn = registry.get_domain_randomizer(task_cfg.task_name)
     train_env = wrappers.wrap( # wrapping correct or use cujoco_playground.wrapper
         train_env,
         randomization_fn=randomization_fn,
     )
-    eval_env = registry.load(cfg.task_name)
+    eval_env = registry.load(task_cfg.task_name)
     return train_env, eval_env
 
 randomization_fns = {
@@ -147,6 +148,7 @@ randomization_fns = {
     "rccar": rccar.domain_randomization,
     "humanoid": humanoid.domain_randomization,
     "humanoid_safe": humanoid.domain_randomization,
+    "extremewalking": 
 }
 
 render_fns = {
