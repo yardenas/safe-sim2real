@@ -4,6 +4,7 @@ import jax
 from brax import envs
 
 from ss2r.benchmark_suites import brax, wrappers
+from ss2r.benchmark_suites.brax.ant import ant
 from ss2r.benchmark_suites.brax.cartpole import cartpole
 from ss2r.benchmark_suites.brax.humanoid import humanoid
 from ss2r.benchmark_suites.rccar import rccar
@@ -134,6 +135,8 @@ randomization_fns = {
     "rccar": rccar.domain_randomization,
     "humanoid": humanoid.domain_randomization,
     "humanoid_safe": humanoid.domain_randomization,
+    "ant": ant.domain_randomization,
+    "ant_safe": ant.domain_randomization,
 }
 
 render_fns = {
@@ -141,5 +144,7 @@ render_fns = {
     "cartpole_safe": brax.render,
     "humanoid": functools.partial(brax.render, camera="track"),
     "humanoid_safe": functools.partial(brax.render, camera="track"),
+    "ant": functools.partial(brax.render, camera="track"),
+    "ant_safe": functools.partial(brax.render, camera="track"),
     "rccar": rccar.render,
 }
