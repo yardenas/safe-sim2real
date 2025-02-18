@@ -103,7 +103,7 @@ class ConstraintWrapper(Wrapper):
     def __init__(self, env: Env, angle_tolerance: float):
         assert isinstance(env, ant.Ant)
         super().__init__(env)
-        self.angle_tolerance = angle_tolerance * 180.0 / 180
+        self.angle_tolerance = angle_tolerance * jnp.pi / 180
         joint_names = [
             "hip_1",
             "ankle_1",
@@ -136,9 +136,19 @@ class ConstraintWrapper(Wrapper):
         joint_angles = nstate.pipeline_state.qpos[self.joint_ids]
         cost = jnp.zeros_like(nstate.reward)
         for _, (angle, joint_range) in enumerate(zip(joint_angles, self.joint_ranges)):
-            normalized_angle = normalize_angle(angle)
-            lower_limit = normalize_angle(joint_range[0] - self.angle_tolerance)
-            upper_limit = normalize_angle(joint_range[1] + self.angle_tolerance)
+            normalized_angle = normalize_angle(
+                angle, lower_bound=-jnp.pi, upper_bound=jnp.pi
+            )
+            lower_limit = normalize_angle(
+                joint_range[0] - self.angle_tolerance,
+                lower_bound=-jnp.pi,
+                upper_bound=jnp.pi,
+            )
+            upper_limit = normalize_angle(
+                joint_range[1] + self.angle_tolerance,
+                lower_bound=-jnp.pi,
+                upper_bound=jnp.pi,
+            )
             is_out_of_range_case1 = (normalized_angle < lower_limit) & (
                 normalized_angle >= upper_limit
             )
@@ -153,7 +163,7 @@ class ConstraintWrapper(Wrapper):
         return nstate
 
 
-def normalize_angle(angle, lower_bound=-180.0, upper_bound=180.0):
+def normalize_angle(angle, lower_bound=-jnp.pi, upper_bound=jnp.pi):
     """Normalize angle to be within [lower_bound, upper_bound)."""
     range_width = upper_bound - lower_bound
     return (angle - lower_bound) % range_width + lower_bound
