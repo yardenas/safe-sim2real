@@ -3,8 +3,31 @@ import functools
 import jax
 import jax.numpy as jnp
 import mujoco
-from brax.envs import Env, Wrapper, humanoid, register_environment
+from brax.envs import Env, Wrapper, register_environment, walker2d
 from brax.envs.base import State
+
+
+def get_actuators_by_joint_names(sys, joint_names):
+    """
+    Given a MuJoCo system and a list of joint names,
+    returns a dictionary mapping joint names to actuator indices.
+    """
+    joint_to_actuator = {}
+    for joint_name in joint_names:
+        joint_id = mujoco.mj_name2id(
+            sys.mj_model, mujoco.mjtObj.mjOBJ_JOINT, joint_name
+        )
+        if joint_id == -1:
+            print(f"Warning: Joint '{joint_name}' not found in the model.")
+            continue
+        # Find actuator(s) controlling this joint
+        for actuator_id in range(len(sys.mj_model.actuator_trnid)):
+            if sys.mj_model.actuator_trnid[actuator_id, 0] == joint_id:
+                joint_to_actuator[joint_name] = actuator_id
+    return joint_to_actuator
+
+
+deg_to_rad = lambda deg: deg * jnp.pi / 180
 
 
 def domain_randomization(sys, rng, cfg):
@@ -17,43 +40,46 @@ def domain_randomization(sys, rng, cfg):
         friction_sample = sys.geom_friction.copy()
         friction_sample = friction_sample.at[0, 0].add(friction)
         friction_sample = jnp.clip(friction_sample, a_min=0.0, a_max=1.0)
-        rng = jax.random.split(rng, 4)
+        rng = jax.random.split(rng, 3)
         # Ensure symmetry
-        names_ids = {
-            k: mujoco.mj_name2id(sys.mj_model, mujoco.mjtObj.mjOBJ_ACTUATOR.value, k)
-            for k in [
-                "right_hip_x",
-                "left_hip_x",
-                "right_hip_y",
-                "left_hip_y",
-                "right_hip_z",
-                "left_hip_z",
-                "left_knee",
-                "right_knee",
-            ]
-        }
+        actuator_ids = get_actuators_by_joint_names(
+            sys,
+            [
+                "thigh_joint",
+                "leg_joint",
+                "foot_joint",
+                "thigh_left_joint",
+                "leg_left_joint",
+                "foot_left_joint",
+            ],
+        )
         gear_sample = sys.actuator.gear.copy()
-        hip_x = jax.random.uniform(rng[0], minval=cfg.hip.x[0], maxval=cfg.hip.x[1])
-        hip_y = jax.random.uniform(rng[1], minval=cfg.hip.y[0], maxval=cfg.hip.y[1])
-        hip_z = jax.random.uniform(rng[2], minval=cfg.hip.z[0], maxval=cfg.hip.z[1])
-        knee = jax.random.uniform(rng[3], minval=cfg.knee[0], maxval=cfg.knee[1])
+        thigh = jax.random.uniform(
+            rng[0], minval=deg_to_rad(cfg.thigh[0]), maxval=deg_to_rad(cfg.thigh[1])
+        )
+        leg = jax.random.uniform(
+            rng[1], minval=deg_to_rad(cfg.leg[0]), maxval=deg_to_rad(cfg.leg[1])
+        )
+        foot = jax.random.uniform(
+            rng[2], minval=deg_to_rad(cfg.foot[0]), maxval=deg_to_rad(cfg.foot[1])
+        )
         name_values = {
-            "right_hip_x": hip_x,
-            "left_hip_x": hip_x,
-            "right_hip_y": hip_y,
-            "left_hip_y": hip_y,
-            "right_hip_z": hip_z,
-            "left_hip_z": hip_z,
-            "left_knee": knee,
-            "right_knee": knee,
+            "thigh_joint": thigh,
+            "leg_joint": leg,
+            "foot_joint": foot,
+            "thigh_left_joint": thigh,
+            "leg_left_joint": leg,
+            "foot_left_joint": foot,
         }
         for name, value in name_values.items():
-            actuator_id = names_ids[name]
+            actuator_id = actuator_ids[name]
             gear_sample = gear_sample.at[actuator_id].add(value)
         return (
             friction_sample,
             gear_sample,
-            jnp.stack([friction, hip_x, hip_y, hip_z, knee]),
+            jnp.stack(
+                [friction, thigh, leg, foot],
+            ),
         )
 
     friction_sample, gear_sample, samples = randomize(rng)
@@ -75,27 +101,16 @@ def domain_randomization(sys, rng, cfg):
 
 class ConstraintWrapper(Wrapper):
     def __init__(self, env: Env, angle_tolerance: float):
-        assert isinstance(env, humanoid.Humanoid)
+        assert isinstance(env, walker2d.Walker2d)
         super().__init__(env)
         self.angle_tolerance = angle_tolerance
         joint_names = [
-            "abdomen_z",
-            "abdomen_y",
-            "abdomen_x",
-            "right_hip_x",
-            "right_hip_z",
-            "right_hip_y",
-            "right_knee",
-            "left_hip_x",
-            "left_hip_z",
-            "left_hip_y",
-            "left_knee",
-            "right_shoulder1",
-            "right_shoulder2",
-            "right_elbow",
-            "left_shoulder1",
-            "left_shoulder2",
-            "left_elbow",
+            "thigh_joint",
+            "leg_joint",
+            "foot_joint",
+            "thigh_left_joint",
+            "leg_left_joint",
+            "foot_left_joint",
         ]
         self.joint_ids = jnp.asarray(
             [
@@ -136,19 +151,20 @@ class ConstraintWrapper(Wrapper):
         return nstate
 
 
-def normalize_angle(angle, lower_bound=-180.0, upper_bound=180.0):
+def normalize_angle(angle, lower_bound=-jnp.pi, upper_bound=jnp.pi):
     """Normalize angle to be within [lower_bound, upper_bound)."""
     range_width = upper_bound - lower_bound
     return (angle - lower_bound) % range_width + lower_bound
 
 
 for safe in [True, False]:
-    name = ["humanoid"]
+    name = ["walker2d"]
     safe_str = "safe" if safe else ""
 
     def make(safe, **kwargs):
         angle_tolerance = kwargs.pop("angle_tolerance", 30.0)
-        env = humanoid.Humanoid(**kwargs)
+        angle_tolerance = deg_to_rad(angle_tolerance)
+        env = walker2d.Walker2d(**kwargs)
         if safe:
             env = ConstraintWrapper(env, angle_tolerance)
         return env
