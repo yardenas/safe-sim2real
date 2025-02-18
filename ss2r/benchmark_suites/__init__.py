@@ -147,8 +147,7 @@ randomization_fns = {
     "cartpole_safe": cartpole.domain_randomization,
     "rccar": rccar.domain_randomization,
     "humanoid": humanoid.domain_randomization,
-    "humanoid_safe": humanoid.domain_randomization,
-    "extremewalking": 
+    "humanoid_safe": humanoid.domain_randomization
 }
 
 render_fns = {
