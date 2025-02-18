@@ -134,7 +134,7 @@ def make_brax_envs(cfg):
 def make_extremewalking_envs(cfg):
     train_env = registry.load(cfg.task_name)
     randomization_fn = registry.get_domain_randomizer(cfg.task_name)
-    train_env = wrappers.wrap(
+    train_env = wrappers.wrap( # wrapping correct or use cujoco_playground.wrapper
         train_env,
         randomization_fn=randomization_fn,
     )
