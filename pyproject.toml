@@ -28,6 +28,7 @@ brax = "^0.12.1"
 equinox = "^0.11.4"
 pyqt6 = "^6.7.0"
 playground = "^0.0.3"
+mujoco = "^3.2.7"
 
 
 [[tool.poetry.source]]

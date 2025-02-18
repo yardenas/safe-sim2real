@@ -13,6 +13,8 @@ from ss2r.benchmark_suites.wrappers import (
     FrameActionStack,
 )
 
+from mujoco_playground import registry
+
 
 def make(cfg):
     domain_name = get_domain_name(cfg)
@@ -20,6 +22,8 @@ def make(cfg):
         return make_brax_envs(cfg)
     elif domain_name == "rccar":
         return make_rccar_envs(cfg)
+    elif domain_name == "extremewalking":
+        return make_extremewalking_envs(cfg)
 
 
 def prepare_randomization_fn(key, num_envs, cfg, task_name):
@@ -127,6 +131,15 @@ def make_brax_envs(cfg):
     )
     return train_env, eval_env
 
+def make_extremewalking_envs(cfg):
+    train_env = registry.load(cfg.task_name)
+    randomization_fn = registry.get_domain_randomizer(cfg.task_name)
+    train_env = wrappers.wrap(
+        train_env,
+        randomization_fn=randomization_fn,
+    )
+    eval_env = registry.load(cfg.task_name)
+    return train_env, eval_env
 
 randomization_fns = {
     "cartpole": cartpole.domain_randomization,
