@@ -24,6 +24,26 @@ from brax.envs import Env, Wrapper, ant, register_environment
 from brax.envs.base import State
 
 
+def get_actuators_by_joint_names(sys, joint_names):
+    """
+    Given a MuJoCo system and a list of joint names,
+    returns a dictionary mapping joint names to actuator indices.
+    """
+    joint_to_actuator = {}
+    for joint_name in joint_names:
+        joint_id = mujoco.mj_name2id(
+            sys.mj_model, mujoco.mjtObj.mjOBJ_JOINT, joint_name
+        )
+        if joint_id == -1:
+            print(f"Warning: Joint '{joint_name}' not found in the model.")
+            continue
+        # Find actuator(s) controlling this joint
+        for actuator_id in range(len(sys.mj_model.actuator_trnid)):
+            if sys.mj_model.actuator_trnid[actuator_id, 0] == joint_id:
+                joint_to_actuator[joint_name] = actuator_id
+    return joint_to_actuator
+
+
 def domain_randomization(sys, rng, cfg):
     @jax.vmap
     def randomize(rng):
@@ -36,41 +56,47 @@ def domain_randomization(sys, rng, cfg):
         friction_sample = jnp.clip(friction_sample, a_min=0.0, a_max=1.0)
         rng = jax.random.split(rng, 4)
         # Ensure symmetry
-        names_ids = {
-            k: mujoco.mj_name2id(sys.mj_model, mujoco.mjtObj.mjOBJ_ACTUATOR.value, k)
-            for k in [
-                "right_hip_x",
-                "left_hip_x",
-                "right_hip_y",
-                "left_hip_y",
-                "right_hip_z",
-                "left_hip_z",
-                "left_knee",
-                "right_knee",
-            ]
-        }
+        actuator_ids = get_actuators_by_joint_names(
+            sys,
+            [
+                "hip_1",
+                "ankle_1",
+                "hip_2",
+                "ankle_2",
+                "hip_3",
+                "ankle_3",
+                "hip_4",
+                "ankle_4",
+            ],
+        )
         gear_sample = sys.actuator.gear.copy()
-        hip_x = jax.random.uniform(rng[0], minval=cfg.hip.x[0], maxval=cfg.hip.x[1])
-        hip_y = jax.random.uniform(rng[1], minval=cfg.hip.y[0], maxval=cfg.hip.y[1])
-        hip_z = jax.random.uniform(rng[2], minval=cfg.hip.z[0], maxval=cfg.hip.z[1])
-        knee = jax.random.uniform(rng[3], minval=cfg.knee[0], maxval=cfg.knee[1])
+        hip_forward = jax.random.uniform(rng[0], minval=cfg.hip[0], maxval=cfg.hip[1])
+        ankle_forward = jax.random.uniform(
+            rng[1], minval=cfg.ankle[0], maxval=cfg.ankle[1]
+        )
+        hip_backward = jax.random.uniform(rng[2], minval=cfg.hip[0], maxval=cfg.hip[1])
+        ankle_backward = jax.random.uniform(
+            rng[3], minval=cfg.ankle[0], maxval=cfg.ankle[1]
+        )
         name_values = {
-            "right_hip_x": hip_x,
-            "left_hip_x": hip_x,
-            "right_hip_y": hip_y,
-            "left_hip_y": hip_y,
-            "right_hip_z": hip_z,
-            "left_hip_z": hip_z,
-            "left_knee": knee,
-            "right_knee": knee,
+            "hip_1": hip_forward,
+            "ankle_1": ankle_forward,
+            "hip_2": hip_forward,
+            "ankle_2": ankle_forward,
+            "hip_3": hip_backward,
+            "ankle_3": ankle_backward,
+            "hip_4": hip_backward,
+            "ankle_4": ankle_backward,
         }
         for name, value in name_values.items():
-            actuator_id = names_ids[name]
+            actuator_id = actuator_ids[name]
             gear_sample = gear_sample.at[actuator_id].add(value)
         return (
             friction_sample,
             gear_sample,
-            jnp.stack([friction, hip_x, hip_y, hip_z, knee]),
+            jnp.stack(
+                [friction, hip_forward, ankle_forward, hip_backward, ankle_backward]
+            ),
         )
 
     friction_sample, gear_sample, samples = randomize(rng)

@@ -18,16 +18,10 @@ task_params:
 # Sample uniformly around the nominal value
 train_params:
   friction: [-0.05, 0.05]
-  hip:
-    x: [-20., 20.]
-    y: [-20., 20.]
-    z: [-60., 60.]
-  knee: [-40., 40.]
+  hip: [-20., 20.]
+  ankle: [-20., 20.]
 
 eval_params:
   friction: [-0.05, 0.05]
-  hip:
-    x: [-20., 20.]
-    y: [-20., 20.]
-    z: [-60., 60.]
-  knee: [-40., 40.]
+  hip: [-20., 20.]
+  ankle: [-20., 20.]

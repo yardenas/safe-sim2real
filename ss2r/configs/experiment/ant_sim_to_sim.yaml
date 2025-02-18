@@ -5,7 +5,7 @@ defaults:
 
 training:
   num_timesteps: 5000000
-  safe: false
+  safe: true
   num_envs: 256
   train_domain_randomization: true
   eval_domain_randomization: true
@@ -13,20 +13,14 @@ training:
   privileged: true
 
 train_params:
-  friction: [0., 0.]
-  hip:
-    x: [-20., 20.]
-    y: [-20., 20.]
-    z: [-60., 60.]
-  knee: [-40., 40.]
+  friction: [-0.05, 0.05]
+  hip: [-20., 20.]
+  ankle: [-20., 20.]
 
 eval_params:
-  friction: [-0.3, 0.]
-  hip:
-    x: [-20., 20.]
-    y: [-20., 20.]
-    z: [-60., 60.]
-  knee: [-40., 40.]
+  friction: [-0.05, 0.05]
+  hip: [-20., 20.]
+  ankle: [-20., 20.]
 
 agent:
   grad_updates_per_step: 256
