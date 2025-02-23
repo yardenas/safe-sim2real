@@ -187,7 +187,7 @@ so.Plot(
 ).theme(axes_style("ticks")).on(fig).plot()
 
 
-def text(s):
+def text_lambda(s):
     return f"$\lambda$ = {s}"
 
 
@@ -197,7 +197,7 @@ for i, ax in enumerate(axes):
 legend = fig.legends.pop(0)
 fig.legend(
     legend.legend_handles,
-    [text(t.get_text()) for t in legend.texts],
+    [text_lambda(t.get_text()) for t in legend.texts],
     loc="center",
     bbox_to_anchor=(0.5, 1.05),
     ncol=8,
@@ -220,18 +220,12 @@ set_size = r"\lvert\Xi\rvert"
 so.Plot(
     aggregated_data,
     x="lambda",
-    # marker="lambda",
-    # color="lambda",
 ).facet(col="magnitude").pair(y=["eval/episode_reward", "eval/episode_cost"]).share(
     x=True
 ).add(
     so.Line(linewidth=1.0, pointsize=2.5, edgewidth=0.1),
     legend=False,
 ).theme(axes_style("ticks")).on(fig).plot()
-
-
-def text(s):
-    return f"$\lambda$ = {s}"
 
 
 axes = fig.get_axes()
