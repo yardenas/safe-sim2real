@@ -2,8 +2,6 @@ import functools
 
 import jax
 from brax import envs
-from mujoco_playground import registry
-from mujoco_playground._src.wrapper import wrap_for_brax_training
 
 from ss2r.benchmark_suites import brax, wrappers
 from ss2r.benchmark_suites.brax.cartpole import cartpole
@@ -14,7 +12,6 @@ from ss2r.benchmark_suites.utils import get_domain_name, get_task_config
 from ss2r.benchmark_suites.wrappers import (
     ActionObservationDelayWrapper,
     FrameActionStack,
-    MuJoCoWrapper,
 )
 
 
@@ -24,8 +21,8 @@ def make(cfg):
         return make_brax_envs(cfg)
     elif domain_name == "rccar":
         return make_rccar_envs(cfg)
-    elif domain_name == "extremewalking":
-        return make_extremewalking_envs(cfg)
+    elif domain_name == "mujoco_playground":
+        return make_mujoco_playground_envs(cfg)
 
 
 def prepare_randomization_fn(key, num_envs, cfg, task_name):
@@ -134,19 +131,15 @@ def make_brax_envs(cfg):
     return train_env, eval_env
 
 
-def make_extremewalking_envs(cfg):
+def make_mujoco_playground_envs(cfg):
+    from mujoco_playground import registry
+    from mujoco_playground._src.wrapper import wrap_for_brax_training
+
     task_cfg = get_task_config(cfg)
     # TODO Import config env_cfg = registry.get_default_config(env_name)
     train_env = registry.load(task_cfg.task_name)
     eval_env = registry.load(task_cfg.task_name)
-
-    eval_env = wrap_for_brax_training(eval_env)
-
-    train_env = MuJoCoWrapper(train_env)
-    eval_env = MuJoCoWrapper(eval_env)
-
     train_key, eval_key = jax.random.split(jax.random.PRNGKey(cfg.training.seed))
-
     train_randomization_fn = (
         prepare_randomization_fn(
             train_key, cfg.training.num_envs, task_cfg.train_params, task_cfg.task_name
@@ -180,7 +173,7 @@ randomization_fns = {
     "rccar": rccar.domain_randomization,
     "humanoid": humanoid.domain_randomization,
     "humanoid_safe": humanoid.domain_randomization,
-    "go_1_joystick": go1_joystick.domain_randomization,
+    "go1_joystick": go1_joystick.domain_randomization,
 }
 
 render_fns = {
