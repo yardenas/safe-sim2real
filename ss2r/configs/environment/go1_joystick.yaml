@@ -1,0 +1,3 @@
+defaults:
+  - mujoco_playground_base
+task_name: Go1JoystickFlatTerrain
