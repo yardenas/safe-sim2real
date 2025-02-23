@@ -99,4 +99,4 @@ disallow_untyped_defs = false
 disallow_subclassing_any = false
 disallow_untyped_calls = false
 strict_optional = true
-exclude = "papers"                     # Exclude the papers folder
+exclude = ["papers"]
