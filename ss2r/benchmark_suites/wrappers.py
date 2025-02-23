@@ -1,4 +1,4 @@
-from typing import Callable, Optional, Tuple
+from typing import Any, Callable, Optional, Tuple
 
 import jax
 from brax.base import System
@@ -225,7 +225,7 @@ class DomainRandomizationVmapWrapper(Wrapper):
         return state
 
     @property
-    def observation_size(self) -> dict[str, int]:
+    def observation_size(self) -> dict[str, tuple[Any]]:
         if isinstance(self.env.observation_size, int):
             return {
                 "state": (self.env.observation_size,),
