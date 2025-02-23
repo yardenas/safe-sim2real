@@ -19,7 +19,7 @@ See: https://arxiv.org/pdf/1812.05905.pdf
 
 import functools
 import time
-from typing import Any, Callable, Optional, Tuple, TypeAlias, Union
+from typing import Any, Callable, Mapping, Optional, Tuple, TypeAlias, Union
 
 import flax
 import jax
@@ -113,9 +113,13 @@ def _init_training_state(
         qc_params = None
         qc_optimizer_state = None
     qr_optimizer_state = qr_optimizer.init(qr_params)
-    normalizer_params = running_statistics.init_state(
-        specs.Array((obs_size,), jnp.dtype("float32"))
-    )
+    if isinstance(obs_size, Mapping):
+        obs_shape = {
+            k: specs.Array(v, jnp.dtype("float32")) for k, v in obs_size.items()
+        }
+    else:
+        obs_shape = specs.Array((obs_size,), jnp.dtype("float32"))
+    normalizer_params = running_statistics.init_state(obs_shape)
 
     training_state = TrainingState(
         policy_optimizer_state=policy_optimizer_state,
@@ -160,13 +164,12 @@ def train(
     max_replay_size: Optional[int] = None,
     grad_updates_per_step: int = 1,
     deterministic_eval: bool = False,
-    network_factory: sac_networks.DomainRandomizationNetworkFactory[
+    network_factory: sac_networks.NetworkFactory[
         sac_networks.SafeSACNetworks
     ] = sac_networks.make_sac_networks,
     progress_fn: Callable[[int, Metrics], None] = lambda *args: None,
     checkpoint_logdir: Optional[str] = None,
     eval_env: Optional[envs.Env] = None,
-    privileged: bool = False,
     safe: bool = False,
     safety_budget: float = float("inf"),
     penalizer: Penalizer | None = None,
@@ -204,10 +207,6 @@ def train(
     )
     env = environment
     rng = jax.random.PRNGKey(seed)
-    if privileged:
-        domain_parameters = env.domain_parameters
-    else:
-        domain_parameters = None
     if propagation is not None:
         env = StatePropagation(env)
         env = envs.training.VmapWrapper(env)
@@ -219,14 +218,10 @@ def train(
     normalize_fn = lambda x, y: x
     if normalize_observations:
         normalize_fn = running_statistics.normalize
-    domain_randomization_size = (
-        domain_parameters.shape[-1] if domain_parameters is not None else 0
-    )
     sac_network = network_factory(
         observation_size=obs_size,
         action_size=action_size,
         preprocess_observations_fn=normalize_fn,
-        domain_randomization_size=domain_randomization_size,
         safe=safe,
     )
     make_policy = sac_networks.make_inference_fn(sac_network)
@@ -238,7 +233,10 @@ def train(
     policy_optimizer = make_optimizer(learning_rate, 10.0)
     qr_optimizer = make_optimizer(critic_learning_rate, 10.0)
     qc_optimizer = make_optimizer(cost_critic_learning_rate, 10.0) if safe else None
-    dummy_obs = jnp.zeros((obs_size,))
+    if isinstance(obs_size, Mapping):
+        dummy_obs = {k: jnp.zeros(v) for k, v in obs_size.items()}
+    else:
+        dummy_obs = jnp.zeros((obs_size,))
     dummy_action = jnp.zeros((action_size,))
     extras = {
         "state_extras": {
@@ -246,8 +244,6 @@ def train(
         },
         "policy_extras": {},
     }
-    if domain_parameters is not None:
-        extras["state_extras"]["domain_parameters"] = domain_parameters[0]  # type: ignore
     if safe:
         extras["state_extras"]["cost"] = 0.0  # type: ignore
     if propagation is not None:
@@ -409,8 +405,6 @@ def train(
     ]:
         policy = make_policy((normalizer_params, policy_params))
         extra_fields = ("truncation",)
-        if domain_parameters is not None:
-            extra_fields += ("domain_parameters",)  # type: ignore
         if safe:
             extra_fields += ("cost",)  # type: ignore
         if propagation is not None:
