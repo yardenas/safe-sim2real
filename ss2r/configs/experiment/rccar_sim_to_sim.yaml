@@ -18,7 +18,7 @@ training:
   episode_length: 250
   train_domain_randomization: true
   eval_domain_randomization: true
-  privileged: true
+  value_privileged: true
   safety_budget: 5.0
 
 agent:

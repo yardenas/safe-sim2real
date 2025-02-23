@@ -1,4 +1,4 @@
-from typing import Callable, Optional, Tuple
+from typing import Any, Callable, Optional, Tuple
 
 import jax
 from brax.base import System
@@ -169,6 +169,8 @@ class DomainRandomizationVmapWrapper(Wrapper):
     ):
         super().__init__(env)
         self._sys_v, self._in_axes, self.domain_parameters = randomization_fn(self.sys)
+        dummy = self.env.reset(jax.random.PRNGKey(0))
+        self.strip_privileged_state = isinstance(dummy.obs, jax.Array)
 
     def _env_fn(self, sys: System) -> Env:
         env = self.env
@@ -178,22 +180,67 @@ class DomainRandomizationVmapWrapper(Wrapper):
     def reset(self, rng: jax.Array) -> State:
         def reset(sys, rng):
             env = self._env_fn(sys=sys)
-            res = env.reset(rng)
-            return res
+            state = env.reset(rng)
+            return state
 
         state = jax.vmap(reset, in_axes=[self._in_axes, 0])(self._sys_v, rng)
-        state.info["domain_parameters"] = self.domain_parameters
+        state = self._add_privileged_state(state)
         return state
 
     def step(self, state: State, action: jax.Array) -> State:
         def step(sys, s, a):
             env = self._env_fn(sys=sys)
-            res = env.step(s, a)
-            return res
+            state = env.step(s, a)
+            return state
 
-        res = jax.vmap(step, in_axes=[self._in_axes, 0, 0])(self._sys_v, state, action)
-        res.info["domain_parameters"] = self.domain_parameters
-        return res
+        if self.strip_privileged_state:
+            in_state = state.replace(obs=state.obs["state"])
+        else:
+            in_state = state
+        state = jax.vmap(step, in_axes=[self._in_axes, 0, 0])(
+            self._sys_v, in_state, action
+        )
+        state = self._add_privileged_state(state)
+        return state
+
+    def _add_privileged_state(self, state: State) -> State:
+        if isinstance(state.obs, jax.Array):
+            state = state.replace(
+                obs={
+                    "state": state.obs,
+                    "privileged_state": jp.concatenate(
+                        [state.obs, self.domain_parameters], -1
+                    ),
+                }
+            )
+        else:
+            state = state.replace(
+                obs={
+                    "state": state.obs["state"],
+                    "privileged_state": jp.concatenate(
+                        [state.obs["privileged_state"], self.domain_parameters], -1
+                    ),
+                }
+            )
+        return state
+
+    @property
+    def observation_size(self) -> dict[str, tuple[Any]]:
+        if isinstance(self.env.observation_size, int):
+            return {
+                "state": (self.env.observation_size,),
+                "privileged_state": (
+                    self.env.observation_size + self.domain_parameters.shape[1],
+                ),
+            }
+        else:
+            return {
+                "state": (self.env.observation_size["state"],),
+                "privileged_state": (
+                    self.env.observation_size["privileged_state"]
+                    + self.domain_parameters.shape[1],
+                ),
+            }
 
 
 def wrap(
