@@ -52,8 +52,14 @@ def test_parameterization(use_domain_randomization, similar_rate):
     brax_state = env.reset(rng=keys)
     brax_step = jax.jit(env.step)
     brax_state = brax_step(brax_state, jnp.ones((_ENVS, env.action_size)))
+
+    def get_obs(state):
+        if isinstance(state.obs, jax.Array):
+            return state.obs
+        return state.obs["state"]
+
     count = sum(
-        jnp.allclose(brax_state.obs["state"][j, :], brax_state.obs["state"][i, :])
+        jnp.allclose(get_obs(brax_state)[j, :], get_obs(brax_state)[i, :])
         for i in range(_ENVS)
         for j in range(_ENVS)
         if i != j
