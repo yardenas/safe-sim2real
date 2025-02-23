@@ -1,7 +1,7 @@
 # @package _global_
 defaults:
   - _self_ 
-  - override /environment: extremewalking
+  - override /environment: go_1_joystick
 
 
 training:

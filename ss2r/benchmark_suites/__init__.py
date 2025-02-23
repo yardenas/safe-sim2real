@@ -2,21 +2,20 @@ import functools
 
 import jax
 from brax import envs
+from mujoco_playground import registry
+from mujoco_playground._src.wrapper import wrap_for_brax_training
 
 from ss2r.benchmark_suites import brax, wrappers
 from ss2r.benchmark_suites.brax.cartpole import cartpole
 from ss2r.benchmark_suites.brax.humanoid import humanoid
+from ss2r.benchmark_suites.mujoco_playground.go1_joystick import go1_joystick
 from ss2r.benchmark_suites.rccar import rccar
-from ss2r.benchmark_suites.mujoco_playground.extremewalking import extremewalking
 from ss2r.benchmark_suites.utils import get_domain_name, get_task_config
 from ss2r.benchmark_suites.wrappers import (
     ActionObservationDelayWrapper,
     FrameActionStack,
     MuJoCoWrapper,
 )
-
-from mujoco_playground._src.wrapper import wrap_for_brax_training
-from mujoco_playground import registry
 
 
 def make(cfg):
@@ -134,19 +133,17 @@ def make_brax_envs(cfg):
     )
     return train_env, eval_env
 
+
 def make_extremewalking_envs(cfg):
     task_cfg = get_task_config(cfg)
     # TODO Import config env_cfg = registry.get_default_config(env_name)
     train_env = registry.load(task_cfg.task_name)
     eval_env = registry.load(task_cfg.task_name)
-    
-    
 
     eval_env = wrap_for_brax_training(eval_env)
 
     train_env = MuJoCoWrapper(train_env)
     eval_env = MuJoCoWrapper(eval_env)
-
 
     train_key, eval_key = jax.random.split(jax.random.PRNGKey(cfg.training.seed))
 
@@ -157,7 +154,12 @@ def make_extremewalking_envs(cfg):
         if cfg.training.train_domain_randomization
         else None
     )
-    train_env = wrap_for_brax_training(train_env, randomization_fn=train_randomization_fn, episode_length=cfg.training.episode_length, action_repeat=cfg.training.action_repeat)
+    train_env = wrap_for_brax_training(
+        train_env,
+        randomization_fn=train_randomization_fn,
+        episode_length=cfg.training.episode_length,
+        action_repeat=cfg.training.action_repeat,
+    )
     eval_randomization_fn = prepare_randomization_fn(
         eval_key, cfg.training.num_eval_envs, None, task_cfg.task_name
     )
@@ -171,13 +173,14 @@ def make_extremewalking_envs(cfg):
     )
     return train_env, eval_env
 
+
 randomization_fns = {
     "cartpole": cartpole.domain_randomization,
     "cartpole_safe": cartpole.domain_randomization,
     "rccar": rccar.domain_randomization,
     "humanoid": humanoid.domain_randomization,
     "humanoid_safe": humanoid.domain_randomization,
-    "extremewalking": extremewalking.domain_randomization
+    "go_1_joystick": go1_joystick.domain_randomization,
 }
 
 render_fns = {
@@ -186,4 +189,5 @@ render_fns = {
     "humanoid": functools.partial(brax.render, camera="track"),
     "humanoid_safe": functools.partial(brax.render, camera="track"),
     "rccar": rccar.render,
+    "go_1_joystick": functools.partial(brax.render, camera="track"),
 }
