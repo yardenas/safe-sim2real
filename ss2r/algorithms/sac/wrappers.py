@@ -1,4 +1,4 @@
-from typing import Protocol
+from typing import Mapping, Protocol
 
 import equinox as eqx
 import jax
@@ -12,10 +12,18 @@ class PropagationFn(Protocol):
 
 
 def ts1(state, rng):
-    num_envs = state.obs.shape[0]
+    num_envs = _get_state(state).shape[0]
     id_ = jax.random.randint(rng, (), 0, num_envs)
     sampled_state = jax.tree_map(lambda x: x[id_], state, is_leaf=eqx.is_array)
     return sampled_state
+
+
+def _get_state(state):
+    if isinstance(state.obs, jax.Array):
+        return state.obs
+    else:
+        assert isinstance(state.obs, Mapping)
+        return state.obs["state"]
 
 
 class StatePropagation(Wrapper):
@@ -37,7 +45,7 @@ class StatePropagation(Wrapper):
         n_key, key = jax.random.split(propagation_rng)
         state.info["state_propagation"] = {}
         state.info["state_propagation"]["rng"] = jax.random.split(n_key, self.num_envs)
-        orig_next_obs = state.obs
+        orig_next_obs = _get_state(state)
         state = self.propagation_fn(state, key)
         state.info["state_propagation"]["next_obs"] = orig_next_obs
         return state
@@ -52,7 +60,7 @@ class StatePropagation(Wrapper):
         state, action = tile(state), tile(action)
         nstate = self.env.step(state, action)
         n_key, key = jax.random.split(propagation_rng)
-        orig_next_obs = nstate.obs
+        orig_next_obs = _get_state(nstate)
         nstate.info["state_propagation"]["rng"] = jax.random.split(n_key, self.num_envs)
         nstate.info["state_propagation"]["next_obs"] = nstate.obs
         nstate = self.propagation_fn(nstate, key)

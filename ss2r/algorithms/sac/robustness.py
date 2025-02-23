@@ -13,7 +13,6 @@ class QTransformation(Protocol):
         q_fn: Callable[[Params, jax.Array], jax.Array],
         policy: Callable[[jax.Array], tuple[jax.Array, jax.Array]],
         gamma: float,
-        domain_params: jax.Array | None = None,
         alpha: jax.Array | None = None,
         reward_scaling: float = 1.0,
         key: jax.Array | None = None,
@@ -31,14 +30,11 @@ class UCBCost(QTransformation):
         q_fn: Callable[[Params, jax.Array], jax.Array],
         policy: Callable[[jax.Array], tuple[jax.Array, jax.Array]],
         gamma: float,
-        domain_params: jax.Array | None = None,
         alpha: jax.Array | None = None,
         reward_scaling: float = 1.0,
         key: jax.Array | None = None,
     ):
         next_action, _ = policy(transitions.next_observation)
-        if domain_params is not None:
-            next_action = jnp.concatenate([next_action, domain_params], axis=-1)
         next_q = q_fn(transitions.next_observation, next_action)
         next_v = next_q.mean(axis=-1)
         std = transitions.extras["state_extras"]["disagreement"]
@@ -63,7 +59,6 @@ class RAMU(QTransformation):
         q_fn: Callable[[Params, jax.Array], jax.Array],
         policy: Callable[[jax.Array], tuple[jax.Array, jax.Array]],
         gamma: float,
-        domain_params: jax.Array | None = None,
         alpha: jax.Array | None = None,
         reward_scaling: float = 1.0,
         key: jax.Array | None = None,
@@ -76,7 +71,6 @@ class RAMU(QTransformation):
             key,
         )
         next_action, _ = policy(sampled_next_obs)
-        assert domain_params is None
         next_q = q_fn(sampled_next_obs, next_action)
         next_v = next_q.mean(axis=-1)
         next_v = wang(self.n_samples, self.wang_eta, next_v)
@@ -111,14 +105,11 @@ class SACBase(QTransformation):
         q_fn: Callable[[Params, jax.Array], jax.Array],
         policy: Callable[[jax.Array], tuple[jax.Array, jax.Array]],
         gamma: float,
-        domain_params: jax.Array | None = None,
         alpha: jax.Array | None = None,
         reward_scaling: float = 1.0,
         key: jax.Array | None = None,
     ):
         next_action, next_log_prob = policy(transitions.next_observation)
-        if domain_params is not None:
-            next_action = jnp.concatenate([next_action, domain_params], axis=-1)
         next_q = q_fn(transitions.next_observation, next_action)
         next_v = next_q.min(axis=-1)
         next_v -= alpha * next_log_prob
@@ -140,7 +131,6 @@ class RAMUReward(QTransformation):
         q_fn: Callable[[Params, jax.Array], jax.Array],
         policy: Callable[[jax.Array], tuple[jax.Array, jax.Array]],
         gamma: float,
-        domain_params: jax.Array | None = None,
         alpha: jax.Array | None = None,
         reward_scaling: float = 1.0,
         key: jax.Array | None = None,
@@ -153,11 +143,6 @@ class RAMUReward(QTransformation):
             key,
         )
         next_action, next_log_prob = policy(sampled_next_obs)
-        if domain_params is not None:
-            domain_params = jnp.tile(
-                domain_params[:, None], (1, next_action.shape[1], 1)
-            )
-            next_action = jnp.concatenate([next_action, domain_params], axis=-1)
         next_q = q_fn(sampled_next_obs, next_action)
         next_v = next_q.min(axis=-1)
         next_v = wang(self.n_samples, self.wang_eta, next_v)
@@ -178,14 +163,11 @@ class LCBReward(QTransformation):
         q_fn: Callable[[Params, jax.Array], jax.Array],
         policy: Callable[[jax.Array], tuple[jax.Array, jax.Array]],
         gamma: float,
-        domain_params: jax.Array | None = None,
         alpha: jax.Array | None = None,
         reward_scaling: float = 1.0,
         key: jax.Array | None = None,
     ):
         next_action, next_log_prob = policy(transitions.next_observation)
-        if domain_params is not None:
-            next_action = jnp.concatenate([next_action, domain_params], axis=-1)
         next_q = q_fn(transitions.next_observation, next_action)
         next_v = next_q.min(axis=-1)
         next_v -= alpha * next_log_prob
@@ -204,14 +186,11 @@ class SACCost(QTransformation):
         q_fn: Callable[[Params, jax.Array], jax.Array],
         policy: Callable[[jax.Array], tuple[jax.Array, jax.Array]],
         gamma: float,
-        domain_params: jax.Array | None = None,
         alpha: jax.Array | None = None,
         reward_scaling: float = 1.0,
         key: jax.Array | None = None,
     ):
         next_action, _ = policy(transitions.next_observation)
-        if domain_params is not None:
-            next_action = jnp.concatenate([next_action, domain_params], axis=-1)
         next_q = q_fn(transitions.next_observation, next_action)
         next_v = next_q.mean(axis=-1)
         cost = transitions.extras["state_extras"]["cost"]

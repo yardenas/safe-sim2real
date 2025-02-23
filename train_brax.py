@@ -89,6 +89,8 @@ def get_train_fn(cfg):
                 "eval_domain_randomization",
                 "render",
                 "store_policy",
+                "value_privileged",
+                "policy_privileged",
             ]
         }
         hidden_layer_sizes = agent_cfg.pop("hidden_layer_sizes")
@@ -100,10 +102,16 @@ def get_train_fn(cfg):
             del agent_cfg["reward_robustness"]
         if "penalizer" in agent_cfg:
             del agent_cfg["penalizer"]
+        value_obs_key = "privileged_state" if cfg.training.value_privileged else "state"
+        policy_obs_key = (
+            "privileged_state" if cfg.training.policy_privileged else "state"
+        )
         network_factory = functools.partial(
             sac_networks.make_sac_networks,
             hidden_layer_sizes=hidden_layer_sizes,
             activation=activation,
+            value_obs_key=value_obs_key,
+            policy_obs_key=policy_obs_key,
         )
         penalizer, penalizer_params = get_penalizer(cfg)
         cost_robustness = get_cost_robustness(cfg)
