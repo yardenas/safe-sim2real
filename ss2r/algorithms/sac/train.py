@@ -19,7 +19,7 @@ See: https://arxiv.org/pdf/1812.05905.pdf
 
 import functools
 import time
-from typing import Any, Callable, Optional, Tuple, TypeAlias, Union
+from typing import Any, Callable, Mapping, Optional, Tuple, TypeAlias, Union
 
 import flax
 import jax
@@ -113,9 +113,12 @@ def _init_training_state(
         qc_params = None
         qc_optimizer_state = None
     qr_optimizer_state = qr_optimizer.init(qr_params)
-    obs_shape = jax.tree_util.tree_map(
-        lambda x: specs.Array(x, jnp.dtype("float32")), obs_size
-    )
+    if isinstance(obs_size, Mapping):
+        obs_shape = {
+            k: specs.Array(v, jnp.dtype("float32")) for k, v in obs_size.items()
+        }
+    else:
+        obs_shape = specs.Array((obs_size,), jnp.dtype("float32"))
     normalizer_params = running_statistics.init_state(obs_shape)
 
     training_state = TrainingState(
@@ -230,7 +233,10 @@ def train(
     policy_optimizer = make_optimizer(learning_rate, 10.0)
     qr_optimizer = make_optimizer(critic_learning_rate, 10.0)
     qc_optimizer = make_optimizer(cost_critic_learning_rate, 10.0) if safe else None
-    dummy_obs = jax.tree.map(lambda x: jnp.zeros((x,)), obs_size)
+    if isinstance(obs_size, Mapping):
+        dummy_obs = {k: jnp.zeros(v) for k, v in obs_size.items()}
+    else:
+        dummy_obs = jnp.zeros((obs_size,))
     dummy_action = jnp.zeros((action_size,))
     extras = {
         "state_extras": {

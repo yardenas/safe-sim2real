@@ -10,3 +10,4 @@ training:
   episode_length: 250
   train_domain_randomization: false
   eval_domain_randomization: false
+  safe: false
