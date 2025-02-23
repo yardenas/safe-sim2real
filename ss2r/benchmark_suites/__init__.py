@@ -7,11 +7,16 @@ from ss2r.benchmark_suites import brax, wrappers
 from ss2r.benchmark_suites.brax.cartpole import cartpole
 from ss2r.benchmark_suites.brax.humanoid import humanoid
 from ss2r.benchmark_suites.rccar import rccar
+from ss2r.benchmark_suites.mujoco_playground.extremewalking import extremewalking
 from ss2r.benchmark_suites.utils import get_domain_name, get_task_config
 from ss2r.benchmark_suites.wrappers import (
     ActionObservationDelayWrapper,
     FrameActionStack,
+    MuJoCoWrapper,
 )
+
+from mujoco_playground._src.wrapper import wrap_for_brax_training
+from mujoco_playground import registry
 
 
 def make(cfg):
@@ -20,6 +25,8 @@ def make(cfg):
         return make_brax_envs(cfg)
     elif domain_name == "rccar":
         return make_rccar_envs(cfg)
+    elif domain_name == "extremewalking":
+        return make_extremewalking_envs(cfg)
 
 
 def prepare_randomization_fn(key, num_envs, cfg, task_name):
@@ -127,6 +134,42 @@ def make_brax_envs(cfg):
     )
     return train_env, eval_env
 
+def make_extremewalking_envs(cfg):
+    task_cfg = get_task_config(cfg)
+    # TODO Import config env_cfg = registry.get_default_config(env_name)
+    train_env = registry.load(task_cfg.task_name)
+    eval_env = registry.load(task_cfg.task_name)
+    
+    
+
+    eval_env = wrap_for_brax_training(eval_env)
+
+    train_env = MuJoCoWrapper(train_env)
+    eval_env = MuJoCoWrapper(eval_env)
+
+
+    train_key, eval_key = jax.random.split(jax.random.PRNGKey(cfg.training.seed))
+
+    train_randomization_fn = (
+        prepare_randomization_fn(
+            train_key, cfg.training.num_envs, task_cfg.train_params, task_cfg.task_name
+        )
+        if cfg.training.train_domain_randomization
+        else None
+    )
+    train_env = wrap_for_brax_training(train_env, randomization_fn=train_randomization_fn, episode_length=cfg.training.episode_length, action_repeat=cfg.training.action_repeat)
+    eval_randomization_fn = prepare_randomization_fn(
+        eval_key, cfg.training.num_eval_envs, None, task_cfg.task_name
+    )
+    eval_env = wrap_for_brax_training(
+        eval_env,
+        episode_length=cfg.training.episode_length,
+        action_repeat=cfg.training.action_repeat,
+        randomization_fn=eval_randomization_fn
+        if cfg.training.eval_domain_randomization
+        else None,
+    )
+    return train_env, eval_env
 
 randomization_fns = {
     "cartpole": cartpole.domain_randomization,
@@ -134,6 +177,7 @@ randomization_fns = {
     "rccar": rccar.domain_randomization,
     "humanoid": humanoid.domain_randomization,
     "humanoid_safe": humanoid.domain_randomization,
+    "extremewalking": extremewalking.domain_randomization
 }
 
 render_fns = {

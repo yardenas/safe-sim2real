@@ -269,3 +269,13 @@ def wrap(
         env = DomainRandomizationVmapWrapper(env, randomization_fn)
     env = wrappers.training.AutoResetWrapper(env)
     return env
+
+
+class MuJoCoWrapper(Wrapper):
+    def __init__(self, env):
+        self.env = env
+        self._observation_size = sum(val[0] for val in env.observation_size.values())
+
+    @property
+    def observation_size(self):
+        return self._observation_size

@@ -1,0 +1,12 @@
+# @package _global_
+defaults:
+  - _self_ 
+  - override /environment: extremewalking
+
+
+training:
+  num_envs: 128
+  num_timesteps: 500000
+  episode_length: 250
+  train_domain_randomization: false
+  eval_domain_randomization: false
