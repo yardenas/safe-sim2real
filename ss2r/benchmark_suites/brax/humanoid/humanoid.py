@@ -116,6 +116,7 @@ class ConstraintWrapper(Wrapper):
 
     def step(self, state: State, action: jax.Array) -> State:
         nstate = self.env.step(state, action)
+        # qpos is in radiants, even though the xml file specifies degrees
         joint_angles = nstate.pipeline_state.qpos[self.joint_ids]
         cost = jnp.zeros_like(nstate.reward)
         for _, (angle, joint_range) in enumerate(zip(joint_angles, self.joint_ranges)):
