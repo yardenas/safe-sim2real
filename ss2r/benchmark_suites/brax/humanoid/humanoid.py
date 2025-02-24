@@ -77,7 +77,7 @@ class ConstraintWrapper(Wrapper):
     def __init__(self, env: Env, angle_tolerance: float):
         assert isinstance(env, humanoid.Humanoid)
         super().__init__(env)
-        self.angle_tolerance = angle_tolerance
+        self.angle_tolerance = angle_tolerance * jnp.pi / 180.0
         joint_names = [
             "abdomen_z",
             "abdomen_y",
@@ -136,7 +136,7 @@ class ConstraintWrapper(Wrapper):
         return nstate
 
 
-def normalize_angle(angle, lower_bound=-180.0, upper_bound=180.0):
+def normalize_angle(angle, lower_bound=-jnp.pi, upper_bound=jnp.pi):
     """Normalize angle to be within [lower_bound, upper_bound)."""
     range_width = upper_bound - lower_bound
     return (angle - lower_bound) % range_width + lower_bound
