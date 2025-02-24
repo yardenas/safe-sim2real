@@ -53,6 +53,13 @@ wandb = "^0.16.4"
 [tool.poetry.group.hydra-submitit.dependencies]
 hydra-submitit-launcher = "^1.2.0"
 
+
+[tool.poetry.group.onnx.dependencies]
+tf2onnx = "^1.16.1"
+tensorflow-cpu = "^2.18.0"
+onnxruntime = "^1.20.1"
+keras = "^3.8.0"
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
