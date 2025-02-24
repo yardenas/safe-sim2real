@@ -30,6 +30,7 @@ parser = argparse.ArgumentParser(description="Convert Flax model to ONNX")
 parser.add_argument(
     "--ckpt_path", type=str, required=True, help="Path to the checkpoint file"
 )
+parser.add_argument("--output_path", type=str, default="model.onnx", help="Output path")
 parser.add_argument(
     "--normalize_obs", action="store_true", help="Use observation normalization"
 )
@@ -69,7 +70,7 @@ with open(ckpt_path, "rb") as f:
     params = pickle.load(f)
 
 # %%
-output_path = "bh_policy.onnx"
+output_path = args.output_path
 make_inference_fn = ppo_networks.make_inference_fn(ppo_network)
 inference_fn = make_inference_fn(params, deterministic=True)
 
