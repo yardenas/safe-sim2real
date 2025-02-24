@@ -166,11 +166,14 @@ class DomainRandomizationVmapWrapper(Wrapper):
         self,
         env: Env,
         randomization_fn: Callable[[System], Tuple[System, System, jax.Array]],
+        *,
+        augment_state: bool = True,
     ):
         super().__init__(env)
         self._sys_v, self._in_axes, self.domain_parameters = randomization_fn(self.sys)
         dummy = self.env.reset(jax.random.PRNGKey(0))
         self.strip_privileged_state = isinstance(dummy.obs, jax.Array)
+        self.augment_state = augment_state
 
     def _env_fn(self, sys: System) -> Env:
         env = self.env
@@ -184,7 +187,8 @@ class DomainRandomizationVmapWrapper(Wrapper):
             return state
 
         state = jax.vmap(reset, in_axes=[self._in_axes, 0])(self._sys_v, rng)
-        state = self._add_privileged_state(state)
+        if self.augment_state:
+            state = self._add_privileged_state(state)
         return state
 
     def step(self, state: State, action: jax.Array) -> State:
@@ -193,14 +197,15 @@ class DomainRandomizationVmapWrapper(Wrapper):
             state = env.step(s, a)
             return state
 
-        if self.strip_privileged_state:
+        if self.augment_state and self.strip_privileged_state:
             in_state = state.replace(obs=state.obs["state"])
         else:
             in_state = state
         state = jax.vmap(step, in_axes=[self._in_axes, 0, 0])(
             self._sys_v, in_state, action
         )
-        state = self._add_privileged_state(state)
+        if self.augment_state:
+            state = self._add_privileged_state(state)
         return state
 
     def _add_privileged_state(self, state: State) -> State:
@@ -226,6 +231,8 @@ class DomainRandomizationVmapWrapper(Wrapper):
 
     @property
     def observation_size(self) -> dict[str, tuple[Any]]:
+        if not self.augment_state:
+            return self.env.observation
         if isinstance(self.env.observation_size, int):
             return {
                 "state": (self.env.observation_size,),
@@ -250,6 +257,7 @@ def wrap(
     randomization_fn: Optional[
         Callable[[System], Tuple[System, System, jax.Array]]
     ] = None,
+    augment_state: bool = True,
 ) -> Wrapper:
     """Common wrapper pattern for all training agents.
 
@@ -269,6 +277,8 @@ def wrap(
     if randomization_fn is None:
         env = wrappers.training.VmapWrapper(env)
     else:
-        env = DomainRandomizationVmapWrapper(env, randomization_fn)
+        env = DomainRandomizationVmapWrapper(
+            env, randomization_fn, augment_state=augment_state
+        )
     env = wrappers.training.AutoResetWrapper(env)
     return env

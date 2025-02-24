@@ -128,6 +128,7 @@ def make_brax_envs(cfg):
         randomization_fn=eval_randomization_fn
         if cfg.training.eval_domain_randomization
         else None,
+        augment_state=cfg.training.train_domain_randomization,
     )
     return train_env, eval_env
 
