@@ -67,11 +67,9 @@ ckpt_path = args.ckpt_path
 # %%
 with open(ckpt_path, "rb") as f:
     params = pickle.load(f)
-print(params.keys())
 
 # %%
 output_path = "bh_policy.onnx"
-params = (params["normalizer_params"], params["policy_params"])
 make_inference_fn = ppo_networks.make_inference_fn(ppo_network)
 inference_fn = make_inference_fn(params, deterministic=True)
 
@@ -89,24 +87,51 @@ class MLP(tf.keras.Model):
         mean_std=None,
     ):
         super().__init__()
+
+        self.layer_sizes = layer_sizes
+        self.activation = activation
+        self.kernel_init = kernel_init
+        self.activate_final = activate_final
+        self.bias = bias
+        self.layer_norm = layer_norm
+
+        if mean_std is not None:
+            self.mean = tf.Variable(mean_std[0], trainable=False, dtype=tf.float32)
+            self.std = tf.Variable(mean_std[1], trainable=False, dtype=tf.float32)
+        else:
+            self.mean = None
+            self.std = None
+
         self.mlp_block = tf.keras.Sequential(name="MLP_0")
-        for i, size in enumerate(layer_sizes):
+        for i, size in enumerate(self.layer_sizes):
             dense_layer = layers.Dense(
                 size,
-                activation=activation,
-                kernel_initializer=kernel_init,
+                activation=self.activation,
+                kernel_initializer=self.kernel_init,
                 name=f"hidden_{i}",
-                use_bias=bias,
+                use_bias=self.bias,
             )
             self.mlp_block.add(dense_layer)
-            if layer_norm:
+            if self.layer_norm:
                 self.mlp_block.add(layers.LayerNormalization(name=f"layer_norm_{i}"))
-        if not activate_final and self.mlp_block.layers:
-            self.mlp_block.layers[-1].activation = None
+        if not self.activate_final and self.mlp_block.layers:
+            if (
+                hasattr(self.mlp_block.layers[-1], "activation")
+                and self.mlp_block.layers[-1].activation is not None
+            ):
+                self.mlp_block.layers[-1].activation = None
+
+        self.submodules = [self.mlp_block]
 
     def call(self, inputs):
-        # TODO (yarden): double check this.
-        return tf.tanh(self.mlp_block(inputs))
+        if isinstance(inputs, list):
+            inputs = inputs[0]
+        if self.mean is not None and self.std is not None:
+            print(self.mean.shape, self.std.shape)
+            inputs = (inputs - self.mean) / self.std
+        logits = self.mlp_block(inputs)
+        loc, _ = tf.split(logits, 2, axis=-1)
+        return tf.tanh(loc)
 
 
 # %%
@@ -147,14 +172,44 @@ print(example_output.shape)
 
 # %%
 def transfer_weights(jax_params, tf_model):
+    """
+    Transfer weights from a JAX parameter dictionary to the TensorFlow model.
+
+    Parameters:
+    - jax_params: dict
+      Nested dictionary with structure {block_name: {layer_name: {params}}}.
+      For example:
+      {
+        'CNN_0': {
+          'Conv_0': {'kernel': np.ndarray},
+          'Conv_1': {'kernel': np.ndarray},
+          'Conv_2': {'kernel': np.ndarray},
+        },
+        'MLP_0': {
+          'hidden_0': {'kernel': np.ndarray, 'bias': np.ndarray},
+          'hidden_1': {'kernel': np.ndarray, 'bias': np.ndarray},
+          'hidden_2': {'kernel': np.ndarray, 'bias': np.ndarray},
+        }
+      }
+
+    - tf_model: tf.keras.Model
+      An instance of the adapted VisionMLP model containing named submodules and layers.
+    """
     for layer_name, layer_params in jax_params.items():
         try:
             tf_layer = tf_model.get_layer("MLP_0").get_layer(name=layer_name)
-            kernel = layer_params["kernel"]
-            bias = layer_params["bias"]
-            tf_layer.set_weights([kernel, bias])
         except ValueError:
-            print(f"Layer {layer_name} not found.")
+            print(f"Layer {layer_name} not found in TensorFlow model.")
+            continue
+        if isinstance(tf_layer, tf.keras.layers.Dense):
+            kernel = np.array(layer_params["kernel"])
+            bias = np.array(layer_params["bias"])
+            print(
+                f"Transferring Dense layer {layer_name}, kernel shape {kernel.shape}, bias shape {bias.shape}"
+            )
+            tf_layer.set_weights([kernel, bias])
+        else:
+            print(f"Unhandled layer type in {layer_name}: {type(tf_layer)}")
     print("Weights transferred successfully.")
 
 
@@ -190,12 +245,12 @@ test_input = {
     "privileged_state": jp.zeros(obs_size["privileged_state"]),
 }
 jax_pred, _ = inference_fn(test_input, jax.random.PRNGKey(0))
-print(jax_pred)
+print("JAX prediction:", jax_pred)
 
 # %%
 
-plt.plot(onxx_pred, label="onnx")
-plt.plot(tensorflow_pred, label="tensorflow")
+plt.plot(onxx_pred[:act_size], label="onnx")
+plt.plot(tensorflow_pred[:act_size], label="tensorflow")
 plt.plot(jax_pred, label="jax")
 plt.legend()
 plt.show()
