@@ -134,12 +134,14 @@ def make_brax_envs(cfg):
 
 
 def make_mujoco_playground_envs(cfg):
+    from ml_collections import config_dict
     from mujoco_playground import registry
     from mujoco_playground._src.wrapper import wrap_for_brax_training
 
     task_cfg = get_task_config(cfg)
-    train_env = registry.load(task_cfg.task_name, config=task_cfg.task_params)
-    eval_env = registry.load(task_cfg.task_name, config=task_cfg.task_params)
+    task_params = config_dict.ConfigDict(task_cfg.task_params)
+    train_env = registry.load(task_cfg.task_name, config=task_params)
+    eval_env = registry.load(task_cfg.task_name, config=task_params)
     train_key, eval_key = jax.random.split(jax.random.PRNGKey(cfg.training.seed))
     train_randomization_fn = (
         prepare_randomization_fn(
