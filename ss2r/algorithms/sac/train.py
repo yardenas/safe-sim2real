@@ -36,7 +36,7 @@ from brax.v1 import envs as envs_v1
 import ss2r.algorithms.sac.losses as sac_losses
 import ss2r.algorithms.sac.networks as sac_networks
 from ss2r.algorithms.sac.penalizers import Penalizer
-from ss2r.algorithms.sac.robustness import QTransformation, SACBase, SACCost
+from ss2r.algorithms.sac.robustness import QTransformation, SACBase, SACCost, UCBCost
 from ss2r.algorithms.sac.wrappers import ModelDisagreement, StatePropagation
 from ss2r.rl.evaluation import ConstraintsEvaluator
 
@@ -209,8 +209,9 @@ def train(
     rng = jax.random.PRNGKey(seed)
     if propagation is not None:
         env = StatePropagation(env)
+        if isinstance(cost_robustness, UCBCost):
+            env = ModelDisagreement(env)
         env = envs.training.VmapWrapper(env)
-        env = ModelDisagreement(env)
     else:
         assert num_trajectories_per_env == 1
     obs_size = env.observation_size

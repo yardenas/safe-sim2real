@@ -76,14 +76,14 @@ class ModelDisagreement(Wrapper):
     def reset(self, rng: jax.Array) -> State:
         state = self.env.reset(rng)
         next_obs = state.info["state_propagation"]["next_obs"]
-        std = jnp.std(next_obs, axis=1).mean(-1)
+        std = jnp.std(next_obs, axis=0).mean(-1)
         state.info["disagreement"] = std
         return state
 
     def step(self, state: State, action: jax.Array) -> State:
         nstate = self.env.step(state, action)
         next_obs = state.info["state_propagation"]["next_obs"]
-        std = jnp.std(next_obs, axis=1).mean(-1)
+        std = jnp.std(next_obs, axis=0).mean(-1)
         state.info["disagreement"] = std
         return nstate
 
