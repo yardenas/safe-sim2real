@@ -86,3 +86,35 @@ class ModelDisagreement(Wrapper):
         std = jnp.std(next_obs, axis=1).mean(-1)
         state.info["disagreement"] = std
         return nstate
+
+
+class Saute(Wrapper):
+    def __init__(self, env, discounting, budget, penalty, terminate=False):
+        super().__init__(env)
+        self.observation_size = env.observation_size + 1
+        self.budget = budget
+        self.discounting = discounting
+        self.terminate = terminate
+        self.penalty = penalty
+
+    def reset(self, rng):
+        state = self.env.reset(rng)
+        state.info["saute_state"] = jnp.ones((1,))
+        state.info["saute_reward"] = state.reward
+        state = state.replace(
+            obs=jnp.concatenate([state.obs, state.info["saute_state"]], axis=-1)
+        )
+        return state
+
+    def step(self, state, action):
+        saute_state = state.info["saute"]
+        nstate = self.env.step(state, action)
+        saute_state -= nstate.info["cost"] / self.budget
+        saute_state /= self.discounting
+        saute_reward = jnp.where(
+            saute_state <= 0.0, nstate.reward - self.penalty, nstate.reward
+        )
+        state.info["saute_state"] = saute_state
+        state.info["saute_reward"] = saute_reward
+        nstate = nstate.replace(obs=jnp.concatenate([nstate.obs, saute_state], axis=-1))
+        return nstate
