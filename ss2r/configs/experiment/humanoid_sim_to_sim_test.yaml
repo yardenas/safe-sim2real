@@ -20,10 +20,10 @@ train_params:
     z: [0, 0]
   gain_knee: [0, 0]
   gear_hip:
-    x: [0, 50]
-    y: [0, 150]
-    z: [0, 50]
-  gear_knee: [0, 100]
+    x: [0, 10]
+    y: [0, 30]
+    z: [0, 10]
+  gear_knee: [0, 20]
 
 eval_params:
   friction: [0.0, 0.]
@@ -33,10 +33,10 @@ eval_params:
     z: [0., 0.]
   gain_knee: [0., 0.]
   gear_hip:
-    x: [0, 50]
-    y: [0, 150]
-    z: [0, 50]
-  gear_knee: [0, 100]
+    x: [0, 10]
+    y: [0, 30]
+    z: [0, 10]
+  gear_knee: [0, 20]
 
 agent:
   grad_updates_per_step: 256
