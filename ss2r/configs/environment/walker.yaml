@@ -1,3 +1,10 @@
 defaults:
   - mujoco_playground_base
 task_name: WalkerWalk
+
+task_params:
+  action_repeat: 1
+  ctrl_dt: 0.025
+  episode_length: 1000
+  sim_dt: 0.0025
+  vision: false

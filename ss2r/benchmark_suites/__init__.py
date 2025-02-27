@@ -176,7 +176,7 @@ randomization_fns = {
     "rccar": rccar.domain_randomization,
     "humanoid": humanoid.domain_randomization,
     "humanoid_safe": humanoid.domain_randomization,
-    "go1_joystick": go1_joystick.domain_randomization,
+    "Go1JoystickFlatTerrain": go1_joystick.domain_randomization,
     "ant": ant.domain_randomization,
     "ant_safe": ant.domain_randomization,
 }
@@ -189,5 +189,6 @@ render_fns = {
     "ant": functools.partial(brax.render, camera="track"),
     "ant_safe": functools.partial(brax.render, camera="track"),
     "rccar": rccar.render,
-    "go_1_joystick": functools.partial(brax.render, camera="track"),
+    "Go1JoystickFlatTerrain": functools.partial(brax.render, camera="track"),
+    "WalkerWalk": functools.partial(brax.render, camera="side"),
 }
