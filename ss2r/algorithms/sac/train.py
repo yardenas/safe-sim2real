@@ -36,8 +36,14 @@ from brax.v1 import envs as envs_v1
 import ss2r.algorithms.sac.losses as sac_losses
 import ss2r.algorithms.sac.networks as sac_networks
 from ss2r.algorithms.sac.penalizers import Penalizer
-from ss2r.algorithms.sac.robustness import QTransformation, SACBase, SACCost, UCBCost
-from ss2r.algorithms.sac.wrappers import ModelDisagreement, StatePropagation
+from ss2r.algorithms.sac.robustness import (
+    QTransformation,
+    SACBase,
+    SACCost,
+    SauteRobustness,
+    UCBCost,
+)
+from ss2r.algorithms.sac.wrappers import ModelDisagreement, Saute, StatePropagation
 from ss2r.rl.evaluation import ConstraintsEvaluator
 
 Metrics: TypeAlias = types.Metrics
@@ -211,6 +217,16 @@ def train(
         env = StatePropagation(env)
         if isinstance(cost_robustness, UCBCost):
             env = ModelDisagreement(env)
+        if isinstance(cost_robustness, SauteRobustness):
+            env = Saute(
+                env,
+                safety_discounting,
+                safety_budget,
+                cost_robustness.penalty,
+                cost_robustness.terminate,
+            )
+            # Hack but I'm OK with it.
+            reward_robustness = cost_robustness
         env = envs.training.VmapWrapper(env)
     else:
         assert num_trajectories_per_env == 1

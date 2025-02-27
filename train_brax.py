@@ -49,6 +49,10 @@ def get_cost_robustness(cfg):
     elif cfg.agent.cost_robustness.name == "ucb_cost":
         assert cfg.agent.propagation == "ts1"
         robustness = rb.UCBCost(cfg.agent.cost_robustness.cost_penalty)
+    elif cfg.agent.cost_robustness.name == "saute":
+        robustness = rb.SauteRobustness(
+            cfg.agent.cost_robustness.penalty, cfg.agent.cost_robustness.terminate
+        )
     else:
         raise ValueError("Unknown robustness")
     return robustness

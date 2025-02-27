@@ -3,7 +3,7 @@ from mujoco_playground import locomotion
 
 
 def domain_randomization(sys, rng, cfg):
-    model, in_axes = locomotion.domain_randomization(sys, rng, cfg)
+    model, in_axes = locomotion.go1_randomize.domain_randomize(sys, rng, cfg)
     new_pair_friction = model.pair_friction[:, :2, 0:2]
     new_dof_frictionloss = model.dof_frictionloss[6:]
     new_armature = model.dof_armature[6:]

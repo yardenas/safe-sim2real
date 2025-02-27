@@ -196,3 +196,30 @@ class SACCost(QTransformation):
         cost = transitions.extras["state_extras"]["cost"]
         target_q = jax.lax.stop_gradient(cost + transitions.discount * gamma * next_v)
         return target_q
+
+
+class SauteRobustness(SACBase):
+    def __init__(self, penalty, terminate):
+        super().__init__()
+        self.penalty = penalty
+        self.terminate = terminate
+
+    def __call__(
+        self,
+        transitions: Transition,
+        q_fn: Callable[[Params, jax.Array], jax.Array],
+        policy: Callable[[jax.Array], tuple[jax.Array, jax.Array]],
+        gamma: float,
+        alpha: jax.Array | None = None,
+        reward_scaling: float = 1.0,
+        key: jax.Array | None = None,
+    ):
+        next_action, next_log_prob = policy(transitions.next_observation)
+        next_q = q_fn(transitions.next_observation, next_action)
+        next_v = next_q.min(axis=-1)
+        next_v -= alpha * next_log_prob
+        target_q = jax.lax.stop_gradient(
+            transitions.info["saute_reward"] * reward_scaling
+            + transitions.discount * gamma * next_v
+        )
+        return target_q
