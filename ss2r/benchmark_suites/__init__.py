@@ -159,7 +159,7 @@ def make_mujoco_playground_envs(cfg):
         action_repeat=cfg.training.action_repeat,
     )
     eval_randomization_fn = prepare_randomization_fn(
-        eval_key, cfg.training.num_eval_envs, None, task_cfg.task_name
+        eval_key, cfg.training.num_eval_envs, task_cfg.eval_params, task_cfg.task_name
     )
     eval_env = wrap_for_brax_training(
         eval_env,

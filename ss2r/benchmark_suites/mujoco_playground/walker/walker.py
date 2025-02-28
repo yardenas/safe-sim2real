@@ -13,12 +13,12 @@ def domain_randomization(sys, rng, cfg):
         torso_length_sample = jax.random.uniform(
             rng, minval=cfg.torso_length[0], maxval=cfg.torso_length[1]
         )
-        geom = sys.geom_size[_TORSO_ID, 1].add(torso_length_sample)
-        pos = pos[_TORSO_ID, -1].add(torso_length_sample)
-        mass = sys.body_mass[_TORSO_ID].multiply(torso_length_sample)
-        inertia = sys.body_inertia[_TORSO_ID].multiply(torso_length_sample**3)
-        pos = pos[_LEFT_THIGH_ID, -1].add(torso_length_sample)
-        pos = pos[_RIGHT_THIGH_ID, -1].add(torso_length_sample)
+        geom = sys.geom_size.at[_TORSO_ID, 1].add(torso_length_sample)
+        pos = pos.at[_TORSO_ID, -1].add(torso_length_sample)
+        mass = sys.body_mass.at[_TORSO_ID].multiply(torso_length_sample)
+        inertia = sys.body_inertia.at[_TORSO_ID].multiply(torso_length_sample**3)
+        pos = pos.at[_LEFT_THIGH_ID, -1].add(torso_length_sample)
+        pos = pos.at[_RIGHT_THIGH_ID, -1].add(torso_length_sample)
         friction = jax.random.uniform(
             rng, minval=cfg.friction[0], maxval=cfg.friction[1]
         )
@@ -52,4 +52,4 @@ def domain_randomization(sys, rng, cfg):
             "geom_friction": friction,
         }
     )
-    return sys, in_axes, samples
+    return sys, in_axes
