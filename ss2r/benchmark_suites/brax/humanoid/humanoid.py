@@ -17,7 +17,7 @@ def domain_randomization(sys, rng, cfg):
         friction_sample = sys.geom_friction.copy()
         friction_sample = friction_sample.at[0, 0].add(friction)
         friction_sample = jnp.clip(friction_sample, a_min=0.0, a_max=1.0)
-        rng = jax.random.split(rng, 4)
+        rng = jax.random.split(rng, 8)
         # Ensure symmetry
         names_ids = {
             k: mujoco.mj_name2id(sys.mj_model, mujoco.mjtObj.mjOBJ_ACTUATOR.value, k)
@@ -32,42 +32,80 @@ def domain_randomization(sys, rng, cfg):
                 "right_knee",
             ]
         }
+        gain_sample = sys.actuator.gain.copy()
+        gain_hip_x = jax.random.uniform(
+            rng[0], minval=cfg.gain_hip.x[0], maxval=cfg.gain_hip.x[1]
+        )
+        gain_hip_y = jax.random.uniform(
+            rng[1], minval=cfg.gain_hip.y[0], maxval=cfg.gain_hip.y[1]
+        )
+        gain_hip_z = jax.random.uniform(
+            rng[2], minval=cfg.gain_hip.z[0], maxval=cfg.gain_hip.z[1]
+        )
+        gain_knee = jax.random.uniform(
+            rng[3], minval=cfg.gain_knee[0], maxval=cfg.gain_knee[1]
+        )
         gear_sample = sys.actuator.gear.copy()
-        hip_x = jax.random.uniform(rng[0], minval=cfg.hip.x[0], maxval=cfg.hip.x[1])
-        hip_y = jax.random.uniform(rng[1], minval=cfg.hip.y[0], maxval=cfg.hip.y[1])
-        hip_z = jax.random.uniform(rng[2], minval=cfg.hip.z[0], maxval=cfg.hip.z[1])
-        knee = jax.random.uniform(rng[3], minval=cfg.knee[0], maxval=cfg.knee[1])
+        gear_hip_x = jax.random.uniform(
+            rng[4], minval=cfg.gear_hip.x[0], maxval=cfg.gear_hip.x[1]
+        )
+        gear_hip_y = jax.random.uniform(
+            rng[5], minval=cfg.gear_hip.y[0], maxval=cfg.gear_hip.y[1]
+        )
+        gear_hip_z = jax.random.uniform(
+            rng[6], minval=cfg.gear_hip.z[0], maxval=cfg.gear_hip.z[1]
+        )
+        gear_knee = jax.random.uniform(
+            rng[7], minval=cfg.gear_knee[0], maxval=cfg.gear_knee[1]
+        )
         name_values = {
-            "right_hip_x": hip_x,
-            "left_hip_x": hip_x,
-            "right_hip_y": hip_y,
-            "left_hip_y": hip_y,
-            "right_hip_z": hip_z,
-            "left_hip_z": hip_z,
-            "left_knee": knee,
-            "right_knee": knee,
+            "right_hip_x": (gain_hip_x, gear_hip_x),
+            "left_hip_x": (gain_hip_x, gear_hip_x),
+            "right_hip_y": (gain_hip_y, gear_hip_y),
+            "left_hip_y": (gain_hip_y, gear_hip_y),
+            "right_hip_z": (gain_hip_z, gear_hip_z),
+            "left_hip_z": (gain_hip_z, gear_hip_z),
+            "left_knee": (gain_knee, gear_knee),
+            "right_knee": (gain_knee, gear_knee),
         }
-        for name, value in name_values.items():
+        for name, (gain, gear) in name_values.items():
             actuator_id = names_ids[name]
-            gear_sample = gear_sample.at[actuator_id].add(value)
+            gear_sample = gear_sample.at[actuator_id].add(gear)
+            gain_sample = gain_sample.at[actuator_id].add(gain)
         return (
             friction_sample,
             gear_sample,
-            jnp.stack([friction, hip_x, hip_y, hip_z, knee]),
+            gain_sample,
+            jnp.stack(
+                [
+                    friction,
+                    gain_hip_x,
+                    gain_hip_y,
+                    gain_hip_z,
+                    gain_knee,
+                    gear_hip_x,
+                    gear_hip_y,
+                    gear_hip_z,
+                    gear_knee,
+                ],
+                axis=-1,
+            ),
         )
 
-    friction_sample, gear_sample, samples = randomize(rng)
+    friction_sample, gear_sample, gain_sample, samples = randomize(rng)
     in_axes = jax.tree_map(lambda x: None, sys)
     in_axes = in_axes.tree_replace(
         {
             "geom_friction": 0,
             "actuator.gear": 0,
+            "actuator.gain": 0,
         }
     )
     sys = sys.tree_replace(
         {
             "geom_friction": friction_sample,
             "actuator.gear": gear_sample,
+            "actuator.gain": gain_sample,
         }
     )
     return sys, in_axes, samples
