@@ -14,7 +14,7 @@ training:
 
 environment:
   train_params:
-    friction: [-0.1, 0.]
+    friction: [-0.0, 0.]
     gain_hip:
       x: [0, 2]
       y: [0, 6]
@@ -27,7 +27,7 @@ environment:
     gear_knee: [0, 0]
 
   eval_params:
-    friction: [-0.1, 0.]
+    friction: [-0.3, 0.]
     gain_hip:
       x: [0., 0.]
       y: [0., 0.]
