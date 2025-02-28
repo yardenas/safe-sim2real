@@ -44,4 +44,3 @@ agent:
   reward_scaling: 5.
   propagation: standard
   num_trajectories_per_env: 1
-  safety_discounting: 1.

@@ -45,4 +45,3 @@ agent:
   reward_scaling: 5.
   propagation: ts1
   num_trajectories_per_env: 128
-  safety_discounting: 1.
