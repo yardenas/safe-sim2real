@@ -8,6 +8,7 @@ from ss2r.benchmark_suites.brax.ant import ant
 from ss2r.benchmark_suites.brax.cartpole import cartpole
 from ss2r.benchmark_suites.brax.humanoid import humanoid
 from ss2r.benchmark_suites.mujoco_playground.go1_joystick import go1_joystick
+from ss2r.benchmark_suites.mujoco_playground.walker import walker
 from ss2r.benchmark_suites.rccar import rccar
 from ss2r.benchmark_suites.utils import get_domain_name, get_task_config
 from ss2r.benchmark_suites.wrappers import (
@@ -179,6 +180,7 @@ randomization_fns = {
     "Go1JoystickFlatTerrain": go1_joystick.domain_randomization,
     "ant": ant.domain_randomization,
     "ant_safe": ant.domain_randomization,
+    "WalkerWalk": walker.domain_randomization,
 }
 
 render_fns = {

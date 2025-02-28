@@ -1,0 +1,55 @@
+import jax
+
+_TORSO_ID = 1
+_LEFT_THIGH_ID = 5
+_RIGHT_THIGH_ID = 2
+
+
+def domain_randomization(sys, rng, cfg):
+    @jax.vmap
+    def randomize(rng):
+        #  https://github.com/google-research/realworldrl_suite/blob/be7a51cffa7f5f9cb77a387c16bad209e0f851f8/realworldrl_suite/environments/walker.py#L593
+        pos = sys.body_pos.copy()
+        torso_length_sample = jax.random.uniform(
+            rng, minval=cfg.torso_length[0], maxval=cfg.torso_length[1]
+        )
+        geom = sys.geom_size[_TORSO_ID, 1].add(torso_length_sample)
+        pos = pos[_TORSO_ID, -1].add(torso_length_sample)
+        mass = sys.body_mass[_TORSO_ID].multiply(torso_length_sample)
+        inertia = sys.body_inertia[_TORSO_ID].multiply(torso_length_sample**3)
+        pos = pos[_LEFT_THIGH_ID, -1].add(torso_length_sample)
+        pos = pos[_RIGHT_THIGH_ID, -1].add(torso_length_sample)
+        friction = jax.random.uniform(
+            rng, minval=cfg.friction[0], maxval=cfg.friction[1]
+        )
+        friction = sys.geom_friction.at[:, 0].add(friction)
+        return (
+            pos,
+            mass,
+            inertia,
+            geom,
+            friction,
+            torso_length_sample[None],
+        )
+
+    pos, mass, inertia, geom, friction, samples = randomize(rng)
+    in_axes = jax.tree_map(lambda x: None, sys)
+    in_axes = in_axes.tree_replace(
+        {
+            "body_pos": 0,
+            "body_mass": 0,
+            "body_inertia": 0,
+            "geom_size": 0,
+            "geom_friction": 0,
+        }
+    )
+    sys = sys.tree_replace(
+        {
+            "body_pos": pos,
+            "body_mass": mass,
+            "body_inertia": inertia,
+            "geom_size": geom,
+            "geom_friction": friction,
+        }
+    )
+    return sys, in_axes, samples
