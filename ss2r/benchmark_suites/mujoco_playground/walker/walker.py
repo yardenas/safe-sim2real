@@ -13,10 +13,11 @@ def domain_randomization(sys, rng, cfg):
         torso_length_sample = jax.random.uniform(
             rng, minval=cfg.torso_length[0], maxval=cfg.torso_length[1]
         )
+        length = 0.3 + torso_length_sample
         geom = sys.geom_size.at[_TORSO_ID, 1].add(torso_length_sample)
         pos = pos.at[_TORSO_ID, -1].add(torso_length_sample)
-        mass = sys.body_mass.at[_TORSO_ID].multiply(torso_length_sample)
-        inertia = sys.body_inertia.at[_TORSO_ID].multiply(torso_length_sample**3)
+        mass = sys.body_mass.at[_TORSO_ID].multiply(length)
+        inertia = sys.body_inertia.at[_TORSO_ID].multiply(length**3)
         pos = pos.at[_LEFT_THIGH_ID, -1].add(torso_length_sample)
         pos = pos.at[_RIGHT_THIGH_ID, -1].add(torso_length_sample)
         friction = jax.random.uniform(
