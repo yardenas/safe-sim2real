@@ -11,21 +11,22 @@ training:
   safety_budget: 100.
   value_privileged: false
 
-train_params:
-  friction: [0., 0.]
-  hip:
-    x: [-20., 20.]
-    y: [-20., 20.]
-    z: [-60., 60.]
-  knee: [-40., 40.]
+environment:
+  train_params:
+    friction: [0., 0.]
+    hip:
+      x: [-20., 20.]
+      y: [-20., 20.]
+      z: [-60., 60.]
+    knee: [-40., 40.]
 
-eval_params:
-  friction: [-0.3, 0.]
-  hip:
-    x: [-20., 20.]
-    y: [-20., 20.]
-    z: [-60., 60.]
-  knee: [-40., 40.]
+  eval_params:
+    friction: [-0.3, 0.]
+    hip:
+      x: [-20., 20.]
+      y: [-20., 20.]
+      z: [-60., 60.]
+    knee: [-40., 40.]
 
 agent:
   grad_updates_per_step: 256
