@@ -92,6 +92,7 @@ def make_rccar_envs(cfg):
         episode_length=cfg.training.episode_length,
         action_repeat=cfg.training.action_repeat,
         randomization_fn=eval_randomization_fn,
+        augment_state=cfg.training.train_domain_randomization,
     )
     return train_env, eval_env
 
