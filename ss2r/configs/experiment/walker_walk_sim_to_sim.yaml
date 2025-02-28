@@ -3,6 +3,7 @@ defaults:
   - _self_
   - mujoco_playground_dm_control
   - override /environment: walker
+  - override /agent/cost_robustness: ucb_cost
 
 training:
   num_envs: 128
@@ -10,4 +11,17 @@ training:
   episode_length: 1000
   train_domain_randomization: true
   eval_domain_randomization: true
+  value_privileged: true
   safe: false
+
+agent:
+  propagation: ts1
+  num_trajectories_per_env: 128
+
+environment:
+  torso_length: [-0.2, 0.2]
+  friction: [0.0, 0.0]
+
+eval_params:
+  torso_length: [0.0, 0.0]
+  friction: [-0.3, 0.3]
