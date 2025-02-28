@@ -44,7 +44,7 @@ class StatePropagation(Wrapper):
         # No need to randomize the initial state. Otherwise, even without
         # domain randomization, the initial states will be different, having
         # a non-zero disagreement.
-        rng = jnp.tile(rng[0], (self.num_envs,) + (1,) * rng.ndim)
+        rng = jnp.tile(rng[:1], (self.num_envs, 1))
         state = self.env.reset(rng)
         propagation_rng = jax.random.split(rng[0])[1]
         n_key, key = jax.random.split(propagation_rng)
