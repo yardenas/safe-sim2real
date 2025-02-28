@@ -17,8 +17,8 @@ environment:
     friction: [-0.1, 0.]
     gain_hip:
       x: [0, 2]
-      y: [0, 2]
-      z: [0, 6]
+      y: [0, 6]
+      z: [0, 2]
     gain_knee: [0, 4]
     gear_hip:
       x: [0, 0]
@@ -35,8 +35,8 @@ environment:
     gain_knee: [0., 0.]
     gear_hip:
       x: [0., 20.]
-      y: [0., 20.]
-      z: [0., 60.]
+      y: [0., 60.]
+      z: [0., 20.]
     gear_knee: [0., 40.]
 
 agent:
