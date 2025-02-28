@@ -83,6 +83,7 @@ class ModelDisagreement(Wrapper):
         next_obs = state.info["state_propagation"]["next_obs"]
         std = jnp.std(next_obs, axis=1).mean(-1)
         state.info["disagreement"] = std
+        state.metrics["disagreement"] = std
         return state
 
     def step(self, state: State, action: jax.Array) -> State:
@@ -90,4 +91,5 @@ class ModelDisagreement(Wrapper):
         next_obs = state.info["state_propagation"]["next_obs"]
         std = jnp.std(next_obs, axis=1).mean(-1)
         state.info["disagreement"] = std
+        state.metrics["disagreement"] = std
         return nstate
