@@ -15,14 +15,14 @@ def domain_randomization(sys, rng, cfg):
             rng, minval=cfg.torso_length[0], maxval=cfg.torso_length[1]
         )
         torso_length_sample = jnp.clip(torso_length_sample, a_min=-0.3, a_max=0.4)
-        length = 0.3 + torso_length_sample
-        scale_factor = length / 0.3
-        geom = sys.geom_size.at[_TORSO_ID, 1].multiply(scale_factor)
-        pos = pos.at[_TORSO_ID, -1].multiply(scale_factor)
+        length = 1.3 + torso_length_sample
+        scale_factor = length / 1.3
+        geom = sys.geom_size.at[_TORSO_ID, 1].add(torso_length_sample)
+        pos = pos.at[_TORSO_ID, -1].add(torso_length_sample)
         mass = sys.body_mass.at[_TORSO_ID].multiply(scale_factor)
         inertia = sys.body_inertia.at[_TORSO_ID].multiply(scale_factor**3)
-        pos = pos.at[_LEFT_THIGH_ID, -1].multiply(scale_factor)
-        pos = pos.at[_RIGHT_THIGH_ID, -1].multiply(scale_factor)
+        pos = pos.at[_LEFT_THIGH_ID, -1].add(torso_length_sample)
+        pos = pos.at[_RIGHT_THIGH_ID, -1].add(torso_length_sample)
         friction = jax.random.uniform(
             rng, minval=cfg.friction[0], maxval=cfg.friction[1]
         )
