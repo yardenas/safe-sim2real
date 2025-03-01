@@ -25,4 +25,4 @@ environment:
 
 eval_params:
   torso_length: [-0.2, 0.2]
-  friction: [-0.3, 0.3]
+  friction: [-0.1, 0.1]
