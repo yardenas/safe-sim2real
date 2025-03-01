@@ -13,6 +13,7 @@ training:
   eval_domain_randomization: true
   value_privileged: true
   safe: true
+  safety_budget: 100.
 
 agent:
   propagation: ts1

@@ -182,6 +182,9 @@ randomization_fns = {
     "ant": ant.domain_randomization,
     "ant_safe": ant.domain_randomization,
     "WalkerWalk": walker.domain_randomization,
+    "WalkerRun": walker.domain_randomization,
+    "SafeWalkerWalk": walker.domain_randomization,
+    "SafeWalkerRun": walker.domain_randomization,
 }
 
 render_fns = {
@@ -194,4 +197,7 @@ render_fns = {
     "rccar": rccar.render,
     "Go1JoystickFlatTerrain": functools.partial(brax.render, camera="track"),
     "WalkerWalk": functools.partial(mujoco_playground.render, camera="side"),
+    "WalkerRun": functools.partial(mujoco_playground.render, camera="side"),
+    "SafeWalkerWalk": functools.partial(mujoco_playground.render, camera="side"),
+    "SafeWalkerRun": functools.partial(mujoco_playground.render, camera="side"),
 }

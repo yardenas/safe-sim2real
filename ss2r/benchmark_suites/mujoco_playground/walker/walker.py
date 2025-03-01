@@ -75,7 +75,7 @@ class ConstraintWrapper(Wrapper):
 
     def step(self, state: State, action: jax.Array) -> State:
         nstate = self.env.step(state, action)
-        joint_velocities = nstate.pipeline_state.qvel[3:]
+        joint_velocities = nstate.data.qvel[3:]
         cost = jnp.less(jnp.max(jnp.abs(joint_velocities)), self.limit).astype(
             jnp.float32
         )
@@ -94,4 +94,7 @@ for run in [True, False]:
         return env
 
     name_str = f"SafeWalker{run_str}"
-    dm_control_suite.register_environment(name_str, make)
+    dm_control_suite.register_environment(
+        name_str, make, dm_control_suite.walker.default_config
+    )
+    dm_control_suite.ALL += [name_str]
