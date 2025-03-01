@@ -4,7 +4,7 @@ import equinox as eqx
 import jax
 import jax.numpy as jnp
 from brax.envs import State, Wrapper
-from brax.training.acme import running_statistics
+from brax.training.acme import running_statistics, specs
 
 
 class PropagationFn(Protocol):
@@ -85,7 +85,8 @@ class ModelDisagreement(Wrapper):
         std = jnp.std(next_obs, axis=1).mean(-1)
         state.info["disagreement_std"] = std
         state.metrics["disagreement"] = std
-        params = running_statistics.init_state(next_obs)
+        obs_shape = specs.Array((next_obs.shape[-1],), jnp.dtype("float32"))
+        params = running_statistics.init_state(obs_shape)
         state.info["disagreement_params"] = params
         return state
 
