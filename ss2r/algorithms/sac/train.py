@@ -408,7 +408,7 @@ def train(
         if safe:
             extra_fields += ("cost",)  # type: ignore
         if propagation is not None:
-            extra_fields += ("disagreement",)  # type: ignore
+            extra_fields += ("disagreement_std",)  # type: ignore
         # TODO (yarden): if I ever need to sample states based on value functions
         # one way to code it is to add a function to the StatePropagation wrapper
         # that receives a function that takes states and returns their corresponding value functions
