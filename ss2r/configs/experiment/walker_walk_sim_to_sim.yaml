@@ -12,7 +12,7 @@ training:
   train_domain_randomization: true
   eval_domain_randomization: true
   value_privileged: true
-  safe: false
+  safe: true
 
 agent:
   propagation: ts1
