@@ -3,11 +3,12 @@ import functools
 import jax
 from brax import envs
 
-from ss2r.benchmark_suites import brax, wrappers
+from ss2r.benchmark_suites import brax, mujoco_playground, wrappers
 from ss2r.benchmark_suites.brax.ant import ant
 from ss2r.benchmark_suites.brax.cartpole import cartpole
 from ss2r.benchmark_suites.brax.humanoid import humanoid
 from ss2r.benchmark_suites.mujoco_playground.go1_joystick import go1_joystick
+from ss2r.benchmark_suites.mujoco_playground.walker import walker
 from ss2r.benchmark_suites.rccar import rccar
 from ss2r.benchmark_suites.utils import get_domain_name, get_task_config
 from ss2r.benchmark_suites.wrappers import (
@@ -158,7 +159,7 @@ def make_mujoco_playground_envs(cfg):
         action_repeat=cfg.training.action_repeat,
     )
     eval_randomization_fn = prepare_randomization_fn(
-        eval_key, cfg.training.num_eval_envs, None, task_cfg.task_name
+        eval_key, cfg.training.num_eval_envs, task_cfg.eval_params, task_cfg.task_name
     )
     eval_env = wrap_for_brax_training(
         eval_env,
@@ -177,9 +178,13 @@ randomization_fns = {
     "rccar": rccar.domain_randomization,
     "humanoid": humanoid.domain_randomization,
     "humanoid_safe": humanoid.domain_randomization,
-    "go1_joystick": go1_joystick.domain_randomization,
+    "Go1JoystickFlatTerrain": go1_joystick.domain_randomization,
     "ant": ant.domain_randomization,
     "ant_safe": ant.domain_randomization,
+    "WalkerWalk": walker.domain_randomization,
+    "WalkerRun": walker.domain_randomization,
+    "SafeWalkerWalk": walker.domain_randomization,
+    "SafeWalkerRun": walker.domain_randomization,
 }
 
 render_fns = {
@@ -190,5 +195,9 @@ render_fns = {
     "ant": functools.partial(brax.render, camera="track"),
     "ant_safe": functools.partial(brax.render, camera="track"),
     "rccar": rccar.render,
-    "go_1_joystick": functools.partial(brax.render, camera="track"),
+    "Go1JoystickFlatTerrain": functools.partial(brax.render, camera="track"),
+    "WalkerWalk": functools.partial(mujoco_playground.render, camera="side"),
+    "WalkerRun": functools.partial(mujoco_playground.render, camera="side"),
+    "SafeWalkerWalk": functools.partial(mujoco_playground.render, camera="side"),
+    "SafeWalkerRun": functools.partial(mujoco_playground.render, camera="side"),
 }
