@@ -8,6 +8,7 @@ task_params:
   episode_length: 1000
   sim_dt: 0.0025
   vision: false
+  joint_velocity_limit: 16.25 # 65 * 0.25 (rad/s)
 
 train_params:
   torso_length: [-0.2, 0.2]

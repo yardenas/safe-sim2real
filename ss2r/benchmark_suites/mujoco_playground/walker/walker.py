@@ -1,5 +1,8 @@
 import jax
 import jax.numpy as jnp
+from brax.envs import Env, Wrapper
+from brax.envs.base import State
+from mujoco_playground import dm_control_suite
 
 _TORSO_ID = 1
 _LEFT_THIGH_ID = 5
@@ -57,3 +60,38 @@ def domain_randomization(sys, rng, cfg):
         }
     )
     return sys, in_axes
+
+
+class ConstraintWrapper(Wrapper):
+    def __init__(self, env: Env, limit: float):
+        assert isinstance(env, dm_control_suite.walker.PlanarWalker)
+        super().__init__(env)
+        self.limit = limit
+
+    def reset(self, rng: jax.Array) -> State:
+        state = self.env.reset(rng)
+        state.info["cost"] = jnp.zeros_like(state.reward)
+        return state
+
+    def step(self, state: State, action: jax.Array) -> State:
+        nstate = self.env.step(state, action)
+        joint_velocities = nstate.pipeline_state.qvel[3:]
+        cost = jnp.less(jnp.max(jnp.abs(joint_velocities)), self.limit).astype(
+            jnp.float32
+        )
+        nstate.info["cost"] = cost
+        return nstate
+
+
+for run in [True, False]:
+    name = ["Walker"]
+    run_str = "Run" if run else "Walk"
+
+    def make(**kwargs):
+        angular_velocity_limit = kwargs.pop("joint_velocity_limit", 16.25)
+        env = dm_control_suite.load(f"Walker{run_str}", **kwargs)
+        env = ConstraintWrapper(env, angular_velocity_limit)
+        return env
+
+    name_str = f"SafeWalker{run_str}"
+    dm_control_suite.register_environment(name_str, make)
