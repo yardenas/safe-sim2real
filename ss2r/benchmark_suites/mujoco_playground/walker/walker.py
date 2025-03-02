@@ -26,17 +26,17 @@ def domain_randomization(sys, rng, cfg):
         inertia = sys.body_inertia.at[_TORSO_ID].multiply(scale_factor**3)
         pos = pos.at[_LEFT_THIGH_ID, -1].add(torso_length_sample)
         pos = pos.at[_RIGHT_THIGH_ID, -1].add(torso_length_sample)
-        friction = jax.random.uniform(
+        friction_sample = jax.random.uniform(
             rng, minval=cfg.friction[0], maxval=cfg.friction[1]
         )
-        friction = sys.geom_friction.at[:, 0].add(friction)
+        friction = sys.geom_friction.at[:, 0].add(friction_sample)
         return (
             pos,
             mass,
             inertia,
             geom,
             friction,
-            scale_factor[None],
+            jnp.hstack([friction_sample, torso_length_sample]),
         )
 
     pos, mass, inertia, geom, friction, samples = randomize(rng)
