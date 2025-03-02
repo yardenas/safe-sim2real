@@ -19,7 +19,8 @@ def domain_randomization(sys, rng, cfg):
         torso_length_sample = jnp.clip(torso_length_sample, a_min=-0.2, a_max=0.4)
         length = 0.3 + torso_length_sample
         scale_factor = length / 0.3
-        geom = sys.geom_size.at[_TORSO_ID, 1].set(length)
+        geom = sys.geom_size.copy()
+        geom = geom.at[_TORSO_ID, 1].set(length)
         inertia_pos = sys.body_ipos.copy()
         inertia_pos = inertia_pos.at[_TORSO_ID, -1].add(torso_length_sample)
         mass = sys.body_mass.at[_TORSO_ID].multiply(scale_factor)
