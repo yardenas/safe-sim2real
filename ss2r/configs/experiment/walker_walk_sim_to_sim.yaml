@@ -6,7 +6,7 @@ defaults:
   - override /agent/cost_robustness: ucb_cost
 
 training:
-  num_envs: 128
+  num_envs: 16
   num_timesteps: 5000000
   episode_length: 1000
   train_domain_randomization: true
