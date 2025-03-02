@@ -19,26 +19,19 @@ def domain_randomization(sys, rng, cfg):
         torso_length_sample = jnp.clip(torso_length_sample, a_min=-0.2, a_max=0.4)
         length = 0.3 + torso_length_sample
         scale_factor = length / 0.3
+        scale_factor = 3 * scale_factor / (2 * scale_factor + 1)
         geom = sys.geom_size.copy()
         geom = geom.at[_TORSO_ID, 1].set(length)
         inertia_pos = sys.body_ipos.copy()
         inertia_pos = inertia_pos.at[_TORSO_ID, -1].add(torso_length_sample / 2.0)
         mass = sys.body_mass.at[_TORSO_ID].multiply(scale_factor)
         inertia = sys.body_inertia.at[_TORSO_ID].multiply(scale_factor**3)
-        pos = sys.body_pos.copy()
-        pos = pos.at[_LEFT_THIGH_ID, -1].set(-length)
-        pos = pos.at[_RIGHT_THIGH_ID, -1].set(-length)
-        inertia_pos = inertia_pos.at[_LEFT_THIGH_ID, -1].add(-torso_length_sample / 2.0)
-        inertia_pos = inertia_pos.at[_RIGHT_THIGH_ID, -1].add(
-            -torso_length_sample / 2.0
-        )
         friction_sample = jax.random.uniform(
             rng, minval=cfg.friction[0], maxval=cfg.friction[1]
         )
         friction = sys.geom_friction.at[:, 0].add(friction_sample)
         return (
             inertia_pos,
-            pos,
             mass,
             inertia,
             geom,
@@ -46,12 +39,11 @@ def domain_randomization(sys, rng, cfg):
             jnp.hstack([friction_sample, torso_length_sample]),
         )
 
-    inertia_pos, pos, mass, inertia, geom, friction, samples = randomize(rng)
+    inertia_pos, mass, inertia, geom, friction, samples = randomize(rng)
     in_axes = jax.tree_map(lambda x: None, sys)
     in_axes = in_axes.tree_replace(
         {
             "body_ipos": 0,
-            "body_pos": 0,
             "body_mass": 0,
             "body_inertia": 0,
             "geom_size": 0,
@@ -61,7 +53,6 @@ def domain_randomization(sys, rng, cfg):
     sys = sys.tree_replace(
         {
             "body_ipos": inertia_pos,
-            "body_pos": pos,
             "body_mass": mass,
             "body_inertia": inertia,
             "geom_size": geom,
