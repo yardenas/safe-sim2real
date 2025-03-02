@@ -37,7 +37,7 @@ class UCBCost(QTransformation):
         next_action, _ = policy(transitions.next_observation)
         next_q = q_fn(transitions.next_observation, next_action)
         next_v = next_q.mean(axis=-1)
-        std = transitions.extras["state_extras"]["disagreement_std"]
+        std = transitions.extras["state_extras"]["disagreement"]
         cost = transitions.extras["state_extras"]["cost"] + self.lambda_ * std
         target_q = jax.lax.stop_gradient(cost + transitions.discount * gamma * next_v)
         return target_q
@@ -171,7 +171,7 @@ class LCBReward(QTransformation):
         next_q = q_fn(transitions.next_observation, next_action)
         next_v = next_q.min(axis=-1)
         next_v -= alpha * next_log_prob
-        std = transitions.extras["state_extras"]["disagreement_std"]
+        std = transitions.extras["state_extras"]["disagreement"]
         reward = transitions.reward - self.lambda_ * std
         target_q = jax.lax.stop_gradient(
             reward * reward_scaling + transitions.discount * gamma * next_v

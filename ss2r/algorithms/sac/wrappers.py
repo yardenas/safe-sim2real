@@ -4,7 +4,6 @@ import equinox as eqx
 import jax
 import jax.numpy as jnp
 from brax.envs import State, Wrapper
-from brax.training.acme import running_statistics, specs
 
 
 class PropagationFn(Protocol):
@@ -82,22 +81,15 @@ class ModelDisagreement(Wrapper):
     def reset(self, rng: jax.Array) -> State:
         state = self.env.reset(rng)
         next_obs = state.info["state_propagation"]["next_obs"]
-        std = jnp.std(next_obs, axis=1).mean(-1)
-        state.info["disagreement_std"] = std
-        state.metrics["disagreement"] = std
-        obs_shape = specs.Array((next_obs.shape[-1],), jnp.dtype("float32"))
-        params = running_statistics.init_state(obs_shape)
-        state.info["disagreement_params"] = params
+        variance = jnp.var(next_obs, axis=1).mean(-1)
+        state.info["disagreement"] = variance
+        state.metrics["disagreement"] = variance
         return state
 
     def step(self, state: State, action: jax.Array) -> State:
-        params = state.info.pop("disagreement_params")
         nstate = self.env.step(state, action)
         next_obs = state.info["state_propagation"]["next_obs"]
-        params = running_statistics.update(params, next_obs)
-        next_obs = running_statistics.normalize(next_obs, params)
-        std = jnp.std(next_obs, axis=1).mean(-1)
-        nstate.info["disagreement_std"] = std
-        nstate.info["disagreement_params"] = params
-        nstate.metrics["disagreement"] = std
+        variance = jnp.var(next_obs, axis=1).mean(-1)
+        nstate.info["disagreement"] = variance
+        nstate.metrics["disagreement"] = variance
         return nstate

@@ -247,7 +247,7 @@ def train(
     if safe:
         extras["state_extras"]["cost"] = 0.0  # type: ignore
     if propagation is not None:
-        extras["state_extras"]["disagreement_std"] = 0.0  # type: ignore
+        extras["state_extras"]["disagreement"] = 0.0  # type: ignore
     dummy_transition = Transition(  # pytype: disable=wrong-arg-types  # jax-ndarray
         observation=dummy_obs,
         action=dummy_action,
@@ -408,7 +408,7 @@ def train(
         if safe:
             extra_fields += ("cost",)  # type: ignore
         if propagation is not None:
-            extra_fields += ("disagreement_std",)  # type: ignore
+            extra_fields += ("disagreement",)  # type: ignore
         # TODO (yarden): if I ever need to sample states based on value functions
         # one way to code it is to add a function to the StatePropagation wrapper
         # that receives a function that takes states and returns their corresponding value functions
