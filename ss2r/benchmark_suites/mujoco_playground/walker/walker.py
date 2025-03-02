@@ -28,6 +28,10 @@ def domain_randomization(sys, rng, cfg):
         pos = sys.body_pos.copy()
         pos = pos.at[_LEFT_THIGH_ID, -1].set(-length)
         pos = pos.at[_RIGHT_THIGH_ID, -1].set(-length)
+        inertia_pos = inertia_pos.at[_LEFT_THIGH_ID, -1].add(-torso_length_sample / 2.0)
+        inertia_pos = inertia_pos.at[_RIGHT_THIGH_ID, -1].add(
+            -torso_length_sample / 2.0
+        )
         friction_sample = jax.random.uniform(
             rng, minval=cfg.friction[0], maxval=cfg.friction[1]
         )
