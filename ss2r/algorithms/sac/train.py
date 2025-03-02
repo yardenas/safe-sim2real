@@ -247,7 +247,7 @@ def train(
     if safe:
         extras["state_extras"]["cost"] = 0.0  # type: ignore
     if propagation is not None:
-        extras["state_extras"]["disagreement"] = 0.0  # type: ignore
+        extras["state_extras"]["disagreement_std"] = 0.0  # type: ignore
     dummy_transition = Transition(  # pytype: disable=wrong-arg-types  # jax-ndarray
         observation=dummy_obs,
         action=dummy_action,
@@ -408,7 +408,7 @@ def train(
         if safe:
             extra_fields += ("cost",)  # type: ignore
         if propagation is not None:
-            extra_fields += ("disagreement",)  # type: ignore
+            extra_fields += ("disagreement_std",)  # type: ignore
         # TODO (yarden): if I ever need to sample states based on value functions
         # one way to code it is to add a function to the StatePropagation wrapper
         # that receives a function that takes states and returns their corresponding value functions
@@ -445,10 +445,9 @@ def train(
     @jax.jit
     def training_step_jitted(
         training_state: TrainingState,
-        env_state: envs.State,
         buffer_state: ReplayBufferState,
         training_key: PRNGKey,
-    ) -> Tuple[TrainingState, envs.State, ReplayBufferState, Metrics]:
+    ) -> Tuple[TrainingState, ReplayBufferState, Metrics]:
         """Runs the jittable training step after experience collection."""
         buffer_state, transitions = replay_buffer.sample(buffer_state)
         # Change the front dimension of transitions so 'update_step' is called
@@ -461,7 +460,7 @@ def train(
             sgd_step, (training_state, training_key), transitions
         )
         metrics["buffer_current_size"] = replay_buffer.size(buffer_state)
-        return training_state, env_state, buffer_state, metrics
+        return training_state, buffer_state, metrics
 
     def training_step(
         training_state: TrainingState,
@@ -473,9 +472,11 @@ def train(
         training_state, env_state, buffer_state, training_key = run_experience_step(
             training_state, env_state, buffer_state, key
         )
-        return training_step_jitted(
-            training_state, env_state, buffer_state, training_key
+        training_state, buffer_state, training_metrics = training_step_jitted(
+            training_state, buffer_state, training_key
         )
+        training_metrics |= env_state.metrics
+        return training_state, env_state, buffer_state, training_metrics
 
     def prefill_replay_buffer(
         training_state: TrainingState,
