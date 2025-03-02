@@ -13,7 +13,6 @@ def domain_randomization(sys, rng, cfg):
     @jax.vmap
     def randomize(rng):
         #  https://github.com/google-research/realworldrl_suite/blob/be7a51cffa7f5f9cb77a387c16bad209e0f851f8/realworldrl_suite/environments/walker.py#L593
-        pos = sys.body_pos.copy()
         torso_length_sample = jax.random.uniform(
             rng, minval=cfg.torso_length[0], maxval=cfg.torso_length[1]
         )
@@ -21,9 +20,11 @@ def domain_randomization(sys, rng, cfg):
         length = 0.3 + torso_length_sample
         scale_factor = length / 0.3
         geom = sys.geom_size.at[_TORSO_ID, 1].set(length)
-        pos = pos.at[_TORSO_ID, -1].set(length)
+        inertia_pos = sys.body_ipos.copy()
+        inertia_pos = inertia_pos.at[_TORSO_ID, -1].set(length)
         mass = sys.body_mass.at[_TORSO_ID].multiply(scale_factor)
         inertia = sys.body_inertia.at[_TORSO_ID].multiply(scale_factor**3)
+        pos = sys.body_pos.copy()
         pos = pos.at[_LEFT_THIGH_ID, -1].set(-length)
         pos = pos.at[_RIGHT_THIGH_ID, -1].set(-length)
         friction_sample = jax.random.uniform(
@@ -31,6 +32,7 @@ def domain_randomization(sys, rng, cfg):
         )
         friction = sys.geom_friction.at[:, 0].add(friction_sample)
         return (
+            inertia_pos,
             pos,
             mass,
             inertia,
@@ -39,10 +41,11 @@ def domain_randomization(sys, rng, cfg):
             jnp.hstack([friction_sample, torso_length_sample]),
         )
 
-    pos, mass, inertia, geom, friction, samples = randomize(rng)
+    inertia_pos, pos, mass, inertia, geom, friction, samples = randomize(rng)
     in_axes = jax.tree_map(lambda x: None, sys)
     in_axes = in_axes.tree_replace(
         {
+            "body_ipos": 0,
             "body_pos": 0,
             "body_mass": 0,
             "body_inertia": 0,
@@ -52,6 +55,7 @@ def domain_randomization(sys, rng, cfg):
     )
     sys = sys.tree_replace(
         {
+            "body_ipos": inertia_pos,
             "body_pos": pos,
             "body_mass": mass,
             "body_inertia": inertia,
