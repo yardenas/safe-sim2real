@@ -167,11 +167,11 @@ class DomainRandomizationVmapBase(Wrapper):
     def __init__(self, env, randomization_fn, *, augment_state=True):
         super().__init__(env)
         self.augment_state = augment_state
-
-        # Call child-specific method to set up randomized models
-        self._init_randomization(randomization_fn)
-
-        # Determine if we need to strip privileged state
+        (
+            self._randomized_models,
+            self._in_axes,
+            self.domain_parameters,
+        ) = self._init_randomization(randomization_fn)
         dummy = self.env.reset(jax.random.PRNGKey(0))
         self.strip_privileged_state = isinstance(dummy.obs, jax.Array)
 
@@ -257,11 +257,7 @@ class DomainRandomizationVmapBase(Wrapper):
 
 class DomainRandomizationVmapWrapper(DomainRandomizationVmapBase):
     def _init_randomization(self, randomization_fn):
-        (
-            self._randomized_models,
-            self._in_axes,
-            self.domain_parameters,
-        ) = randomization_fn(self.sys)
+        return randomization_fn(self.sys)
 
     def _env_fn(self, model):
         env = self.env

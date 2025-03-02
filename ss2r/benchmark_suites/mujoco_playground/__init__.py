@@ -66,11 +66,7 @@ def wrap_for_brax_training(
 
 class BraxDomainRandomizationVmapWrapper(wrappers.DomainRandomizationVmapBase):
     def _init_randomization(self, randomization_fn):
-        (
-            self._randomized_models,
-            self._in_axes,
-            self.domain_parameteres,
-        ) = randomization_fn(self.mjx_model)
+        return randomization_fn(self.mjx_model)
 
     def _env_fn(self, model):
         env = self.env
