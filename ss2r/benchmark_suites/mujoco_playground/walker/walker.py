@@ -59,7 +59,7 @@ def domain_randomization(sys, rng, cfg):
             "geom_friction": friction,
         }
     )
-    return sys, in_axes
+    return sys, in_axes, samples
 
 
 class ConstraintWrapper(Wrapper):
