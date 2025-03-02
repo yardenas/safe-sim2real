@@ -4,6 +4,7 @@ import equinox as eqx
 import jax
 import jax.numpy as jnp
 from brax.envs import State, Wrapper
+from brax.training.acme import running_statistics, specs
 
 
 class PropagationFn(Protocol):
@@ -38,8 +39,13 @@ class StatePropagation(Wrapper):
         self.num_envs = None
 
     def reset(self, rng: jax.Array) -> State:
+        # TODO (yarden): this code is not jax compatible.
         if self.num_envs is None:
             self.num_envs = rng.shape[0]
+        # No need to randomize the initial state. Otherwise, even without
+        # domain randomization, the initial states will be different, having
+        # a non-zero disagreement.
+        rng = jnp.tile(rng[:1], (self.num_envs, 1))
         state = self.env.reset(rng)
         propagation_rng = jax.random.split(rng[0])[1]
         n_key, key = jax.random.split(propagation_rng)
@@ -76,15 +82,24 @@ class ModelDisagreement(Wrapper):
     def reset(self, rng: jax.Array) -> State:
         state = self.env.reset(rng)
         next_obs = state.info["state_propagation"]["next_obs"]
-        std = jnp.std(next_obs, axis=0).mean(-1)
-        state.info["disagreement"] = std
+        std = jnp.std(next_obs, axis=1).mean(-1)
+        state.info["disagreement_std"] = std
+        state.metrics["disagreement"] = std
+        obs_shape = specs.Array((next_obs.shape[-1],), jnp.dtype("float32"))
+        params = running_statistics.init_state(obs_shape)
+        state.info["disagreement_params"] = params
         return state
 
     def step(self, state: State, action: jax.Array) -> State:
+        params = state.info.pop("disagreement_params")
         nstate = self.env.step(state, action)
         next_obs = state.info["state_propagation"]["next_obs"]
-        std = jnp.std(next_obs, axis=0).mean(-1)
-        state.info["disagreement"] = std
+        params = running_statistics.update(params, next_obs)
+        next_obs = running_statistics.normalize(next_obs, params)
+        std = jnp.std(next_obs, axis=1).mean(-1)
+        nstate.info["disagreement_std"] = std
+        nstate.info["disagreement_params"] = params
+        nstate.metrics["disagreement"] = std
         return nstate
 
 

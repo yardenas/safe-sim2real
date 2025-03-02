@@ -12,21 +12,18 @@ training:
   value_privileged: false
 
 environment:
-  train_params:
-    friction: [0., 0.]
-    hip:
-      x: [-20., 20.]
-      y: [-20., 20.]
-      z: [-60., 60.]
-    knee: [-40., 40.]
-
   eval_params:
-    friction: [-0.3, 0.]
-    hip:
+    friction: [-0.1, 0.]
+    gain_hip:
+      x: [0., 0.]
+      y: [0., 0.]
+      z: [0., 0.]
+    gain_knee: [0., 0.]
+    gear_hip:
       x: [-20., 20.]
       y: [-20., 20.]
       z: [-60., 60.]
-    knee: [-40., 40.]
+    gear_knee: [-40., 40.]
 
 agent:
   grad_updates_per_step: 256
