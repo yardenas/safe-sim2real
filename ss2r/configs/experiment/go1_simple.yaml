@@ -1,6 +1,7 @@
 # @package _global_
 defaults:
   - _self_ 
+  - mujoco_playground_dm_control
   - override /environment: go1_joystick
 
 
