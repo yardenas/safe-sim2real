@@ -5,7 +5,7 @@ defaults:
   - override /environment: go1_joystick
 
 training:
-  num_timesteps: 10000000
+  num_timesteps: 25000000
   train_domain_randomization: false
   eval_domain_randomization: false
   safe: false
@@ -17,7 +17,7 @@ agent:
   hidden_layer_sizes: [256, 256, 256]
   activation: relu
   init_alpha: -0.5
-  grad_updates_per_step: 128
+  grad_updates_per_step: 64
   learning_rate: 0.01
   max_replay_size: 1048576
-  discounting: 0.97
+  discounting: 0.95
