@@ -231,7 +231,7 @@ def train(
     alpha_optimizer = optax.adam(learning_rate=alpha_learning_rate)
     make_optimizer = lambda lr, grad_clip_norm: optax.chain(
         optax.clip_by_global_norm(grad_clip_norm),
-        optax.adamw(learning_rate=lr),
+        optax.adam(learning_rate=lr),
     )
     policy_optimizer = make_optimizer(learning_rate, 1.0)
     qr_optimizer = make_optimizer(critic_learning_rate, 1.0)
@@ -308,7 +308,7 @@ def train(
             key_alpha,
             optimizer_state=training_state.alpha_optimizer_state,
         )
-        alpha = jnp.exp(training_state.alpha_params) + min_alpha
+        alpha = jnp.exp(training_state.alpha_params)
         critic_loss, qr_params, qr_optimizer_state = critic_update(
             training_state.qr_params,
             training_state.policy_params,
