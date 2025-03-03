@@ -139,7 +139,7 @@ def get_train_fn(cfg):
         if "network_factory" in ppo_params:
             del ppo_training_params["network_factory"]
         if not cfg.training.value_privileged:
-            ppo_training_params["value_obs_key"] = "state"
+            ppo_params.network_factory.value_obs_key = "state"
         network_factory = functools.partial(
             ppo_networks.make_ppo_networks, **ppo_params.network_factory
         )
