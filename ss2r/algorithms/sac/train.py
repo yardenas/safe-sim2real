@@ -154,6 +154,7 @@ def train(
     cost_critic_learning_rate: float = 1e-4,
     alpha_learning_rate: float = 3e-4,
     init_alpha: float | None = None,
+    min_alpha: float = 0.0,
     discounting: float = 0.9,
     safety_discounting: float = 0.9,
     seed: int = 0,
@@ -230,7 +231,7 @@ def train(
     alpha_optimizer = optax.adam(learning_rate=alpha_learning_rate)
     make_optimizer = lambda lr, grad_clip_norm: optax.chain(
         optax.clip_by_global_norm(grad_clip_norm),
-        optax.radam(learning_rate=lr),
+        optax.adamw(learning_rate=lr),
     )
     policy_optimizer = make_optimizer(learning_rate, 1.0)
     qr_optimizer = make_optimizer(critic_learning_rate, 1.0)
@@ -307,7 +308,7 @@ def train(
             key_alpha,
             optimizer_state=training_state.alpha_optimizer_state,
         )
-        alpha = jnp.exp(training_state.alpha_params)
+        alpha = jnp.exp(training_state.alpha_params) + min_alpha
         critic_loss, qr_params, qr_optimizer_state = critic_update(
             training_state.qr_params,
             training_state.policy_params,
