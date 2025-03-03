@@ -19,3 +19,4 @@ agent:
   grad_updates_per_step: 128
   learning_rate: 0.01
   max_replay_size: 1048576
+  discounting: 0.97
