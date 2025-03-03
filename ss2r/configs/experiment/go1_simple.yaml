@@ -16,4 +16,5 @@ agent:
   hidden_layer_sizes: [256, 256, 256]
   activation: relu
   init_alpha: -0.5
+  value_privileged: true
   
