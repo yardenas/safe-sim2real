@@ -5,7 +5,6 @@ defaults:
   - override /environment: go1_joystick
 
 training:
-  num_envs: 256
   num_timesteps: 50000000
   train_domain_randomization: false
   eval_domain_randomization: false
