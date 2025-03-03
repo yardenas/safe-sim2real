@@ -11,6 +11,7 @@ training:
   safe: false
   num_evals: 25
   value_privileged: true
+  num_envs: 128
 
 agent:
   hidden_layer_sizes: [256, 256, 256]
