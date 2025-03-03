@@ -14,4 +14,4 @@ agent:
   hidden_layer_sizes: [256, 256, 256]
   activation: relu
   learning_rate: 0.001
-  grad_updates_per_step: 32
+  grad_updates_per_step: 64
