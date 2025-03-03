@@ -17,4 +17,5 @@ agent:
   activation: relu
   init_alpha: -0.5
   value_privileged: true
+  grad_updates_per_step: 32
   
