@@ -1,13 +1,17 @@
 # @package _global_
 defaults:
-  - _self_ 
-  - mujoco_playground_dm_control
+  - _self_
   - override /environment: go1_joystick
 
-
 training:
-  num_envs: 128
-  num_timesteps: 500000
+  num_envs: 256
+  num_timesteps: 5000000
   train_domain_randomization: false
   eval_domain_randomization: false
   safe: false
+
+agent:
+  grad_updates_per_step: 256
+  hidden_layer_sizes: [256, 256, 256]
+  activation: relu
+  reward_scaling: 5.
