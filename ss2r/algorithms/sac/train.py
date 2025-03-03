@@ -232,9 +232,9 @@ def train(
         optax.clip_by_global_norm(grad_clip_norm),
         optax.radam(learning_rate=lr),
     )
-    policy_optimizer = make_optimizer(learning_rate, 10.0)
-    qr_optimizer = make_optimizer(critic_learning_rate, 10.0)
-    qc_optimizer = make_optimizer(cost_critic_learning_rate, 10.0) if safe else None
+    policy_optimizer = make_optimizer(learning_rate, 1.0)
+    qr_optimizer = make_optimizer(critic_learning_rate, 1.0)
+    qc_optimizer = make_optimizer(cost_critic_learning_rate, 1.0) if safe else None
     if isinstance(obs_size, Mapping):
         dummy_obs = {k: jnp.zeros(v) for k, v in obs_size.items()}
     else:

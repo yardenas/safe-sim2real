@@ -1,6 +1,7 @@
 # @package _global_
 defaults:
   - _self_
+  - mujoco_playground_dm_control
   - override /environment: go1_joystick
 
 training:
@@ -9,12 +10,10 @@ training:
   train_domain_randomization: false
   eval_domain_randomization: false
   safe: false
+  num_evals: 50
 
 agent:
   hidden_layer_sizes: [256, 256, 256]
   activation: relu
-  learning_rate: 0.001
-  grad_updates_per_step: 64
-  max_replay_size: 4194304
   init_alpha: -0.5
   
