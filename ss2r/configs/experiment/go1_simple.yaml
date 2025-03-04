@@ -1,6 +1,5 @@
 # @package _global_
 defaults:
-  - mujoco_playground_dm_control
   - _self_
   - override /environment: go1_joystick
 
@@ -14,9 +13,11 @@ training:
   num_envs: 128
 
 agent:
+  batch_size: 512
   hidden_layer_sizes: [256, 256, 256]
   grad_updates_per_step: 16
   learning_rate: 0.001
   max_replay_size: 1048576
   discounting: 0.95
   reward_scaling: 125
+  min_replay_size: 8192
