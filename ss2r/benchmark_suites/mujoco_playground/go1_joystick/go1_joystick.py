@@ -30,7 +30,7 @@ class SampleCommand(Wrapper):
         self.frequency_factor = frequency_factor
 
     def step(self, state, action):
-        state = self.step(state, action)
+        state = self.env.step(state, action)
         current_step = state.info["steps_until_next_cmd"]
         # First undo -1 by the original step function
         correct_step = (current_step + 1) - self.frequency_factor
