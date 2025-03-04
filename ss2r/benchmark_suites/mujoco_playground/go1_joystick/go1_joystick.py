@@ -23,7 +23,7 @@ def domain_randomization(sys, rng, cfg):
 
 
 class SampleCommand(Wrapper):
-    def __init__(self, env, frequency_factor=1.0):
+    def __init__(self, env, frequency_factor=1):
         super().__init__(env)
         if not isinstance(frequency_factor, int) or frequency_factor < 1:
             raise ValueError("frequency_factor must be an integer greater than 0")
