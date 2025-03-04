@@ -15,7 +15,6 @@ training:
 
 agent:
   hidden_layer_sizes: [256, 256, 256]
-  activation: relu
   grad_updates_per_step: 16
   learning_rate: 0.001
   max_replay_size: 1048576
