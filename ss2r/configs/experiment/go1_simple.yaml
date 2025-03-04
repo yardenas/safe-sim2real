@@ -21,3 +21,4 @@ agent:
   learning_rate: 0.001
   max_replay_size: 1048576
   discounting: 0.95
+  reward_scaling: 125

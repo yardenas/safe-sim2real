@@ -159,6 +159,8 @@ def make_mujoco_playground_envs(cfg):
         episode_length=cfg.training.episode_length,
         action_repeat=cfg.training.action_repeat,
     )
+    if "Go1" in task_cfg.task_name:
+        train_env = go1_joystick.SampleCommand(train_env, task_cfg.command_sample)
     eval_randomization_fn = (
         prepare_randomization_fn(
             eval_key,
