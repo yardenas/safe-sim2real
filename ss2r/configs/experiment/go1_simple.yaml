@@ -17,7 +17,7 @@ agent:
   hidden_layer_sizes: [256, 256, 256]
   activation: relu
   init_alpha: -0.5
-  grad_updates_per_step: 32
+  grad_updates_per_step: 16
   learning_rate: 0.001
   max_replay_size: 1048576
   discounting: 0.95
