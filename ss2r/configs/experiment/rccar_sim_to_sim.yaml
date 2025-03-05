@@ -3,7 +3,7 @@ defaults:
   - override /environment: rccar
   - override /environment/train_car_params: car_2
   - override /environment/eval_car_params: car_2_blend
-  - override /agent/robustness: cvar
+  - override /agent/cost_robustness: ucb_cost
 
 environment:
   action_delay: 1
@@ -18,7 +18,7 @@ training:
   episode_length: 250
   train_domain_randomization: true
   eval_domain_randomization: true
-  privileged: true
+  value_privileged: true
   safety_budget: 5.0
 
 agent:

@@ -1,0 +1,14 @@
+# @package _global_
+defaults:
+  - _self_
+  - mujoco_playground_dm_control
+  - override /environment: walker
+
+training:
+  num_envs: 128
+  num_timesteps: 2000000
+  episode_length: 1000
+  train_domain_randomization: false
+  eval_domain_randomization: false
+  safe: false
+  safety_budget: 100.

@@ -3,9 +3,12 @@ import functools
 import jax
 from brax import envs
 
-from ss2r.benchmark_suites import brax, wrappers
+from ss2r.benchmark_suites import brax, mujoco_playground, wrappers
+from ss2r.benchmark_suites.brax.ant import ant
 from ss2r.benchmark_suites.brax.cartpole import cartpole
 from ss2r.benchmark_suites.brax.humanoid import humanoid
+from ss2r.benchmark_suites.mujoco_playground.go1_joystick import go1_joystick
+from ss2r.benchmark_suites.mujoco_playground.walker import walker
 from ss2r.benchmark_suites.rccar import rccar
 from ss2r.benchmark_suites.utils import get_domain_name, get_task_config
 from ss2r.benchmark_suites.wrappers import (
@@ -20,6 +23,8 @@ def make(cfg):
         return make_brax_envs(cfg)
     elif domain_name == "rccar":
         return make_rccar_envs(cfg)
+    elif domain_name == "mujoco_playground":
+        return make_mujoco_playground_envs(cfg)
 
 
 def prepare_randomization_fn(key, num_envs, cfg, task_name):
@@ -88,6 +93,7 @@ def make_rccar_envs(cfg):
         episode_length=cfg.training.episode_length,
         action_repeat=cfg.training.action_repeat,
         randomization_fn=eval_randomization_fn,
+        augment_state=cfg.training.train_domain_randomization,
     )
     return train_env, eval_env
 
@@ -124,6 +130,50 @@ def make_brax_envs(cfg):
         randomization_fn=eval_randomization_fn
         if cfg.training.eval_domain_randomization
         else None,
+        augment_state=cfg.training.train_domain_randomization,
+    )
+    return train_env, eval_env
+
+
+def make_mujoco_playground_envs(cfg):
+    from ml_collections import config_dict
+    from mujoco_playground import registry
+
+    from ss2r.benchmark_suites.mujoco_playground import wrap_for_brax_training
+
+    task_cfg = get_task_config(cfg)
+    task_params = config_dict.ConfigDict(task_cfg.task_params)
+    train_env = registry.load(task_cfg.task_name, config=task_params)
+    eval_env = registry.load(task_cfg.task_name, config=task_params)
+    train_key, eval_key = jax.random.split(jax.random.PRNGKey(cfg.training.seed))
+    train_randomization_fn = (
+        prepare_randomization_fn(
+            train_key, cfg.training.num_envs, task_cfg.train_params, task_cfg.task_name
+        )
+        if cfg.training.train_domain_randomization
+        else None
+    )
+    train_env = wrap_for_brax_training(
+        train_env,
+        randomization_fn=train_randomization_fn,
+        episode_length=cfg.training.episode_length,
+        action_repeat=cfg.training.action_repeat,
+    )
+    eval_randomization_fn = (
+        prepare_randomization_fn(
+            eval_key,
+            cfg.training.num_eval_envs,
+            task_cfg.eval_params,
+            task_cfg.task_name,
+        )
+        if cfg.training.eval_domain_randomization
+        else None
+    )
+    eval_env = wrap_for_brax_training(
+        eval_env,
+        episode_length=cfg.training.episode_length,
+        action_repeat=cfg.training.action_repeat,
+        randomization_fn=eval_randomization_fn,
     )
     return train_env, eval_env
 
@@ -134,6 +184,13 @@ randomization_fns = {
     "rccar": rccar.domain_randomization,
     "humanoid": humanoid.domain_randomization,
     "humanoid_safe": humanoid.domain_randomization,
+    "Go1JoystickFlatTerrain": go1_joystick.domain_randomization,
+    "ant": ant.domain_randomization,
+    "ant_safe": ant.domain_randomization,
+    "WalkerWalk": walker.domain_randomization,
+    "WalkerRun": walker.domain_randomization,
+    "SafeWalkerWalk": walker.domain_randomization,
+    "SafeWalkerRun": walker.domain_randomization,
 }
 
 render_fns = {
@@ -141,5 +198,14 @@ render_fns = {
     "cartpole_safe": brax.render,
     "humanoid": functools.partial(brax.render, camera="track"),
     "humanoid_safe": functools.partial(brax.render, camera="track"),
+    "ant": functools.partial(brax.render, camera="track"),
+    "ant_safe": functools.partial(brax.render, camera="track"),
     "rccar": rccar.render,
+    "Go1JoystickFlatTerrain": functools.partial(
+        mujoco_playground.render, camera="track"
+    ),
+    "WalkerWalk": functools.partial(mujoco_playground.render, camera="side"),
+    "WalkerRun": functools.partial(mujoco_playground.render, camera="side"),
+    "SafeWalkerWalk": functools.partial(mujoco_playground.render, camera="side"),
+    "SafeWalkerRun": functools.partial(mujoco_playground.render, camera="side"),
 }

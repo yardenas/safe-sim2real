@@ -161,39 +161,108 @@ class FrameActionStack(Wrapper):
         return jp.concatenate([flat_obs, flat_actions])
 
 
-class DomainRandomizationVmapWrapper(Wrapper):
-    def __init__(
-        self,
-        env: Env,
-        randomization_fn: Callable[[System], Tuple[System, System, jax.Array]],
-    ):
+class DomainRandomizationVmapBase(Wrapper):
+    """Base class for domain randomization wrappers."""
+
+    def __init__(self, env, randomization_fn, *, augment_state=True):
         super().__init__(env)
-        self._sys_v, self._in_axes, self.domain_parameters = randomization_fn(self.sys)
+        self.augment_state = augment_state
+        (
+            self._randomized_models,
+            self._in_axes,
+            self.domain_parameters,
+        ) = self._init_randomization(randomization_fn)
+        dummy = self.env.reset(jax.random.PRNGKey(0))
+        self.strip_privileged_state = isinstance(dummy.obs, jax.Array)
 
-    def _env_fn(self, sys: System) -> Env:
-        env = self.env
-        env.unwrapped.sys = sys
-        return env
+    def _init_randomization(self, randomization_fn):
+        """To be implemented by subclasses to handle model-specific randomization."""
+        raise NotImplementedError
 
-    def reset(self, rng: jax.Array) -> State:
-        def reset(sys, rng):
-            env = self._env_fn(sys=sys)
-            res = env.reset(rng)
-            return res
+    def _env_fn(self, model):
+        """To be implemented by subclasses to return an environment with the given model."""
+        raise NotImplementedError
 
-        state = jax.vmap(reset, in_axes=[self._in_axes, 0])(self._sys_v, rng)
-        state.info["domain_parameters"] = self.domain_parameters
+    def reset(self, rng: jax.Array):
+        def reset_fn(model, rng):
+            env = self._env_fn(model)
+            return env.reset(rng)
+
+        state = jax.vmap(reset_fn, in_axes=[self._in_axes, 0])(
+            self._randomized_models, rng
+        )
+        if self.augment_state:
+            state = self._add_privileged_state(state)
         return state
 
-    def step(self, state: State, action: jax.Array) -> State:
-        def step(sys, s, a):
-            env = self._env_fn(sys=sys)
-            res = env.step(s, a)
-            return res
+    def step(self, state, action: jax.Array):
+        def step_fn(model, s, a):
+            env = self._env_fn(model)
+            return env.step(s, a)
 
-        res = jax.vmap(step, in_axes=[self._in_axes, 0, 0])(self._sys_v, state, action)
-        res.info["domain_parameters"] = self.domain_parameters
-        return res
+        if self.augment_state and self.strip_privileged_state:
+            state = state.replace(obs=state.obs["state"])
+
+        state = jax.vmap(step_fn, in_axes=[self._in_axes, 0, 0])(
+            self._randomized_models, state, action
+        )
+        if self.augment_state:
+            state = self._add_privileged_state(state)
+        return state
+
+    def _add_privileged_state(self, state):
+        """Adds privileged state to the observation if augmentation is enabled."""
+        if isinstance(state.obs, jax.Array):
+            state = state.replace(
+                obs={
+                    "state": state.obs,
+                    "privileged_state": jp.concatenate(
+                        [state.obs, self.domain_parameters], -1
+                    ),
+                }
+            )
+        else:
+            state = state.replace(
+                obs={
+                    "state": state.obs["state"],
+                    "privileged_state": jp.concatenate(
+                        [state.obs["privileged_state"], self.domain_parameters], -1
+                    ),
+                }
+            )
+        return state
+
+    @property
+    def observation_size(self):
+        """Compute observation size based on the augmentation setting."""
+        if not self.augment_state:
+            return self.env.observation_size
+
+        if isinstance(self.env.observation_size, int):
+            return {
+                "state": (self.env.observation_size,),
+                "privileged_state": (
+                    self.env.observation_size + self.domain_parameters.shape[1],
+                ),
+            }
+        else:
+            return {
+                "state": (self.env.observation_size["state"],),
+                "privileged_state": (
+                    self.env.observation_size["privileged_state"]
+                    + self.domain_parameters.shape[1],
+                ),
+            }
+
+
+class DomainRandomizationVmapWrapper(DomainRandomizationVmapBase):
+    def _init_randomization(self, randomization_fn):
+        return randomization_fn(self.sys)
+
+    def _env_fn(self, model):
+        env = self.env
+        env.unwrapped.sys = model
+        return env
 
 
 def wrap(
@@ -203,6 +272,7 @@ def wrap(
     randomization_fn: Optional[
         Callable[[System], Tuple[System, System, jax.Array]]
     ] = None,
+    augment_state: bool = True,
 ) -> Wrapper:
     """Common wrapper pattern for all training agents.
 
@@ -222,6 +292,8 @@ def wrap(
     if randomization_fn is None:
         env = wrappers.training.VmapWrapper(env)
     else:
-        env = DomainRandomizationVmapWrapper(env, randomization_fn)
+        env = DomainRandomizationVmapWrapper(
+            env, randomization_fn, augment_state=augment_state
+        )
     env = wrappers.training.AutoResetWrapper(env)
     return env
