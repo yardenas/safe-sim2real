@@ -16,7 +16,7 @@ agent:
   batch_size: 512
   hidden_layer_sizes: [256, 256, 256]
   grad_updates_per_step: 16
-  learning_rate: 0.001
+  learning_rate: 0.0003
   max_replay_size: 1048576
   discounting: 0.95
   reward_scaling: 125
