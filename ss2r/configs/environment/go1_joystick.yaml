@@ -59,3 +59,6 @@ task_params:
     tracking_sigma: 0.25
   sim_dt: 0.004
   soft_joint_pos_limit_factor: 0.95
+
+train_params: null
+eval_params: null

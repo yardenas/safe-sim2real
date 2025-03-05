@@ -159,16 +159,21 @@ def make_mujoco_playground_envs(cfg):
         episode_length=cfg.training.episode_length,
         action_repeat=cfg.training.action_repeat,
     )
-    eval_randomization_fn = prepare_randomization_fn(
-        eval_key, cfg.training.num_eval_envs, task_cfg.eval_params, task_cfg.task_name
+    eval_randomization_fn = (
+        prepare_randomization_fn(
+            eval_key,
+            cfg.training.num_eval_envs,
+            task_cfg.eval_params,
+            task_cfg.task_name,
+        )
+        if cfg.training.eval_domain_randomization
+        else None
     )
     eval_env = wrap_for_brax_training(
         eval_env,
         episode_length=cfg.training.episode_length,
         action_repeat=cfg.training.action_repeat,
-        randomization_fn=eval_randomization_fn
-        if cfg.training.eval_domain_randomization
-        else None,
+        randomization_fn=eval_randomization_fn,
     )
     return train_env, eval_env
 
@@ -196,7 +201,9 @@ render_fns = {
     "ant": functools.partial(brax.render, camera="track"),
     "ant_safe": functools.partial(brax.render, camera="track"),
     "rccar": rccar.render,
-    "Go1JoystickFlatTerrain": functools.partial(mujoco_playground.render),
+    "Go1JoystickFlatTerrain": functools.partial(
+        mujoco_playground.render, camera="track"
+    ),
     "WalkerWalk": functools.partial(mujoco_playground.render, camera="side"),
     "WalkerRun": functools.partial(mujoco_playground.render, camera="side"),
     "SafeWalkerWalk": functools.partial(mujoco_playground.render, camera="side"),
