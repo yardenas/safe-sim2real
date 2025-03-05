@@ -16,6 +16,7 @@ class QTransformation(Protocol):
         alpha: jax.Array | None = None,
         reward_scaling: float = 1.0,
         key: jax.Array | None = None,
+        use_bro: bool = True,
     ):
         ...
 
@@ -33,6 +34,7 @@ class UCBCost(QTransformation):
         alpha: jax.Array | None = None,
         reward_scaling: float = 1.0,
         key: jax.Array | None = None,
+        use_bro: bool = True,
     ):
         next_action, _ = policy(transitions.next_observation)
         next_q = q_fn(transitions.next_observation, next_action)
@@ -62,6 +64,7 @@ class RAMU(QTransformation):
         alpha: jax.Array | None = None,
         reward_scaling: float = 1.0,
         key: jax.Array | None = None,
+        use_bro: bool = True,
     ):
         sampled_next_obs = ramu_sample(
             self.epsilon,
@@ -108,10 +111,14 @@ class SACBase(QTransformation):
         alpha: jax.Array | None = None,
         reward_scaling: float = 1.0,
         key: jax.Array | None = None,
+        use_bro: bool = True,
     ):
         next_action, next_log_prob = policy(transitions.next_observation)
         next_q = q_fn(transitions.next_observation, next_action)
-        next_v = next_q.min(axis=-1)
+        if use_bro:
+            next_v = next_q.mean(axis=-1)
+        else:
+            next_v = next_q.min(axis=-1)
         next_v -= alpha * next_log_prob
         target_q = jax.lax.stop_gradient(
             transitions.reward * reward_scaling + transitions.discount * gamma * next_v
@@ -134,6 +141,7 @@ class RAMUReward(QTransformation):
         alpha: jax.Array | None = None,
         reward_scaling: float = 1.0,
         key: jax.Array | None = None,
+        use_bro: bool = True,
     ):
         sampled_next_obs = ramu_sample(
             self.epsilon,
@@ -144,7 +152,10 @@ class RAMUReward(QTransformation):
         )
         next_action, next_log_prob = policy(sampled_next_obs)
         next_q = q_fn(sampled_next_obs, next_action)
-        next_v = next_q.min(axis=-1)
+        if use_bro:
+            next_v = next_q.mean(axis=-1)
+        else:
+            next_v = next_q.min(axis=-1)
         next_v = wang(self.n_samples, self.wang_eta, next_v)
         next_v -= alpha * next_log_prob
         target_q = jax.lax.stop_gradient(
@@ -165,6 +176,8 @@ class LCBReward(QTransformation):
         gamma: float,
         alpha: jax.Array | None = None,
         reward_scaling: float = 1.0,
+        key: jax.Array | None = None,
+        use_bro: bool = True,
     ):
         next_action, next_log_prob = policy(transitions.next_observation)
         next_q = q_fn(transitions.next_observation, next_action)
@@ -191,6 +204,7 @@ class SACCost(QTransformation):
         alpha: jax.Array | None = None,
         reward_scaling: float = 1.0,
         key: jax.Array | None = None,
+        use_bro: bool = True,
     ):
         next_action, _ = policy(transitions.next_observation)
         next_q = q_fn(transitions.next_observation, next_action)

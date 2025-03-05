@@ -14,7 +14,7 @@
 
 """SAC networks."""
 
-from typing import Any, Callable, Mapping, Sequence, TypeVar
+from typing import Any, Callable, Mapping, Protocol, Sequence, TypeVar
 
 import brax.training.agents.sac.networks as sac_networks
 import flax
@@ -73,6 +73,7 @@ class NetworkFactory(Protocol[NetworkType]):
         preprocess_observations_fn: types.PreprocessObservationFn = types.identity_observation_preprocessor,
         *,
         safe: bool = False,
+        use_bro: bool = True,
     ) -> NetworkType:
         pass
 

@@ -180,6 +180,7 @@ def train(
     penalizer_params: Params | None = None,
     reward_robustness: QTransformation = SACBase(),
     cost_robustness: QTransformation = SACCost(),
+    use_bro: bool = True,
 ):
     if min_replay_size >= num_timesteps:
         raise ValueError(
