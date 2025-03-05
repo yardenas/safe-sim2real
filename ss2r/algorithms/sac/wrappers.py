@@ -66,7 +66,8 @@ class StatePropagation(Wrapper):
         nstate = self.env.step(state, action)
         tmp_n_key, key = jax.random.split(propagation_rng)
         n_key = jnp.where(
-            nstate.done.astype(jnp.bool) | state.info["truncation"].astype(jnp.bool),
+            nstate.done.astype(jnp.bool).any()
+            | nstate.info["truncation"].astype(jnp.bool).any(),
             tmp_n_key,
             propagation_rng,
         )
