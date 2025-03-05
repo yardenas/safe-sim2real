@@ -64,13 +64,14 @@ class StatePropagation(Wrapper):
         )
         state, action = tile(state), tile(action)
         nstate = self.env.step(state, action)
-        tmp_n_key, key = jax.random.split(propagation_rng)
-        n_key = jnp.where(
-            nstate.done.astype(jnp.bool).any()
-            | nstate.info["truncation"].astype(jnp.bool).any(),
-            tmp_n_key,
-            propagation_rng,
-        )
+        # tmp_n_key, key = jax.random.split(propagation_rng)
+        n_key, key = jax.random.split(propagation_rng)
+        # n_key = jnp.where(
+        #     nstate.done.astype(jnp.bool).any()
+        #     | nstate.info["truncation"].astype(jnp.bool).any(),
+        #     tmp_n_key,
+        #     propagation_rng,
+        # )
         orig_next_obs = _get_state(nstate)
         nstate.info["state_propagation"]["rng"] = jax.random.split(n_key, self.num_envs)
         nstate.info["state_propagation"]["next_obs"] = nstate.obs
