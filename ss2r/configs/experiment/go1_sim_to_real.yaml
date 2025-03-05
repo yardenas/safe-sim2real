@@ -8,5 +8,7 @@ training:
   train_domain_randomization: true
   eval_domain_randomization: true
   safe: false
+
+agent:
   propagation: ts1
   num_trajectories_per_env: 128
