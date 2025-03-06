@@ -195,7 +195,7 @@ class DomainRandomizationVmapBase(Wrapper):
             state = self._add_privileged_state(state)
         return state
 
-    def step(self, state, action: jax.Array):
+    def step(self, state, action):
         def step_fn(model, s, a):
             env = self._env_fn(model)
             return env.step(s, a)

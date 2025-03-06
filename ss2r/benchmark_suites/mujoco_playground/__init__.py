@@ -8,6 +8,7 @@ from mujoco import mjx
 from mujoco_playground import wrapper as mujoco_playground_wrapper
 from mujoco_playground._src import mjx_env
 
+from ss2r.algorithms.sac.wrappers import EnvStateData
 from ss2r.benchmark_suites import wrappers
 from ss2r.common.pytree import pytrees_unstack
 from ss2r.rl.utils import rollout
@@ -65,6 +66,8 @@ def wrap_for_brax_training(
       environment did not already have batch dimensions, it is additional Vmap
       wrapped.
     """
+    # FIXME (yarden): this should be as part of train, pass as a wrap function
+    env = EnvStateData(env)
     if vision:
         env = mujoco_playground_wrapper.MadronaWrapper(
             env, num_vision_envs, randomization_fn

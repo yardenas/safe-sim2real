@@ -44,9 +44,9 @@ from ss2r.algorithms.sac.robustness import (
     UCBCost,
 )
 from ss2r.algorithms.sac.wrappers import (
-    EnvStateData,
     ModelDisagreement,
     StatePropagation,
+    get_state_data,
 )
 from ss2r.rl.evaluation import ConstraintsEvaluator
 
@@ -226,7 +226,6 @@ def train(
     rng = jax.random.PRNGKey(seed)
     # FIXME (yarden): remove if this works. No need for state
     # propagation
-    env = EnvStateData(env)
     if propagation is not None:
         env = StatePropagation(env)
         env = envs.training.VmapWrapper(env)
@@ -269,8 +268,9 @@ def train(
     if propagation is not None:
         extras["state_extras"]["disagreement"] = jnp.zeros(())  # type: ignore
     if isinstance(cost_robustness, (UCBCost, RAMU)):
-        dummy_state = env.reset(rng)
-        extras["state_extras"]["env_state"] = dummy_state  # type: ignore
+        dummy_state = env.reset(jax.random.split(rng, num_envs))
+        extras["state_extras"]["env_state"] = get_state_data(dummy_state)  # type: ignore
+        # extras["state_extras"]["env_info"] = dummy_state.info
     dummy_transition = Transition(  # pytype: disable=wrong-arg-types  # jax-ndarray
         observation=dummy_obs,
         action=dummy_action,
@@ -444,6 +444,7 @@ def train(
         normalizer_params = running_statistics.update(
             normalizer_params, transitions.observation
         )
+        # transitions.extras["env_info"] = env_state.info
         buffer_state = replay_buffer.insert(buffer_state, float16(transitions))
         return normalizer_params, env_state, buffer_state
 
@@ -480,7 +481,9 @@ def train(
         # Change the front dimension of transitions so 'update_step' is called
         # grad_updates_per_step times by the scan.
         transitions = jax.tree_util.tree_map(
-            lambda x: jnp.reshape(x, (grad_updates_per_step, -1) + x.shape[1:]),
+            lambda x: jnp.reshape(x, (grad_updates_per_step, -1) + x.shape[1:])
+            if isinstance(x, jax.Array) and 0 not in x.shape
+            else x,
             transitions,
         )
         (training_state, _), metrics = jax.lax.scan(

@@ -95,12 +95,22 @@ class ModelDisagreement(Wrapper):
         return nstate
 
 
+def get_state_data(state):
+    if hasattr(state, "data"):
+        return state.data
+    elif hasattr(state, "pipeline_state"):
+        return state.pipeline_state
+    else:
+        raise ValueError("Should be a brax or mujoco playground env")
+
+
 class EnvStateData(Wrapper):
     def reset(self, rng):
         state = self.env.reset(rng)
-        state.info["env_state"] = state
+        state.info["env_state"] = get_state_data(state)
+        return state
 
     def step(self, state, action):
         state = self.env.step(state, action)
-        state.info["env_state"] = state
+        state.info["env_state"] = get_state_data(state)
         return state

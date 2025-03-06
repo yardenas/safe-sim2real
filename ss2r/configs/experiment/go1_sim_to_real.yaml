@@ -2,13 +2,10 @@
 defaults:
   - go1_joystick
   - _self_
+  - override /agent/cost_robustness: ucb_cost
 
 training:
   num_envs: 32
   train_domain_randomization: true
   eval_domain_randomization: true
   safe: false
-
-agent:
-  propagation: ts1
-  num_trajectories_per_env: 128

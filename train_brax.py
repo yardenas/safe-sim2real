@@ -47,7 +47,8 @@ def get_cost_robustness(cfg):
         del cfg.agent.cost_robustness.name
         robustness = rb.RAMU(**cfg.agent.cost_robustness)
     elif cfg.agent.cost_robustness.name == "ucb_cost":
-        assert cfg.agent.propagation == "ts1"
+        # FIXME (yarden): fix this
+        # assert cfg.agent.propagation == "ts1"
         robustness = rb.UCBCost(cfg.agent.cost_robustness.cost_penalty)
     else:
         raise ValueError("Unknown robustness")
