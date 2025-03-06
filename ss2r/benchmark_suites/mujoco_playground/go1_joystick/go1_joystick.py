@@ -11,9 +11,9 @@ def domain_randomization(sys, rng, cfg):
     qpos0 = model.qpos0[:, 7:]
     dof_frictionloss = model.dof_frictionloss[:, 6:]
     dof_armature = model.dof_armature[:, 6:]
-    samples = jnp.stack(
+    samples = jnp.hstack(
         [
-            geom_friction,
+            geom_friction[:, None],
             body_ipos,
             body_mass,
             qpos0,

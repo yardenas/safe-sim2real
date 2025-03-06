@@ -46,6 +46,10 @@ InferenceParams: TypeAlias = Tuple[running_statistics.NestedMeanStd, Params]
 
 ReplayBufferState: TypeAlias = Any
 
+make_float = lambda x, t: jax.tree.map(lambda y: y.astype(t), x)
+float16 = functools.partial(make_float, t=jnp.float16)
+float32 = functools.partial(make_float, t=jnp.float32)
+
 
 @flax.struct.dataclass
 class TrainingState:
@@ -243,22 +247,23 @@ def train(
     dummy_action = jnp.zeros((action_size,))
     extras = {
         "state_extras": {
-            "truncation": 0.0,
+            "truncation": jnp.zeros(()),
         },
         "policy_extras": {},
     }
     if safe:
-        extras["state_extras"]["cost"] = 0.0  # type: ignore
+        extras["state_extras"]["cost"] = jnp.zeros(())  # type: ignore
     if propagation is not None:
-        extras["state_extras"]["disagreement"] = 0.0  # type: ignore
+        extras["state_extras"]["disagreement"] = jnp.zeros(())  # type: ignore
     dummy_transition = Transition(  # pytype: disable=wrong-arg-types  # jax-ndarray
         observation=dummy_obs,
         action=dummy_action,
-        reward=0.0,
-        discount=0.0,
+        reward=jnp.zeros(()),
+        discount=jnp.zeros(()),
         next_observation=dummy_obs,
         extras=extras,
     )
+    dummy_transition = float16(dummy_transition)
     replay_buffer = replay_buffers.UniformSamplingQueue(
         max_replay_size=max_replay_size,
         dummy_data_sample=dummy_transition,
@@ -422,7 +427,7 @@ def train(
         normalizer_params = running_statistics.update(
             normalizer_params, transitions.observation
         )
-        buffer_state = replay_buffer.insert(buffer_state, transitions)
+        buffer_state = replay_buffer.insert(buffer_state, float16(transitions))
         return normalizer_params, env_state, buffer_state
 
     def run_experience_step(
@@ -454,6 +459,7 @@ def train(
     ) -> Tuple[TrainingState, ReplayBufferState, Metrics]:
         """Runs the jittable training step after experience collection."""
         buffer_state, transitions = replay_buffer.sample(buffer_state)
+        transitions = float32(transitions)
         # Change the front dimension of transitions so 'update_step' is called
         # grad_updates_per_step times by the scan.
         transitions = jax.tree_util.tree_map(
@@ -589,7 +595,8 @@ def train(
     )
     if num_trajectories_per_env == 1:
         env_keys = env_keys.squeeze(0)
-    env_state = env.reset(env_keys)
+    reset_fn = jax.jit(env.reset)
+    env_state = reset_fn(env_keys)
 
     # Replay buffer init
     buffer_state = replay_buffer.init(rb_key)
@@ -640,6 +647,14 @@ def train(
         ) = training_epoch_with_timing(
             training_state, env_state, buffer_state, epoch_key
         )
+        reset_keys = jax.random.split(epoch_key, num_trajectories_per_env * num_envs)
+        reset_keys = jnp.reshape(
+            reset_keys,
+            (num_trajectories_per_env, -1) + reset_keys.shape[1:],
+        )
+        if num_trajectories_per_env == 1:
+            reset_keys = reset_keys.squeeze(0)
+        env_state = reset_fn(reset_keys)
         current_step = int(training_state.env_steps)
 
         # Eval and logging
