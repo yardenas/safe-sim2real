@@ -45,6 +45,8 @@ def wrap_for_brax_training(
     randomization_fn: Optional[
         Callable[[mjx.Model], Tuple[mjx.Model, mjx.Model]]
     ] = None,
+    *,
+    augment_state: bool = False,
 ) -> mujoco_playground_wrapper.Wrapper:
     """Common wrapper pattern for all brax training agents.
 
@@ -70,7 +72,9 @@ def wrap_for_brax_training(
     elif randomization_fn is None:
         env = brax_training.VmapWrapper(env)  # pytype: disable=wrong-arg-types
     else:
-        env = BraxDomainRandomizationVmapWrapper(env, randomization_fn)
+        env = BraxDomainRandomizationVmapWrapper(
+            env, randomization_fn, augment_state=augment_state
+        )
     env = brax_training.EpisodeWrapper(env, episode_length, action_repeat)
     env = mujoco_playground_wrapper.BraxAutoResetWrapper(env)
     return env
