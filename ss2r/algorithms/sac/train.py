@@ -28,13 +28,14 @@ import optax
 from absl import logging
 from brax import envs
 from brax.io import model
-from brax.training import acting, gradients, replay_buffers, types
+from brax.training import acting, replay_buffers, types
 from brax.training.acme import running_statistics, specs
 from brax.training.types import Params, PRNGKey
 from brax.v1 import envs as envs_v1
 
 import ss2r.algorithms.sac.losses as sac_losses
 import ss2r.algorithms.sac.networks as sac_networks
+from ss2r.algorithms.sac import gradients
 from ss2r.algorithms.sac.penalizers import Penalizer
 from ss2r.algorithms.sac.robustness import QTransformation, SACBase, SACCost
 from ss2r.algorithms.sac.wrappers import ModelDisagreement, StatePropagation
@@ -183,6 +184,7 @@ def train(
     penalizer_params: Params | None = None,
     reward_robustness: QTransformation = SACBase(),
     cost_robustness: QTransformation = SACCost(),
+    use_bro: bool = True,
 ):
     if min_replay_size >= num_timesteps:
         raise ValueError(
@@ -230,12 +232,13 @@ def train(
         action_size=action_size,
         preprocess_observations_fn=normalize_fn,
         safe=safe,
+        use_bro=use_bro,
     )
     make_policy = sac_networks.make_inference_fn(sac_network)
     alpha_optimizer = optax.adam(learning_rate=alpha_learning_rate)
     make_optimizer = lambda lr, grad_clip_norm: optax.chain(
         optax.clip_by_global_norm(grad_clip_norm),
-        optax.adam(learning_rate=lr),
+        optax.adamw(learning_rate=lr),
     )
     policy_optimizer = make_optimizer(learning_rate, 1.0)
     qr_optimizer = make_optimizer(critic_learning_rate, 1.0)
@@ -276,6 +279,7 @@ def train(
         safety_discounting=safety_discounting,
         action_size=action_size,
         init_alpha=init_alpha,
+        use_bro=use_bro,
     )
     alpha_update = (
         gradients.gradient_update_fn(  # pytype: disable=wrong-arg-types  # jax-ndarray
@@ -324,6 +328,7 @@ def train(
             key_critic,
             reward_robustness,
             optimizer_state=training_state.qr_optimizer_state,
+            params=training_state.qr_params,
         )
         if safe:
             cost_critic_loss, qc_params, qc_optimizer_state = cost_critic_update(
@@ -337,6 +342,7 @@ def train(
                 cost_robustness,
                 True,
                 optimizer_state=training_state.qc_optimizer_state,
+                params=training_state.qc_params,
             )
             cost_metrics = {
                 "cost_critic_loss": cost_critic_loss,
@@ -357,6 +363,7 @@ def train(
             penalizer,
             training_state.penalizer_params,
             optimizer_state=training_state.policy_optimizer_state,
+            params=training_state.policy_params,
         )
         polyak = lambda target, new: jax.tree_util.tree_map(
             lambda x, y: x * (1 - tau) + y * tau, target, new
