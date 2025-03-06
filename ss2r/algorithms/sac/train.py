@@ -28,13 +28,14 @@ import optax
 from absl import logging
 from brax import envs
 from brax.io import model
-from brax.training import acting, gradients, replay_buffers, types
+from brax.training import acting, replay_buffers, types
 from brax.training.acme import running_statistics, specs
 from brax.training.types import Params, PRNGKey
 from brax.v1 import envs as envs_v1
 
 import ss2r.algorithms.sac.losses as sac_losses
 import ss2r.algorithms.sac.networks as sac_networks
+from ss2r.algorithms.sac import gradients
 from ss2r.algorithms.sac.penalizers import Penalizer
 from ss2r.algorithms.sac.robustness import QTransformation, SACBase, SACCost
 from ss2r.algorithms.sac.wrappers import ModelDisagreement, StatePropagation
@@ -45,6 +46,10 @@ Transition: TypeAlias = types.Transition
 InferenceParams: TypeAlias = Tuple[running_statistics.NestedMeanStd, Params]
 
 ReplayBufferState: TypeAlias = Any
+
+make_float = lambda x, t: jax.tree.map(lambda y: y.astype(t), x)
+float16 = functools.partial(make_float, t=jnp.float16)
+float32 = functools.partial(make_float, t=jnp.float32)
 
 
 @flax.struct.dataclass
@@ -179,6 +184,7 @@ def train(
     penalizer_params: Params | None = None,
     reward_robustness: QTransformation = SACBase(),
     cost_robustness: QTransformation = SACCost(),
+    use_bro: bool = True,
 ):
     if min_replay_size >= num_timesteps:
         raise ValueError(
@@ -226,12 +232,13 @@ def train(
         action_size=action_size,
         preprocess_observations_fn=normalize_fn,
         safe=safe,
+        use_bro=use_bro,
     )
     make_policy = sac_networks.make_inference_fn(sac_network)
     alpha_optimizer = optax.adam(learning_rate=alpha_learning_rate)
     make_optimizer = lambda lr, grad_clip_norm: optax.chain(
         optax.clip_by_global_norm(grad_clip_norm),
-        optax.adam(learning_rate=lr),
+        optax.adamw(learning_rate=lr),
     )
     policy_optimizer = make_optimizer(learning_rate, 1.0)
     qr_optimizer = make_optimizer(critic_learning_rate, 1.0)
@@ -243,22 +250,23 @@ def train(
     dummy_action = jnp.zeros((action_size,))
     extras = {
         "state_extras": {
-            "truncation": 0.0,
+            "truncation": jnp.zeros(()),
         },
         "policy_extras": {},
     }
     if safe:
-        extras["state_extras"]["cost"] = 0.0  # type: ignore
+        extras["state_extras"]["cost"] = jnp.zeros(())  # type: ignore
     if propagation is not None:
-        extras["state_extras"]["disagreement"] = 0.0  # type: ignore
+        extras["state_extras"]["disagreement"] = jnp.zeros(())  # type: ignore
     dummy_transition = Transition(  # pytype: disable=wrong-arg-types  # jax-ndarray
         observation=dummy_obs,
         action=dummy_action,
-        reward=0.0,
-        discount=0.0,
+        reward=jnp.zeros(()),
+        discount=jnp.zeros(()),
         next_observation=dummy_obs,
         extras=extras,
     )
+    dummy_transition = float16(dummy_transition)
     replay_buffer = replay_buffers.UniformSamplingQueue(
         max_replay_size=max_replay_size,
         dummy_data_sample=dummy_transition,
@@ -271,6 +279,7 @@ def train(
         safety_discounting=safety_discounting,
         action_size=action_size,
         init_alpha=init_alpha,
+        use_bro=use_bro,
     )
     alpha_update = (
         gradients.gradient_update_fn(  # pytype: disable=wrong-arg-types  # jax-ndarray
@@ -319,6 +328,7 @@ def train(
             key_critic,
             reward_robustness,
             optimizer_state=training_state.qr_optimizer_state,
+            params=training_state.qr_params,
         )
         if safe:
             cost_critic_loss, qc_params, qc_optimizer_state = cost_critic_update(
@@ -332,6 +342,7 @@ def train(
                 cost_robustness,
                 True,
                 optimizer_state=training_state.qc_optimizer_state,
+                params=training_state.qc_params,
             )
             cost_metrics = {
                 "cost_critic_loss": cost_critic_loss,
@@ -352,6 +363,7 @@ def train(
             penalizer,
             training_state.penalizer_params,
             optimizer_state=training_state.policy_optimizer_state,
+            params=training_state.policy_params,
         )
         polyak = lambda target, new: jax.tree_util.tree_map(
             lambda x, y: x * (1 - tau) + y * tau, target, new
@@ -422,7 +434,7 @@ def train(
         normalizer_params = running_statistics.update(
             normalizer_params, transitions.observation
         )
-        buffer_state = replay_buffer.insert(buffer_state, transitions)
+        buffer_state = replay_buffer.insert(buffer_state, float16(transitions))
         return normalizer_params, env_state, buffer_state
 
     def run_experience_step(
@@ -454,6 +466,7 @@ def train(
     ) -> Tuple[TrainingState, ReplayBufferState, Metrics]:
         """Runs the jittable training step after experience collection."""
         buffer_state, transitions = replay_buffer.sample(buffer_state)
+        transitions = float32(transitions)
         # Change the front dimension of transitions so 'update_step' is called
         # grad_updates_per_step times by the scan.
         transitions = jax.tree_util.tree_map(
@@ -589,7 +602,8 @@ def train(
     )
     if num_trajectories_per_env == 1:
         env_keys = env_keys.squeeze(0)
-    env_state = env.reset(env_keys)
+    reset_fn = jax.jit(env.reset)
+    env_state = reset_fn(env_keys)
 
     # Replay buffer init
     buffer_state = replay_buffer.init(rb_key)
@@ -640,6 +654,14 @@ def train(
         ) = training_epoch_with_timing(
             training_state, env_state, buffer_state, epoch_key
         )
+        reset_keys = jax.random.split(epoch_key, num_trajectories_per_env * num_envs)
+        reset_keys = jnp.reshape(
+            reset_keys,
+            (num_trajectories_per_env, -1) + reset_keys.shape[1:],
+        )
+        if num_trajectories_per_env == 1:
+            reset_keys = reset_keys.squeeze(0)
+        env_state = reset_fn(reset_keys)
         current_step = int(training_state.env_steps)
 
         # Eval and logging
