@@ -1,0 +1,18 @@
+defaults:
+  - override /environment: go1_joystick
+
+training:
+  num_timesteps: 25000000
+  value_privileged: true
+  num_envs: 128
+
+agent:
+  batch_size: 512
+  policy_hidden_layer_sizes: [256, 256, 256]
+  value_hidden_layer_sizes: [512, 512]  # two block of BroNet
+  grad_updates_per_step: 16
+  learning_rate: 0.0003
+  max_replay_size: 1048576
+  discounting: 0.95
+  reward_scaling: 125
+  min_replay_size: 8192
