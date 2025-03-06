@@ -247,19 +247,19 @@ def train(
     dummy_action = jnp.zeros((action_size,))
     extras = {
         "state_extras": {
-            "truncation": 0.0,
+            "truncation": jnp.zeros(()),
         },
         "policy_extras": {},
     }
     if safe:
-        extras["state_extras"]["cost"] = 0.0  # type: ignore
+        extras["state_extras"]["cost"] = jnp.zeros(())  # type: ignore
     if propagation is not None:
-        extras["state_extras"]["disagreement"] = 0.0  # type: ignore
+        extras["state_extras"]["disagreement"] = jnp.zeros(())  # type: ignore
     dummy_transition = Transition(  # pytype: disable=wrong-arg-types  # jax-ndarray
         observation=dummy_obs,
         action=dummy_action,
-        reward=0.0,
-        discount=0.0,
+        reward=jnp.zeros(()),
+        discount=jnp.zeros(()),
         next_observation=dummy_obs,
         extras=extras,
     )
