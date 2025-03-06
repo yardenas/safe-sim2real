@@ -111,6 +111,7 @@ def make_losses(
             alpha,
             reward_scaling,
             another_key,
+            use_bro,
         )
         q_error = q_old_action - jnp.expand_dims(target_q, -1)
         # Better bootstrapping for truncated episodes.
