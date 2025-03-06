@@ -50,7 +50,7 @@ class BroNet(linen.Module):
         x = linen.Dense(features=self.layer_sizes[0], kernel_init=self.kernel_init)(x)
         x = linen.LayerNorm()(x)
         x = self.activation(x)
-        for _ in range(len(self.layer_sizes - 1)):
+        for _ in range(len(self.layer_sizes) - 1):
             residual = x
             x = linen.Dense(features=self.layer_sizes[0], kernel_init=self.kernel_init)(
                 x
