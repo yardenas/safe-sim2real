@@ -93,7 +93,8 @@ def get_train_fn(cfg):
                 "policy_privileged",
             ]
         }
-        hidden_layer_sizes = agent_cfg.pop("hidden_layer_sizes")
+        policy_hidden_layer_sizes = agent_cfg.pop("policy_hidden_layer_sizes")
+        value_hidden_layer_sizes = agent_cfg.pop("value_hidden_layer_sizes")
         activation = getattr(jnn, agent_cfg.pop("activation"))
         del agent_cfg["name"]
         if "cost_robustness" in agent_cfg:
@@ -108,7 +109,8 @@ def get_train_fn(cfg):
         )
         network_factory = functools.partial(
             sac_networks.make_sac_networks,
-            hidden_layer_sizes=hidden_layer_sizes,
+            policy_hidden_layer_sizes=policy_hidden_layer_sizes,
+            value_hidden_layer_sizes=value_hidden_layer_sizes,
             activation=activation,
             value_obs_key=value_obs_key,
             policy_obs_key=policy_obs_key,
