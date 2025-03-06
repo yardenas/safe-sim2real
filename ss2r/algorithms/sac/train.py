@@ -46,6 +46,10 @@ InferenceParams: TypeAlias = Tuple[running_statistics.NestedMeanStd, Params]
 
 ReplayBufferState: TypeAlias = Any
 
+make_float = lambda x, t: jax.tree.map(lambda y: y.astype(t), x)
+float16 = functools.partial(make_float, t=jnp.float16)
+float32 = functools.partial(make_float, t=jnp.float32)
+
 
 @flax.struct.dataclass
 class TrainingState:
@@ -259,6 +263,7 @@ def train(
         next_observation=dummy_obs,
         extras=extras,
     )
+    dummy_transition = float16(dummy_transition)
     replay_buffer = replay_buffers.UniformSamplingQueue(
         max_replay_size=max_replay_size,
         dummy_data_sample=dummy_transition,
@@ -422,7 +427,7 @@ def train(
         normalizer_params = running_statistics.update(
             normalizer_params, transitions.observation
         )
-        buffer_state = replay_buffer.insert(buffer_state, transitions)
+        buffer_state = replay_buffer.insert(buffer_state, float16(transitions))
         return normalizer_params, env_state, buffer_state
 
     def run_experience_step(
@@ -454,6 +459,7 @@ def train(
     ) -> Tuple[TrainingState, ReplayBufferState, Metrics]:
         """Runs the jittable training step after experience collection."""
         buffer_state, transitions = replay_buffer.sample(buffer_state)
+        transitions = float32(transitions)
         # Change the front dimension of transitions so 'update_step' is called
         # grad_updates_per_step times by the scan.
         transitions = jax.tree_util.tree_map(
