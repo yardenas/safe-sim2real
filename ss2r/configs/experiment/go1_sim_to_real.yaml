@@ -2,6 +2,9 @@
 defaults:
   - go1_joystick
   - _self_
+  
+environment:
+  task_name: SafeGo1JoystickFlatTerrain
 
 training:
   num_envs: 32
