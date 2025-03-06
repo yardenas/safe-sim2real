@@ -36,8 +36,18 @@ from brax.v1 import envs as envs_v1
 import ss2r.algorithms.sac.losses as sac_losses
 import ss2r.algorithms.sac.networks as sac_networks
 from ss2r.algorithms.sac.penalizers import Penalizer
-from ss2r.algorithms.sac.robustness import QTransformation, SACBase, SACCost
-from ss2r.algorithms.sac.wrappers import ModelDisagreement, StatePropagation
+from ss2r.algorithms.sac.robustness import (
+    RAMU,
+    QTransformation,
+    SACBase,
+    SACCost,
+    UCBCost,
+)
+from ss2r.algorithms.sac.wrappers import (
+    EnvStateData,
+    ModelDisagreement,
+    StatePropagation,
+)
 from ss2r.rl.evaluation import ConstraintsEvaluator
 
 Metrics: TypeAlias = types.Metrics
@@ -214,6 +224,9 @@ def train(
     )
     env = environment
     rng = jax.random.PRNGKey(seed)
+    # FIXME (yarden): remove if this works. No need for state
+    # propagation
+    env = EnvStateData(env)
     if propagation is not None:
         env = StatePropagation(env)
         env = envs.training.VmapWrapper(env)
@@ -255,6 +268,9 @@ def train(
         extras["state_extras"]["cost"] = jnp.zeros(())  # type: ignore
     if propagation is not None:
         extras["state_extras"]["disagreement"] = jnp.zeros(())  # type: ignore
+    if isinstance(cost_robustness, (UCBCost, RAMU)):
+        dummy_state = env.reset(rng)
+        extras["state_extras"]["env_state"] = dummy_state  # type: ignore
     dummy_transition = Transition(  # pytype: disable=wrong-arg-types  # jax-ndarray
         observation=dummy_obs,
         action=dummy_action,
@@ -326,6 +342,10 @@ def train(
             optimizer_state=training_state.qr_optimizer_state,
         )
         if safe:
+            if isinstance(cost_robustness, (UCBCost, RAMU)):
+                cost_robustness_f = functools.partial(cost_robustness, env=env)
+            else:
+                cost_robustness_f = cost_robustness  # type: ignore
             cost_critic_loss, qc_params, qc_optimizer_state = cost_critic_update(
                 training_state.qc_params,
                 training_state.policy_params,
@@ -334,7 +354,7 @@ def train(
                 alpha,
                 transitions,
                 key_critic,
-                cost_robustness,
+                cost_robustness_f,
                 True,
                 optimizer_state=training_state.qc_optimizer_state,
             )
@@ -416,11 +436,8 @@ def train(
         extra_fields = ("truncation",)
         if safe:
             extra_fields += ("cost",)  # type: ignore
-        if propagation is not None:
-            extra_fields += ("disagreement",)  # type: ignore
-        # TODO (yarden): if I ever need to sample states based on value functions
-        # one way to code it is to add a function to the StatePropagation wrapper
-        # that receives a function that takes states and returns their corresponding value functions
+        if isinstance(cost_robustness, (UCBCost, RAMU)):
+            extra_fields += ("env_state",)  # type: ignore
         env_state, transitions = acting.actor_step(
             env, env_state, policy, key, extra_fields=extra_fields
         )

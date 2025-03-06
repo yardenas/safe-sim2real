@@ -93,3 +93,14 @@ class ModelDisagreement(Wrapper):
         nstate.info["disagreement"] = variance
         nstate.metrics["disagreement"] = variance
         return nstate
+
+
+class EnvStateData(Wrapper):
+    def reset(self, rng):
+        state = self.env.reset(rng)
+        state.info["env_state"] = state
+
+    def step(self, state, action):
+        state = self.env.step(state, action)
+        state.info["env_state"] = state
+        return state

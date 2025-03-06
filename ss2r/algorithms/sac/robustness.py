@@ -2,6 +2,7 @@ from typing import Callable, Protocol
 
 import jax
 import jax.numpy as jnp
+from brax.envs import Env
 from brax.training.types import Params, Transition
 from jax.scipy.stats import norm
 
@@ -20,7 +21,7 @@ class QTransformation(Protocol):
         ...
 
 
-class UCBCost(QTransformation):
+class UCBCost:
     def __init__(self, lambda_: float) -> None:
         self.lambda_ = lambda_
 
@@ -30,15 +31,19 @@ class UCBCost(QTransformation):
         q_fn: Callable[[Params, jax.Array], jax.Array],
         policy: Callable[[jax.Array], tuple[jax.Array, jax.Array]],
         gamma: float,
+        env: Env,
         alpha: jax.Array | None = None,
         reward_scaling: float = 1.0,
         key: jax.Array | None = None,
     ):
-        next_action, _ = policy(transitions.next_observation)
-        next_q = q_fn(transitions.next_observation, next_action)
+        env_state = transitions.extras["state_extras"]["env_state"]
+        next_states = env.step(env_state, transitions.action)
+        next_observations = next_states.obs
+        next_action, _ = policy(next_observations)
+        next_q = q_fn(next_observations, next_action)
         next_v = next_q.mean(axis=-1)
-        std = transitions.extras["state_extras"]["disagreement"]
-        cost = transitions.extras["state_extras"]["cost"] + self.lambda_ * std
+        disagreement = jnp.var(next_observations)
+        cost = transitions.extras["state_extras"]["cost"] + self.lambda_ * disagreement
         target_q = jax.lax.stop_gradient(cost + transitions.discount * gamma * next_v)
         return target_q
 
