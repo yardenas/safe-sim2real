@@ -2,13 +2,10 @@
 defaults:
   - go1_joystick
   - _self_
-  - override /agent/cost_robustness: ucb_cost
-  
-environment:
-  task_name: SafeGo1JoystickFlatTerrain
+  - override /agent: ppo
 
 training:
-  num_envs: 32
+  num_envs: 64
   train_domain_randomization: true
   eval_domain_randomization: true
-  safe: true
+  safe: false
