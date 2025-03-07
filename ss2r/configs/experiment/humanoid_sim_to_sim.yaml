@@ -2,6 +2,8 @@
 defaults:
   - override /environment: humanoid
   - override /agent/cost_robustness: ucb_cost
+  - override /agent/propagation: ts1
+  - _self_
 
 training:
   num_timesteps: 5000000

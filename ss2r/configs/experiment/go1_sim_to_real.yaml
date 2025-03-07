@@ -1,6 +1,7 @@
 # @package _global_
 defaults:
   - go1_joystick
+  - override /agent/propagation: ts1
   - _self_
 
 training:
@@ -8,3 +9,7 @@ training:
   train_domain_randomization: true
   eval_domain_randomization: true
   safe: false
+
+agent:
+  propagation:
+    num_envs: 32
