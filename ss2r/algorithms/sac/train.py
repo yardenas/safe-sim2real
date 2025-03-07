@@ -44,11 +44,7 @@ from ss2r.algorithms.sac.robustness import (
     SACCost,
     UCBCost,
 )
-from ss2r.algorithms.sac.wrappers import (
-    ModelDisagreement,
-    StatePropagation,
-    get_state_data,
-)
+from ss2r.algorithms.sac.wrappers import ModelDisagreement, StatePropagation
 from ss2r.rl.evaluation import ConstraintsEvaluator
 
 Metrics: TypeAlias = types.Metrics
@@ -272,8 +268,9 @@ def train(
         extras["state_extras"]["disagreement"] = jnp.zeros(())  # type: ignore
     if isinstance(cost_robustness, (UCBCost, RAMU)):
         dummy_state = env.reset(jax.random.split(rng, num_envs))
-        extras["state_extras"]["env_state"] = get_state_data(dummy_state)  # type: ignore
-        # extras["state_extras"]["env_info"] = dummy_state.info
+        dummy_state = jax.tree.map(lambda x: x[0], dummy_state)
+        # extras["state_extras"]["env_state"] = get_state_data(dummy_state)  # type: ignore
+        extras["state_extras"]["env_info"] = dummy_state.info  # type: ignore
     dummy_transition = Transition(  # pytype: disable=wrong-arg-types  # jax-ndarray
         observation=dummy_obs,
         action=dummy_action,
@@ -443,15 +440,14 @@ def train(
         extra_fields = ("truncation",)
         if safe:
             extra_fields += ("cost",)  # type: ignore
-        if isinstance(cost_robustness, (UCBCost, RAMU)):
-            extra_fields += ("env_state",)  # type: ignore
         env_state, transitions = acting.actor_step(
             env, env_state, policy, key, extra_fields=extra_fields
         )
         normalizer_params = running_statistics.update(
             normalizer_params, transitions.observation
         )
-        # transitions.extras["env_info"] = env_state.info
+        if isinstance(cost_robustness, (UCBCost, RAMU)):
+            transitions.extras["env_info"] = env_state.info
         buffer_state = replay_buffer.insert(buffer_state, float16(transitions))
         return normalizer_params, env_state, buffer_state
 
@@ -485,14 +481,19 @@ def train(
         """Runs the jittable training step after experience collection."""
         buffer_state, transitions = replay_buffer.sample(buffer_state)
         transitions = float32(transitions)
+
         # Change the front dimension of transitions so 'update_step' is called
         # grad_updates_per_step times by the scan.
-        transitions = jax.tree_util.tree_map(
-            lambda x: jnp.reshape(x, (grad_updates_per_step, -1) + x.shape[1:])
-            if isinstance(x, jax.Array) and 0 not in x.shape
-            else x,
-            transitions,
-        )
+        def safe_reshape(x):
+            """Reshapes x while handling empty arrays by temporarily replacing zero-sized dimensions."""
+            if not isinstance(x, jnp.ndarray):
+                return x  # Keep non-array values unchanged
+            reshaped_x = jnp.reshape(
+                x, (grad_updates_per_step, batch_size) + x.shape[1:]
+            )
+            return reshaped_x
+
+        transitions = jax.tree_util.tree_map(safe_reshape, transitions)
         (training_state, _), metrics = jax.lax.scan(
             sgd_step, (training_state, training_key), transitions
         )

@@ -38,7 +38,7 @@ class UCBCost:
         key: jax.Array | None = None,
         use_bro: bool = True,
     ):
-        env_state = transitions.extras["state_extras"]["env_state"]
+        env_state = transitions.extras["state_extras"]["env_info"]["env_state"]
         next_states = env.step(env_state, transitions.action)
         next_observations = next_states.obs
         next_action, _ = policy(next_observations)
