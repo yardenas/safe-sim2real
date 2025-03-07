@@ -11,6 +11,7 @@ import ss2r.algorithms.sac.networks as sac_networks
 from ss2r import benchmark_suites
 from ss2r.algorithms.sac import robustness as rb
 from ss2r.algorithms.sac.penalizers import CRPO, AugmentedLagrangian, LagrangianParams
+from ss2r.algorithms.sac.wrappers import PTSD, ModelDisagreement
 from ss2r.common.logging import TrainingLogger
 
 _LOG = logging.getLogger(__name__)
@@ -47,7 +48,6 @@ def get_cost_robustness(cfg):
         del cfg.agent.cost_robustness.name
         robustness = rb.RAMU(**cfg.agent.cost_robustness)
     elif cfg.agent.cost_robustness.name == "ucb_cost":
-        assert cfg.agent.propagation == "ts1"
         robustness = rb.UCBCost(cfg.agent.cost_robustness.cost_penalty)
     else:
         raise ValueError("Unknown robustness")
@@ -65,11 +65,31 @@ def get_reward_robustness(cfg):
         del cfg.agent.reward_robustness.name
         robustness = rb.RAMUReward(**cfg.agent.reward_robustness)
     elif cfg.agent.reward_robustness.name == "lcb_reward":
-        assert cfg.agent.propagation == "ts1"
         robustness = rb.LCBReward(cfg.agent.reward_robustness.reward_penalty)
     else:
         raise ValueError("Unknown robustness")
     return robustness
+
+
+def get_wrap_env_fn(cfg):
+    if "propagation" not in cfg.agent:
+        return lambda x: x
+    elif cfg.agent.propagation.name == "ts1":
+
+        def fn(env):
+            key = jax.random.PRNGKey(cfg.training.seed)
+            env = PTSD(
+                env,
+                benchmark_suites.prepare_randomization_fn(
+                    key, cfg.agent.propagation.num_envs
+                ),
+                cfg.agent.propagation.num_envs,
+            )
+            env = ModelDisagreement(env)
+
+        return fn
+    else:
+        raise ValueError("Propagation method not provided.")
 
 
 def get_train_fn(cfg):
@@ -174,8 +194,9 @@ def main(cfg):
         f"\n{OmegaConf.to_yaml(cfg)}"
     )
     logger = TrainingLogger(cfg)
-    train_env, eval_env = benchmark_suites.make(cfg)
     train_fn = get_train_fn(cfg)
+    train_env_wrap_fn = get_wrap_env_fn(cfg)
+    train_env, eval_env = benchmark_suites.make(cfg, train_env_wrap_fn)
     steps = Counter()
     with jax.disable_jit(not cfg.jit):
         make_policy, params, _ = train_fn(

@@ -26,6 +26,5 @@ agent:
   grad_updates_per_step: 256
   hidden_layer_sizes: [256, 256, 256]
   reward_scaling: 5.
-  propagation: ts1
   num_trajectories_per_env: 128
   safety_discounting: 1.

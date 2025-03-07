@@ -17,14 +17,14 @@ from ss2r.benchmark_suites.wrappers import (
 )
 
 
-def make(cfg):
+def make(cfg, train_wrap_env_fn):
     domain_name = get_domain_name(cfg)
     if domain_name == "brax":
-        return make_brax_envs(cfg)
+        return make_brax_envs(cfg, train_wrap_env_fn)
     elif domain_name == "rccar":
-        return make_rccar_envs(cfg)
+        return make_rccar_envs(cfg, train_wrap_env_fn)
     elif domain_name == "mujoco_playground":
-        return make_mujoco_playground_envs(cfg)
+        return make_mujoco_playground_envs(cfg, train_wrap_env_fn)
 
 
 def prepare_randomization_fn(key, num_envs, cfg, task_name):
@@ -36,7 +36,7 @@ def prepare_randomization_fn(key, num_envs, cfg, task_name):
     return vf_randomization_fn
 
 
-def make_rccar_envs(cfg):
+def make_rccar_envs(cfg, train_wrap_env_fn):
     task_cfg = dict(get_task_config(cfg))
     task_cfg.pop("domain_name")
     task_cfg.pop("task_name")
@@ -49,12 +49,14 @@ def make_rccar_envs(cfg):
     )
     sliding_window = task_cfg.pop("sliding_window")
     train_env = rccar.RCCar(train_car_params["nominal"], **task_cfg)
+    train_env = train_wrap_env_fn(train_env)
     if action_delay > 0 or obs_delay > 0:
         train_env = ActionObservationDelayWrapper(
             train_env, action_delay=action_delay, obs_delay=obs_delay
         )
     if sliding_window > 0:
         train_env = FrameActionStack(train_env, num_stack=sliding_window)
+    # FIXME (yarden): train_car_params should be instead the same as the rest of the environment types
     train_randomization_fn = (
         prepare_randomization_fn(
             train_key,
@@ -98,11 +100,12 @@ def make_rccar_envs(cfg):
     return train_env, eval_env
 
 
-def make_brax_envs(cfg):
+def make_brax_envs(cfg, train_wrap_env_fn):
     task_cfg = get_task_config(cfg)
     train_env = envs.get_environment(
         task_cfg.task_name, backend=cfg.environment.backend, **task_cfg.task_params
     )
+    train_env = train_wrap_env_fn(train_env)
     eval_env = envs.get_environment(
         task_cfg.task_name, backend=cfg.environment.backend, **task_cfg.task_params
     )
@@ -135,7 +138,7 @@ def make_brax_envs(cfg):
     return train_env, eval_env
 
 
-def make_mujoco_playground_envs(cfg):
+def make_mujoco_playground_envs(cfg, train_wrap_env_fn):
     from ml_collections import config_dict
     from mujoco_playground import registry
 
@@ -144,6 +147,7 @@ def make_mujoco_playground_envs(cfg):
     task_cfg = get_task_config(cfg)
     task_params = config_dict.ConfigDict(task_cfg.task_params)
     train_env = registry.load(task_cfg.task_name, config=task_params)
+    train_env = train_wrap_env_fn(train_env)
     eval_env = registry.load(task_cfg.task_name, config=task_params)
     train_key, eval_key = jax.random.split(jax.random.PRNGKey(cfg.training.seed))
     train_randomization_fn = (
@@ -153,6 +157,8 @@ def make_mujoco_playground_envs(cfg):
         if cfg.training.train_domain_randomization
         else None
     )
+    # TODO (yarden): make it nicer
+    train_key, key = jax.random.split(train_key)
     train_env = wrap_for_brax_training(
         train_env,
         randomization_fn=train_randomization_fn,

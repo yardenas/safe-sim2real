@@ -15,10 +15,6 @@ training:
   safe: true
   safety_budget: 100.
 
-agent:
-  propagation: ts1
-  num_trajectories_per_env: 128
-
 environment:
   torso_length: [-0.2, 0.2]
   friction: [0.0, 0.0]

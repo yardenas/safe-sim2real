@@ -37,8 +37,7 @@ import ss2r.algorithms.sac.losses as sac_losses
 import ss2r.algorithms.sac.networks as sac_networks
 from ss2r.algorithms.sac import gradients
 from ss2r.algorithms.sac.penalizers import Penalizer
-from ss2r.algorithms.sac.robustness import QTransformation, SACBase, SACCost
-from ss2r.algorithms.sac.wrappers import ModelDisagreement, StatePropagation
+from ss2r.algorithms.sac.robustness import QTransformation, SACBase, SACCost, UCBCost
 from ss2r.rl.evaluation import ConstraintsEvaluator
 
 Metrics: TypeAlias = types.Metrics
@@ -152,8 +151,7 @@ def train(
     action_repeat: int = 1,
     num_envs: int = 1,
     num_eval_envs: int = 128,
-    num_trajectories_per_env: int = 1,
-    propagation: str | None = None,
+    wrap_env_fn: Optional[Callable[[Any], Any]] = None,
     learning_rate: float = 1e-4,
     critic_learning_rate: float = 1e-4,
     cost_critic_learning_rate: float = 1e-4,
@@ -196,13 +194,10 @@ def train(
     logging.info(f"Episode safety budget: {safety_budget}")
     if max_replay_size is None:
         max_replay_size = num_timesteps
-    if propagation == "standard":
-        propagation = None
-    factor = 1 if propagation is not None else num_envs
     # The number of environment steps executed for every `actor_step()` call.
-    env_steps_per_actor_step = action_repeat * factor * num_trajectories_per_env
+    env_steps_per_actor_step = action_repeat * num_envs
     # equals to ceil(min_replay_size / env_steps_per_actor_step)
-    num_prefill_actor_steps = -(-min_replay_size // (factor * num_trajectories_per_env))
+    num_prefill_actor_steps = -(-min_replay_size // num_envs)
     num_prefill_env_steps = num_prefill_actor_steps * env_steps_per_actor_step
     assert num_timesteps - num_prefill_env_steps >= 0
     num_evals_after_init = max(num_evals - 1, 1)
@@ -215,13 +210,9 @@ def train(
         // (num_evals_after_init * env_steps_per_actor_step)
     )
     env = environment
+    if wrap_env_fn is not None:
+        env = wrap_env_fn(env)
     rng = jax.random.PRNGKey(seed)
-    if propagation is not None:
-        env = StatePropagation(env)
-        env = envs.training.VmapWrapper(env)
-        env = ModelDisagreement(env)
-    else:
-        assert num_trajectories_per_env == 1
     obs_size = env.observation_size
     action_size = env.action_size
     normalize_fn = lambda x, y: x
@@ -256,7 +247,7 @@ def train(
     }
     if safe:
         extras["state_extras"]["cost"] = jnp.zeros(())  # type: ignore
-    if propagation is not None:
+    if isinstance(cost_robustness, UCBCost):
         extras["state_extras"]["disagreement"] = jnp.zeros(())  # type: ignore
     dummy_transition = Transition(  # pytype: disable=wrong-arg-types  # jax-ndarray
         observation=dummy_obs,
@@ -423,7 +414,7 @@ def train(
         extra_fields = ("truncation",)
         if safe:
             extra_fields += ("cost",)  # type: ignore
-        if propagation is not None:
+        if isinstance(cost_robustness, UCBCost):
             extra_fields += ("disagreement",)  # type: ignore
         # TODO (yarden): if I ever need to sample states based on value functions
         # one way to code it is to add a function to the StatePropagation wrapper
@@ -595,13 +586,11 @@ def train(
     local_key, rb_key, env_key, eval_key = jax.random.split(local_key, 4)
 
     # Env init
-    env_keys = jax.random.split(env_key, num_trajectories_per_env * num_envs)
+    env_keys = jax.random.split(env_key, num_envs)
     env_keys = jnp.reshape(
         env_keys,
-        (num_trajectories_per_env, -1) + env_keys.shape[1:],
+        -1 + env_keys.shape[1:],
     )
-    if num_trajectories_per_env == 1:
-        env_keys = env_keys.squeeze(0)
     reset_fn = jax.jit(env.reset)
     env_state = reset_fn(env_keys)
 
@@ -654,13 +643,11 @@ def train(
         ) = training_epoch_with_timing(
             training_state, env_state, buffer_state, epoch_key
         )
-        reset_keys = jax.random.split(epoch_key, num_trajectories_per_env * num_envs)
+        reset_keys = jax.random.split(epoch_key, num_envs)
         reset_keys = jnp.reshape(
             reset_keys,
-            (num_trajectories_per_env, -1) + reset_keys.shape[1:],
+            -1 + reset_keys.shape[1:],
         )
-        if num_trajectories_per_env == 1:
-            reset_keys = reset_keys.squeeze(0)
         env_state = reset_fn(reset_keys)
         current_step = int(training_state.env_steps)
 

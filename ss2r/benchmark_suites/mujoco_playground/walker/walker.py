@@ -5,6 +5,8 @@ from brax.envs.base import State
 from mujoco_playground import dm_control_suite
 
 _TORSO_ID = 1
+_LEFT_THIGH_ID = 5
+_RIGHT_THIGH_ID = 2
 
 
 def domain_randomization(sys, rng, cfg):

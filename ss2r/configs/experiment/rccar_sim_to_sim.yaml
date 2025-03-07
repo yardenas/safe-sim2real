@@ -31,5 +31,3 @@ agent:
   penalizer:
     lagrange_multiplier: 0.1
     penalty_multiplier: 5e-6
-  propagation: ts1
-  num_trajectories_per_env: 128
