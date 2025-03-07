@@ -206,6 +206,9 @@ render_fns = {
     "Go1JoystickFlatTerrain": functools.partial(
         mujoco_playground.render, camera="track"
     ),
+    "SafeGo1JoystickFlatTerrain": functools.partial(
+        mujoco_playground.render, camera="track"
+    ),
     "WalkerWalk": functools.partial(mujoco_playground.render, camera="side"),
     "WalkerRun": functools.partial(mujoco_playground.render, camera="side"),
     "SafeWalkerWalk": functools.partial(mujoco_playground.render, camera="side"),
