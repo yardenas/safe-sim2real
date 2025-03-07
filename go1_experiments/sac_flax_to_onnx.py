@@ -61,7 +61,8 @@ activation = getattr(jnn, cfg.agent.activation)
 
 network_factory = functools.partial(
     sac_networks.make_sac_networks,
-    hidden_layer_sizes=cfg.agent.hidden_layer_sizes,
+    value_hidden_layer_sizes=cfg.agent.value_hidden_layer_sizes,
+    policy_hidden_layer_sizes=cfg.agent.policy_hidden_layer_sizes,
     activation=activation,
     value_obs_key="state" if not cfg.training.value_privileged else "privileged_state",
     policy_obs_key="state",
@@ -176,7 +177,7 @@ mean_std = (tf.convert_to_tensor(mean), tf.convert_to_tensor(std))
 tf_policy_network = make_policy_network(
     param_size=act_size * 2,
     mean_std=mean_std,
-    hidden_layer_sizes=cfg.agent.hidden_layer_sizes,
+    hidden_layer_sizes=cfg.agent.policy_hidden_layer_sizes,
     activation=tf.nn.swish,
 )
 

@@ -4,5 +4,6 @@ agent:
   learning_rate: 0.001
   max_replay_size: 4194304
   min_replay_size: 8192
-  hidden_layer_sizes: [256, 256]
+  policy_hidden_layer_sizes: [256, 256, 256]
+  value_hidden_layer_sizes: [512, 512]
   activation: relu
