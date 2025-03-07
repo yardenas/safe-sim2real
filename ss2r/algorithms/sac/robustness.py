@@ -2,9 +2,12 @@ from typing import Callable, Protocol
 
 import jax
 import jax.numpy as jnp
-from brax.envs import Env
+from brax.base import State as PipelineState
+from brax.envs import Env, State
 from brax.training.types import Params, Transition
 from jax.scipy.stats import norm
+from mujoco.mjx import Data
+from mujoco_playground import State as MjxState
 
 
 class QTransformation(Protocol):
@@ -20,6 +23,31 @@ class QTransformation(Protocol):
         use_bro: bool = True,
     ):
         ...
+
+
+def _make_state(transition: Transition):
+    info = transition.extras["state_extras"]["env_info"]
+    data = info["env_state"]
+    if isinstance(data, Data):
+        return MjxState(
+            data=data,
+            info=info,
+            obs=transition.observation,
+            reward=transition.reward,
+            done=1.0 - transition.discount,
+            metrics={},
+        )
+    elif isinstance(data, PipelineState):
+        return State(
+            pipeline_state=data,
+            info=info,
+            obs=transition.observation,
+            reward=transition.reward,
+            done=1.0 - transition.discount,
+            metrics={},
+        )
+    else:
+        ValueError("Not a valid state data type")
 
 
 class UCBCost:
@@ -38,8 +66,12 @@ class UCBCost:
         key: jax.Array | None = None,
         use_bro: bool = True,
     ):
-        env_state = transitions.extras["state_extras"]["env_info"]["env_state"]
-        next_states = env.step(env_state, transitions.action)
+        env_state = _make_state(transitions)
+        tile = lambda tree: jax.tree_map(
+            lambda x: jnp.tile(x[0], (3,) + (1,) * (x.ndim - 1)), tree
+        )
+        s, a = tile(env_state), tile(transitions.action)
+        next_states = env.step(s, a)
         next_observations = next_states.obs
         next_action, _ = policy(next_observations)
         next_q = q_fn(next_observations, next_action)

@@ -53,7 +53,9 @@ InferenceParams: TypeAlias = Tuple[running_statistics.NestedMeanStd, Params]
 
 ReplayBufferState: TypeAlias = Any
 
-make_float = lambda x, t: jax.tree.map(lambda y: y.astype(t), x)
+make_float = lambda x, t: jax.tree.map(
+    lambda y: y.astype(t) if jnp.issubdtype(y, jnp.floating) else y, x
+)
 float16 = functools.partial(make_float, t=jnp.float16)
 float32 = functools.partial(make_float, t=jnp.float32)
 
