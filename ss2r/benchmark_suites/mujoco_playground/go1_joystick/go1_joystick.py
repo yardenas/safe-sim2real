@@ -13,53 +13,53 @@ def domain_randomization(sys, rng, cfg):
 
     @jax.vmap
     def rand_dynamics(rng):
-        # Floor friction: =U(0.4, 1.0). <- Original params
+        # Floor friction: 
         rng, key = jax.random.split(rng)
         geom_friction = model.geom_friction.at[FLOOR_GEOM_ID, 0].set(
-            jax.random.uniform(key, minval=cfg.floor_friction[0], maxval=cfg.floor_friction[1])
+            jax.random.uniform(key, minval=cfg.flr_fric[0], maxval=cfg.flr_fric[1])
         )
 
-        # Scale static friction: *U(0.9, 1.1).
+        # Scale static friction: 
         rng, key = jax.random.split(rng)
         frictionloss = model.dof_frictionloss[6:] * jax.random.uniform(
-            key, shape=(12,), minval=cfg.scale_static_friction[0], maxval=cfg.scale_static_friction[1]
+            key, shape=(12,), minval=cfg.sc_fric[0], maxval=cfg.sc_fric[1]
         )
         dof_frictionloss = model.dof_frictionloss.at[6:].set(frictionloss)
 
-        # Scale armature: *U(1.0, 1.05).
+        # Scale armature: 
         rng, key = jax.random.split(rng)
         armature = model.dof_armature[6:] * jax.random.uniform(
-            key, shape=(12,), minval=cfg.scale_armature[0], maxval=cfg.scale_armature[1]
+            key, shape=(12,), minval=cfg.sc_armature[0], maxval=cfg.sc_armature[1]
         )
         dof_armature = model.dof_armature.at[6:].set(armature)
 
-        # Jitter center of mass positiion: +U(-0.05, 0.05).
+        # Jitter center of mass positiion:
         rng, key = jax.random.split(rng)
-        dpos = jax.random.uniform(key, (3,), minval=cfg.jitter_center_of_mass[0], maxval=cfg.jitter_center_of_mass[0])
+        dpos = jax.random.uniform(key, (3,), minval=cfg.jit_com[0], maxval=cfg.jit_com[0])
         body_ipos = model.body_ipos.at[TORSO_BODY_ID].set(
             model.body_ipos[TORSO_BODY_ID] + dpos
         )
 
-        # Scale all link masses: *U(0.9, 1.1).
+        # Scale all link masses: 
         rng, key = jax.random.split(rng)
         dmass = jax.random.uniform(
-            key, shape=(model.nbody,), minval=cfg.scale_link_masses[0], maxval=cfg.scale_link_masses[1]
+            key, shape=(model.nbody,), minval=cfg.sc_lnk_mass[0], maxval=cfg.sc_lnk_mass[1]
         )
         body_mass = model.body_mass.at[:].set(model.body_mass * dmass)
 
-        # Add mass to torso: +U(-1.0, 1.0).
+        # Add mass to torso:
         rng, key = jax.random.split(rng)
-        dmass = jax.random.uniform(key, minval=cfg.add_torso_mass[0], maxval=cfg.add_torso_mass[1])
+        dmass = jax.random.uniform(key, minval=cfg.add_trs_mass[0], maxval=cfg.add_trs_mass[1])
         body_mass = body_mass.at[TORSO_BODY_ID].set(
             body_mass[TORSO_BODY_ID] + dmass
         )
 
-        # Jitter qpos0: +U(-0.05, 0.05).
+        # Jitter qpos0:
         rng, key = jax.random.split(rng)
         qpos0 = model.qpos0
         qpos0 = qpos0.at[7:].set(
             qpos0[7:]
-            + jax.random.uniform(key, shape=(12,), minval=cfg.jitter_qpos0[0], maxval=cfg.jitter_qpos0[1])
+            + jax.random.uniform(key, shape=(12,), minval=cfg.jit_qpos0[0], maxval=cfg.jit_qpos0[1])
         )
 
         return (

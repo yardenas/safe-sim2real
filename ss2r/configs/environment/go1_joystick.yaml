@@ -61,12 +61,19 @@ task_params:
   soft_joint_pos_limit_factor: 0.95
 
 train_params: 
-  floor_friction: [0.4, 1.0]
-  scale_static_friction: [0.9, 1.1]
-  scale_armature: [1.0, 1.05]
-  jitter_center_of_mass: [-0.05, 0.05]
-  scale_link_masses: [0.9, 1.1]
-  add_torso_mass: [-1.0, 1.0]
-  jitter_qpos0: [-0.05, 0.05]
-  
-eval_params: null
+  flr_fric: [0.4, 1.0]
+  sc_fric: [0.9, 1.1]
+  sc_armature: [1.0, 1.05]
+  jit_com: [-0.05, 0.05]
+  sc_lnk_mass: [0.9, 1.1]
+  add_trs_mass: [-1.0, 1.0]
+  jit_qpos0: [-0.05, 0.05]
+
+eval_params:
+  flr_fric: [0.4, 1.0]
+  sc_fric: [0.9, 1.1]
+  sc_arm: [1.0, 1.05]
+  jit_com: [-0.05, 0.05]
+  sc_lnk_mass: [0.9, 1.1]
+  add_trs_mass: [-1.0, 1.0]
+  jit_qpos0: [-0.05, 0.05]
