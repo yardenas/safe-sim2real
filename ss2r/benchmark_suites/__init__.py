@@ -187,6 +187,7 @@ randomization_fns = {
     "humanoid": humanoid.domain_randomization,
     "humanoid_safe": humanoid.domain_randomization,
     "Go1JoystickFlatTerrain": go1_joystick.domain_randomization,
+    "SafeGo1JoystickFlatTerrain": go1_joystick.domain_randomization,
     "ant": ant.domain_randomization,
     "ant_safe": ant.domain_randomization,
     "WalkerWalk": walker.domain_randomization,

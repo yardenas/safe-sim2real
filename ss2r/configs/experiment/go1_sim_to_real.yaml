@@ -2,9 +2,12 @@
 defaults:
   - go1_joystick
   - _self_
+  
+environment:
+  task_name: SafeGo1JoystickFlatTerrain
 
 training:
-  num_envs: 64
+  num_envs: 32
   train_domain_randomization: true
   eval_domain_randomization: true
   safe: false
