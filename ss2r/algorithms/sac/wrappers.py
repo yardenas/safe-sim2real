@@ -29,8 +29,10 @@ def _get_obs(state):
 
 
 class AnotherStatePropagation(Wrapper):
+    # FIXME (yarden): randomization function
     def __init__(self, env, randomzation_fn, num_perturbed_envs):
         super().__init__(env)
+        # FIXME (yarden): this should be the nominal environment.
         self.perturbed_env = BraxDomainRandomizationVmapWrapper(env, randomzation_fn)
         self.num_perturbed_envs = num_perturbed_envs
 
@@ -39,25 +41,22 @@ class AnotherStatePropagation(Wrapper):
         # domain randomization, the initial states will be different, having
         # a non-zero disagreement.
         state = self.env.reset(rng)
-        propagation_rng = jax.random.split(rng[0])[1]
         state.info["state_propagation"] = {}
-        state.info["state_propagation"]["rng"] = jax.random.split(propagation_rng)
-        state.info["state_propagation"]["next_obs"] = _get_obs(state)
+        tile = lambda tree: jax.tree_map(
+            lambda x: jnp.tile(x, (32,) + (1,) * x.ndim), tree
+        )
+        state.info["state_propagation"]["next_obs"] = tile(_get_obs(state))
         return state
 
     def step(self, state: State, action: jax.Array) -> State:
-        propagation_rng = state.info["state_propagation"]["rng"]
-        tile = lambda tree: jax.tree_map(
-            lambda x: jnp.tile(x, (self.num_envs,) + (1,) * x.ndim), tree
-        )
-        state, action = tile(state), tile(action)
         nstate = self.env.step(state, action)
-        n_key, key = jax.random.split(propagation_rng)
-        orig_next_obs = _get_obs(nstate)
-        nstate.info["state_propagation"]["rng"] = jax.random.split(n_key, self.num_envs)
-        nstate.info["state_propagation"]["next_obs"] = nstate.obs
-        nstate = self.propagation_fn(nstate, key)
-        nstate.info["state_propagation"]["next_obs"] = orig_next_obs
+        tile = lambda tree: jax.tree_map(
+            lambda x: jnp.tile(x, (32,) + (1,) * x.ndim), tree
+        )
+        v_state, v_action = tile(state), tile(action)
+        perturbed_nstate = self.perturbed_env.step(v_state, v_action)
+        next_obs = _get_obs(perturbed_nstate)
+        nstate.info["state_propagation"]["next_obs"] = next_obs
         return nstate
 
 
@@ -111,7 +110,6 @@ class StatePropagation(Wrapper):
 class ModelDisagreement(Wrapper):
     def __init__(self, env):
         super().__init__(env)
-        assert isinstance(env.env, StatePropagation)
 
     def reset(self, rng: jax.Array) -> State:
         state = self.env.reset(rng)

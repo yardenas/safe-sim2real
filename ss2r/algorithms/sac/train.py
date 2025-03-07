@@ -38,7 +38,9 @@ import ss2r.algorithms.sac.networks as sac_networks
 from ss2r.algorithms.sac import gradients
 from ss2r.algorithms.sac.penalizers import Penalizer
 from ss2r.algorithms.sac.robustness import QTransformation, SACBase, SACCost
-from ss2r.algorithms.sac.wrappers import ModelDisagreement, StatePropagation
+from ss2r.algorithms.sac.wrappers import (
+    ModelDisagreement,
+)
 from ss2r.rl.evaluation import ConstraintsEvaluator
 
 Metrics: TypeAlias = types.Metrics
@@ -217,8 +219,6 @@ def train(
     env = environment
     rng = jax.random.PRNGKey(seed)
     if propagation is not None:
-        env = StatePropagation(env)
-        env = envs.training.VmapWrapper(env)
         env = ModelDisagreement(env)
     else:
         assert num_trajectories_per_env == 1

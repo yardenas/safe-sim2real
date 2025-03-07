@@ -3,6 +3,7 @@ import functools
 import jax
 from brax import envs
 
+from ss2r.algorithms.sac.wrappers import AnotherStatePropagation
 from ss2r.benchmark_suites import brax, mujoco_playground, wrappers
 from ss2r.benchmark_suites.brax.ant import ant
 from ss2r.benchmark_suites.brax.cartpole import cartpole
@@ -152,6 +153,13 @@ def make_mujoco_playground_envs(cfg):
         )
         if cfg.training.train_domain_randomization
         else None
+    )
+    # TODO (yarden): make it nicer
+    train_key, key = jax.random.split(train_key)
+    train_env = AnotherStatePropagation(
+        train_env,
+        prepare_randomization_fn(key, 32, task_cfg.train_params, task_cfg.task_name),
+        32,
     )
     train_env = wrap_for_brax_training(
         train_env,
