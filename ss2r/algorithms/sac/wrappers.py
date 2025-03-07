@@ -108,7 +108,6 @@ class StatePropagation(Wrapper):
 class ModelDisagreement(Wrapper):
     def __init__(self, env):
         super().__init__(env)
-        assert isinstance(env.env, StatePropagation)
 
     def reset(self, rng: jax.Array) -> State:
         state = self.env.reset(rng)

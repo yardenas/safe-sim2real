@@ -81,7 +81,10 @@ def get_wrap_env_fn(cfg):
             env = PTSD(
                 env,
                 benchmark_suites.prepare_randomization_fn(
-                    key, cfg.agent.propagation.num_envs
+                    key,
+                    cfg.agent.propagation.num_envs,
+                    cfg.environment.train_params,
+                    cfg.environment.task_name,
                 ),
                 cfg.agent.propagation.num_envs,
             )
