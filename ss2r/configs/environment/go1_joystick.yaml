@@ -42,7 +42,7 @@ task_params:
     scales:
       action_rate: -0.01
       ang_vel_xy: -0.05
-      dof_pos_limits: -1.0
+      dof_pos_limits: 0
       energy: -0.001
       feet_air_time: 0.1
       feet_clearance: -2.0
@@ -50,7 +50,7 @@ task_params:
       feet_slip: -0.1
       lin_vel_z: -0.5
       orientation: -5.0
-      pose: 0.5
+      pose: 0
       stand_still: -1.0
       termination: -1.0
       torques: -0.0002
@@ -60,5 +60,20 @@ task_params:
   sim_dt: 0.004
   soft_joint_pos_limit_factor: 0.95
 
-train_params: null
-eval_params: null
+train_params: 
+  floor_friction: [0.4, 1.0]
+  scale_friction: [0.9, 1.1]
+  scale_armature: [1.0, 1.05]
+  jitter_mass: [-0.05, 0.05]
+  scale_link_mass: [0.9, 1.1]
+  add_torso_mass: [-1.0, 1.0]
+  jitter_qpos0: [-0.05, 0.05]
+
+eval_params:
+  floor_friction: [0.4, 1.0]
+  scale_friction: [0.9, 1.1]
+  scale_armature: [1.0, 1.05]
+  jitter_mass: [-0.05, 0.05]
+  scale_link_mass: [0.9, 1.1]
+  add_torso_mass: [-1.0, 1.0]
+  jitter_qpos0: [-0.05, 0.05]
