@@ -4,6 +4,8 @@ defaults:
   - override /environment/train_car_params: car_2
   - override /environment/eval_car_params: car_2_blend
   - override /agent/cost_robustness: ucb_cost
+  - override /agent/propagation: ts1
+  - _self_
 
 environment:
   action_delay: 1
@@ -31,5 +33,3 @@ agent:
   penalizer:
     lagrange_multiplier: 0.1
     penalty_multiplier: 5e-6
-  propagation: ts1
-  num_trajectories_per_env: 128

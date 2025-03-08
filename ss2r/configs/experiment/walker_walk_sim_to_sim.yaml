@@ -1,9 +1,10 @@
 # @package _global_
 defaults:
-  - _self_
   - mujoco_playground_dm_control
   - override /environment: walker
   - override /agent/cost_robustness: ucb_cost
+  - override /agent/propagation: ts1
+  - _self_
 
 training:
   num_envs: 16
@@ -14,10 +15,6 @@ training:
   value_privileged: true
   safe: true
   safety_budget: 100.
-
-agent:
-  propagation: ts1
-  num_trajectories_per_env: 128
 
 environment:
   torso_length: [-0.2, 0.2]
