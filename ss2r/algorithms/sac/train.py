@@ -587,10 +587,6 @@ def train(
 
     # Env init
     env_keys = jax.random.split(env_key, num_envs)
-    env_keys = jnp.reshape(
-        env_keys,
-        -1 + env_keys.shape[1:],
-    )
     reset_fn = jax.jit(env.reset)
     env_state = reset_fn(env_keys)
 
