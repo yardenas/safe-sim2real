@@ -2,6 +2,8 @@
 defaults:
   - override /environment: cartpole
   - override /agent/cost_robustness: ucb_cost
+  - override /agent/propagation: ts1
+  - _self_
 
 training:
   num_timesteps: 500000
@@ -23,5 +25,3 @@ environment:
 
 agent:
   grad_updates_per_step: 256
-  num_trajectories_per_env: 128
-  propagation: ts1
