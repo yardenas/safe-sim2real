@@ -17,7 +17,7 @@ from ss2r.benchmark_suites.wrappers import (
 )
 
 
-def make(cfg, train_wrap_env_fn):
+def make(cfg, train_wrap_env_fn=lambda env: env):
     domain_name = get_domain_name(cfg)
     if domain_name == "brax":
         return make_brax_envs(cfg, train_wrap_env_fn)
