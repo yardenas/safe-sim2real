@@ -5,7 +5,6 @@ defaults:
   - override /agent: ppo
 
 training:
-  num_envs: 64
   train_domain_randomization: true
   eval_domain_randomization: true
   safe: false

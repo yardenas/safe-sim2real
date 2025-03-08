@@ -42,7 +42,7 @@ task_params:
     scales:
       action_rate: -0.01
       ang_vel_xy: -0.05
-      dof_pos_limits: 0
+      dof_pos_limits: -1.0
       energy: -0.001
       feet_air_time: 0.1
       feet_clearance: -2.0
@@ -50,7 +50,7 @@ task_params:
       feet_slip: -0.1
       lin_vel_z: -0.5
       orientation: -5.0
-      pose: 0
+      pose: 0.5
       stand_still: -1.0
       termination: -1.0
       torques: -0.0002
