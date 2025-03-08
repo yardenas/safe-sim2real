@@ -30,7 +30,10 @@ class CRPO:
             -constraint,
         )
         new_params = CRPOParams(params.burnin - 1)
-        aux = {"burnin_counter": new_params.burnin}
+        aux = {
+            "crpo/burnin_counter": new_params.burnin,
+            "crpo/active": jnp.greater(constraint + self.eta, 0.0),
+        }
         return actor_loss, aux, new_params
 
 
