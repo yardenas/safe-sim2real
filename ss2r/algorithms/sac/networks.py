@@ -39,6 +39,33 @@ class SafeSACNetworks:
     qc_network: networks.FeedForwardNetwork | None
 
 
+class BroNet(linen.Module):
+    layer_sizes: Sequence[int]
+    activation: Callable
+    kernel_init: Callable = jax.nn.initializers.lecun_uniform()
+
+    @linen.compact
+    def __call__(self, x):
+        assert all(size == self.layer_sizes[0] for size in self.layer_sizes[:-1])
+        x = linen.Dense(features=self.layer_sizes[0], kernel_init=self.kernel_init)(x)
+        x = linen.LayerNorm()(x)
+        x = self.activation(x)
+        for _ in range(len(self.layer_sizes) - 1):
+            residual = x
+            x = linen.Dense(features=self.layer_sizes[0], kernel_init=self.kernel_init)(
+                x
+            )
+            x = linen.LayerNorm()(x)
+            x = self.activation(x)
+            x = linen.Dense(features=self.layer_sizes[0], kernel_init=self.kernel_init)(
+                x
+            )
+            x = linen.LayerNorm()(x)
+            x += residual
+        x = linen.Dense(self.layer_sizes[-1], kernel_init=self.kernel_init)(x)
+        return x
+
+
 class NetworkFactory(Protocol[NetworkType]):
     def __call__(
         self,
@@ -47,6 +74,7 @@ class NetworkFactory(Protocol[NetworkType]):
         preprocess_observations_fn: types.PreprocessObservationFn = types.identity_observation_preprocessor,
         *,
         safe: bool = False,
+        use_bro: bool = True,
     ) -> NetworkType:
         pass
 
@@ -79,6 +107,7 @@ def make_q_network(
     activation: ActivationFn = linen.relu,
     n_critics: int = 2,
     obs_key: str = "state",
+    use_bro: bool = True,
 ) -> networks.FeedForwardNetwork:
     """Creates a value network."""
 
@@ -91,8 +120,9 @@ def make_q_network(
         def __call__(self, obs: jnp.ndarray, actions: jnp.ndarray):
             hidden = jnp.concatenate([obs, actions], axis=-1)
             res = []
+            net = BroNet if use_bro else MLP
             for _ in range(self.n_critics):
-                q = MLP(
+                q = net(  # type: ignore
                     layer_sizes=list(hidden_layer_sizes) + [1],
                     activation=activation,
                     kernel_init=jax.nn.initializers.lecun_uniform(),
@@ -119,10 +149,12 @@ def make_sac_networks(
     observation_size: types.ObservationSize,
     action_size: int,
     preprocess_observations_fn: types.PreprocessObservationFn = types.identity_observation_preprocessor,
-    hidden_layer_sizes: Sequence[int] = (256, 256),
+    policy_hidden_layer_sizes: Sequence[int] = (256, 256),
+    value_hidden_layer_sizes: Sequence[int] = (256, 256),
     activation: networks.ActivationFn = linen.relu,
     value_obs_key: str = "state",
     policy_obs_key: str = "state",
+    use_bro: bool = True,
     *,
     safe: bool = False,
 ) -> SafeSACNetworks:
@@ -134,7 +166,7 @@ def make_sac_networks(
         parametric_action_distribution.param_size,
         observation_size,
         preprocess_observations_fn=preprocess_observations_fn,
-        hidden_layer_sizes=hidden_layer_sizes,
+        hidden_layer_sizes=policy_hidden_layer_sizes,
         activation=activation,
         obs_key=policy_obs_key,
     )
@@ -142,16 +174,17 @@ def make_sac_networks(
         observation_size,
         action_size,
         preprocess_observations_fn=preprocess_observations_fn,
-        hidden_layer_sizes=hidden_layer_sizes,
+        hidden_layer_sizes=value_hidden_layer_sizes,
         activation=activation,
         obs_key=value_obs_key,
+        use_bro=use_bro,
     )
     if safe:
         qc_network = make_q_network(
             observation_size,
             action_size,
             preprocess_observations_fn=preprocess_observations_fn,
-            hidden_layer_sizes=hidden_layer_sizes,
+            hidden_layer_sizes=value_hidden_layer_sizes,
             activation=activation,
             obs_key=value_obs_key,
         )

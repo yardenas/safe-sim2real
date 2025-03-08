@@ -1,17 +1,15 @@
 # @package _global_
 defaults:
   - go1_joystick
+  - override /agent/propagation: ts1
   - _self_
-  
-environment:
-  task_name: SafeGo1JoystickFlatTerrain
 
 training:
-  num_envs: 32
+  num_envs: 128
   train_domain_randomization: true
   eval_domain_randomization: true
   safe: false
 
 agent:
-  propagation: ts1
-  num_trajectories_per_env: 128
+  propagation:
+    num_envs: 32

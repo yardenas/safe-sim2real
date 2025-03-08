@@ -11,6 +11,7 @@ import ss2r.algorithms.sac.networks as sac_networks
 from ss2r import benchmark_suites
 from ss2r.algorithms.sac import robustness as rb
 from ss2r.algorithms.sac.penalizers import CRPO, AugmentedLagrangian, LagrangianParams
+from ss2r.algorithms.sac.wrappers import PTSD, ModelDisagreement
 from ss2r.common.logging import TrainingLogger
 
 _LOG = logging.getLogger(__name__)
@@ -47,7 +48,6 @@ def get_cost_robustness(cfg):
         del cfg.agent.cost_robustness.name
         robustness = rb.RAMU(**cfg.agent.cost_robustness)
     elif cfg.agent.cost_robustness.name == "ucb_cost":
-        assert cfg.agent.propagation == "ts1"
         robustness = rb.UCBCost(cfg.agent.cost_robustness.cost_penalty)
     else:
         raise ValueError("Unknown robustness")
@@ -65,11 +65,35 @@ def get_reward_robustness(cfg):
         del cfg.agent.reward_robustness.name
         robustness = rb.RAMUReward(**cfg.agent.reward_robustness)
     elif cfg.agent.reward_robustness.name == "lcb_reward":
-        assert cfg.agent.propagation == "ts1"
         robustness = rb.LCBReward(cfg.agent.reward_robustness.reward_penalty)
     else:
         raise ValueError("Unknown robustness")
     return robustness
+
+
+def get_wrap_env_fn(cfg):
+    if "propagation" not in cfg.agent:
+        return lambda env: env
+    elif cfg.agent.propagation.name == "ts1":
+
+        def fn(env):
+            key = jax.random.PRNGKey(cfg.training.seed)
+            env = PTSD(
+                env,
+                benchmark_suites.prepare_randomization_fn(
+                    key,
+                    cfg.agent.propagation.num_envs,
+                    cfg.environment.train_params,
+                    cfg.environment.task_name,
+                ),
+                cfg.agent.propagation.num_envs,
+            )
+            env = ModelDisagreement(env)
+            return env
+
+        return fn
+    else:
+        raise ValueError("Propagation method not provided.")
 
 
 def get_train_fn(cfg):
@@ -93,7 +117,8 @@ def get_train_fn(cfg):
                 "policy_privileged",
             ]
         }
-        hidden_layer_sizes = agent_cfg.pop("hidden_layer_sizes")
+        policy_hidden_layer_sizes = agent_cfg.pop("policy_hidden_layer_sizes")
+        value_hidden_layer_sizes = agent_cfg.pop("value_hidden_layer_sizes")
         activation = getattr(jnn, agent_cfg.pop("activation"))
         del agent_cfg["name"]
         if "cost_robustness" in agent_cfg:
@@ -102,13 +127,16 @@ def get_train_fn(cfg):
             del agent_cfg["reward_robustness"]
         if "penalizer" in agent_cfg:
             del agent_cfg["penalizer"]
+        if "propagation" in agent_cfg:
+            del agent_cfg["propagation"]
         value_obs_key = "privileged_state" if cfg.training.value_privileged else "state"
         policy_obs_key = (
             "privileged_state" if cfg.training.policy_privileged else "state"
         )
         network_factory = functools.partial(
             sac_networks.make_sac_networks,
-            hidden_layer_sizes=hidden_layer_sizes,
+            policy_hidden_layer_sizes=policy_hidden_layer_sizes,
+            value_hidden_layer_sizes=value_hidden_layer_sizes,
             activation=activation,
             value_obs_key=value_obs_key,
             policy_obs_key=policy_obs_key,
@@ -172,8 +200,9 @@ def main(cfg):
         f"\n{OmegaConf.to_yaml(cfg)}"
     )
     logger = TrainingLogger(cfg)
-    train_env, eval_env = benchmark_suites.make(cfg)
     train_fn = get_train_fn(cfg)
+    train_env_wrap_fn = get_wrap_env_fn(cfg)
+    train_env, eval_env = benchmark_suites.make(cfg, train_env_wrap_fn)
     steps = Counter()
     with jax.disable_jit(not cfg.jit):
         make_policy, params, _ = train_fn(

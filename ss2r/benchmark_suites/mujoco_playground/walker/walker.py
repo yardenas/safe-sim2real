@@ -97,4 +97,3 @@ for run in [True, False]:
     dm_control_suite.register_environment(
         name_str, make, dm_control_suite.walker.default_config
     )
-    dm_control_suite.ALL += [name_str]

@@ -22,5 +22,3 @@ environment:
 
 agent:
   grad_updates_per_step: 256
-  num_trajectories_per_env: 1
-  propagation: standard
