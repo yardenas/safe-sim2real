@@ -30,7 +30,8 @@ class CRPO:
             -constraint,
         )
         new_params = CRPOParams(params.burnin - 1)
-        return actor_loss, {}, new_params
+        aux = {"burnin_counter": new_params.burnin}
+        return actor_loss, aux, new_params
 
 
 class LagrangianParams(NamedTuple):
