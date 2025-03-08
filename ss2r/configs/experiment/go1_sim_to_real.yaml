@@ -17,5 +17,8 @@ training:
 agent:
   propagation:
     num_envs: 32
-  safety_discounting: 1.
+  safety_discounting: 0.99
   cost_scaling: 100.
+  penalizer:
+    burnin: 312500
+    
