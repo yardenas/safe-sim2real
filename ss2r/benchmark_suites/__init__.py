@@ -191,7 +191,8 @@ randomization_fns = {
     "humanoid": humanoid.domain_randomization,
     "humanoid_safe": humanoid.domain_randomization,
     "Go1JoystickFlatTerrain": go1_joystick.domain_randomization,
-    "SafeGo1JoystickFlatTerrain": go1_joystick.domain_randomization,
+    "SafeJointGo1JoystickFlatTerrain": go1_joystick.domain_randomization,
+    "SafeFlipGo1JoystickFlatTerrain": go1_joystick.domain_randomization,
     "ant": ant.domain_randomization,
     "ant_safe": ant.domain_randomization,
     "WalkerWalk": walker.domain_randomization,
@@ -211,7 +212,10 @@ render_fns = {
     "Go1JoystickFlatTerrain": functools.partial(
         mujoco_playground.render, camera="track"
     ),
-    "SafeGo1JoystickFlatTerrain": functools.partial(
+    "SafeJointGo1JoystickFlatTerrain": functools.partial(
+        mujoco_playground.render, camera="track"
+    ),
+    "SafeFlipGo1JoystickFlatTerrain": functools.partial(
         mujoco_playground.render, camera="track"
     ),
     "WalkerWalk": functools.partial(mujoco_playground.render, camera="side"),

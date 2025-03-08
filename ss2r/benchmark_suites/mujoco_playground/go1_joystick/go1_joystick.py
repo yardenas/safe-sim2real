@@ -132,16 +132,16 @@ def domain_randomization(sys, rng, cfg):
 class JointConstraintWrapper(Wrapper):
     def __init__(self, env: Env):
         super().__init__(env)
-        self._env = env
+        self.env._config.reward_config.scales["dof_pos_limits"] = 0.0
 
     def reset(self, rng: jax.Array) -> State:
-        state = self._env.reset(rng)
+        state = self.env.reset(rng)
         joint_cost = self._cost_joint_pos_limits(state.data.qpos[7:])
         state.info["cost"] = joint_cost
         return state
 
     def step(self, state: State, action: jax.Array) -> State:
-        state = self._env.step(state, action)
+        state = self.env.step(state, action)
         joint_cost = self._cost_joint_pos_limits(state.data.qpos[7:])
         state = state.replace(info={**state.info, "cost": joint_cost})
         return state
