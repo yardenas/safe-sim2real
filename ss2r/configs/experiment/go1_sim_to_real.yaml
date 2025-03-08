@@ -4,6 +4,9 @@ defaults:
   - override /agent/propagation: ts1
   - _self_
 
+environment:
+  task_name: SafeFlipGo1JoystickFlatTerrain
+  
 training:
   num_envs: 128
   train_domain_randomization: true
