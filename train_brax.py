@@ -36,7 +36,7 @@ def get_penalizer(cfg):
         )
     elif cfg.agent.penalizer.name == "crpo":
         penalizer = CRPO(cfg.agent.penalizer.eta)
-        penalizer_state = CRPOParams(cfg.agent.penalize.burnin)
+        penalizer_state = CRPOParams(cfg.agent.penalizer.burnin)
     else:
         raise ValueError(f"Unknown penalizer {cfg.agent.penalizer.name}")
     return penalizer, penalizer_state
