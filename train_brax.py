@@ -73,7 +73,7 @@ def get_reward_robustness(cfg):
 
 def get_wrap_env_fn(cfg):
     if "propagation" not in cfg.agent:
-        return lambda x: x
+        return lambda env: env
     elif cfg.agent.propagation.name == "ts1":
 
         def fn(env):
@@ -89,6 +89,7 @@ def get_wrap_env_fn(cfg):
                 cfg.agent.propagation.num_envs,
             )
             env = ModelDisagreement(env)
+            return env
 
         return fn
     else:
@@ -126,6 +127,8 @@ def get_train_fn(cfg):
             del agent_cfg["reward_robustness"]
         if "penalizer" in agent_cfg:
             del agent_cfg["penalizer"]
+        if "propagation" in agent_cfg:
+            del agent_cfg["propagation"]
         value_obs_key = "privileged_state" if cfg.training.value_privileged else "state"
         policy_obs_key = (
             "privileged_state" if cfg.training.policy_privileged else "state"

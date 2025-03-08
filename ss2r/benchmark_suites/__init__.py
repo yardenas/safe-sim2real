@@ -157,8 +157,6 @@ def make_mujoco_playground_envs(cfg, train_wrap_env_fn):
         if cfg.training.train_domain_randomization
         else None
     )
-    # TODO (yarden): make it nicer
-    train_key, key = jax.random.split(train_key)
     train_env = wrap_for_brax_training(
         train_env,
         randomization_fn=train_randomization_fn,
