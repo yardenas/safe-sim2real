@@ -17,3 +17,4 @@ training:
 agent:
   propagation:
     num_envs: 32
+  safety_discounting: 1.
