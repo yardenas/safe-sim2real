@@ -165,6 +165,7 @@ def train(
     num_evals: int = 1,
     normalize_observations: bool = False,
     reward_scaling: float = 1.0,
+    cost_scaling: float = 1.0,
     tau: float = 0.005,
     min_replay_size: int = 0,
     max_replay_size: Optional[int] = None,
@@ -266,6 +267,7 @@ def train(
     alpha_loss, critic_loss, actor_loss = sac_losses.make_losses(
         sac_network=sac_network,
         reward_scaling=reward_scaling,
+        cost_scaling=cost_scaling,
         discounting=discounting,
         safety_discounting=safety_discounting,
         action_size=action_size,

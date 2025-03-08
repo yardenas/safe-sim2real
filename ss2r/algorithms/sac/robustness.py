@@ -14,7 +14,7 @@ class QTransformation(Protocol):
         policy: Callable[[jax.Array], tuple[jax.Array, jax.Array]],
         gamma: float,
         alpha: jax.Array | None = None,
-        reward_scaling: float = 1.0,
+        scale: float = 1.0,
         key: jax.Array | None = None,
         use_bro: bool = True,
     ):
@@ -32,7 +32,7 @@ class UCBCost(QTransformation):
         policy: Callable[[jax.Array], tuple[jax.Array, jax.Array]],
         gamma: float,
         alpha: jax.Array | None = None,
-        reward_scaling: float = 1.0,
+        scale: float = 1.0,
         key: jax.Array | None = None,
         use_bro: bool = True,
     ):
@@ -41,7 +41,9 @@ class UCBCost(QTransformation):
         next_v = next_q.mean(axis=-1)
         std = transitions.extras["state_extras"]["disagreement"]
         cost = transitions.extras["state_extras"]["cost"] + self.lambda_ * std
-        target_q = jax.lax.stop_gradient(cost + transitions.discount * gamma * next_v)
+        target_q = jax.lax.stop_gradient(
+            cost * scale + transitions.discount * gamma * next_v
+        )
         return target_q
 
 
@@ -62,7 +64,7 @@ class RAMU(QTransformation):
         policy: Callable[[jax.Array], tuple[jax.Array, jax.Array]],
         gamma: float,
         alpha: jax.Array | None = None,
-        reward_scaling: float = 1.0,
+        scale: float = 1.0,
         key: jax.Array | None = None,
         use_bro: bool = True,
     ):
@@ -78,7 +80,9 @@ class RAMU(QTransformation):
         next_v = next_q.mean(axis=-1)
         next_v = wang(self.n_samples, self.wang_eta, next_v)
         cost = transitions.extras["state_extras"]["cost"]
-        target_q = jax.lax.stop_gradient(cost + transitions.discount * gamma * next_v)
+        target_q = jax.lax.stop_gradient(
+            cost * scale + transitions.discount * gamma * next_v
+        )
         return target_q
 
 
@@ -109,7 +113,7 @@ class SACBase(QTransformation):
         policy: Callable[[jax.Array], tuple[jax.Array, jax.Array]],
         gamma: float,
         alpha: jax.Array | None = None,
-        reward_scaling: float = 1.0,
+        scale: float = 1.0,
         key: jax.Array | None = None,
         use_bro: bool = True,
     ):
@@ -121,7 +125,7 @@ class SACBase(QTransformation):
             next_v = next_q.min(axis=-1)
         next_v -= alpha * next_log_prob
         target_q = jax.lax.stop_gradient(
-            transitions.reward * reward_scaling + transitions.discount * gamma * next_v
+            transitions.reward * scale + transitions.discount * gamma * next_v
         )
         return target_q
 
@@ -139,7 +143,7 @@ class RAMUReward(QTransformation):
         policy: Callable[[jax.Array], tuple[jax.Array, jax.Array]],
         gamma: float,
         alpha: jax.Array | None = None,
-        reward_scaling: float = 1.0,
+        scale: float = 1.0,
         key: jax.Array | None = None,
         use_bro: bool = True,
     ):
@@ -159,7 +163,7 @@ class RAMUReward(QTransformation):
         next_v = wang(self.n_samples, self.wang_eta, next_v)
         next_v -= alpha * next_log_prob
         target_q = jax.lax.stop_gradient(
-            transitions.reward * reward_scaling + transitions.discount * gamma * next_v
+            transitions.reward * scale + transitions.discount * gamma * next_v
         )
         return target_q
 
@@ -175,7 +179,7 @@ class LCBReward(QTransformation):
         policy: Callable[[jax.Array], tuple[jax.Array, jax.Array]],
         gamma: float,
         alpha: jax.Array | None = None,
-        reward_scaling: float = 1.0,
+        scale: float = 1.0,
         key: jax.Array | None = None,
         use_bro: bool = True,
     ):
@@ -189,7 +193,7 @@ class LCBReward(QTransformation):
         std = transitions.extras["state_extras"]["disagreement"]
         reward = transitions.reward - self.lambda_ * std
         target_q = jax.lax.stop_gradient(
-            reward * reward_scaling + transitions.discount * gamma * next_v
+            reward * scale + transitions.discount * gamma * next_v
         )
         return target_q
 
@@ -202,7 +206,7 @@ class SACCost(QTransformation):
         policy: Callable[[jax.Array], tuple[jax.Array, jax.Array]],
         gamma: float,
         alpha: jax.Array | None = None,
-        reward_scaling: float = 1.0,
+        scale: float = 1.0,
         key: jax.Array | None = None,
         use_bro: bool = True,
     ):
@@ -210,5 +214,7 @@ class SACCost(QTransformation):
         next_q = q_fn(transitions.next_observation, next_action)
         next_v = next_q.mean(axis=-1)
         cost = transitions.extras["state_extras"]["cost"]
-        target_q = jax.lax.stop_gradient(cost + transitions.discount * gamma * next_v)
+        target_q = jax.lax.stop_gradient(
+            cost * scale + transitions.discount * gamma * next_v
+        )
         return target_q

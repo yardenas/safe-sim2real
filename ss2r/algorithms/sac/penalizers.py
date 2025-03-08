@@ -13,17 +13,29 @@ class Penalizer(Protocol):
         ...
 
 
+class CRPOParams(NamedTuple):
+    burnin: int
+
+
 class CRPO:
     def __init__(self, eta: float) -> None:
         self.eta = eta
 
     def __call__(
-        self, actor_loss: jax.Array, constraint: jax.Array, params: Params
-    ) -> tuple[jax.Array, dict[str, Any], Params]:
+        self, actor_loss: jax.Array, constraint: jax.Array, params: CRPOParams
+    ) -> tuple[jax.Array, dict[str, Any], CRPOParams]:
+        active = jnp.greater(constraint + self.eta, 0.0) | jnp.greater(params.burnin, 0)
         actor_loss = jnp.where(
-            jnp.greater(constraint + self.eta, 0.0), actor_loss, -constraint
+            active,
+            actor_loss,
+            -constraint,
         )
-        return actor_loss, {}, params
+        new_params = CRPOParams(jnp.clip(params.burnin - 1, a_min=-1))
+        aux = {
+            "crpo/burnin_counter": new_params.burnin,
+            "crpo/active": active,
+        }
+        return actor_loss, aux, new_params
 
 
 class LagrangianParams(NamedTuple):
