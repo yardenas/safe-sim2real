@@ -111,6 +111,7 @@ class ModelDisagreement(Wrapper):
 
     def reset(self, rng: jax.Array) -> State:
         # FIXME (yarden): there's a bug here.
+        # The axes are wrong.
         state = self.env.reset(rng)
         next_obs = state.info["state_propagation"]["next_obs"]
         variance = jnp.var(next_obs, axis=1).mean(-1)

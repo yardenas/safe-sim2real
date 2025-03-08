@@ -34,6 +34,7 @@ Transition: TypeAlias = types.Transition
 def make_losses(
     sac_network: SafeSACNetworks,
     reward_scaling: float,
+    cost_scaling: float,
     discounting: float,
     safety_discounting: float,
     action_size: int,
@@ -81,6 +82,7 @@ def make_losses(
     ) -> jnp.ndarray:
         action = transitions.action
         q_network = qc_network if safe else qr_network
+        scale = cost_scaling if safe else reward_scaling
         gamma = safety_discounting if safe else discounting
         q_old_action = q_network.apply(
             normalizer_params, q_params, transitions.observation, action
@@ -109,7 +111,7 @@ def make_losses(
             policy,
             gamma,
             alpha,
-            reward_scaling,
+            scale,
             another_key,
             use_bro,
         )
@@ -156,12 +158,12 @@ def make_losses(
                 normalizer_params, qc_params, transitions.observation, action
             )
             mean_qc = jnp.mean(qc_action, axis=-1)
-            constraint = safety_budget - mean_qc.mean()
+            constraint = safety_budget - mean_qc.mean() / cost_scaling
             actor_loss, penalizer_aux, penalizer_params = penalizer(
                 actor_loss, constraint, jax.lax.stop_gradient(penalizer_params)
             )
             aux["constraint_estimate"] = constraint
-            aux["cost"] = mean_qc.mean()
+            aux["cost"] = mean_qc.mean() / cost_scaling
             aux["penalizer_params"] = penalizer_params
             aux |= penalizer_aux
         actor_loss += exploration_loss

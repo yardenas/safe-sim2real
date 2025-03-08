@@ -11,10 +11,11 @@ training:
   num_envs: 128
   train_domain_randomization: true
   eval_domain_randomization: true
-  safe: false
-  safety_budget: 0.02
+  safe: true
+  safety_budget: 0.01
 
 agent:
   propagation:
     num_envs: 32
   safety_discounting: 1.
+  cost_scaling: 100.
