@@ -640,10 +640,6 @@ def train(
             training_state, env_state, buffer_state, epoch_key
         )
         reset_keys = jax.random.split(epoch_key, num_envs)
-        reset_keys = jnp.reshape(
-            reset_keys,
-            -1 + reset_keys.shape[1:],
-        )
         env_state = reset_fn(reset_keys)
         current_step = int(training_state.env_steps)
 
