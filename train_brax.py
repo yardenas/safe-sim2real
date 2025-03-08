@@ -10,7 +10,12 @@ from omegaconf import OmegaConf
 import ss2r.algorithms.sac.networks as sac_networks
 from ss2r import benchmark_suites
 from ss2r.algorithms.sac import robustness as rb
-from ss2r.algorithms.sac.penalizers import CRPO, AugmentedLagrangian, LagrangianParams
+from ss2r.algorithms.sac.penalizers import (
+    CRPO,
+    AugmentedLagrangian,
+    CRPOParams,
+    LagrangianParams,
+)
 from ss2r.algorithms.sac.wrappers import PTSD, ModelDisagreement
 from ss2r.common.logging import TrainingLogger
 
@@ -31,7 +36,7 @@ def get_penalizer(cfg):
         )
     elif cfg.agent.penalizer.name == "crpo":
         penalizer = CRPO(cfg.agent.penalizer.eta)
-        penalizer_state = None
+        penalizer_state = CRPOParams(cfg.agent.penalize.burnin)
     else:
         raise ValueError(f"Unknown penalizer {cfg.agent.penalizer.name}")
     return penalizer, penalizer_state
