@@ -150,9 +150,6 @@ class JointConstraintWrapper(Wrapper):
 class FlipConstraintWrapper(Wrapper):
     def __init__(self, env):
         super().__init__(env)
-        # Make sure that flipping is only communicated to the agent via the
-        # cost.
-        self.env._config.reward_config.scales["termination"] = 0.0
 
     def reset(self, rng):
         state = self.env.reset(rng)
@@ -161,8 +158,8 @@ class FlipConstraintWrapper(Wrapper):
 
     def step(self, state, action):
         state = self.env.step(state, action)
-        fall = self.env._get_termination(state.data)
-        state.info["cost"] = fall.astype(jnp.float32)
+        roll = self.env.get_upvector(state.data)[:1]
+        state.info["cost"] = jnp.abs(roll)
         return state
 
 
