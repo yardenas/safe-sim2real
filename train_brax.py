@@ -167,6 +167,7 @@ def get_train_fn(cfg):
             task_name = cfg.environment.task_name.replace("Safe", "")
         else:
             task_name = cfg.environment.task_name
+        task_name = "Go1JoystickFlatTerrain"
         ppo_params = locomotion_params.brax_ppo_config(task_name)
         from brax.training.agents.ppo import networks as ppo_networks
         from brax.training.agents.ppo import train as ppo
