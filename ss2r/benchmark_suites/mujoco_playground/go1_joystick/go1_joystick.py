@@ -166,8 +166,9 @@ class JointTorqueConstraintWrapper(Wrapper):
 
 
 class FlipConstraintWrapper(Wrapper):
-    def __init__(self, env):
+    def __init__(self, env: Env, limit: float):
         super().__init__(env)
+        self.limit = limit
 
     def reset(self, rng):
         state = self.env.reset(rng)
@@ -178,7 +179,7 @@ class FlipConstraintWrapper(Wrapper):
         state = self.env.step(state, action)
         y, z = self.env.get_upvector(state.data)[1:]
         roll = jnp.atan2(y, z)
-        state.info["cost"] = jnp.clip(jnp.abs(roll).sum() - 0.35, a_min=0.0)
+        state.info["cost"] = jnp.clip(jnp.abs(roll).sum() - self.limit, a_min=0.0)
         return state
 
 
@@ -199,8 +200,9 @@ def make_joint_torque(**kwargs):
 
 
 def make_flip(**kwargs):
+    limit = kwargs["config"]["roll_limit"]
     env = locomotion.load(name, **kwargs)
-    env = FlipConstraintWrapper(env)
+    env = FlipConstraintWrapper(env, limit)
     return env
 
 
