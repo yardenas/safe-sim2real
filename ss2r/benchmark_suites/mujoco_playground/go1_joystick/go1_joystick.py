@@ -147,6 +147,24 @@ class JointConstraintWrapper(Wrapper):
         return state
 
 
+class JointTorqueConstraintWrapper(Wrapper):
+    def __init__(self, env: Env, limit: float):
+        super().__init__(env)
+        self.env._config.reward_config.scales["torques"] = 0.0
+        self.limit = limit
+
+    def reset(self, rng: jax.Array) -> State:
+        state = self.env.reset(rng)
+        state.info["cost"] = jnp.zeros_like(state.reward)
+        return state
+
+    def step(self, state: State, action: jax.Array) -> State:
+        state = self.env.step(state, action)
+        torques = state.data.actuator_force
+        state.info["cost"] = jnp.clip(jnp.abs(torques).sum() - self.limit, a_min=0.0)
+        return state
+
+
 class FlipConstraintWrapper(Wrapper):
     def __init__(self, env):
         super().__init__(env)
@@ -173,6 +191,13 @@ def make_joint(**kwargs):
     return env
 
 
+def make_joint_torque(**kwargs):
+    env = locomotion.load(name, **kwargs)
+    limit = kwargs.pop("torque_limit")
+    env = JointTorqueConstraintWrapper(env, limit)
+    return env
+
+
 def make_flip(**kwargs):
     env = locomotion.load(name, **kwargs)
     env = FlipConstraintWrapper(env)
@@ -181,6 +206,9 @@ def make_flip(**kwargs):
 
 locomotion.register_environment(
     f"SafeJoint{name}", make_joint, locomotion.go1_joystick.default_config
+)
+locomotion.register_environment(
+    f"SafeJointTorque{name}", make_joint_torque, locomotion.go1_joystick.default_config
 )
 locomotion.register_environment(
     f"SafeFlip{name}", make_flip, locomotion.go1_joystick.default_config
