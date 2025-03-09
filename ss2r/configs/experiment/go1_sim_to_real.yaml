@@ -2,6 +2,7 @@
 defaults:
   - go1_joystick
   - override /agent/propagation: ts1
+  - override /agent/cost_robustness: ucb_cost
   - _self_
 
 environment:
@@ -17,7 +18,7 @@ training:
 agent:
   propagation:
     num_envs: 32
-  safety_discounting: 0.99
+  safety_discounting: 1.
   cost_scaling: 100.
   penalizer:
     burnin: 312500
