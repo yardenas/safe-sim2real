@@ -163,7 +163,11 @@ def get_train_fn(cfg):
     elif cfg.agent.name == "ppo":
         from mujoco_playground.config import locomotion_params
 
-        ppo_params = locomotion_params.brax_ppo_config(cfg.environment.task_name)
+        if "Safe" in cfg.environment.task_name:
+            task_name = cfg.environment.task_name.replace("Safe", "")
+        else:
+            task_name = cfg.environment.task_name
+        ppo_params = locomotion_params.brax_ppo_config(task_name)
         from brax.training.agents.ppo import networks as ppo_networks
         from brax.training.agents.ppo import train as ppo
 
