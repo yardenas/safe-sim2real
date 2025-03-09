@@ -193,7 +193,6 @@ def make_joint(**kwargs):
 
 def make_joint_torque(**kwargs):
     limit = kwargs["config"]["torque_limit"]
-    del kwargs["config"]["torque_limit"]
     env = locomotion.load(name, **kwargs)
     env = JointTorqueConstraintWrapper(env, limit)
     return env
