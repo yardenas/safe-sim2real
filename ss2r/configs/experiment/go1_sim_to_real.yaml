@@ -6,7 +6,7 @@ defaults:
   - _self_
 
 environment:
-  task_name: SafeFlipGo1JoystickFlatTerrain
+  task_name: SafeJointTorqueGo1JoystickFlatTerrain
 
 training:
   num_envs: 128
@@ -22,4 +22,3 @@ agent:
   cost_scaling: 100.
   penalizer:
     burnin: 312500
-    
