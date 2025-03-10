@@ -1,0 +1,15 @@
+# @package _global_
+defaults:
+  - _self_
+  - override /environment: go1_joystick
+  - override /agent: ppo
+
+
+environment:
+  task_name: SafeFlipGo1JoystickFlatTerrain
+
+training:
+  train_domain_randomization: true
+  eval_domain_randomization: true
+  safe: false
+  num_envs: 8192

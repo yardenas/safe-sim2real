@@ -2,14 +2,24 @@
 defaults:
   - go1_joystick
   - override /agent/propagation: ts1
+  - override /agent/cost_robustness: ucb_cost
+  - override /agent/penalizer: lagrangian
   - _self_
+
+environment:
+  task_name: SafeFlipGo1JoystickFlatTerrain
 
 training:
   num_envs: 128
   train_domain_randomization: true
   eval_domain_randomization: true
-  safe: false
+  safe: true
+  safety_budget: 0.1
 
 agent:
   propagation:
     num_envs: 32
+  safety_discounting: 0.99
+  cost_scaling: 100.
+  penalizer:
+    burnin: 312500
