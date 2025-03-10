@@ -1,1 +1,7 @@
+defaults:
+  - cost_robustness: null
+  - reward_robustness: null
+  - penalizer: null
+  - propagation: null
+
 name: ppo

@@ -10,7 +10,12 @@ from omegaconf import OmegaConf
 import ss2r.algorithms.sac.networks as sac_networks
 from ss2r import benchmark_suites
 from ss2r.algorithms.sac import robustness as rb
-from ss2r.algorithms.sac.penalizers import CRPO, AugmentedLagrangian, LagrangianParams
+from ss2r.algorithms.sac.penalizers import (
+    CRPO,
+    AugmentedLagrangian,
+    CRPOParams,
+    LagrangianParams,
+)
 from ss2r.algorithms.sac.wrappers import PTSD, ModelDisagreement
 from ss2r.common.logging import TrainingLogger
 
@@ -31,7 +36,7 @@ def get_penalizer(cfg):
         )
     elif cfg.agent.penalizer.name == "crpo":
         penalizer = CRPO(cfg.agent.penalizer.eta)
-        penalizer_state = None
+        penalizer_state = CRPOParams(cfg.agent.penalizer.burnin)
     else:
         raise ValueError(f"Unknown penalizer {cfg.agent.penalizer.name}")
     return penalizer, penalizer_state
@@ -158,7 +163,12 @@ def get_train_fn(cfg):
     elif cfg.agent.name == "ppo":
         from mujoco_playground.config import locomotion_params
 
-        ppo_params = locomotion_params.brax_ppo_config(cfg.environment.task_name)
+        if "Safe" in cfg.environment.task_name:
+            task_name = cfg.environment.task_name.replace("Safe", "")
+        else:
+            task_name = cfg.environment.task_name
+        task_name = "Go1JoystickFlatTerrain"
+        ppo_params = locomotion_params.brax_ppo_config(task_name)
         from brax.training.agents.ppo import networks as ppo_networks
         from brax.training.agents.ppo import train as ppo
 
