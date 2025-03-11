@@ -271,7 +271,7 @@ class CostEpisodeWrapper(brax_training.EpisodeWrapper):
     def step(self, state: State, action: jax.Array) -> State:
         def f(state, _):
             nstate = self.env.step(state, action)
-            maybe_cost = state.info.get("cost", None)
+            maybe_cost = nstate.info.get("cost", None)
             return nstate, (nstate.reward, maybe_cost)
 
         state, (rewards, maybe_costs) = jax.lax.scan(f, state, (), self.action_repeat)
