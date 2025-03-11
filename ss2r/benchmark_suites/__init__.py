@@ -7,6 +7,7 @@ from ss2r.benchmark_suites import brax, mujoco_playground, wrappers
 from ss2r.benchmark_suites.brax.ant import ant
 from ss2r.benchmark_suites.brax.cartpole import cartpole
 from ss2r.benchmark_suites.brax.humanoid import humanoid
+from ss2r.benchmark_suites.mujoco_playground.cartpole import cartpole as dm_cartpole
 from ss2r.benchmark_suites.mujoco_playground.go1_joystick import go1_joystick
 from ss2r.benchmark_suites.mujoco_playground.walker import walker
 from ss2r.benchmark_suites.rccar import rccar
@@ -200,6 +201,14 @@ randomization_fns = {
     "WalkerRun": walker.domain_randomization,
     "SafeWalkerWalk": walker.domain_randomization,
     "SafeWalkerRun": walker.domain_randomization,
+    "SafeCartpoleSwingup": dm_cartpole.domain_randomization,
+    "SafeCartpoleSwingupSparse": dm_cartpole.domain_randomization,
+    "SafeCartpoleBalanceSparse": dm_cartpole.domain_randomization,
+    "SafeCartpoleBalance": dm_cartpole.domain_randomization,
+    "CartpoleSwingup": dm_cartpole.domain_randomization,
+    "CartpoleSwingupSparse": dm_cartpole.domain_randomization,
+    "CartpoleBalanceSparse": dm_cartpole.domain_randomization,
+    "CartpoleBalance": dm_cartpole.domain_randomization,
 }
 
 render_fns = {
@@ -222,6 +231,18 @@ render_fns = {
     "SafeJointTorqueGo1JoystickFlatTerrain": functools.partial(
         mujoco_playground.render, camera="track"
     ),
+    "SafeCartpoleSwingup": functools.partial(mujoco_playground.render, camera="side"),
+    "SafeCartpoleSwingupSparse": functools.partial(
+        mujoco_playground.render, camera="side"
+    ),
+    "SafeCartpoleBalanceSparse": functools.partial(
+        mujoco_playground.render, camera="side"
+    ),
+    "SafeCartpoleBalance": functools.partial(mujoco_playground.render, camera="side"),
+    "CartpoleSwingup": functools.partial(mujoco_playground.render, camera="side"),
+    "CartpoleSwingupSparse": functools.partial(mujoco_playground.render, camera="side"),
+    "CartpoleBalanceSparse": functools.partial(mujoco_playground.render, camera="side"),
+    "CartpoleBalance": functools.partial(mujoco_playground.render, camera="side"),
     "WalkerWalk": functools.partial(mujoco_playground.render, camera="side"),
     "WalkerRun": functools.partial(mujoco_playground.render, camera="side"),
     "SafeWalkerWalk": functools.partial(mujoco_playground.render, camera="side"),
