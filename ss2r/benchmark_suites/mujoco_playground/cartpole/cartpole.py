@@ -24,10 +24,8 @@ def domain_randomization(sys, rng, cfg):
             rng, minval=cfg.pole_mass[0], maxval=cfg.pole_mass[1]
         )
         scale = (sys.body_mass[_POLE_ID] + mass_sample) / sys.body_mass[_POLE_ID]
-        # mass = mass.at[_POLE_ID].multiply(scale)
-        # inertia = sys.body_inertia.at[_POLE_ID].multiply(scale)
-        # mass = sys.body_mass.copy()
-        # inertia = sys.body_inertia.copy()
+        mass = mass.at[_POLE_ID].multiply(scale)
+        inertia = sys.body_inertia.at[_POLE_ID].multiply(scale)
         inertia_pos = sys.body_ipos.copy()
         inertia_pos = inertia_pos.at[_POLE_ID, -1].add(pole_length_sample / 2.0)
         return inertia_pos, mass, inertia, geom, pole_length_sample, mass_sample
