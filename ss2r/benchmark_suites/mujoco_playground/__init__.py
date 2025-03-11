@@ -75,7 +75,7 @@ def wrap_for_brax_training(
         env = BraxDomainRandomizationVmapWrapper(
             env, randomization_fn, augment_state=augment_state
         )
-    env = brax_training.EpisodeWrapper(env, episode_length, action_repeat)
+    env = wrappers.CostEpisodeWrapper(env, episode_length, action_repeat)
     env = mujoco_playground_wrapper.BraxAutoResetWrapper(env)
     return env
 
