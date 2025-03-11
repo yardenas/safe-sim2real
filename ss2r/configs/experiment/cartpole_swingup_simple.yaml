@@ -14,5 +14,5 @@ training:
   safety_budget: 100
 
 agent:
-  grad_updates_per_step: 64
+  grad_updates_per_step: 256
   activation: swish
