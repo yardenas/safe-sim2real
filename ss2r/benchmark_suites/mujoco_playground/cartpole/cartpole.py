@@ -5,8 +5,7 @@ import jax.numpy as jnp
 from brax.envs import Wrapper
 from mujoco_playground import MjxEnv, State, dm_control_suite
 
-# FIXME (yarden)
-_POLE_ID = 1
+_POLE_ID = -1
 
 
 def domain_randomization(sys, rng, cfg):
@@ -15,9 +14,8 @@ def domain_randomization(sys, rng, cfg):
         pole_length_sample = jax.random.uniform(
             rng, minval=cfg.pole_length[0], maxval=cfg.pole_length[1]
         )
-        # FIXME (yarden): check the actual length, 0.3 is prob wrong.
-        length = 1.0 + pole_length_sample
-        scale_factor = length / 1.0
+        length = 0.5 + pole_length_sample
+        scale_factor = length / 0.5
         geom = sys.geom_size.copy()
         geom = geom.at[_POLE_ID, 1].set(length)
         mass = sys.body_mass.at[_POLE_ID].multiply(scale_factor)
@@ -25,9 +23,8 @@ def domain_randomization(sys, rng, cfg):
         mass_sample = jax.random.uniform(
             rng, minval=cfg.pole_mass[0], maxval=cfg.pole_mass[1]
         )
-        old_mass = sys.body_mass[_POLE_ID]
-        scale = (mass_sample + mass_sample) / old_mass
-        mass = sys.body_mass.at[_POLE_ID].multiply(scale)
+        scale = (sys.body_mass[_POLE_ID] + mass_sample) / sys.body_mass[_POLE_ID]
+        mass = mass.at[_POLE_ID].multiply(scale)
         inertia = sys.body_inertia.at[_POLE_ID].multiply(scale)
         inertia_pos = sys.body_ipos.copy()
         inertia_pos = inertia_pos.at[_POLE_ID, -1].add(pole_length_sample / 2.0)
