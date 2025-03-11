@@ -231,18 +231,14 @@ render_fns = {
     "SafeJointTorqueGo1JoystickFlatTerrain": functools.partial(
         mujoco_playground.render, camera="track"
     ),
-    "SafeCartpoleSwingup": functools.partial(mujoco_playground.render, camera="side"),
-    "SafeCartpoleSwingupSparse": functools.partial(
-        mujoco_playground.render, camera="side"
-    ),
-    "SafeCartpoleBalanceSparse": functools.partial(
-        mujoco_playground.render, camera="side"
-    ),
-    "SafeCartpoleBalance": functools.partial(mujoco_playground.render, camera="side"),
-    "CartpoleSwingup": functools.partial(mujoco_playground.render, camera="side"),
-    "CartpoleSwingupSparse": functools.partial(mujoco_playground.render, camera="side"),
-    "CartpoleBalanceSparse": functools.partial(mujoco_playground.render, camera="side"),
-    "CartpoleBalance": functools.partial(mujoco_playground.render, camera="side"),
+    "SafeCartpoleSwingup": functools.partial(mujoco_playground.render),
+    "SafeCartpoleSwingupSparse": functools.partial(mujoco_playground.render),
+    "SafeCartpoleBalanceSparse": functools.partial(mujoco_playground.render),
+    "SafeCartpoleBalance": functools.partial(mujoco_playground.render),
+    "CartpoleSwingup": functools.partial(mujoco_playground.render),
+    "CartpoleSwingupSparse": functools.partial(mujoco_playground.render),
+    "CartpoleBalanceSparse": functools.partial(mujoco_playground.render),
+    "CartpoleBalance": functools.partial(mujoco_playground.render),
     "WalkerWalk": functools.partial(mujoco_playground.render, camera="side"),
     "WalkerRun": functools.partial(mujoco_playground.render, camera="side"),
     "SafeWalkerWalk": functools.partial(mujoco_playground.render, camera="side"),
