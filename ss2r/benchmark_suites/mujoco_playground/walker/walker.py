@@ -5,8 +5,6 @@ from brax.envs.base import State
 from mujoco_playground import dm_control_suite
 
 _TORSO_ID = 1
-_LEFT_THIGH_ID = 5
-_RIGHT_THIGH_ID = 2
 
 
 def domain_randomization(sys, rng, cfg):
@@ -19,6 +17,8 @@ def domain_randomization(sys, rng, cfg):
         torso_length_sample = jnp.clip(torso_length_sample, a_min=-0.2, a_max=0.4)
         length = 0.3 + torso_length_sample
         scale_factor = length / 0.3
+        # Make scale factor closer to 1 (either from above or below)
+        # to help simulation stability.
         scale_factor = 3 * scale_factor / (2 * scale_factor + 1)
         geom = sys.geom_size.copy()
         geom = geom.at[_TORSO_ID, 1].set(length)

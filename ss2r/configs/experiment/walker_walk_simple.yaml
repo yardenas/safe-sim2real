@@ -1,8 +1,8 @@
 # @package _global_
 defaults:
-  - _self_
   - mujoco_playground_dm_control
   - override /environment: walker
+  - _self_
 
 training:
   num_envs: 128
