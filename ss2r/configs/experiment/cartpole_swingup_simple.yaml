@@ -11,6 +11,7 @@ training:
   safe: false
   train_domain_randomization: false
   eval_domain_randomization: false
+  safety_budget: 100
 
 agent:
   grad_updates_per_step: 64
