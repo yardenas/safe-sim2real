@@ -4,6 +4,17 @@ import mujoco
 from brax.envs import Wrapper
 from mujoco_playground import MjxEnv, State, dm_control_suite
 
+_name_to_id = {
+    "right_hip_x": 3,
+    "left_hip_x": 9,
+    "right_hip_y": 5,
+    "left_hip_y": 11,
+    "right_hip_z": 4,
+    "left_hip_z": 10,
+    "left_knee": 12,
+    "right_knee": 6,
+}
+
 
 def domain_randomization(sys, rng, cfg):
     @jax.vmap
@@ -17,19 +28,6 @@ def domain_randomization(sys, rng, cfg):
         friction_sample = jnp.clip(friction_sample, a_min=0.0, a_max=1.0)
         rng = jax.random.split(rng, 8)
         # Ensure symmetry
-        names_ids = {
-            k: mujoco.mj_name2id(sys.mj_model, mujoco.mjtObj.mjOBJ_ACTUATOR.value, k)
-            for k in [
-                "right_hip_x",
-                "left_hip_x",
-                "right_hip_y",
-                "left_hip_y",
-                "right_hip_z",
-                "left_hip_z",
-                "left_knee",
-                "right_knee",
-            ]
-        }
         gain_sample = sys.actuator.gain.copy()
         gain_hip_x = jax.random.uniform(
             rng[0], minval=cfg.gain_hip.x[0], maxval=cfg.gain_hip.x[1]
@@ -67,7 +65,7 @@ def domain_randomization(sys, rng, cfg):
             "right_knee": (gain_knee, gear_knee),
         }
         for name, (gain, gear) in name_values.items():
-            actuator_id = names_ids[name]
+            actuator_id = _name_to_id[name]
             gear_sample = gear_sample.at[actuator_id].add(gear)
             gain_sample = gain_sample.at[actuator_id].add(gain)
         return (
