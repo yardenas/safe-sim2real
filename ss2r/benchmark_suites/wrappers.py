@@ -2,8 +2,8 @@ from typing import Callable, Optional, Tuple
 
 import jax
 from brax.base import System
-from brax.envs import wrappers
 from brax.envs.base import Env, State, Wrapper
+from brax.envs.wrappers import training as brax_training
 from jax import numpy as jp
 
 
@@ -265,6 +265,31 @@ class DomainRandomizationVmapWrapper(DomainRandomizationVmapBase):
         return env
 
 
+class CostEpisodeWrapper(brax_training.EpisodeWrapper):
+    """Maintains episode step count and sets done at episode end."""
+
+    def step(self, state: State, action: jax.Array) -> State:
+        def f(state, _):
+            nstate = self.env.step(state, action)
+            maybe_cost = nstate.info.get("cost", None)
+            return nstate, (nstate.reward, maybe_cost)
+
+        state, (rewards, maybe_costs) = jax.lax.scan(f, state, (), self.action_repeat)
+        state = state.replace(reward=jp.sum(rewards, axis=0))
+        if maybe_costs is not None:
+            state.info["cost"] = jp.sum(maybe_costs, axis=0)
+        steps = state.info["steps"] + self.action_repeat
+        one = jp.ones_like(state.done)
+        zero = jp.zeros_like(state.done)
+        episode_length = jp.array(self.episode_length, dtype=jp.int32)
+        done = jp.where(steps >= episode_length, one, state.done)
+        state.info["truncation"] = jp.where(
+            steps >= episode_length, 1 - state.done, zero
+        )
+        state.info["steps"] = steps
+        return state.replace(done=done)
+
+
 def wrap(
     env: Env,
     episode_length: int = 1000,
@@ -288,12 +313,12 @@ def wrap(
       environment did not already have batch dimensions, it is additional Vmap
       wrapped.
     """
-    env = wrappers.training.EpisodeWrapper(env, episode_length, action_repeat)
+    env = CostEpisodeWrapper(env, episode_length, action_repeat)
     if randomization_fn is None:
-        env = wrappers.training.VmapWrapper(env)
+        env = brax_training.VmapWrapper(env)
     else:
         env = DomainRandomizationVmapWrapper(
             env, randomization_fn, augment_state=augment_state
         )
-    env = wrappers.training.AutoResetWrapper(env)
+    env = brax_training.AutoResetWrapper(env)
     return env
