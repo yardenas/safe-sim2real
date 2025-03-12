@@ -1,5 +1,3 @@
-import functools
-
 import jax
 import jax.numpy as jnp
 import mujoco
@@ -142,15 +140,15 @@ class ConstraintWrapper(Wrapper):
         ]
         self.joint_ids = jnp.asarray(
             [
-                self.env.sys.mj_model.jnt_qposadr[
+                self.env.mj_model.jnt_qposadr[
                     mujoco.mj_name2id(
-                        env.sys.mj_model, mujoco.mjtObj.mjOBJ_JOINT.value, name
+                        env.mj_model, mujoco.mjtObj.mjOBJ_JOINT.value, name
                     )
                 ]
                 for name in joint_names
             ]
         )
-        self.joint_ranges = self.env.sys.jnt_range[1:]
+        self.joint_ranges = self.env.mj_model.jnt_range[1:]
 
     def reset(self, rng: jax.Array) -> State:
         state = self.env.reset(rng)
@@ -160,7 +158,7 @@ class ConstraintWrapper(Wrapper):
     def step(self, state: State, action: jax.Array) -> State:
         nstate = self.env.step(state, action)
         # qpos is in radians, even though the xml file specifies degrees
-        joint_angles = nstate.pipeline_state.qpos[self.joint_ids]
+        joint_angles = nstate.data.qpos[self.joint_ids]
         cost = jnp.zeros_like(nstate.reward)
         for _, (angle, joint_range) in enumerate(zip(joint_angles, self.joint_ranges)):
             normalized_angle = normalize_angle(angle)
@@ -180,15 +178,13 @@ class ConstraintWrapper(Wrapper):
         return nstate
 
 
-def make_safe(name, **kwargs):
+def make_safe(**kwargs):
     limit = kwargs["config"]["angle_tolerance"]
-    env = dm_control_suite.load(name, **kwargs)
+    env = dm_control_suite.load("HumanoidWalk", **kwargs)
     env = ConstraintWrapper(env, limit)
     return env
 
 
 dm_control_suite.register_environment(
-    "SafeHumanoidWalk",
-    functools.partial(make_safe, "HumanoidWalk"),
-    dm_control_suite.humanoid.default_config,
+    "SafeHumanoidWalk", make_safe, dm_control_suite.humanoid.default_config
 )
