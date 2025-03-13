@@ -190,24 +190,19 @@ class JointTorqueConstraintWrapper(Wrapper):
 class FlipConstraintWrapper(Wrapper):
     def __init__(self, env: Env, limit: float):
         super().__init__(env)
+        self.env._config.reward_config.scales["orientation"] = 0.0
         self.limit = limit
 
     def reset(self, rng):
         state = self.env.reset(rng)
         state.info["cost"] = jnp.zeros_like(state.reward)
-        y, z = self.env.get_upvector(state.data)[1:]
-        roll = jnp.atan2(y, z)
-        state.metrics["roll"] = jnp.abs(roll)
         return state
 
     def step(self, state, action):
         state = self.env.step(state, action)
-        y, z = self.env.get_upvector(state.data)[1:]
-        roll = jnp.atan2(y, z)
-        cost = jnp.clip(jnp.abs(roll).sum() - self.limit, a_min=0.0)
-        cost = jnp.exp(cost) - 1.0
+        xy = self.env.get_upvector(state.data)[:2]
+        cost = jnp.sum(jnp.square(xy)) * self.env.dt
         state.info["cost"] = cost
-        state.metrics["roll"] = jnp.abs(roll)
         return state
 
 
