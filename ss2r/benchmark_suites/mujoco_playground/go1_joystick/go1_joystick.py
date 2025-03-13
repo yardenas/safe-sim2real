@@ -190,7 +190,7 @@ class JointTorqueConstraintWrapper(Wrapper):
 class FlipConstraintWrapper(Wrapper):
     def __init__(self, env: Env, limit: float):
         super().__init__(env)
-        self.env._config.reward_config.scales["orientation"] = 0.0
+        # self.env._config.reward_config.scales["orientation"] = 0.0
         self.limit = limit
 
     def reset(self, rng):
