@@ -9,10 +9,4 @@ environment:
 training:
   train_domain_randomization: true
   eval_domain_randomization: true
-  safe: true
-
-agent:
-  propagation:
-    num_envs: 32
-  safety_discounting: 0.99
-  cost_scaling: 100.
+  safe: false
