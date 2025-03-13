@@ -1,0 +1,18 @@
+# @package _global_
+defaults:
+  - go1_joystick
+  - _self_
+
+environment:
+  task_name: SafeFlipGo1JoystickFlatTerrain
+
+training:
+  train_domain_randomization: true
+  eval_domain_randomization: true
+  safe: true
+
+agent:
+  propagation:
+    num_envs: 32
+  safety_discounting: 0.99
+  cost_scaling: 100.
