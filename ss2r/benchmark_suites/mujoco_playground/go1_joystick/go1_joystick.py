@@ -68,7 +68,11 @@ def domain_randomization(sys, rng, cfg):
                 key, shape=(12,), minval=cfg.jitter_qpos0[0], maxval=cfg.jitter_qpos0[1]
             )
         )
-
+        kd = jax.random.uniform(key, shape=(12,), minval=cfg.Kd[0], maxval=cfg.Kd[1])
+        dof_damping = model.dof_damping.at[6:].add(kd)
+        kp = jax.random.uniform(key, shape=(12,), minval=cfg.Kp[0], maxval=cfg.Kp[1])
+        actuator_gainprm = model.actuator_gainprm.at[:, 0].add(kp)
+        actuator_biasprm = model.actuator_biasprm.at[:, 1].add(-kp)
         return (
             geom_friction,
             body_ipos,
@@ -76,6 +80,9 @@ def domain_randomization(sys, rng, cfg):
             qpos0,
             dof_frictionloss,
             dof_armature,
+            dof_damping,
+            actuator_gainprm,
+            actuator_biasprm,
         )
 
     (
@@ -85,6 +92,9 @@ def domain_randomization(sys, rng, cfg):
         qpos0,
         dof_frictionloss,
         dof_armature,
+        dof_damping,
+        actuator_gainprm,
+        actuator_biasprm,
     ) = rand_dynamics(rng)
 
     in_axes = jax.tree_util.tree_map(lambda x: None, model)
@@ -96,6 +106,9 @@ def domain_randomization(sys, rng, cfg):
             "qpos0": 0,
             "dof_frictionloss": 0,
             "dof_armature": 0,
+            "dof_damping": 0,
+            "actuator_gainprm": 0,
+            "actuator_biasprm": 0,
         }
     )
 
@@ -107,6 +120,9 @@ def domain_randomization(sys, rng, cfg):
             "qpos0": qpos0,
             "dof_frictionloss": dof_frictionloss,
             "dof_armature": dof_armature,
+            "dof_damping": dof_damping,
+            "actuator_gainprm": actuator_gainprm,
+            "actuator_biasprm": actuator_biasprm,
         }
     )
 
@@ -116,6 +132,9 @@ def domain_randomization(sys, rng, cfg):
     qpos0 = model.qpos0[:, 7:]
     dof_frictionloss = model.dof_frictionloss[:, 6:]
     dof_armature = model.dof_armature[:, 6:]
+    dof_damping = model.dof_damping[:, 6:]
+    actuator_gainprm = model.actuator_gainprm[:, 0]
+    actuator_biasprm = model.actuator_biasprm[:, 1]
     samples = jnp.hstack(
         [
             geom_friction[:, None],
@@ -124,6 +143,9 @@ def domain_randomization(sys, rng, cfg):
             qpos0,
             dof_frictionloss,
             dof_armature,
+            dof_damping,
+            actuator_gainprm,
+            actuator_biasprm,
         ],
     )
     return model, in_axes, samples
