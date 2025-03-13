@@ -12,6 +12,8 @@ os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] = "false"
 import functools
 import pickle
 
+from omegaconf import OmegaConf
+import wandb
 import jax
 import jax.numpy as jp
 import jax.nn as jnn
@@ -29,14 +31,21 @@ from tensorflow.keras import layers  # type: ignore
 # %%
 parser = argparse.ArgumentParser(description="Convert Flax model to ONNX")
 parser.add_argument(
-    "--ckpt_path", type=str, required=True, help="Path to the checkpoint file"
+    "--ckpt_path",
+    type=str,
+    required=False,
+    default=None,
+    help="Path to the checkpoint file",
 )
 parser.add_argument("--output_path", type=str, default="model.onnx", help="Output path")
 parser.add_argument(
     "--normalize_obs", action="store_true", help="Use observation normalization"
 )
+parser.add_argument("--wandb_run_id", type=str, help="Weights & Biases Run ID")
 args = parser.parse_args()
 
+if args.ckpt_path and args.wandb_run_id:
+    raise ValueError("Specify either --ckpt_path or --wandb_run_id, not both.")
 # %%
 env_name = "Go1JoystickFlatTerrain"
 
@@ -55,22 +64,6 @@ def load_config():
         return cfg
 
 
-cfg = load_config()
-
-activation = getattr(jnn, cfg.agent.activation)
-
-network_factory = functools.partial(
-    sac_networks.make_sac_networks,
-    value_hidden_layer_sizes=cfg.agent.value_hidden_layer_sizes,
-    policy_hidden_layer_sizes=cfg.agent.policy_hidden_layer_sizes,
-    activation=activation,
-    value_obs_key="state" if not cfg.training.value_privileged else "privileged_state",
-    policy_obs_key="state",
-    preprocess_observations_fn=running_statistics.normalize
-    if args.normalize_obs
-    else identity_observation_preprocessor,
-)
-
 # %%
 env_cfg = locomotion.get_default_config(env_name)
 env = locomotion.load(env_name, config=env_cfg)
@@ -79,17 +72,67 @@ act_size = env.action_size
 print(obs_size, act_size)
 
 # %%
-sac_network = network_factory(obs_size, act_size)
-ckpt_path = args.ckpt_path
 
-# %%
-with open(ckpt_path, "rb") as f:
-    params = pickle.load(f)
+
+def fetch_wandb_policy(run_id):
+    api = wandb.Api()
+    run = api.run(f"ss2r/{run_id}")
+    policy_artifact = api.artifact(f"ss2r/policy:{run_id}")
+    policy_dir = policy_artifact.download()
+    path = os.path.join(policy_dir, "policy.pkl")
+    with open(path, "rb") as f:
+        policy_params = pickle.load(f)
+    config = run.config
+    activation = getattr(jnn, config["agent"]["activation"])
+    normalize = (
+        running_statistics.normalize
+        if config["agent"]["normalize_observations"]
+        else identity_observation_preprocessor
+    )
+    cfg = OmegaConf.create(config)
+    sac_network = sac_networks.make_sac_networks(
+        observation_size=obs_size,
+        action_size=act_size,
+        value_hidden_layer_sizes=cfg.agent.value_hidden_layer_sizes,
+        policy_hidden_layer_sizes=cfg.agent.policy_hidden_layer_sizes,
+        activation=activation,
+        value_obs_key="state"
+        if not cfg.training.value_privileged
+        else "privileged_state",
+        policy_obs_key="state",
+        preprocess_observations_fn=normalize,
+    )
+    make_policy = sac_networks.make_inference_fn(sac_network)
+    return make_policy(policy_params, True), policy_params, cfg
+
+
+def load_disk_policy():
+    cfg = load_config()
+    activation = getattr(jnn, cfg.agent.activation)
+    ckpt_path = args.ckpt_path
+    with open(ckpt_path, "rb") as f:
+        params = pickle.load(f)
+    network_factory = functools.partial(
+        sac_networks.make_sac_networks,
+        value_hidden_layer_sizes=cfg.agent.value_hidden_layer_sizes,
+        policy_hidden_layer_sizes=cfg.agent.policy_hidden_layer_sizes,
+        activation=activation,
+        value_obs_key="state"
+        if not cfg.training.value_privileged
+        else "privileged_state",
+        policy_obs_key="state",
+        preprocess_observations_fn=running_statistics.normalize
+        if args.normalize_obs
+        else identity_observation_preprocessor,
+    )
+    sac_network = network_factory(obs_size, act_size)
+    make_inference_fn = sac_networks.make_inference_fn(sac_network)
+    inference_fn = make_inference_fn(params, deterministic=True)
+    return inference_fn, params, cfg
+
 
 # %%
 output_path = args.output_path
-make_inference_fn = sac_networks.make_inference_fn(sac_network)
-inference_fn = make_inference_fn(params, deterministic=True)
 
 
 # %%
@@ -171,6 +214,10 @@ def make_policy_network(
 
 
 # %%
+if args.ckpt_path is not None:
+    inference_fn, params, cfg = load_disk_policy()
+else:
+    inference_fn, params, cfg = fetch_wandb_policy(args.wandb_run_id)
 mean = params[0].mean["state"]
 std = params[0].std["state"]
 mean_std = (tf.convert_to_tensor(mean), tf.convert_to_tensor(std))
