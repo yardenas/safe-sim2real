@@ -183,7 +183,7 @@ class FlipConstraintWrapper(Wrapper):
         y, z = self.env.get_upvector(state.data)[1:]
         roll = jnp.atan2(y, z)
         cost = jnp.clip(jnp.abs(roll).sum() - self.limit, a_min=0.0)
-        cost = jnp.exp(cost * 5) - 1.0
+        cost = jnp.exp(cost) - 1.0
         state.info["cost"] = cost
         state.metrics["roll"] = jnp.abs(roll)
         return state
