@@ -5,7 +5,7 @@ defaults:
   - override /agent: ppo
 
 environment:
-  task_name: SafeFlipGo1JoystickFlatTerrain
+  task_name: Go1JoystickFlatTerrain
 
 training:
   train_domain_randomization: true

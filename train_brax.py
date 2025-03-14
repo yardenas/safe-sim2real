@@ -240,7 +240,6 @@ def get_train_fn(cfg):
             ppo.train,
             **dict(ppo_training_params),
             network_factory=network_factory,
-            wrap_env=False,
         )
     else:
         raise ValueError(f"Unknown agent name: {cfg.agent.name}")
