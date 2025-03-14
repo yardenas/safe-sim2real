@@ -213,7 +213,7 @@ def get_train_fn(cfg):
             **training_cfg,
             network_factory=network_factory,
             restore_checkpoint_path=f"{get_state_path()}/ckpt",
-            wrap_env=False,
+            # wrap_env=False,  FIXME
         )
     elif cfg.agent.name == "ppo_vanilla":
         from mujoco_playground.config import locomotion_params
