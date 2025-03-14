@@ -19,4 +19,3 @@ agent:
   propagation:
     num_envs: 32
   safety_discounting: 0.99
-  cost_scaling: 100.
