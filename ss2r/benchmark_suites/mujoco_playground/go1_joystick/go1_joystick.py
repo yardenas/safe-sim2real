@@ -3,15 +3,15 @@ import jax.numpy as jnp
 from brax.envs import Env, State, Wrapper
 from mujoco_playground import locomotion
 
+FLOOR_GEOM_ID = 0
+TORSO_BODY_ID = 1
+
 
 def domain_randomization(sys, rng, cfg):
-    FLOOR_GEOM_ID = 0
-    TORSO_BODY_ID = 1
-    model = sys
-
     @jax.vmap
     def rand_dynamics(rng):
-        # Floor friction:
+        model = sys
+        # Floor friction: =U(0.4, 1.0).
         rng, key = jax.random.split(rng)
         geom_friction = model.geom_friction.at[FLOOR_GEOM_ID, 0].set(
             jax.random.uniform(
@@ -19,30 +19,30 @@ def domain_randomization(sys, rng, cfg):
             )
         )
 
-        # Scale static friction:
+        # Scale static friction: *U(0.9, 1.1).
         rng, key = jax.random.split(rng)
         frictionloss = model.dof_frictionloss[6:] * jax.random.uniform(
             key, shape=(12,), minval=cfg.scale_friction[0], maxval=cfg.scale_friction[1]
         )
         dof_frictionloss = model.dof_frictionloss.at[6:].set(frictionloss)
 
-        # Scale armature:
+        # Scale armature: *U(1.0, 1.05).
         rng, key = jax.random.split(rng)
         armature = model.dof_armature[6:] * jax.random.uniform(
             key, shape=(12,), minval=cfg.scale_armature[0], maxval=cfg.scale_armature[1]
         )
         dof_armature = model.dof_armature.at[6:].set(armature)
 
-        # Jitter center of mass positiion:
+        # Jitter center of mass positiion: +U(-0.05, 0.05).
         rng, key = jax.random.split(rng)
         dpos = jax.random.uniform(
-            key, (3,), minval=cfg.jitter_mass[0], maxval=cfg.jitter_mass[0]
+            key, (3,), minval=cfg.jitter_mass[0], maxval=cfg.jitter_mass[1]
         )
         body_ipos = model.body_ipos.at[TORSO_BODY_ID].set(
             model.body_ipos[TORSO_BODY_ID] + dpos
         )
 
-        # Scale all link masses:
+        # Scale all link masses: *U(0.9, 1.1).
         rng, key = jax.random.split(rng)
         dmass = jax.random.uniform(
             key,
@@ -52,14 +52,14 @@ def domain_randomization(sys, rng, cfg):
         )
         body_mass = model.body_mass.at[:].set(model.body_mass * dmass)
 
-        # Add mass to torso:
+        # Add mass to torso: +U(-1.0, 1.0).
         rng, key = jax.random.split(rng)
         dmass = jax.random.uniform(
             key, minval=cfg.add_torso_mass[0], maxval=cfg.add_torso_mass[1]
         )
         body_mass = body_mass.at[TORSO_BODY_ID].set(body_mass[TORSO_BODY_ID] + dmass)
 
-        # Jitter qpos0:
+        # Jitter qpos0: +U(-0.05, 0.05).
         rng, key = jax.random.split(rng)
         qpos0 = model.qpos0
         qpos0 = qpos0.at[7:].set(
@@ -97,7 +97,7 @@ def domain_randomization(sys, rng, cfg):
         actuator_biasprm,
     ) = rand_dynamics(rng)
 
-    in_axes = jax.tree_util.tree_map(lambda x: None, model)
+    in_axes = jax.tree_util.tree_map(lambda x: None, sys)
     in_axes = in_axes.tree_replace(
         {
             "geom_friction": 0,
@@ -112,7 +112,7 @@ def domain_randomization(sys, rng, cfg):
         }
     )
 
-    model = model.tree_replace(
+    model = sys.tree_replace(
         {
             "geom_friction": friction,
             "body_ipos": body_ipos,
@@ -125,29 +125,7 @@ def domain_randomization(sys, rng, cfg):
             "actuator_biasprm": actuator_biasprm,
         }
     )
-
-    geom_friction = model.geom_friction[:, 0, 0]
-    body_ipos = model.body_ipos[:, 1]
-    body_mass = model.body_mass
-    qpos0 = model.qpos0[:, 7:]
-    dof_frictionloss = model.dof_frictionloss[:, 6:]
-    dof_armature = model.dof_armature[:, 6:]
-    dof_damping = model.dof_damping[:, 6:]
-    actuator_gainprm = model.actuator_gainprm[:, 0]
-    actuator_biasprm = model.actuator_biasprm[:, 1]
-    samples = jnp.hstack(
-        [
-            geom_friction[:, None],
-            body_ipos,
-            body_mass,
-            qpos0,
-            dof_frictionloss,
-            dof_armature,
-            dof_damping,
-            actuator_gainprm,
-            actuator_biasprm,
-        ],
-    )
+    samples = jnp.zeros(())
     return model, in_axes, samples
 
 
@@ -190,24 +168,19 @@ class JointTorqueConstraintWrapper(Wrapper):
 class FlipConstraintWrapper(Wrapper):
     def __init__(self, env: Env, limit: float):
         super().__init__(env)
+        self.env._config.reward_config.scales["orientation"] = 0.0
         self.limit = limit
 
     def reset(self, rng):
         state = self.env.reset(rng)
         state.info["cost"] = jnp.zeros_like(state.reward)
-        y, z = self.env.get_upvector(state.data)[1:]
-        roll = jnp.atan2(y, z)
-        state.metrics["roll"] = jnp.abs(roll)
         return state
 
     def step(self, state, action):
         state = self.env.step(state, action)
-        y, z = self.env.get_upvector(state.data)[1:]
-        roll = jnp.atan2(y, z)
-        cost = jnp.clip(jnp.abs(roll).sum() - self.limit, a_min=0.0)
-        cost = jnp.exp(cost) - 1.0
+        xy = self.env.get_upvector(state.data)[:2]
+        cost = jnp.sum(jnp.square(xy))
         state.info["cost"] = cost
-        state.metrics["roll"] = jnp.abs(roll)
         return state
 
 
