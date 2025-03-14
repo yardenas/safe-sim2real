@@ -176,13 +176,14 @@ class FlipConstraintWrapper(Wrapper):
         return state
 
     def step(self, state, action):
-        state = self.env.step(state, action)
+        with jax.disable_jit(False):
+            state = jax.jit(self.env.step)(state, action)
         up = self.env.get_upvector(state.data)
         project = jnp.dot(up, jnp.array([0.0, 0.0, 1.0])).clip(-1.0, 1.0)
         angular_deviation = jnp.clip(
             jnp.abs(jnp.arccos(project)) - self.limit, a_min=0.0
         )
-        cost = jnp.exp(angular_deviation) - 1.0
+        cost = jnp.exp(angular_deviation * 2.0) - 1.0
         state.info["cost"] = cost
         return state
 
