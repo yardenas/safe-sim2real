@@ -9,6 +9,7 @@ from ss2r.benchmark_suites.brax.cartpole import cartpole
 from ss2r.benchmark_suites.brax.humanoid import humanoid
 from ss2r.benchmark_suites.mujoco_playground.cartpole import cartpole as dm_cartpole
 from ss2r.benchmark_suites.mujoco_playground.go1_joystick import go1_joystick
+from ss2r.benchmark_suites.mujoco_playground.humanoid import humanoid as dm_humanoid
 from ss2r.benchmark_suites.mujoco_playground.walker import walker
 from ss2r.benchmark_suites.rccar import rccar
 from ss2r.benchmark_suites.utils import get_domain_name, get_task_config
@@ -209,6 +210,8 @@ randomization_fns = {
     "CartpoleSwingupSparse": dm_cartpole.domain_randomization,
     "CartpoleBalanceSparse": dm_cartpole.domain_randomization,
     "CartpoleBalance": dm_cartpole.domain_randomization,
+    "HumanoidWalk": dm_humanoid.domain_randomization,
+    "SafeHumanoidWalk": dm_humanoid.domain_randomization,
 }
 
 render_fns = {
@@ -243,4 +246,6 @@ render_fns = {
     "WalkerRun": functools.partial(mujoco_playground.render, camera="side"),
     "SafeWalkerWalk": functools.partial(mujoco_playground.render, camera="side"),
     "SafeWalkerRun": functools.partial(mujoco_playground.render, camera="side"),
+    "HumanoidWalk": functools.partial(mujoco_playground.render),
+    "SafeHumanoidWalk": functools.partial(mujoco_playground.render),
 }
