@@ -10,3 +10,4 @@ training:
   train_domain_randomization: true
   eval_domain_randomization: true
   safe: false
+  safety_budget: 5.
