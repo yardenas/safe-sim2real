@@ -211,7 +211,9 @@ def get_train_fn(cfg):
 
         ppo_params = locomotion_params.brax_ppo_config(env_name)
         ppo_training_params = dict(ppo_params)
-        network_factory = ppo_networks.make_ppo_networks
+        network_factory = functools.partial(
+            ppo_networks.make_ppo_networks, **ppo_params.network_factory
+        )
         if "network_factory" in ppo_params:
             del ppo_training_params["network_factory"]
         train_fn = functools.partial(
@@ -220,32 +222,6 @@ def get_train_fn(cfg):
             network_factory=network_factory,
             restore_checkpoint_path=f"{get_state_path()}/ckpt",
             # wrap_env=False,  FIXME
-        )
-    elif cfg.agent.name == "ppo_vanilla":
-        from mujoco_playground.config import locomotion_params
-
-        if "Safe" in cfg.environment.task_name:
-            task_name = cfg.environment.task_name.replace("Safe", "")
-        else:
-            task_name = cfg.environment.task_name
-        task_name = "Go1JoystickFlatTerrain"
-        ppo_params = locomotion_params.brax_ppo_config(task_name)
-        from brax.training.agents.ppo import networks as ppo_networks
-        from brax.training.agents.ppo import train as ppo
-
-        ppo_training_params = dict(ppo_params)
-        network_factory = ppo_networks.make_ppo_networks
-        if "network_factory" in ppo_params:
-            del ppo_training_params["network_factory"]
-        if not cfg.training.value_privileged:
-            ppo_params.network_factory.value_obs_key = "state"
-        network_factory = functools.partial(
-            ppo_networks.make_ppo_networks, **ppo_params.network_factory
-        )
-        train_fn = functools.partial(
-            ppo.train,
-            **dict(ppo_training_params),
-            network_factory=network_factory,
         )
     else:
         raise ValueError(f"Unknown agent name: {cfg.agent.name}")
