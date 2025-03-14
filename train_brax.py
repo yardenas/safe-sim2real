@@ -285,7 +285,7 @@ def main(cfg):
             eval_env=eval_env,
             progress_fn=functools.partial(report, logger, steps),
             wrap_env_fn=wrapper.wrap_for_brax_training,  # FIXME
-            randomizer=randomizer,
+            randomization_fn=randomizer,
         )
         if cfg.training.render:
             rng = jax.random.split(
