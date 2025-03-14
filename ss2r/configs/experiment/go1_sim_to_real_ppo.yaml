@@ -4,7 +4,6 @@ defaults:
   - override /environment: go1_joystick
   - override /agent: ppo
 
-
 environment:
   task_name: SafeFlipGo1JoystickFlatTerrain
 
@@ -13,3 +12,28 @@ training:
   eval_domain_randomization: true
   safe: false
   num_envs: 8192
+  action_repeat: 1
+  num_evals: 10
+  num_timesteps: 200000000
+  episode_length: 1000
+
+agent:
+  batch_size: 256
+  discounting: 0.97
+  entropy_cost: 0.01
+  learning_rate: 0.0003
+  max_grad_norm: 1.0
+  policy_hidden_layer_sizes:
+    - 512
+    - 256
+    - 128
+  value_hidden_layer_sizes:
+    - 512
+    - 256
+    - 128
+  normalize_observations: true
+  num_minibatches: 32
+  num_resets_per_eval: 1
+  num_updates_per_batch: 4
+  reward_scaling: 1.0
+  unroll_length: 20

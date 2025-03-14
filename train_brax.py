@@ -176,6 +176,8 @@ def get_train_fn(cfg):
                 "eval_domain_randomization",
                 "render",
                 "store_policy",
+                "safe",
+                "safety_budget",
             ]
         }
         policy_hidden_layer_sizes = agent_cfg.pop("policy_hidden_layer_sizes")
@@ -185,21 +187,33 @@ def get_train_fn(cfg):
         policy_obs_key = (
             "privileged_state" if cfg.training.policy_privileged else "state"
         )
+        del training_cfg["value_privileged"]
+        del training_cfg["policy_privileged"]
         del agent_cfg["name"]
+        if "cost_robustness" in agent_cfg:
+            del agent_cfg["cost_robustness"]
+        if "reward_robustness" in agent_cfg:
+            del agent_cfg["reward_robustness"]
+        if "penalizer" in agent_cfg:
+            del agent_cfg["penalizer"]
+        if "propagation" in agent_cfg:
+            del agent_cfg["propagation"]
         network_factory = functools.partial(
             ppo_networks.make_ppo_networks,
             policy_hidden_layer_sizes=policy_hidden_layer_sizes,
             value_hidden_layer_sizes=value_hidden_layer_sizes,
             activation=activation,
+            value_obs_key=value_obs_key,
+            policy_obs_key=policy_obs_key,
         )
         penalizer, penalizer_params = get_penalizer(cfg)
-        agent_cfg.pop("penalizer")
         train_fn = functools.partial(
             ppo.train,
             **agent_cfg,
             **training_cfg,
             network_factory=network_factory,
             restore_checkpoint_path=f"{get_state_path()}/ckpt",
+            wrap_env=False,
         )
     else:
         raise ValueError(f"Unknown agent name: {cfg.agent.name}")
