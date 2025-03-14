@@ -264,6 +264,7 @@ env_name = "Go1JoystickFlatTerrain"
 env = registry.load(env_name)
 env_cfg = registry.get_default_config(env_name)
 eval_env = registry.load(env_name, config=env_cfg)
+randomizer = registry.get_domain_randomizer(env_name)
 #####
 
 
@@ -284,6 +285,7 @@ def main(cfg):
             eval_env=eval_env,
             progress_fn=functools.partial(report, logger, steps),
             wrap_env_fn=wrapper.wrap_for_brax_training,  # FIXME
+            randomizer=randomizer,
         )
         if cfg.training.render:
             rng = jax.random.split(
