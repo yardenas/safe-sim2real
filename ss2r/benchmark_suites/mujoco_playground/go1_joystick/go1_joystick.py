@@ -177,10 +177,8 @@ class FlipConstraintWrapper(Wrapper):
 
     def step(self, state, action):
         state = self.env.step(state, action)
-        y, z = self.env.get_upvector(state.data)[1:]
-        roll = jnp.atan2(y, z)
-        cost = jnp.clip(jnp.abs(roll).sum() - self.limit, a_min=0.0)
-        cost = jnp.exp(cost) - 1.0
+        xy = self.env.get_upvector(state.data)[:2]
+        cost = jnp.sum(jnp.square(xy))
         state.info["cost"] = cost
         return state
 
