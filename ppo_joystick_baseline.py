@@ -8,7 +8,6 @@ from brax.io import model
 from mujoco_playground import registry, wrapper
 from omegaconf import OmegaConf
 
-from ss2r import benchmark_suites
 from ss2r.common.logging import TrainingLogger
 
 _LOG = logging.getLogger(__name__)
@@ -31,7 +30,6 @@ def get_train_fn():
     from mujoco_playground.config import locomotion_params
 
     ppo_params = locomotion_params.brax_ppo_config(env_name)
-    registry.get_domain_randomizer(env_name)
     randomizer = registry.get_domain_randomizer(env_name)
     ppo_training_params = dict(ppo_params)
     network_factory = ppo_networks.make_ppo_networks
@@ -76,17 +74,6 @@ def main(cfg):
             wrap_env_fn=wrapper.wrap_for_brax_training,
             progress_fn=functools.partial(report, logger, steps),
         )
-        if cfg.training.render:
-            rng = jax.random.split(
-                jax.random.PRNGKey(cfg.training.seed), cfg.training.num_eval_envs
-            )
-            video = benchmark_suites.render_fns[cfg.environment.task_name](
-                eval_env,
-                make_policy(params, deterministic=True),
-                cfg.training.episode_length,
-                rng,
-            )
-            logger.log_video(video, steps.count, "eval/video")
         if cfg.training.store_policy:
             path = get_state_path() + "/policy.pkl"
             model.save_params(get_state_path() + "/policy.pkl", params)
