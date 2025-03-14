@@ -183,7 +183,7 @@ class FlipConstraintWrapper(Wrapper):
         angular_deviation = jnp.clip(
             jnp.abs(jnp.arccos(project)) - self.limit, a_min=0.0
         )
-        cost = jnp.exp(angular_deviation * 2.0) - 1.0
+        cost = jnp.exp(angular_deviation * 3.0) - 1.0
         state.info["cost"] = cost
         return state
 
