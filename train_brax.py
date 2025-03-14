@@ -277,7 +277,8 @@ def main(cfg):
     logger = TrainingLogger(cfg)
     train_fn = get_train_fn(cfg)
     train_env_wrap_fn = get_wrap_env_fn(cfg)
-    train_env, eval_env = benchmark_suites.make(cfg, train_env_wrap_fn)
+    # FIXME
+    # train_env, eval_env = benchmark_suites.make(cfg, train_env_wrap_fn)
     steps = Counter()
     with jax.disable_jit(not cfg.jit):
         make_policy, params, _ = train_fn(
