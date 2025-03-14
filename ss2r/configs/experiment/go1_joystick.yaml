@@ -5,6 +5,7 @@ training:
   num_timesteps: 25000000
   value_privileged: true
   num_envs: 128
+  safety_budget: 0.1
 
 agent:
   batch_size: 512

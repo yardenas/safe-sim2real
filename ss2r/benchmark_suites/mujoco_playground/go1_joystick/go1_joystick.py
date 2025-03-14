@@ -173,16 +173,17 @@ class FlipConstraintWrapper(Wrapper):
     def reset(self, rng):
         state = self.env.reset(rng)
         state.info["cost"] = jnp.zeros_like(state.reward)
+        y, z = self.env.get_upvector(state.data)[1:]
+        roll = jnp.atan2(y, z)
+        state.metrics["roll"] = jnp.abs(roll)
         return state
 
     def step(self, state, action):
         state = self.env.step(state, action)
-        up = self.env.get_upvector(state.data)
-        project = jnp.dot(up, jnp.array([0.0, 0.0, 1.0])).clip(-1.0, 1.0)
-        angular_deviation = jnp.clip(
-            jnp.abs(jnp.arccos(project)) - self.limit, a_min=0.0
-        )
-        cost = jnp.sum(jnp.square(angular_deviation * 5.0))
+        y, z = self.env.get_upvector(state.data)[1:]
+        roll = jnp.atan2(y, z)
+        cost = jnp.clip(jnp.abs(roll).sum() - self.limit, a_min=0.0)
+        cost = jnp.exp(cost) - 1.0
         state.info["cost"] = cost
         return state
 
