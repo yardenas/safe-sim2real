@@ -211,11 +211,11 @@ def get_train_fn(cfg):
 
         ppo_params = locomotion_params.brax_ppo_config(env_name)
         ppo_training_params = dict(ppo_params)
-        network_factory = functools.partial(
-            ppo_networks.make_ppo_networks, **ppo_params.network_factory
-        )
         if "network_factory" in ppo_params:
             del ppo_training_params["network_factory"]
+            network_factory = functools.partial(
+                ppo_networks.make_ppo_networks, **ppo_params.network_factory
+            )
         train_fn = functools.partial(
             ppo.train,
             **dict(ppo_training_params),

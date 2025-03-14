@@ -35,9 +35,9 @@ def get_train_fn():
     network_factory = ppo_networks.make_ppo_networks
     if "network_factory" in ppo_params:
         del ppo_training_params["network_factory"]
-    network_factory = functools.partial(
-        ppo_networks.make_ppo_networks, **ppo_params.network_factory
-    )
+        network_factory = functools.partial(
+            ppo_networks.make_ppo_networks, **ppo_params.network_factory
+        )
     train_fn = functools.partial(
         ppo.train,
         **dict(ppo_training_params),

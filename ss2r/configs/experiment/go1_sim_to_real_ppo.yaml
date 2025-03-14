@@ -16,6 +16,7 @@ training:
   num_evals: 10
   num_timesteps: 200000000
   episode_length: 1000
+  value_privileged: true
 
 agent:
   batch_size: 256
