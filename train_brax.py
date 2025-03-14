@@ -207,22 +207,13 @@ def get_train_fn(cfg):
             policy_obs_key=policy_obs_key,
         )
         penalizer, penalizer_params = get_penalizer(cfg)
-        from mujoco_playground.config import locomotion_params
-
-        # ppo_params = locomotion_params.brax_ppo_config(env_name)
-        # ppo_training_params = dict(ppo_params)
-        # if "network_factory" in ppo_params:
-        #     del ppo_training_params["network_factory"]
-        #     network_factory = functools.partial(
-        #         ppo_networks.make_ppo_networks, **ppo_params.network_factory
-        #     )
         train_fn = functools.partial(
             ppo.train,
             **agent_cfg,
             **training_cfg,
             network_factory=network_factory,
             restore_checkpoint_path=f"{get_state_path()}/ckpt",
-            # wrap_env=False,  FIXME
+            wrap_env=False,
         )
     else:
         raise ValueError(f"Unknown agent name: {cfg.agent.name}")
@@ -240,17 +231,6 @@ def report(logger, step, num_steps, metrics):
     step.count = num_steps
 
 
-#####
-from mujoco_playground import registry, wrapper
-
-env_name = "Go1JoystickFlatTerrain"
-env = registry.load(env_name)
-env_cfg = registry.get_default_config(env_name)
-eval_env = registry.load(env_name, config=env_cfg)
-randomizer = registry.get_domain_randomizer(env_name)
-#####
-
-
 @hydra.main(version_base=None, config_path="ss2r/configs", config_name="train_brax")
 def main(cfg):
     _LOG.info(
@@ -260,28 +240,25 @@ def main(cfg):
     logger = TrainingLogger(cfg)
     train_fn = get_train_fn(cfg)
     train_env_wrap_fn = get_wrap_env_fn(cfg)
-    # FIXME
-    # train_env, eval_env = benchmark_suites.make(cfg, train_env_wrap_fn)
+    train_env, eval_env = benchmark_suites.make(cfg, train_env_wrap_fn)
     steps = Counter()
     with jax.disable_jit(not cfg.jit):
         make_policy, params, _ = train_fn(
-            environment=env,
+            environment=train_env,
             eval_env=eval_env,
             progress_fn=functools.partial(report, logger, steps),
-            wrap_env_fn=wrapper.wrap_for_brax_training,  # FIXME
-            randomization_fn=randomizer,
         )
         if cfg.training.render:
             rng = jax.random.split(
                 jax.random.PRNGKey(cfg.training.seed), cfg.training.num_eval_envs
             )
-            # video = benchmark_suites.render_fns[cfg.environment.task_name](
-            #     eval_env,
-            #     make_policy(params, deterministic=True),
-            #     cfg.training.episode_length,
-            #     rng,
-            # )
-            # logger.log_video(video, steps.count, "eval/video")
+            video = benchmark_suites.render_fns[cfg.environment.task_name](
+                eval_env,
+                make_policy(params, deterministic=True),
+                cfg.training.episode_length,
+                rng,
+            )
+            logger.log_video(video, steps.count, "eval/video")
         if cfg.training.store_policy:
             path = get_state_path() + "/policy.pkl"
             model.save_params(get_state_path() + "/policy.pkl", params)
