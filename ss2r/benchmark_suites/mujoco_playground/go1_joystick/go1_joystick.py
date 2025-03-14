@@ -65,7 +65,7 @@ def domain_randomization(sys, rng, cfg):
         qpos0 = qpos0.at[7:].set(
             qpos0[7:]
             + jax.random.uniform(
-                key, shape=(12,), minval=cfg.jitter_qpos[0], maxval=cfg.jitter_qpos[1]
+                key, shape=(12,), minval=cfg.jitter_qpos0[0], maxval=cfg.jitter_qpos0[1]
             )
         )
 
