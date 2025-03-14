@@ -16,6 +16,7 @@ from omegaconf import OmegaConf
 import wandb
 import jax
 import jax.numpy as jp
+import jax.nn as jnn
 import matplotlib.pyplot as plt
 import numpy as np
 import onnxruntime as rt
