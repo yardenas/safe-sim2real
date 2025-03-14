@@ -207,10 +207,16 @@ def get_train_fn(cfg):
             policy_obs_key=policy_obs_key,
         )
         penalizer, penalizer_params = get_penalizer(cfg)
+        from mujoco_playground.config import locomotion_params
+
+        ppo_params = locomotion_params.brax_ppo_config(env_name)
+        ppo_training_params = dict(ppo_params)
+        network_factory = ppo_networks.make_ppo_networks
+        if "network_factory" in ppo_params:
+            del ppo_training_params["network_factory"]
         train_fn = functools.partial(
             ppo.train,
-            **agent_cfg,
-            **training_cfg,
+            **dict(ppo_training_params),
             network_factory=network_factory,
             restore_checkpoint_path=f"{get_state_path()}/ckpt",
             # wrap_env=False,  FIXME
@@ -292,13 +298,13 @@ def main(cfg):
             rng = jax.random.split(
                 jax.random.PRNGKey(cfg.training.seed), cfg.training.num_eval_envs
             )
-            video = benchmark_suites.render_fns[cfg.environment.task_name](
-                eval_env,
-                make_policy(params, deterministic=True),
-                cfg.training.episode_length,
-                rng,
-            )
-            logger.log_video(video, steps.count, "eval/video")
+            # video = benchmark_suites.render_fns[cfg.environment.task_name](
+            #     eval_env,
+            #     make_policy(params, deterministic=True),
+            #     cfg.training.episode_length,
+            #     rng,
+            # )
+            # logger.log_video(video, steps.count, "eval/video")
         if cfg.training.store_policy:
             path = get_state_path() + "/policy.pkl"
             model.save_params(get_state_path() + "/policy.pkl", params)
