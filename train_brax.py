@@ -257,6 +257,16 @@ def report(logger, step, num_steps, metrics):
     step.count = num_steps
 
 
+#####
+from mujoco_playground import registry, wrapper
+
+env_name = "Go1JoystickFlatTerrain"
+env = registry.load(env_name)
+env_cfg = registry.get_default_config(env_name)
+eval_env = registry.load(env_name, config=env_cfg)
+#####
+
+
 @hydra.main(version_base=None, config_path="ss2r/configs", config_name="train_brax")
 def main(cfg):
     _LOG.info(
@@ -270,9 +280,10 @@ def main(cfg):
     steps = Counter()
     with jax.disable_jit(not cfg.jit):
         make_policy, params, _ = train_fn(
-            environment=train_env,
+            environment=env,
             eval_env=eval_env,
             progress_fn=functools.partial(report, logger, steps),
+            wrap_for_brax_training=wrapper.wrap_for_brax_training,  # FIXME
         )
         if cfg.training.render:
             rng = jax.random.split(
