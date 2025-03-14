@@ -133,6 +133,9 @@ def load_disk_policy():
     return inference_fn, params, cfg
 
 
+output_path = args.output_path
+
+
 # %%
 class MLP(tf.keras.Model):
     def __init__(
