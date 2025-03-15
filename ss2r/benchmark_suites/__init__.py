@@ -163,7 +163,6 @@ def make_mujoco_playground_envs(cfg, train_wrap_env_fn):
         randomization_fn=train_randomization_fn,
         episode_length=cfg.training.episode_length,
         action_repeat=cfg.training.action_repeat,
-        augment_state=False,
     )
     eval_randomization_fn = (
         prepare_randomization_fn(
@@ -180,7 +179,7 @@ def make_mujoco_playground_envs(cfg, train_wrap_env_fn):
         episode_length=cfg.training.episode_length,
         action_repeat=cfg.training.action_repeat,
         randomization_fn=eval_randomization_fn,
-        augment_state=False,
+        augment_state=cfg.training.train_domain_randomization,
     )
     return train_env, eval_env
 

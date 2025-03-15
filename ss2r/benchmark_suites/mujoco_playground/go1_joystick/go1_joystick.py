@@ -13,24 +13,27 @@ def domain_randomization(sys, rng, cfg):
         model = sys
         # Floor friction: =U(0.4, 1.0).
         rng, key = jax.random.split(rng)
+        geom_friction_sample = jax.random.uniform(
+            key, minval=cfg.floor_friction[0], maxval=cfg.floor_friction[1]
+        )
         geom_friction = model.geom_friction.at[FLOOR_GEOM_ID, 0].set(
-            jax.random.uniform(
-                key, minval=cfg.floor_friction[0], maxval=cfg.floor_friction[1]
-            )
+            geom_friction_sample
         )
 
         # Scale static friction: *U(0.9, 1.1).
         rng, key = jax.random.split(rng)
-        frictionloss = model.dof_frictionloss[6:] * jax.random.uniform(
+        friction_loss_sample = jax.random.uniform(
             key, shape=(12,), minval=cfg.scale_friction[0], maxval=cfg.scale_friction[1]
         )
+        frictionloss = model.dof_frictionloss[6:] * friction_loss_sample
         dof_frictionloss = model.dof_frictionloss.at[6:].set(frictionloss)
-
         # Scale armature: *U(1.0, 1.05).
         rng, key = jax.random.split(rng)
-        armature = model.dof_armature[6:] * jax.random.uniform(
+        armature_sample = jax.random.uniform(
             key, shape=(12,), minval=cfg.scale_armature[0], maxval=cfg.scale_armature[1]
         )
+
+        armature = model.dof_armature[6:] * armature_sample
         dof_armature = model.dof_armature.at[6:].set(armature)
 
         # Jitter center of mass positiion: +U(-0.05, 0.05).
@@ -54,10 +57,12 @@ def domain_randomization(sys, rng, cfg):
 
         # Add mass to torso: +U(-1.0, 1.0).
         rng, key = jax.random.split(rng)
-        dmass = jax.random.uniform(
+        dmass_torso = jax.random.uniform(
             key, minval=cfg.add_torso_mass[0], maxval=cfg.add_torso_mass[1]
         )
-        body_mass = body_mass.at[TORSO_BODY_ID].set(body_mass[TORSO_BODY_ID] + dmass)
+        body_mass = body_mass.at[TORSO_BODY_ID].set(
+            body_mass[TORSO_BODY_ID] + dmass_torso
+        )
 
         # Jitter qpos0: +U(-0.05, 0.05).
         rng, key = jax.random.split(rng)
@@ -73,6 +78,18 @@ def domain_randomization(sys, rng, cfg):
         kp = jax.random.uniform(key, shape=(12,), minval=cfg.Kp[0], maxval=cfg.Kp[1])
         actuator_gainprm = model.actuator_gainprm.at[:, 0].add(kp)
         actuator_biasprm = model.actuator_biasprm.at[:, 1].add(-kp)
+        samples = jnp.hstack(
+            [
+                geom_friction_sample,
+                friction_loss_sample,
+                armature_sample,
+                dpos,
+                dmass,
+                dmass_torso,
+                kd,
+                kp,
+            ]
+        )
         return (
             geom_friction,
             body_ipos,
@@ -83,6 +100,7 @@ def domain_randomization(sys, rng, cfg):
             dof_damping,
             actuator_gainprm,
             actuator_biasprm,
+            samples,
         )
 
     (
@@ -95,6 +113,7 @@ def domain_randomization(sys, rng, cfg):
         dof_damping,
         actuator_gainprm,
         actuator_biasprm,
+        samples,
     ) = rand_dynamics(rng)
 
     in_axes = jax.tree_util.tree_map(lambda x: None, sys)
@@ -125,7 +144,6 @@ def domain_randomization(sys, rng, cfg):
             "actuator_biasprm": actuator_biasprm,
         }
     )
-    samples = jnp.zeros((1,))
     return model, in_axes, samples
 
 
