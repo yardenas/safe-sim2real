@@ -5,7 +5,7 @@ training:
   num_timesteps: 25000000
   value_privileged: true
   num_envs: 128
-  safety_budget: 0.1
+  safety_budget: 3.
 
 agent:
   batch_size: 512
@@ -17,3 +17,4 @@ agent:
   discounting: 0.95
   reward_scaling: 125
   min_replay_size: 8192
+  cost_scaling: 100
