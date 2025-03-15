@@ -194,11 +194,15 @@ class FlipConstraintWrapper(Wrapper):
         return state
 
     def step(self, state, action):
-        state = self.env.step(state, action)
-        xy = self.env.get_upvector(state.data)[:2]
-        cost = jnp.sum(jnp.square(xy))
+        nstate = self.env.step(state, action)
+        xy = self.env.get_upvector(nstate.data)[:2]
+        orientation_cost = jnp.sum(jnp.square(xy))
+        contact = nstate.info["last_contact"]
+        # Use the previous state info
+        slippage_cost = self.env._cost_feet_slip(nstate.data, contact, state.info)
+        cost = slippage_cost * (1.0 + orientation_cost) + orientation_cost
         state.info["cost"] = cost
-        return state
+        return nstate
 
 
 name = "Go1JoystickFlatTerrain"
