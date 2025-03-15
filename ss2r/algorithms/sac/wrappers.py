@@ -42,8 +42,10 @@ class PTSD(Wrapper):
         # domain randomization, the initial states will be different, having
         # a non-zero disagreement.
         state = self.env.reset(rng)
+        cost = jnp.zeros_like(state.reward)
         state.info["state_propagation"] = {}
         state.info["state_propagation"]["next_obs"] = self._tile(_get_obs(state))
+        state.info["state_propagation"]["cost"] = self._tile(cost)
         return state
 
     def step(self, state: State, action: jax.Array) -> State:
@@ -52,6 +54,9 @@ class PTSD(Wrapper):
         perturbed_nstate = self.perturbed_env.step(v_state, v_action)
         next_obs = _get_obs(perturbed_nstate)
         nstate.info["state_propagation"]["next_obs"] = next_obs
+        nstate.info["state_propagation"]["cost"] = perturbed_nstate.info.get(
+            "cost", jnp.zeros_like(perturbed_nstate.reward)
+        )
         return nstate
 
     def _tile(self, tree):
@@ -115,16 +120,22 @@ class ModelDisagreement(Wrapper):
         # FIXME (yarden): there's a bug here.
         # The axes are wrong.
         state = self.env.reset(rng)
-        next_obs = state.info["state_propagation"]["next_obs"]
-        variance = jnp.var(next_obs, axis=0).mean(-1)
+        # next_obs = state.info["state_propagation"]["next_obs"]
+        # variance = jnp.var(next_obs, axis=0).mean(-1)
+        cost = state.info["state_propagation"].get("cost", jnp.zeros_like(state.reward))
+        variance = jnp.var(cost, axis=0)
         state.info["disagreement"] = variance
         state.metrics["disagreement"] = variance
         return state
 
     def step(self, state: State, action: jax.Array) -> State:
         nstate = self.env.step(state, action)
-        next_obs = state.info["state_propagation"]["next_obs"]
-        variance = jnp.var(next_obs, axis=0).mean(-1)
+        # next_obs = state.info["state_propagation"]["next_obs"]
+        # variance = jnp.var(next_obs, axis=0).mean(-1)
+        cost = nstate.info["state_propagation"].get(
+            "cost", jnp.zeros_like(nstate.reward)
+        )
+        variance = jnp.var(cost, axis=0)
         nstate.info["disagreement"] = variance
         nstate.metrics["disagreement"] = variance
         return nstate
