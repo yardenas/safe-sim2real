@@ -198,11 +198,13 @@ class FlipConstraintWrapper(Wrapper):
     def step(self, state, action):
         nstate = self.env.step(state, action)
         xy = self.env.get_upvector(nstate.data)[:2]
-        orientation_cost = jnp.sum(jnp.square(xy))
+        # Put more cost on rolling
+        weights = jnp.array([0.4, 0.6])
+        orientation_cost = jnp.sum(jnp.square(xy) * weights)
         contact = nstate.info["last_contact"]
         # Use the previous state info
         slippage_cost = self.env._cost_feet_slip(nstate.data, contact, state.info)
-        cost = slippage_cost * (1.0 + orientation_cost) + orientation_cost
+        cost = slippage_cost * (1.0 + orientation_cost) * 0.5 + orientation_cost
         nstate.metrics["cost/slip"] = slippage_cost
         nstate.metrics["cost/orientation"] = orientation_cost
         nstate.info["cost"] = cost
