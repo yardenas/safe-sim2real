@@ -191,6 +191,8 @@ class FlipConstraintWrapper(Wrapper):
     def reset(self, rng):
         state = self.env.reset(rng)
         state.info["cost"] = jnp.zeros_like(state.reward)
+        state.metrics["cost/slip"] = jnp.zeros_like(state.reward)
+        state.metrics["cost/orientation"] = jnp.zeros_like(state.reward)
         return state
 
     def step(self, state, action):
@@ -201,7 +203,9 @@ class FlipConstraintWrapper(Wrapper):
         # Use the previous state info
         slippage_cost = self.env._cost_feet_slip(nstate.data, contact, state.info)
         cost = slippage_cost * (1.0 + orientation_cost) + orientation_cost
-        state.info["cost"] = cost
+        nstate.metrics["cost/slip"] = slippage_cost
+        nstate.metrics["cost/orientation"] = orientation_cost
+        nstate.info["cost"] = cost
         return nstate
 
 
