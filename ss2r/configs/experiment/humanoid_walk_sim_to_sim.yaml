@@ -17,3 +17,5 @@ training:
 
 agent:
   activation: swish
+  cost_robustness: 
+    cost_penalty: 1.
