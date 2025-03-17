@@ -117,15 +117,10 @@ class ConstraintWrapper(Wrapper):
         ]
         self.joint_ids = jnp.asarray(
             [
-                self.env.mj_model.jnt_qposadr[
-                    mujoco.mj_name2id(
-                        env.mj_model, mujoco.mjtObj.mjOBJ_JOINT.value, name
-                    )
-                ]
+                mujoco.mj_name2id(env.mj_model, mujoco.mjtObj.mjOBJ_JOINT.value, name)
                 for name in joint_names
             ]
         )
-        self.joint_ranges = self.env.mj_model.jnt_range[1:]
 
     def reset(self, rng: jax.Array) -> State:
         state = self.env.reset(rng)
@@ -133,11 +128,13 @@ class ConstraintWrapper(Wrapper):
         return state
 
     def step(self, state: State, action: jax.Array) -> State:
-        nstate = self.env.step(state, action)
-        # qpos is in radians, even though the xml file specifies degrees
-        joint_angles = nstate.data.qpos[self.joint_ids]
+        with jax.disable_jit(False):
+            nstate = jax.jit(self.env.step)(state, action)
         cost = jnp.zeros_like(nstate.reward)
-        for _, (angle, joint_range) in enumerate(zip(joint_angles, self.joint_ranges)):
+        for id in zip(self.joint_ids):
+            qpos_id = self.env.mj_model.jnt_qposadr[id]
+            joint_range = self.env.mj_model.jnt_range[id]
+            angle = nstate.data.qpos[qpos_id]
             normalized_angle = normalize_angle(angle)
             lower_limit = normalize_angle(joint_range[0] - self.angle_tolerance)
             upper_limit = normalize_angle(joint_range[1] + self.angle_tolerance)
