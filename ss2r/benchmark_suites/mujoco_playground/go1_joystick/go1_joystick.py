@@ -13,24 +13,27 @@ def domain_randomization(sys, rng, cfg):
         model = sys
         # Floor friction: =U(0.4, 1.0).
         rng, key = jax.random.split(rng)
+        geom_friction_sample = jax.random.uniform(
+            key, minval=cfg.floor_friction[0], maxval=cfg.floor_friction[1]
+        )
         geom_friction = model.geom_friction.at[FLOOR_GEOM_ID, 0].set(
-            jax.random.uniform(
-                key, minval=cfg.floor_friction[0], maxval=cfg.floor_friction[1]
-            )
+            geom_friction_sample
         )
 
         # Scale static friction: *U(0.9, 1.1).
         rng, key = jax.random.split(rng)
-        frictionloss = model.dof_frictionloss[6:] * jax.random.uniform(
+        friction_loss_sample = jax.random.uniform(
             key, shape=(12,), minval=cfg.scale_friction[0], maxval=cfg.scale_friction[1]
         )
+        frictionloss = model.dof_frictionloss[6:] * friction_loss_sample
         dof_frictionloss = model.dof_frictionloss.at[6:].set(frictionloss)
-
         # Scale armature: *U(1.0, 1.05).
         rng, key = jax.random.split(rng)
-        armature = model.dof_armature[6:] * jax.random.uniform(
+        armature_sample = jax.random.uniform(
             key, shape=(12,), minval=cfg.scale_armature[0], maxval=cfg.scale_armature[1]
         )
+
+        armature = model.dof_armature[6:] * armature_sample
         dof_armature = model.dof_armature.at[6:].set(armature)
 
         # Jitter center of mass positiion: +U(-0.05, 0.05).
@@ -54,10 +57,12 @@ def domain_randomization(sys, rng, cfg):
 
         # Add mass to torso: +U(-1.0, 1.0).
         rng, key = jax.random.split(rng)
-        dmass = jax.random.uniform(
+        dmass_torso = jax.random.uniform(
             key, minval=cfg.add_torso_mass[0], maxval=cfg.add_torso_mass[1]
         )
-        body_mass = body_mass.at[TORSO_BODY_ID].set(body_mass[TORSO_BODY_ID] + dmass)
+        body_mass = body_mass.at[TORSO_BODY_ID].set(
+            body_mass[TORSO_BODY_ID] + dmass_torso
+        )
 
         # Jitter qpos0: +U(-0.05, 0.05).
         rng, key = jax.random.split(rng)
@@ -73,6 +78,18 @@ def domain_randomization(sys, rng, cfg):
         kp = jax.random.uniform(key, shape=(12,), minval=cfg.Kp[0], maxval=cfg.Kp[1])
         actuator_gainprm = model.actuator_gainprm.at[:, 0].add(kp)
         actuator_biasprm = model.actuator_biasprm.at[:, 1].add(-kp)
+        samples = jnp.hstack(
+            [
+                geom_friction_sample,
+                friction_loss_sample,
+                armature_sample,
+                dpos,
+                dmass,
+                dmass_torso,
+                kd,
+                kp,
+            ]
+        )
         return (
             geom_friction,
             body_ipos,
@@ -83,6 +100,7 @@ def domain_randomization(sys, rng, cfg):
             dof_damping,
             actuator_gainprm,
             actuator_biasprm,
+            samples,
         )
 
     (
@@ -95,6 +113,7 @@ def domain_randomization(sys, rng, cfg):
         dof_damping,
         actuator_gainprm,
         actuator_biasprm,
+        samples,
     ) = rand_dynamics(rng)
 
     in_axes = jax.tree_util.tree_map(lambda x: None, sys)
@@ -125,7 +144,6 @@ def domain_randomization(sys, rng, cfg):
             "actuator_biasprm": actuator_biasprm,
         }
     )
-    samples = jnp.zeros(())
     return model, in_axes, samples
 
 
@@ -166,22 +184,30 @@ class JointTorqueConstraintWrapper(Wrapper):
 
 
 class FlipConstraintWrapper(Wrapper):
-    def __init__(self, env: Env, limit: float):
+    def __init__(self, env: Env):
         super().__init__(env)
-        self.env._config.reward_config.scales["orientation"] = 0.0
-        self.limit = limit
 
     def reset(self, rng):
         state = self.env.reset(rng)
         state.info["cost"] = jnp.zeros_like(state.reward)
+        state.metrics["cost/slip"] = jnp.zeros_like(state.reward)
+        state.metrics["cost/orientation"] = jnp.zeros_like(state.reward)
         return state
 
     def step(self, state, action):
-        state = self.env.step(state, action)
-        xy = self.env.get_upvector(state.data)[:2]
-        cost = jnp.sum(jnp.square(xy))
-        state.info["cost"] = cost
-        return state
+        nstate = self.env.step(state, action)
+        xy = self.env.get_upvector(nstate.data)[:2]
+        # Put more cost on rolling
+        weights = jnp.array([0.4, 0.6])
+        orientation_cost = jnp.sum(jnp.square(xy) * weights)
+        contact = nstate.info["last_contact"]
+        # Use the previous state info
+        slippage_cost = self.env._cost_feet_slip(nstate.data, contact, state.info)
+        cost = slippage_cost * (1.0 + orientation_cost) * 0.5 + orientation_cost
+        nstate.metrics["cost/slip"] = slippage_cost
+        nstate.metrics["cost/orientation"] = orientation_cost
+        nstate.info["cost"] = cost
+        return nstate
 
 
 name = "Go1JoystickFlatTerrain"
@@ -201,9 +227,8 @@ def make_joint_torque(**kwargs):
 
 
 def make_flip(**kwargs):
-    limit = kwargs["config"]["roll_limit"]
     env = locomotion.load(name, **kwargs)
-    env = FlipConstraintWrapper(env, limit)
+    env = FlipConstraintWrapper(env)
     return env
 
 
