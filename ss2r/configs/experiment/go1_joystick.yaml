@@ -22,4 +22,3 @@ agent:
 environment:
   train_params:
     jitter_mass: [-0.15, 0.15]
-    floor_friction: [0.3, 1.0]
