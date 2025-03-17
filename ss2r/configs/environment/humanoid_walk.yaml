@@ -8,7 +8,7 @@ task_params:
   episode_length: 1000
   sim_dt: 0.0025
   vision: false
-  angle_tolerance: 2.
+  angle_tolerance: 0.
 
 # Sample uniformly around the nominal value
 train_params:
