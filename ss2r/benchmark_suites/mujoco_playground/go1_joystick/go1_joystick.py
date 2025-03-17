@@ -184,9 +184,8 @@ class JointTorqueConstraintWrapper(Wrapper):
 
 
 class FlipConstraintWrapper(Wrapper):
-    def __init__(self, env: Env, limit: float):
+    def __init__(self, env: Env):
         super().__init__(env)
-        self.limit = limit
 
     def reset(self, rng):
         state = self.env.reset(rng)
@@ -228,9 +227,8 @@ def make_joint_torque(**kwargs):
 
 
 def make_flip(**kwargs):
-    limit = kwargs["config"]["angular_limit"]
     env = locomotion.load(name, **kwargs)
-    env = FlipConstraintWrapper(env, limit)
+    env = FlipConstraintWrapper(env)
     return env
 
 

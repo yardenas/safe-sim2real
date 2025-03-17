@@ -3,7 +3,6 @@ defaults:
 task_name: Go1JoystickFlatTerrain
 task_params:
   torque_limit: 23.
-  angular_limit: 0.5
   Kd: 0.5
   Kp: 35.0
   action_repeat: 1
