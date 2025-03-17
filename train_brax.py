@@ -161,30 +161,58 @@ def get_train_fn(cfg):
             penalizer_params=penalizer_params,
         )
     elif cfg.agent.name == "ppo":
-        from mujoco_playground.config import locomotion_params
-
-        if "Safe" in cfg.environment.task_name:
-            task_name = cfg.environment.task_name.replace("Safe", "")
-        else:
-            task_name = cfg.environment.task_name
-        task_name = "Go1JoystickFlatTerrain"
-        ppo_params = locomotion_params.brax_ppo_config(task_name)
+        import jax.nn as jnn
         from brax.training.agents.ppo import networks as ppo_networks
         from brax.training.agents.ppo import train as ppo
 
-        ppo_training_params = dict(ppo_params)
-        network_factory = ppo_networks.make_ppo_networks
-        if "network_factory" in ppo_params:
-            del ppo_training_params["network_factory"]
-        if not cfg.training.value_privileged:
-            ppo_params.network_factory.value_obs_key = "state"
-        network_factory = functools.partial(
-            ppo_networks.make_ppo_networks, **ppo_params.network_factory
+        agent_cfg = dict(cfg.agent)
+        training_cfg = {
+            k: v
+            for k, v in cfg.training.items()
+            if k
+            not in [
+                "render_episodes",
+                "train_domain_randomization",
+                "eval_domain_randomization",
+                "render",
+                "store_policy",
+                "safe",
+                "safety_budget",
+            ]
+        }
+        policy_hidden_layer_sizes = agent_cfg.pop("policy_hidden_layer_sizes")
+        value_hidden_layer_sizes = agent_cfg.pop("value_hidden_layer_sizes")
+        activation = getattr(jnn, agent_cfg.pop("activation"))
+        value_obs_key = "privileged_state" if cfg.training.value_privileged else "state"
+        policy_obs_key = (
+            "privileged_state" if cfg.training.policy_privileged else "state"
         )
+        del training_cfg["value_privileged"]
+        del training_cfg["policy_privileged"]
+        del agent_cfg["name"]
+        if "cost_robustness" in agent_cfg:
+            del agent_cfg["cost_robustness"]
+        if "reward_robustness" in agent_cfg:
+            del agent_cfg["reward_robustness"]
+        if "penalizer" in agent_cfg:
+            del agent_cfg["penalizer"]
+        if "propagation" in agent_cfg:
+            del agent_cfg["propagation"]
+        network_factory = functools.partial(
+            ppo_networks.make_ppo_networks,
+            policy_hidden_layer_sizes=policy_hidden_layer_sizes,
+            value_hidden_layer_sizes=value_hidden_layer_sizes,
+            activation=activation,
+            value_obs_key=value_obs_key,
+            policy_obs_key=policy_obs_key,
+        )
+        penalizer, penalizer_params = get_penalizer(cfg)
         train_fn = functools.partial(
             ppo.train,
-            **dict(ppo_training_params),
+            **agent_cfg,
+            **training_cfg,
             network_factory=network_factory,
+            restore_checkpoint_path=f"{get_state_path()}/ckpt",
             wrap_env=False,
         )
     else:

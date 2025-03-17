@@ -32,7 +32,9 @@ class PTSD(Wrapper):
     def __init__(self, env, randomzation_fn, num_perturbed_envs):
         super().__init__(env)
         # FIXME (yarden): this should be the nominal environment.
-        self.perturbed_env = BraxDomainRandomizationVmapWrapper(env, randomzation_fn)
+        self.perturbed_env = BraxDomainRandomizationVmapWrapper(
+            env, randomzation_fn, augment_state=False
+        )
         self.num_perturbed_envs = num_perturbed_envs
 
     def reset(self, rng: jax.Array) -> State:
@@ -40,8 +42,10 @@ class PTSD(Wrapper):
         # domain randomization, the initial states will be different, having
         # a non-zero disagreement.
         state = self.env.reset(rng)
+        cost = jnp.zeros_like(state.reward)
         state.info["state_propagation"] = {}
         state.info["state_propagation"]["next_obs"] = self._tile(_get_obs(state))
+        state.info["state_propagation"]["cost"] = self._tile(cost)
         return state
 
     def step(self, state: State, action: jax.Array) -> State:
@@ -50,6 +54,9 @@ class PTSD(Wrapper):
         perturbed_nstate = self.perturbed_env.step(v_state, v_action)
         next_obs = _get_obs(perturbed_nstate)
         nstate.info["state_propagation"]["next_obs"] = next_obs
+        nstate.info["state_propagation"]["cost"] = perturbed_nstate.info.get(
+            "cost", jnp.zeros_like(perturbed_nstate.reward)
+        )
         return nstate
 
     def _tile(self, tree):
