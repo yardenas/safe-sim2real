@@ -5,7 +5,7 @@ training:
   num_timesteps: 50000000
   value_privileged: true
   num_envs: 1024
-  safety_budget: 90.
+  safety_budget: 150.
 
 agent:
   batch_size: 512
@@ -21,4 +21,5 @@ agent:
 
 environment:
   train_params:
-    jitter_mass: [-0.1, 0.1]
+    jitter_mass: [-0.15, 0.15]
+    floor_friction: [0.3, 1.0]
