@@ -128,8 +128,7 @@ class ConstraintWrapper(Wrapper):
         return state
 
     def step(self, state: State, action: jax.Array) -> State:
-        with jax.disable_jit(False):
-            nstate = jax.jit(self.env.step)(state, action)
+        nstate = self.env.step(state, action)
         cost = jnp.zeros_like(nstate.reward)
         for id in zip(self.joint_ids):
             qpos_id = self.env.mj_model.jnt_qposadr[id]
