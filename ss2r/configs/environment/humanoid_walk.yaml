@@ -1,0 +1,28 @@
+defaults:
+  - mujoco_playground_base
+
+task_name: SafeHumanoidWalk
+task_params:
+  action_repeat: 1
+  ctrl_dt: 0.025
+  episode_length: 1000
+  sim_dt: 0.0025
+  vision: false
+  angle_tolerance: 0.
+
+# Sample uniformly around the nominal value
+train_params:
+  friction: [0., 0.]
+  gear_hip:
+    x: [-20., 20.]
+    y: [-20., 20.]
+    z: [-60., 60.]
+  gear_knee: [0., 0.]
+
+eval_params:
+  friction: [-0.05, 0.05]
+  gear_hip:
+    x: [-20., 20.]
+    y: [-20., 20.]
+    z: [-60., 60.]
+  gear_knee: [-40., 40.]
