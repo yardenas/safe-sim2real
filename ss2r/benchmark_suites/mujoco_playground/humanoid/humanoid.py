@@ -28,20 +28,7 @@ def domain_randomization(sys, rng, cfg):
         friction_sample = jnp.clip(friction_sample, a_min=0.0, a_max=1.0)
         rng = jax.random.split(rng, 8)
         # Ensure symmetry
-        gain_sample = sys.actuator.gain.copy()
-        gain_hip_x = jax.random.uniform(
-            rng[0], minval=cfg.gain_hip.x[0], maxval=cfg.gain_hip.x[1]
-        )
-        gain_hip_y = jax.random.uniform(
-            rng[1], minval=cfg.gain_hip.y[0], maxval=cfg.gain_hip.y[1]
-        )
-        gain_hip_z = jax.random.uniform(
-            rng[2], minval=cfg.gain_hip.z[0], maxval=cfg.gain_hip.z[1]
-        )
-        gain_knee = jax.random.uniform(
-            rng[3], minval=cfg.gain_knee[0], maxval=cfg.gain_knee[1]
-        )
-        gear_sample = sys.actuator.gear.copy()
+        gear_sample = sys.actuator_gear.copy()
         gear_hip_x = jax.random.uniform(
             rng[4], minval=cfg.gear_hip.x[0], maxval=cfg.gear_hip.x[1]
         )
@@ -55,30 +42,24 @@ def domain_randomization(sys, rng, cfg):
             rng[7], minval=cfg.gear_knee[0], maxval=cfg.gear_knee[1]
         )
         name_values = {
-            "right_hip_x": (gain_hip_x, gear_hip_x),
-            "left_hip_x": (gain_hip_x, gear_hip_x),
-            "right_hip_y": (gain_hip_y, gear_hip_y),
-            "left_hip_y": (gain_hip_y, gear_hip_y),
-            "right_hip_z": (gain_hip_z, gear_hip_z),
-            "left_hip_z": (gain_hip_z, gear_hip_z),
-            "left_knee": (gain_knee, gear_knee),
-            "right_knee": (gain_knee, gear_knee),
+            "right_hip_x": gear_hip_x,
+            "left_hip_x": gear_hip_x,
+            "right_hip_y": gear_hip_y,
+            "left_hip_y": gear_hip_y,
+            "right_hip_z": gear_hip_z,
+            "left_hip_z": gear_hip_z,
+            "left_knee": gear_knee,
+            "right_knee": gear_knee,
         }
-        for name, (gain, gear) in name_values.items():
+        for name, gear in name_values.items():
             actuator_id = _name_to_id[name]
             gear_sample = gear_sample.at[actuator_id].add(gear)
-            gain_sample = gain_sample.at[actuator_id].add(gain)
         return (
             friction_sample,
             gear_sample,
-            gain_sample,
             jnp.stack(
                 [
                     friction,
-                    gain_hip_x,
-                    gain_hip_y,
-                    gain_hip_z,
-                    gain_knee,
                     gear_hip_x,
                     gear_hip_y,
                     gear_hip_z,
@@ -88,20 +69,18 @@ def domain_randomization(sys, rng, cfg):
             ),
         )
 
-    friction_sample, gear_sample, gain_sample, samples = randomize(rng)
+    friction_sample, gear_sample, samples = randomize(rng)
     in_axes = jax.tree_map(lambda x: None, sys)
     in_axes = in_axes.tree_replace(
         {
             "geom_friction": 0,
-            "actuator.gear": 0,
-            "actuator.gain": 0,
+            "actuator_gear": 0,
         }
     )
     sys = sys.tree_replace(
         {
             "geom_friction": friction_sample,
-            "actuator.gear": gear_sample,
-            "actuator.gain": gain_sample,
+            "actuator_gear": gear_sample,
         }
     )
     return sys, in_axes, samples
