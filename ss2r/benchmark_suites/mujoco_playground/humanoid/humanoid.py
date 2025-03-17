@@ -115,11 +115,15 @@ class ConstraintWrapper(Wrapper):
             "left_shoulder2",
             "left_elbow",
         ]
-        self.joint_ids = jnp.asarray(
+        joint_ids = jnp.asarray(
             [
                 mujoco.mj_name2id(env.mj_model, mujoco.mjtObj.mjOBJ_JOINT.value, name)
                 for name in joint_names
             ]
+        )
+        self.joint_ranges = [env.mj_model.jnt_range[id_] for id_ in joint_ids]
+        self.qpos_ids = jnp.asarray(
+            [env.mj_model.jnt_qposadr[id_] for id_ in joint_ids]
         )
 
     def reset(self, rng: jax.Array) -> State:
@@ -130,9 +134,7 @@ class ConstraintWrapper(Wrapper):
     def step(self, state: State, action: jax.Array) -> State:
         nstate = self.env.step(state, action)
         cost = jnp.zeros_like(nstate.reward)
-        for id in self.joint_ids:
-            qpos_id = self.env.mj_model.jnt_qposadr[id]
-            joint_range = self.env.mj_model.jnt_range[id]
+        for qpos_id, joint_range in zip(self.qpos_ids, self.joint_ranges):
             angle = nstate.data.qpos[qpos_id]
             normalized_angle = normalize_angle(angle)
             lower_limit = normalize_angle(joint_range[0] - self.angle_tolerance)
