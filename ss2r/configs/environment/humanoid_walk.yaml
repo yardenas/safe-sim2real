@@ -14,15 +14,15 @@ task_params:
 train_params:
   friction: [-0.05, 0.05]
   gear_hip:
-    x: [-5., 5.]
-    y: [-5., 5.]
-    z: [-15., 15.]
-  gear_knee: [-10., 10.]
+    x: [-1., 1.]
+    y: [-1., 1.]
+    z: [-3., 3.]
+  gear_knee: [-2., 2.]
 
 eval_params:
   friction: [-0.05, 0.05]
   gear_hip:
-    x: [-5., 5.]
-    y: [-5., 5.]
-    z: [-15., 15.]
-  gear_knee: [-10., 10.]
+    x: [-1., 1.]
+    y: [-1., 1.]
+    z: [-3., 3.]
+  gear_knee: [-2., 2.]
