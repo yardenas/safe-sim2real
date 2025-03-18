@@ -36,7 +36,7 @@ def domain_randomization(sys, rng, cfg):
         damping = sys.dof_damping.at[3:].add(damping_sample)
         gear = sys.actuator_gear.copy()
         gear_sample = jax.random.uniform(rng, minval=cfg.gear[0], maxval=cfg.gear[1])
-        gear = gear.at[:3, 0].add(gear_sample)
+        gear = gear.at[:, 0].add(gear_sample)
         return (
             inertia_pos,
             mass,
