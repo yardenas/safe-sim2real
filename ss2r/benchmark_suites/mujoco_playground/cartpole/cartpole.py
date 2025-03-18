@@ -28,9 +28,30 @@ def domain_randomization(sys, rng, cfg):
         inertia = sys.body_inertia.at[_POLE_ID].multiply(scale)
         inertia_pos = sys.body_ipos.copy()
         inertia_pos = inertia_pos.at[_POLE_ID, -1].add(pole_length_sample / 2.0)
-        return inertia_pos, mass, inertia, geom, pole_length_sample, mass_sample
+        gear = sys.actuator_gear.copy()
+        gear_sample = jax.random.uniform(rng, minval=cfg.gear[0], maxval=cfg.gear[1])
+        gear = gear.at[0, 0].add(gear_sample)
+        return (
+            inertia_pos,
+            mass,
+            inertia,
+            geom,
+            gear,
+            pole_length_sample,
+            mass_sample,
+            gear_sample,
+        )
 
-    inertia_pos, mass, inertia, geom, length_sample, mass_sample = randomize(rng)
+    (
+        inertia_pos,
+        mass,
+        inertia,
+        geom,
+        gear,
+        length_sample,
+        mass_sample,
+        gear_sample,
+    ) = randomize(rng)
     in_axes = jax.tree_map(lambda x: None, sys)
     in_axes = in_axes.tree_replace(
         {
@@ -38,6 +59,7 @@ def domain_randomization(sys, rng, cfg):
             "body_inertia": 0,
             "body_ipos": 0,
             "geom_size": 0,
+            "actuator_gear": 0,
         }
     )
     sys = sys.tree_replace(
@@ -46,9 +68,10 @@ def domain_randomization(sys, rng, cfg):
             "body_inertia": inertia,
             "body_ipos": inertia_pos,
             "geom_size": geom,
+            "actuator_gear": gear,
         }
     )
-    return sys, in_axes, jnp.hstack([length_sample, mass_sample])
+    return sys, in_axes, jnp.hstack([length_sample, mass_sample, gear_sample])
 
 
 class ConstraintWrapper(Wrapper):
