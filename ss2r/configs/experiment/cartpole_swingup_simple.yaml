@@ -7,14 +7,12 @@ defaults:
 
 
 training:
-  num_timesteps: 10000000
+  num_timesteps: 5000000
   action_repeat: 4
   safe: false
   train_domain_randomization: false
   eval_domain_randomization: false
   safety_budget: 100
-  num_envs: 128
 
 agent:
-  grad_updates_per_step: 256
   activation: swish

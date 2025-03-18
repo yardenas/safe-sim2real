@@ -8,7 +8,6 @@ defaults:
 
 
 training:
-  num_envs: 128
   num_timesteps: 5000000
   safe: true
   train_domain_randomization: true

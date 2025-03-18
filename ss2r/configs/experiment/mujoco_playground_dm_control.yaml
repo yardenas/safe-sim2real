@@ -1,3 +1,6 @@
+training:
+  num_envs: 128
+
 agent:
   batch_size: 512
   grad_updates_per_step: 8
