@@ -7,12 +7,9 @@ defaults:
   - _self_
 
 training:
-  num_envs: 16
-  num_timesteps: 5000000
-  episode_length: 1000
+  num_timesteps: 2000000
   train_domain_randomization: true
   eval_domain_randomization: true
-  value_privileged: true
   safe: true
   safety_budget: 100.
 
