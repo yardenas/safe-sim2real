@@ -12,11 +12,11 @@ task_params:
 
 # Sample uniformly around the nominal value
 train_params:
-  pole_length: [-0.25, 0.25]
+  pole_length: [0., 0.]
   pole_mass: [0., 0.]
   gear: [0., 5.]
 
 eval_params:
   pole_length: [-0.25, 0.25]
-  pole_mass: [-0.05, 0.05]
+  pole_mass: [0., 0.]
   gear: [0., 5.]
