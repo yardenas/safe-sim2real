@@ -11,9 +11,9 @@ task_params:
   joint_velocity_limit: 16.25 # 65 * 0.25 (rad/s)
 
 train_params:
-  torso_length: [-0.2, 0.2]
+  torso_length: [-0.3, 0.3]
   friction: [0.0, 0.0]
 
 eval_params:
-  torso_length: [-0.2, 0.2]
+  torso_length: [-0.3, 0.3]
   friction: [-0.3, 0.3]
