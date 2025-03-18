@@ -2,7 +2,6 @@
 defaults:
   - mujoco_playground_dm_control
   - override /environment: cartpole_swingup
-  - override /agent/penalizer: lagrangian
   - _self_
 
 

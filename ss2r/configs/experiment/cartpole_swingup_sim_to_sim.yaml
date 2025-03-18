@@ -2,6 +2,8 @@
 defaults:
   - mujoco_playground_dm_control
   - override /environment: cartpole_swingup
+  - override /agent/propagation: ts1
+  - override /agent/cost_robustness: ucb_cost
   - _self_
 
 
@@ -9,7 +11,7 @@ training:
   num_timesteps: 5000000
   action_repeat: 4
   safe: true
-  train_domain_randomization: false
+  train_domain_randomization: true
   eval_domain_randomization: true
   safety_budget: 100
 
