@@ -84,7 +84,6 @@ class ConstraintWrapper(Wrapper):
 
 
 for run in [True, False]:
-    name = ["Walker"]
     run_str = "Run" if run else "Walk"
 
     def make(**kwargs):
