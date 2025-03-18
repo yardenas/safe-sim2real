@@ -45,7 +45,9 @@ def domain_randomization(sys, rng, cfg):
             friction,
             damping,
             gear,
-            jnp.hstack([friction_sample, torso_length_sample, damping_sample, gear]),
+            jnp.hstack(
+                [friction_sample, torso_length_sample, damping_sample, gear_sample]
+            ),
         )
 
     inertia_pos, mass, inertia, geom, friction, damping, gear, samples = randomize(rng)
