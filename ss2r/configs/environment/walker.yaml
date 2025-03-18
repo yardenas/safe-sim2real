@@ -13,7 +13,9 @@ task_params:
 train_params:
   torso_length: [-0.3, 0.3]
   friction: [0.0, 0.0]
+  joint_damping: [0.0, 0.0]
 
 eval_params:
   torso_length: [-0.3, 0.3]
   friction: [-0.3, 0.3]
+  joint_damping: [-0.025, 1.0]

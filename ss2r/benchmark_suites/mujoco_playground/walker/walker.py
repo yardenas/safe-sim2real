@@ -30,16 +30,21 @@ def domain_randomization(sys, rng, cfg):
             rng, minval=cfg.friction[0], maxval=cfg.friction[1]
         )
         friction = sys.geom_friction.at[:, 0].add(friction_sample)
+        damping_sample = jax.random.uniform(
+            rng, minval=cfg.joint_damping[0], maxval=cfg.joint_damping[1]
+        )
+        damping = sys.dof_damping.at[3:].add(damping_sample)
         return (
             inertia_pos,
             mass,
             inertia,
             geom,
             friction,
-            jnp.hstack([friction_sample, torso_length_sample]),
+            damping,
+            jnp.hstack([friction_sample, torso_length_sample, damping_sample]),
         )
 
-    inertia_pos, mass, inertia, geom, friction, samples = randomize(rng)
+    inertia_pos, mass, inertia, geom, friction, damping, samples = randomize(rng)
     in_axes = jax.tree_map(lambda x: None, sys)
     in_axes = in_axes.tree_replace(
         {
@@ -48,6 +53,7 @@ def domain_randomization(sys, rng, cfg):
             "body_inertia": 0,
             "geom_size": 0,
             "geom_friction": 0,
+            "dof_damping": 0,
         }
     )
     sys = sys.tree_replace(
@@ -57,6 +63,7 @@ def domain_randomization(sys, rng, cfg):
             "body_inertia": inertia,
             "geom_size": geom,
             "geom_friction": friction,
+            "dof_damping": damping,
         }
     )
     return sys, in_axes, samples
