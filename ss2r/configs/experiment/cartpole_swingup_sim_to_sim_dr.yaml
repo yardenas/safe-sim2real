@@ -1,14 +1,13 @@
 # @package _global_
 defaults:
   - mujoco_playground_dm_control
-  - override /environment: humanoid_walk
-  - override /agent/propagation: ts1
-  - override /agent/cost_robustness: ucb_cost
+  - override /environment: cartpole_swingup
   - _self_
 
 
 training:
   num_timesteps: 5000000
+  action_repeat: 4
   safe: true
   train_domain_randomization: true
   eval_domain_randomization: true
@@ -16,5 +15,3 @@ training:
 
 agent:
   activation: swish
-  cost_robustness: 
-    cost_penalty: 1.

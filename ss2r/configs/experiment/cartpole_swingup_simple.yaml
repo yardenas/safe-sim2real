@@ -2,19 +2,16 @@
 defaults:
   - mujoco_playground_dm_control
   - override /environment: cartpole_swingup
-  - override /agent/penalizer: lagrangian
   - _self_
 
 
 training:
-  num_timesteps: 10000000
+  num_timesteps: 5000000
   action_repeat: 4
   safe: false
   train_domain_randomization: false
   eval_domain_randomization: false
   safety_budget: 100
-  # TODO (yarden): num_envs in this configuration is 2048
 
 agent:
-  grad_updates_per_step: 256
   activation: swish
