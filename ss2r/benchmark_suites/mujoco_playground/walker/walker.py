@@ -25,6 +25,8 @@ def domain_randomization(sys, rng, cfg):
         inertia_pos = inertia_pos.at[_TORSO_ID, -1].add(torso_length_sample / 2.0)
         # mass = sys.body_mass.at[_TORSO_ID].multiply(scale_factor)
         # inertia = sys.body_inertia.at[_TORSO_ID].multiply(scale_factor**3)
+        mass = sys.body_mass
+        inertia = sys.body_inertia
         friction_sample = jax.random.uniform(
             rng, minval=cfg.friction[0], maxval=cfg.friction[1]
         )
