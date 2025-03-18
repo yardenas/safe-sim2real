@@ -13,7 +13,7 @@ training:
   train_domain_randomization: false
   eval_domain_randomization: false
   safety_budget: 100
-  # TODO (yarden): num_envs in this configuration is 2048
+  num_envs: 128
 
 agent:
   grad_updates_per_step: 256
