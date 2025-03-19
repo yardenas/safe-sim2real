@@ -4,6 +4,9 @@ defaults:
   - override /environment: walker
   - _self_
 
+environment:
+  task_name: SafeWalkerRun
+
 training:
   num_envs: 128
   num_timesteps: 2000000
