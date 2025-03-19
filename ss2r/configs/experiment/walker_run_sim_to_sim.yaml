@@ -15,3 +15,7 @@ training:
 
 environment:
   task_name: SafeWalkerRun
+  
+agent:
+  cost_robustness:
+    cost_penalty: 4.5

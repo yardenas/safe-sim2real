@@ -17,7 +17,7 @@ train_params:
   gear: [0., 20.]
 
 eval_params:
-  torso_length: [-0.8, 0.8]
+  torso_length: [-0.75, 0.75]
   friction: [0., 0.]
   joint_damping: [0., 0.]
   gear: [0., 20.]
