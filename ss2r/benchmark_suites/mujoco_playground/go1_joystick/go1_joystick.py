@@ -155,7 +155,7 @@ class JointConstraintWrapper(Wrapper):
     def reset(self, rng: jax.Array) -> State:
         state = self.env.reset(rng)
         joint_cost = self._cost_joint_pos_limits(state.data.qpos[7:])
-        state.info["cost"] = joint_cost
+        state.info["cost"] = jnp.where(joint_cost > 0.0, 1.0, 0.0)
         return state
 
     def step(self, state: State, action: jax.Array) -> State:
