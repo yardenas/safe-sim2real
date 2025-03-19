@@ -22,5 +22,6 @@ agent:
 environment:
   train_params:
     jitter_mass: [-0.15, 0.15]
-    soft_joint_pos_limit_factor: 0.75
   task_name: SafeJointGo1JoystickFlatTerrain
+  task_params:
+    soft_joint_pos_limit_factor: 0.75
