@@ -5,7 +5,7 @@ training:
   num_timesteps: 200000000
   value_privileged: true
   num_envs: 8192
-  safety_budget: 150.
+  safety_budget: 20.
 
 agent:
   batch_size: 512
@@ -22,4 +22,5 @@ agent:
 environment:
   train_params:
     jitter_mass: [-0.15, 0.15]
+    soft_joint_pos_limit_factor: 0.75
   task_name: SafeJointGo1JoystickFlatTerrain
