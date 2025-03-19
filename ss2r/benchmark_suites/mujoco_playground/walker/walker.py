@@ -14,32 +14,44 @@ def domain_randomization(sys, rng, cfg):
         torso_length_sample = jax.random.uniform(
             rng, minval=cfg.torso_length[0], maxval=cfg.torso_length[1]
         )
-        torso_length_sample = jnp.clip(torso_length_sample, a_min=-0.2, a_max=0.4)
         length = 0.3 + torso_length_sample
         scale_factor = length / 0.3
         # Make scale factor closer to 1 (either from above or below)
         # to help simulation stability.
         scale_factor = 3 * scale_factor / (2 * scale_factor + 1)
         geom = sys.geom_size.copy()
-        geom = geom.at[_TORSO_ID, 1].set(length)
+        # geom = geom.at[_TORSO_ID, 1].set(length)
         inertia_pos = sys.body_ipos.copy()
         inertia_pos = inertia_pos.at[_TORSO_ID, -1].add(torso_length_sample / 2.0)
-        mass = sys.body_mass.at[_TORSO_ID].multiply(scale_factor)
-        inertia = sys.body_inertia.at[_TORSO_ID].multiply(scale_factor**3)
+        # mass = sys.body_mass.at[_TORSO_ID].multiply(scale_factor)
+        # inertia = sys.body_inertia.at[_TORSO_ID].multiply(scale_factor**3)
+        mass = sys.body_mass
+        inertia = sys.body_inertia
         friction_sample = jax.random.uniform(
             rng, minval=cfg.friction[0], maxval=cfg.friction[1]
         )
         friction = sys.geom_friction.at[:, 0].add(friction_sample)
+        damping_sample = jax.random.uniform(
+            rng, minval=cfg.joint_damping[0], maxval=cfg.joint_damping[1]
+        )
+        damping = sys.dof_damping.at[3:].add(damping_sample)
+        gear = sys.actuator_gear.copy()
+        gear_sample = jax.random.uniform(rng, minval=cfg.gear[0], maxval=cfg.gear[1])
+        gear = gear.at[:, 0].add(gear_sample)
         return (
             inertia_pos,
             mass,
             inertia,
             geom,
             friction,
-            jnp.hstack([friction_sample, torso_length_sample]),
+            damping,
+            gear,
+            jnp.hstack(
+                [friction_sample, torso_length_sample, damping_sample, gear_sample]
+            ),
         )
 
-    inertia_pos, mass, inertia, geom, friction, samples = randomize(rng)
+    inertia_pos, mass, inertia, geom, friction, damping, gear, samples = randomize(rng)
     in_axes = jax.tree_map(lambda x: None, sys)
     in_axes = in_axes.tree_replace(
         {
@@ -48,6 +60,8 @@ def domain_randomization(sys, rng, cfg):
             "body_inertia": 0,
             "geom_size": 0,
             "geom_friction": 0,
+            "dof_damping": 0,
+            "actuator_gear": 0,
         }
     )
     sys = sys.tree_replace(
@@ -57,6 +71,8 @@ def domain_randomization(sys, rng, cfg):
             "body_inertia": inertia,
             "geom_size": geom,
             "geom_friction": friction,
+            "dof_damping": damping,
+            "actuator_gear": gear,
         }
     )
     return sys, in_axes, samples
@@ -84,7 +100,6 @@ class ConstraintWrapper(Wrapper):
 
 
 for run in [True, False]:
-    name = ["Walker"]
     run_str = "Run" if run else "Walk"
 
     def make(**kwargs):

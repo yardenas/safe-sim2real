@@ -13,6 +13,9 @@ training:
   safe: true
   safety_budget: 100.
 
+environment:
+  task_name: SafeWalkerRun
+  
 agent:
   cost_robustness:
     cost_penalty: 4.5
