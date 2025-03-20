@@ -1,0 +1,22 @@
+# @package _global_
+defaults:
+  - go1_joystick
+  - override /agent/propagation: ts1
+  - override /agent/cost_robustness: ucb_cost
+  - override /agent/penalizer: lagrangian
+  - _self_
+
+environment:
+  task_name: SafeJointTorqueGo1JoystickFlatTerrain
+
+training:
+  train_domain_randomization: true
+  eval_domain_randomization: true
+  safe: true
+  safety_budget: 100.
+
+agent:
+  propagation:
+    num_envs: 16
+  cost_robustness:
+    cost_penalty: 0.05
