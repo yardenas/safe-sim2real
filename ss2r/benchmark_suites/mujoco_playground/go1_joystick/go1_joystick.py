@@ -180,7 +180,7 @@ class JointTorqueConstraintWrapper(Wrapper):
         state = self.env.step(state, action)
         torques = state.data.actuator_force
         cost = (
-            jnp.where(jnp.asb(torques) > self.limit, 1.0, 0.0).any().astype(jnp.float32)
+            jnp.where(jnp.abs(torques) > self.limit, 1.0, 0.0).any().astype(jnp.float32)
         )
         state.info["cost"] = cost
         return state
