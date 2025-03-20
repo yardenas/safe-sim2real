@@ -14,4 +14,6 @@ training:
 
 agent:
   propagation:
-    num_envs: 32
+    num_envs: 16
+  cost_robustness:
+    cost_penalty: 0.05
