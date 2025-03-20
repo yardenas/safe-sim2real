@@ -179,10 +179,8 @@ class JointTorqueConstraintWrapper(Wrapper):
     def step(self, state: State, action: jax.Array) -> State:
         state = self.env.step(state, action)
         torques = state.data.actuator_force
-        cost = (
-            jnp.where(jnp.abs(torques) > self.limit, 1.0, 0.0).any().astype(jnp.float32)
-        )
-        state.info["cost"] = cost
+        cost = jnp.clip((jnp.abs(torques) - self.limit), a_min=0.0).max()
+        state = state.replace(info={**state.info, "cost": cost})
         return state
 
 
