@@ -13,3 +13,9 @@ training:
   eval_domain_randomization: true
   safe: false
   safety_budget: 100.
+
+agent:
+  penalizer:
+    lagrange_multiplier: 0.
+    penalty_multiplier_factor: 1e-12
+    penalty_multiplier: 1e-12
