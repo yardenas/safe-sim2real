@@ -17,5 +17,3 @@ training:
 agent:
   penalizer:
     lagrange_multiplier: 0.
-    penalty_multiplier_factor: 1e-12
-    penalty_multiplier: 1e-12
