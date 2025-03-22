@@ -184,13 +184,14 @@ def train(
     reward_robustness: QTransformation = SACBase(),
     cost_robustness: QTransformation = SACCost(),
     use_bro: bool = True,
+    normalize_budget: bool = True,
 ):
     if min_replay_size >= num_timesteps:
         raise ValueError(
             "No training will happen because min_replay_size >= num_timesteps"
         )
 
-    if safety_discounting != 1.0:
+    if safety_discounting != 1.0 and normalize_budget:
         safety_budget = (
             (safety_budget / episode_length)
             / (1.0 - safety_discounting)
