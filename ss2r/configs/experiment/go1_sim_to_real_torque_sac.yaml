@@ -17,4 +17,3 @@ training:
 agent:
   penalizer:
     lagrange_multiplier: 0.
-  normalize_budget: false
