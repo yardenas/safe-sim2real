@@ -20,3 +20,7 @@ agent:
     num_envs: 16
   cost_robustness:
     cost_penalty: 0.05
+  penalizer:
+    lagrange_multiplier: 0.
+    penalty_multiplier: 2.5e-10
+    penalty_multiplier_factor: 5e-8
