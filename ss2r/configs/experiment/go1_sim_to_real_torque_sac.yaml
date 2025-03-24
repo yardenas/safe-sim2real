@@ -1,0 +1,21 @@
+# @package _global_
+defaults:
+  - go1_joystick
+  - override /agent/penalizer: lagrangian
+  - _self_
+
+
+environment:
+  task_name: SafeJointTorqueGo1JoystickFlatTerrain
+
+training:
+  train_domain_randomization: true
+  eval_domain_randomization: true
+  safe: false
+  safety_budget: 300.
+
+agent:
+  penalizer:
+    lagrange_multiplier: 0.
+    penalty_multiplier: 2.5e-10
+    penalty_multiplier_factor: 5e-8

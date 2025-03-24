@@ -26,3 +26,4 @@ policy_hidden_layer_sizes: [128, 128]
 value_hidden_layer_sizes: [512, 512]
 activation: swish
 use_bro: true
+normalize_budget: true
