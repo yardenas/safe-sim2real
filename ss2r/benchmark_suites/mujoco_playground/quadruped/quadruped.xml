@@ -2,10 +2,6 @@
     <include file="./skybox.xml"/>
     <include file="./visual.xml"/>
     <include file="./materials.xml"/>
-    <visual>
-        <rgba rangefinder="1 1 0.1 0.1"/>
-        <map znear=".005" zfar="20"/>
-    </visual>
     <option timestep="0.005" solver="Newton" iterations="4" ls_iterations="8">
         <flag eulerdamp="disable"/>
     </option>
@@ -56,7 +52,7 @@
         </default>
     </default>
     <worldbody>
-        <geom name="floor" type="plane" size="15 15 .5" material="grid"/>
+        <geom name="floor" type="plane" size="100. 100. .5" material="grid"/>
         <camera name="global"  pos="-10 10 10" xyaxes="-1 -1 0 1 0 1" mode="trackcom"/>
         <body name="torso" childclass="body" pos="0 0 .57">
             <freejoint name="root"/>
