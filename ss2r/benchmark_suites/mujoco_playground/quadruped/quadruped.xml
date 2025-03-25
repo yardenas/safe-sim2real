@@ -2,8 +2,7 @@
     <include file="./skybox.xml"/>
     <include file="./visual.xml"/>
     <include file="./materials.xml"/>
-    <option timestep="0.005" solver="Newton" iterations="4" ls_iterations="8">
-        <flag eulerdamp="disable"/>
+    <option timestep="0.005" solver="Newton">
     </option>
     <custom>
         <numeric data="8" name="max_contact_points"/>

@@ -157,7 +157,6 @@ class Quadruped(mjx_env.MjxEnv):
         self._post_init()
 
     def _post_init(self):
-        # TODO (yarden): not 100% that this is correct.
         self._force_torque_names = [
             f"{f}_toe_{pos}_{side}"
             for (f, pos, side) in product(
