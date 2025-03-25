@@ -247,6 +247,8 @@ render_fns = {
     "CartpoleBalance": functools.partial(mujoco_playground.render),
     "QuadrupedWalk": functools.partial(mujoco_playground.render, camera="x"),
     "QuadrupedRun": functools.partial(mujoco_playground.render, camera="x"),
+    "SafeQuadrupedWalk": functools.partial(mujoco_playground.render, camera="x"),
+    "SafeQuadrupedRun": functools.partial(mujoco_playground.render, camera="x"),
     "WalkerWalk": functools.partial(mujoco_playground.render, camera="side"),
     "WalkerRun": functools.partial(mujoco_playground.render, camera="side"),
     "SafeWalkerWalk": functools.partial(mujoco_playground.render, camera="side"),
