@@ -158,9 +158,6 @@ class Quadruped(mjx_env.MjxEnv):
 
     def _post_init(self):
         # TODO (yarden): not 100% that this is correct.
-        self._hinge_ids = jp.nonzero(
-            self._mj_model.jnt_type == mujoco.mjtJoint.mjJNT_HINGE
-        )[0]
         self._force_torque_names = [
             f"{f}_toe_{pos}_{side}"
             for (f, pos, side) in product(
@@ -225,9 +222,7 @@ class Quadruped(mjx_env.MjxEnv):
         )
 
     def _egocentric_state(self, data: mjx.Data) -> jax.Array:
-        return jp.hstack(
-            (data.qpos[self._hinge_ids], data.qvel[self._hinge_ids], data.act)
-        )
+        return jp.hstack((data.qpos[7:], data.qvel[7:], data.act))
 
     def torso_upright(self, data: mjx.Data) -> jax.Array:
         return data.xmat[self._torso_id, 2, 2]
