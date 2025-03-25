@@ -2,7 +2,7 @@
     <include file="./skybox.xml"/>
     <include file="./visual.xml"/>
     <include file="./materials.xml"/>
-    <option timestep="0.005" solver="Newton" iterations="1" ls_iterations="2"/>
+    <option timestep="0.005" solver="Newton" iterations="2" ls_iterations="4"/>
     <custom>
         <numeric data="8" name="max_contact_points"/>
         <numeric data="8" name="max_geom_pairs"/>
