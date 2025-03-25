@@ -1,5 +1,6 @@
 """Quadruped environment."""
 
+from functools import partial
 from typing import Any, Dict, Optional, Union
 
 import jax
@@ -7,15 +8,14 @@ import jax.numpy as jp
 import mujoco
 from ml_collections import config_dict
 from mujoco import mjx
+from mujoco_playground import dm_control_suite
 from mujoco_playground._src import mjx_env, reward
 from mujoco_playground._src.dm_control_suite import common
 
 _XML_PATH = mjx_env.ROOT_PATH / "dm_control_suite" / "xmls" / "quadruped.xml"
 
-# Heights and speeds for rewards
-_STAND_HEIGHT = 0.4
-WALK_SPEED = 1.0
-RUN_SPEED = 3.0
+WALK_SPEED = 0.5
+RUN_SPEED = 5.0
 
 
 def default_config() -> config_dict.ConfigDict:
@@ -33,7 +33,7 @@ class Quadruped(mjx_env.MjxEnv):
 
     def __init__(
         self,
-        move_speed: float,
+        desired_speed: float,
         config: config_dict.ConfigDict = default_config(),
         config_overrides: Optional[Dict[str, Union[str, int, list[Any]]]] = None,
     ):
@@ -41,11 +41,7 @@ class Quadruped(mjx_env.MjxEnv):
         if self._config.vision:
             raise NotImplementedError("Vision not implemented for Quadruped.")
 
-        self._move_speed = move_speed
-        self._stand_or_move_reward = (
-            self._move_reward if move_speed > 0 else self._stand_reward
-        )
-
+        self._desired_speed = desired_speed
         self._xml_path = _XML_PATH.as_posix()
         self._mj_model = mujoco.MjModel.from_xml_string(
             _XML_PATH.read_text(), common.get_assets()
@@ -53,13 +49,34 @@ class Quadruped(mjx_env.MjxEnv):
         self._mj_model.opt.timestep = self.sim_dt
         self._mjx_model = mjx.put_model(self._mj_model)
         self._post_init()
+        self._hinge_ids = jp.nonzero(
+            self._mj_model.jnt_type == mujoco.mjtJoint.mjJNT_HINGE
+        )
+        self._imu_sensor_ids = jp.where(
+            jp.in1d(
+                self._mj_model.sensor_type,
+                (
+                    mujoco.mjtSensor.mjSENS_GYRO.value,
+                    mujoco.mjtSensor.mjSENS_ACCELEROMETER.value,
+                ),
+            )
+        )
+        self._force_torque_ids = jp.where(
+            jp.in1d(
+                self._mj_model.sensor_type,
+                (
+                    mujoco.mjtSensor.mjSENS_FORCE.value,
+                    mujoco.mjtSensor.mjSENS_TORQUE.value,
+                ),
+            )
+        )
 
     def _post_init(self) -> None:
         self._torso_body_id = self.mj_model.body("torso").id
 
     def reset(self, rng: jax.Array) -> mjx_env.State:
         data = mjx_env.init(self.mjx_model)
-        metrics = {"reward/standing": jp.zeros(()), "reward/move": jp.zeros(())}
+        metrics = {"reward/upright": jp.zeros(()), "reward/move": jp.zeros(())}
         info = {"rng": rng}
         reward, done = jp.zeros(2)
         obs = self._get_obs(data, info)
@@ -75,14 +92,12 @@ class Quadruped(mjx_env.MjxEnv):
 
     def _get_obs(self, data: mjx.Data, info: dict[str, Any]) -> jax.Array:
         del info
-        return jp.concatenate(
-            [
-                self._joint_angles(data),
-                self._torso_height(data).reshape(1),
-                self._center_of_mass_velocity(data),
-                data.qvel,
-            ]
-        )
+        ego = self._egocentric_state(data)
+        torso_vel = self.torso_velocity(data)
+        upright = self.torso_upright(data)
+        imu = self.imu(data)
+        force_torque = self.force_torque(data)
+        return jp.hstack((ego, torso_vel, upright, imu, force_torque))
 
     def _get_reward(
         self,
@@ -92,33 +107,46 @@ class Quadruped(mjx_env.MjxEnv):
         metrics: dict[str, Any],
     ) -> jax.Array:
         del info
-        standing = reward.tolerance(
-            self._torso_height(data),
-            bounds=(_STAND_HEIGHT, float("inf")),
-            margin=_STAND_HEIGHT / 4,
+        move_reward = reward.tolerance(
+            self.torso_velocity(data)[0],
+            bounds=(self._desired_speed, float("inf")),
+            sigmoid="linear",
+            margin=self._desired_speed,
+            value_at_margin=0.5,
         )
-        metrics["reward/standing"] = standing
-        move_reward = self._stand_or_move_reward(data)
+        upright_reward = self._upright_reward(data)
         metrics["reward/move"] = move_reward
-        return standing * move_reward
+        metrics["reward/upright"] = upright_reward
+        return move_reward * upright_reward
 
-    def _stand_reward(self, data: mjx.Data) -> jax.Array:
-        return reward.tolerance(self._center_of_mass_velocity(data), margin=1).mean()
-
-    def _move_reward(self, data: mjx.Data) -> jax.Array:
-        speed = jp.linalg.norm(self._center_of_mass_velocity(data)[:2])
+    def _upright_reward(self, data: mjx.Data, deviation_angle: float = 0) -> jax.Array:
+        deviation = jp.cos(jp.deg2rad(deviation_angle))
+        upright = self.torso_upright(data)
         return reward.tolerance(
-            speed, bounds=(self._move_speed, float("inf")), margin=self._move_speed
+            upright,
+            bounds=(deviation, float("inf")),
+            sigmoid="linear",
+            margin=1 + deviation,
+            value_at_margin=0,
         )
 
-    def _joint_angles(self, data: mjx.Data) -> jax.Array:
-        return data.qpos[7:]
+    def _egocentric_state(self, data: mjx.Data) -> jax.Array:
+        return jp.hstack(
+            (data.qpos[self._hinge_ids], data.qvel[self._hinge_ids], data.act)
+        )
 
-    def _torso_height(self, data: mjx.Data) -> jax.Array:
-        return data.xpos[self._torso_body_id, -1]
+    def torso_upright(self, data: mjx.Data) -> jax.Array:
+        """Returns the dot-product of the torso z-axis and the global z-axis."""
+        return jp.asarray(data.xmat["torso", "zz"])
 
-    def _center_of_mass_velocity(self, data: mjx.Data) -> jax.Array:
-        return mjx_env.get_sensor_data(self.mj_model, data, "torso_subtreelinvel")
+    def torso_velocity(self, data: mjx.Data) -> jax.Array:
+        return data.sensordata["velocimeter"]
+
+    def imu(self, data: mjx.Data) -> jax.Array:
+        return data.sensordata[self._imu_sensor_ids]
+
+    def force_torque(self, data: mjx.Data) -> jax.Array:
+        return data.sensordata[self._force_torque_ids]
 
     @property
     def xml_path(self) -> str:
@@ -135,3 +163,11 @@ class Quadruped(mjx_env.MjxEnv):
     @property
     def mjx_model(self) -> mjx.Model:
         return self._mjx_model
+
+
+dm_control_suite.register_environment(
+    "QuadrupedWalk", partial(Quadruped, desired_speed=WALK_SPEED), default_config
+)
+dm_control_suite.register_environment(
+    "QuadrupedRun", partial(Quadruped, RUN_SPEED), default_config
+)

@@ -6,7 +6,13 @@
         <rgba rangefinder="1 1 0.1 0.1"/>
         <map znear=".005" zfar="20"/>
     </visual>
-    <option timestep=".005"/>
+    <option timestep="0.005" solver="Newton" iterations="4" ls_iterations="8">
+        <flag eulerdamp="disable"/>
+    </option>
+    <custom>
+        <numeric data="8" name="max_contact_points"/>
+        <numeric data="8" name="max_geom_pairs"/>
+    </custom>
     <default>
         <geom solimp=".9 .99 .003" solref=".01 1"/>
         <default class="body">
@@ -64,7 +70,6 @@
             <site name="pupil_l" type="sphere" size=".033"  pos=".3 .07 .08" zaxis="1 0 0" material="eye"/>
             <site name="workspace" type="sphere" size=".3 .3 .3"  material="site" pos=".8 0 -.2" group="3"/>
             <geom name="torso" type="ellipsoid" size=".3 .27 .2" density="1000"/>
-            <site name="torso_touch" type="box" size=".26 .26 .26" rgba="0 0 1 0"/>
             <site name="torso" size=".05" rgba="1 0 0 1" />
             <body name="hip_front_left" pos=".2 .2 0" euler="0 0 45" childclass="hip">
                 <joint name="yaw_front_left" class="yaw"/>
