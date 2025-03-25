@@ -174,6 +174,7 @@ class Quadruped(mjx_env.MjxEnv):
         return mjx_env.State(data, obs, reward, done, metrics, info)
 
     def step(self, state: mjx_env.State, action: jax.Array) -> mjx_env.State:
+        action *= 0.0
         data = mjx_env.step(self.mjx_model, state.data, action, self.n_substeps)
         reward = self._get_reward(data, action, state.info, state.metrics)
         obs = self._get_obs(data, state.info)
