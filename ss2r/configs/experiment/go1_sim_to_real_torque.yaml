@@ -13,7 +13,7 @@ training:
   train_domain_randomization: true
   eval_domain_randomization: true
   safe: true
-  safety_budget: 100.
+  safety_budget: 300.
 
 agent:
   propagation:
