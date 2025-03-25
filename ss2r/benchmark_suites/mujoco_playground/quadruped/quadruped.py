@@ -360,7 +360,7 @@ dm_control_suite.register_environment(
     "QuadrupedWalk", partial(Quadruped, desired_speed=WALK_SPEED), default_config
 )
 dm_control_suite.register_environment(
-    "QuadrupedRun", partial(Quadruped, RUN_SPEED), default_config
+    "QuadrupedRun", partial(Quadruped, desired_speed=RUN_SPEED), default_config
 )
 
 for run in [True, False]:
