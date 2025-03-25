@@ -193,7 +193,6 @@ class Quadruped(mjx_env.MjxEnv):
         orientation = jax.random.normal(rng, shape=(4,))
         orientation /= jp.linalg.norm(orientation)
         data = mjx_env.init(self.mjx_model)
-        data = _find_non_contacting_height(self.mjx_model, data, orientation)
         metrics = {"reward/upright": jp.zeros(()), "reward/move": jp.zeros(())}
         info = {"rng": rng}
         reward, done = jp.zeros(2)
