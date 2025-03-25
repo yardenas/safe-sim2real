@@ -175,8 +175,8 @@ class Quadruped(mjx_env.MjxEnv):
 
     def step(self, state: mjx_env.State, action: jax.Array) -> mjx_env.State:
         lower, upper = (
-            self._mj_model.actuator.ctrlrange[:, 0],
-            self._mj_model.actuator.ctrlrange[:, 1],
+            self._mj_model.actuator_ctrlrange[:, 0],
+            self._mj_model.actuator_ctrlrange[:, 1],
         )
         action = (action + 1.0) / 2.0 * (upper - lower) + lower
         data = mjx_env.step(self.mjx_model, state.data, action, self.n_substeps)
