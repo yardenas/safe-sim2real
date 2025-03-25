@@ -135,6 +135,30 @@ def default_config() -> config_dict.ConfigDict:
     )
 
 
+def _find_non_contacting_height(mjx_model, data, orientation, x_pos=0.0, y_pos=0.0):
+    def body_fn(state):
+        z_pos, num_contacts, num_attempts, _ = state
+        qpos = data.qpos.at[:3].set(jp.array([x_pos, y_pos, z_pos]))
+        qpos = qpos.at[3:7].set(jp.array(orientation))
+        ndata = data.replace(qpos=qpos)
+        ndata = mjx.forward(mjx_model, ndata)
+        num_contacts = ndata.ncon
+        z_pos += 0.01
+        num_attempts += 1
+        return (z_pos, num_contacts, num_attempts, ndata)
+
+    initial_state = (0.0, 1, 0, data)  # (z_pos, num_contacts, num_attempts)
+    *_, num_attemps, ndata = jax.lax.while_loop(
+        lambda state: jp.greater(state[1], 0) & jp.less_equal(state[2], 10000),
+        body_fn,
+        initial_state,
+    )
+    ndata = jax.tree_map(
+        lambda x, y: jp.where(jp.less(num_attemps, 10000), x, y), ndata, data
+    )
+    return ndata
+
+
 class Quadruped(mjx_env.MjxEnv):
     """Quadruped environment."""
 
@@ -147,7 +171,6 @@ class Quadruped(mjx_env.MjxEnv):
         super().__init__(config, config_overrides)
         if self._config.vision:
             raise NotImplementedError("Vision not implemented for Quadruped.")
-
         self._desired_speed = desired_speed
         self._xml_path = _XML_PATH.as_posix()
         self._mj_model = mujoco.MjModel.from_xml_string(
@@ -167,7 +190,10 @@ class Quadruped(mjx_env.MjxEnv):
         self._torso_id = self._mj_model.body("torso").id
 
     def reset(self, rng: jax.Array) -> mjx_env.State:
+        orientation = jax.random.normal(rng, shape=(4,))
+        orientation /= jp.linalg.norm(orientation)
         data = mjx_env.init(self.mjx_model)
+        data = _find_non_contacting_height(self.mjx_model, data, orientation)
         metrics = {"reward/upright": jp.zeros(()), "reward/move": jp.zeros(())}
         info = {"rng": rng}
         reward, done = jp.zeros(2)
