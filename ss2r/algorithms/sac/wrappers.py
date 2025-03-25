@@ -31,7 +31,6 @@ def _get_obs(state):
 class PTSD(Wrapper):
     def __init__(self, env, randomzation_fn, num_perturbed_envs):
         super().__init__(env)
-        # FIXME (yarden): this should be the nominal environment.
         self.perturbed_env = BraxDomainRandomizationVmapWrapper(
             env, randomzation_fn, augment_state=False
         )
