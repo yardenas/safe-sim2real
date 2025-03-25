@@ -7,10 +7,11 @@ from typing import Any, Dict, Optional, Union
 import jax
 import jax.numpy as jp
 import mujoco
+from brax.envs import Wrapper
 from etils import epath
 from ml_collections import config_dict
 from mujoco import mjx
-from mujoco_playground import dm_control_suite
+from mujoco_playground import MjxEnv, State, dm_control_suite
 from mujoco_playground._src import mjx_env, reward
 from mujoco_playground._src.dm_control_suite import common
 
@@ -264,9 +265,91 @@ class Quadruped(mjx_env.MjxEnv):
         return self._mjx_model
 
 
+class ConstraintWrapper(Wrapper):
+    def __init__(self, env: MjxEnv, angle_tolerance: float):
+        super().__init__(env)
+        self.angle_tolerance = angle_tolerance * jp.pi / 180.0
+        joint_names = [
+            "yaw_front_left",
+            "pitch_front_left",
+            "knee_front_left",
+            "ankle_front_left",
+            "toe_front_left",
+            "yaw_front_right",
+            "pitch_front_right",
+            "knee_front_right",
+            "ankle_front_right",
+            "toe_front_right",
+            "yaw_back_right",
+            "pitch_back_right",
+            "knee_back_right",
+            "ankle_back_right",
+            "toe_back_right",
+            "yaw_back_left",
+            "pitch_back_left",
+            "knee_back_left",
+            "ankle_back_left",
+            "toe_back_left",
+        ]
+        joint_ids = jp.asarray(
+            [
+                mujoco.mj_name2id(env.mj_model, mujoco.mjtObj.mjOBJ_JOINT.value, name)
+                for name in joint_names
+            ]
+        )
+        self.joint_ranges = [env.mj_model.jnt_range[id_] for id_ in joint_ids]
+        self.qpos_ids = jp.asarray([env.mj_model.jnt_qposadr[id_] for id_ in joint_ids])
+
+    def reset(self, rng: jax.Array) -> State:
+        state = self.env.reset(rng)
+        state.info["cost"] = jp.zeros_like(state.reward)
+        return state
+
+    def step(self, state: State, action: jax.Array) -> State:
+        nstate = self.env.step(state, action)
+        cost = jp.zeros_like(nstate.reward)
+        for qpos_id, joint_range in zip(self.qpos_ids, self.joint_ranges):
+            angle = nstate.data.qpos[qpos_id]
+            normalized_angle = normalize_angle(angle)
+            lower_limit = normalize_angle(joint_range[0] - self.angle_tolerance)
+            upper_limit = normalize_angle(joint_range[1] + self.angle_tolerance)
+            is_out_of_range_case1 = (normalized_angle < lower_limit) & (
+                normalized_angle >= upper_limit
+            )
+            is_out_of_range_case2 = (normalized_angle < lower_limit) | (
+                normalized_angle >= upper_limit
+            )
+            out_of_range = jp.where(
+                upper_limit < lower_limit, is_out_of_range_case1, is_out_of_range_case2
+            )
+            cost += out_of_range
+        nstate.info["cost"] = (cost > 0).astype(jp.float32)
+        return nstate
+
+
+def normalize_angle(angle, lower_bound=-jp.pi, upper_bound=jp.pi):
+    """Normalize angle to be within [lower_bound, upper_bound)."""
+    range_width = upper_bound - lower_bound
+    return (angle - lower_bound) % range_width + lower_bound
+
+
 dm_control_suite.register_environment(
     "QuadrupedWalk", partial(Quadruped, desired_speed=WALK_SPEED), default_config
 )
 dm_control_suite.register_environment(
     "QuadrupedRun", partial(Quadruped, RUN_SPEED), default_config
 )
+
+for run in [True, False]:
+    run_str = "Run" if run else "Walk"
+
+    def make(**kwargs):
+        limit = kwargs["config"]["angle_tolerance"]
+        env = dm_control_suite.load(f"Quadruped{run_str}", **kwargs)
+        env = ConstraintWrapper(env, limit)
+        return env
+
+    name_str = f"SafeQuadruped{run_str}"
+    dm_control_suite.register_environment(
+        name_str, make, dm_control_suite.walker.default_config
+    )
