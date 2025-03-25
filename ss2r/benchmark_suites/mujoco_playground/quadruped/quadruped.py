@@ -190,8 +190,6 @@ class Quadruped(mjx_env.MjxEnv):
         self._torso_id = self._mj_model.body("torso").id
 
     def reset(self, rng: jax.Array) -> mjx_env.State:
-        orientation = jax.random.normal(rng, shape=(4,))
-        orientation /= jp.linalg.norm(orientation)
         data = mjx_env.init(self.mjx_model)
         metrics = {"reward/upright": jp.zeros(()), "reward/move": jp.zeros(())}
         info = {"rng": rng}
