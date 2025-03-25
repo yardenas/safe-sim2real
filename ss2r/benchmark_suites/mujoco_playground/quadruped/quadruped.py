@@ -1,21 +1,127 @@
 """Quadruped environment."""
 
 from functools import partial
+from itertools import product
 from typing import Any, Dict, Optional, Union
 
 import jax
 import jax.numpy as jp
 import mujoco
+from etils import epath
 from ml_collections import config_dict
 from mujoco import mjx
 from mujoco_playground import dm_control_suite
 from mujoco_playground._src import mjx_env, reward
 from mujoco_playground._src.dm_control_suite import common
 
-_XML_PATH = mjx_env.ROOT_PATH / "dm_control_suite" / "xmls" / "quadruped.xml"
+_XML_PATH = epath.Path(__file__).parent / "quadruped.xml"
 
 WALK_SPEED = 0.5
 RUN_SPEED = 5.0
+
+
+def domain_randomization(sys, rng, cfg):
+    @jax.vmap
+    def randomize(rng):
+        rng, rng_ = jax.random.split(rng)
+        friction = jax.random.uniform(
+            rng_, minval=cfg.friction[0], maxval=cfg.friction[1]
+        )
+        friction_sample = sys.geom_friction.copy()
+        friction_sample = friction_sample.at[0, 0].add(friction)
+        friction_sample = jp.clip(friction_sample, a_min=0.0, a_max=1.0)
+        rng = jax.random.split(rng, 8)
+        # Ensure symmetry
+        names_ids = {
+            k: mujoco.mj_name2id(sys.mj_model, mujoco.mjtObj.mjOBJ_ACTUATOR.value, k)
+            for k in [
+                "right_hip_x",
+                "left_hip_x",
+                "right_hip_y",
+                "left_hip_y",
+                "right_hip_z",
+                "left_hip_z",
+                "left_knee",
+                "right_knee",
+            ]
+        }
+        gain_sample = sys.actuator.gain.copy()
+        gain_hip_x = jax.random.uniform(
+            rng[0], minval=cfg.gain_hip.x[0], maxval=cfg.gain_hip.x[1]
+        )
+        gain_hip_y = jax.random.uniform(
+            rng[1], minval=cfg.gain_hip.y[0], maxval=cfg.gain_hip.y[1]
+        )
+        gain_hip_z = jax.random.uniform(
+            rng[2], minval=cfg.gain_hip.z[0], maxval=cfg.gain_hip.z[1]
+        )
+        gain_knee = jax.random.uniform(
+            rng[3], minval=cfg.gain_knee[0], maxval=cfg.gain_knee[1]
+        )
+        gear_sample = sys.actuator.gear.copy()
+        gear_hip_x = jax.random.uniform(
+            rng[4], minval=cfg.gear_hip.x[0], maxval=cfg.gear_hip.x[1]
+        )
+        gear_hip_y = jax.random.uniform(
+            rng[5], minval=cfg.gear_hip.y[0], maxval=cfg.gear_hip.y[1]
+        )
+        gear_hip_z = jax.random.uniform(
+            rng[6], minval=cfg.gear_hip.z[0], maxval=cfg.gear_hip.z[1]
+        )
+        gear_knee = jax.random.uniform(
+            rng[7], minval=cfg.gear_knee[0], maxval=cfg.gear_knee[1]
+        )
+        name_values = {
+            "right_hip_x": (gain_hip_x, gear_hip_x),
+            "left_hip_x": (gain_hip_x, gear_hip_x),
+            "right_hip_y": (gain_hip_y, gear_hip_y),
+            "left_hip_y": (gain_hip_y, gear_hip_y),
+            "right_hip_z": (gain_hip_z, gear_hip_z),
+            "left_hip_z": (gain_hip_z, gear_hip_z),
+            "left_knee": (gain_knee, gear_knee),
+            "right_knee": (gain_knee, gear_knee),
+        }
+        for name, (gain, gear) in name_values.items():
+            actuator_id = names_ids[name]
+            gear_sample = gear_sample.at[actuator_id].add(gear)
+            gain_sample = gain_sample.at[actuator_id].add(gain)
+        return (
+            friction_sample,
+            gear_sample,
+            gain_sample,
+            jp.stack(
+                [
+                    friction,
+                    gain_hip_x,
+                    gain_hip_y,
+                    gain_hip_z,
+                    gain_knee,
+                    gear_hip_x,
+                    gear_hip_y,
+                    gear_hip_z,
+                    gear_knee,
+                ],
+                axis=-1,
+            ),
+        )
+
+    friction_sample, gear_sample, gain_sample, samples = randomize(rng)
+    in_axes = jax.tree_map(lambda x: None, sys)
+    in_axes = in_axes.tree_replace(
+        {
+            "geom_friction": 0,
+            "actuator.gear": 0,
+            "actuator.gain": 0,
+        }
+    )
+    sys = sys.tree_replace(
+        {
+            "geom_friction": friction_sample,
+            "actuator.gear": gear_sample,
+            "actuator.gain": gain_sample,
+        }
+    )
+    return sys, in_axes, samples
 
 
 def default_config() -> config_dict.ConfigDict:
@@ -49,30 +155,19 @@ class Quadruped(mjx_env.MjxEnv):
         self._mj_model.opt.timestep = self.sim_dt
         self._mjx_model = mjx.put_model(self._mj_model)
         self._post_init()
+
+    def _post_init(self):
+        # TODO (yarden): not 100% that this is correct.
         self._hinge_ids = jp.nonzero(
             self._mj_model.jnt_type == mujoco.mjtJoint.mjJNT_HINGE
-        )
-        self._imu_sensor_ids = jp.where(
-            jp.in1d(
-                self._mj_model.sensor_type,
-                (
-                    mujoco.mjtSensor.mjSENS_GYRO.value,
-                    mujoco.mjtSensor.mjSENS_ACCELEROMETER.value,
-                ),
+        )[0]
+        self._force_torque_names = [
+            f"{f}_toe_{pos}_{side}"
+            for (f, pos, side) in product(
+                ("force", "torque"), ("front", "back"), ("left", "right")
             )
-        )
-        self._force_torque_ids = jp.where(
-            jp.in1d(
-                self._mj_model.sensor_type,
-                (
-                    mujoco.mjtSensor.mjSENS_FORCE.value,
-                    mujoco.mjtSensor.mjSENS_TORQUE.value,
-                ),
-            )
-        )
-
-    def _post_init(self) -> None:
-        self._torso_body_id = self.mj_model.body("torso").id
+        ]
+        self._torso_id = self._mj_model.body("torso").id
 
     def reset(self, rng: jax.Array) -> mjx_env.State:
         data = mjx_env.init(self.mjx_model)
@@ -106,7 +201,7 @@ class Quadruped(mjx_env.MjxEnv):
         info: dict[str, Any],
         metrics: dict[str, Any],
     ) -> jax.Array:
-        del info
+        del info, action
         move_reward = reward.tolerance(
             self.torso_velocity(data)[0],
             bounds=(self._desired_speed, float("inf")),
@@ -119,14 +214,13 @@ class Quadruped(mjx_env.MjxEnv):
         metrics["reward/upright"] = upright_reward
         return move_reward * upright_reward
 
-    def _upright_reward(self, data: mjx.Data, deviation_angle: float = 0) -> jax.Array:
-        deviation = jp.cos(jp.deg2rad(deviation_angle))
+    def _upright_reward(self, data: mjx.Data) -> jax.Array:
         upright = self.torso_upright(data)
         return reward.tolerance(
             upright,
-            bounds=(deviation, float("inf")),
+            bounds=(1, float("inf")),
             sigmoid="linear",
-            margin=1 + deviation,
+            margin=2,
             value_at_margin=0,
         )
 
@@ -136,17 +230,23 @@ class Quadruped(mjx_env.MjxEnv):
         )
 
     def torso_upright(self, data: mjx.Data) -> jax.Array:
-        """Returns the dot-product of the torso z-axis and the global z-axis."""
-        return jp.asarray(data.xmat["torso", "zz"])
+        return data.xmat[self._torso_id, 2, 2]
 
     def torso_velocity(self, data: mjx.Data) -> jax.Array:
-        return data.sensordata["velocimeter"]
+        return mjx_env.get_sensor_data(self.mj_model, data, "velocimeter")
 
     def imu(self, data: mjx.Data) -> jax.Array:
-        return data.sensordata[self._imu_sensor_ids]
+        gyro = mjx_env.get_sensor_data(self.mj_model, data, "imu_gyro")
+        accelerometer = mjx_env.get_sensor_data(self.mj_model, data, "imu_accel")
+        return jp.hstack((gyro, accelerometer))
 
     def force_torque(self, data: mjx.Data) -> jax.Array:
-        return data.sensordata[self._force_torque_ids]
+        return jp.hstack(
+            [
+                mjx_env.get_sensor_data(self.mj_model, data, name)
+                for name in self._force_torque_names
+            ]
+        )
 
     @property
     def xml_path(self) -> str:

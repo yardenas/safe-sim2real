@@ -1,7 +1,7 @@
 # @package _global_
 defaults:
   - mujoco_playground_dm_control
-  - override /environment: qaudruped
+  - override /environment: quadruped
   - _self_
 
 
