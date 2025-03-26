@@ -201,6 +201,8 @@ randomization_fns = {
     "ant_safe": ant.domain_randomization,
     "QuadrupedWalk": quadruped.domain_randomization,
     "QuadrupedRun": quadruped.domain_randomization,
+    "SafeQuadrupedWalk": quadruped.domain_randomization,
+    "SafeQuadrupedRun": quadruped.domain_randomization,
     "WalkerWalk": walker.domain_randomization,
     "WalkerRun": walker.domain_randomization,
     "SafeWalkerWalk": walker.domain_randomization,
