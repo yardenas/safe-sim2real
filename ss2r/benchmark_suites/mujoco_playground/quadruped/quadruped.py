@@ -21,6 +21,7 @@ WALK_SPEED = 0.5
 RUN_SPEED = 5.0
 
 _TORSO_ID = 1
+_TOE_IDS = [7, 11, 15, 19]
 
 
 def domain_randomization(sys, rng, cfg):
@@ -32,11 +33,14 @@ def domain_randomization(sys, rng, cfg):
         )
         friction_sample = sys.geom_friction.copy()
         friction_sample = friction_sample.at[0, 0].add(friction)
+        # Toes have a default friction coefficient of 1.5
+        friction_sample = friction_sample.at[_TOE_IDS, 0].add(friction)
         friction_sample = jp.clip(friction_sample, a_min=0.0, a_max=1.0)
         rng, rng_ = jax.random.split(rng)
         torso_density_sample = jax.random.uniform(
             rng_, minval=cfg.torso[0], maxval=cfg.torso[1]
         )
+        # Default density of 1000.
         torso_volume = sys.body_mass[_TORSO_ID] / 1000
         torso_sample = torso_volume * torso_density_sample
         scale = (torso_sample + sys.body_mass[_TORSO_ID]) / sys.body_mass[_TORSO_ID]
