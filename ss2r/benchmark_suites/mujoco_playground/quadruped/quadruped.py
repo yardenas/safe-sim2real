@@ -108,24 +108,24 @@ def domain_randomization(sys, rng, cfg):
 
     friction_sample, mass, inertia, damping, gear, samples = randomize(rng)
     in_axes = jax.tree_map(lambda x: None, sys)
-    in_axes = in_axes.tree_replace(
-        {
-            "geom_friction": 0,
-            "body_inertia": 0,
-            "body_mass": 0,
-            "dof_damping": 0,
-            "actuator_gear": 0,
-        }
-    )
-    sys = sys.tree_replace(
-        {
-            "geom_friction": friction_sample,
-            "body_inertia": inertia,
-            "body_mass": mass,
-            "dof_damping": damping,
-            "actuator_gear": gear,
-        }
-    )
+    # in_axes = in_axes.tree_replace(
+    #     {
+    #         "geom_friction": 0,
+    #         "body_inertia": 0,
+    #         "body_mass": 0,
+    #         "dof_damping": 0,
+    #         "actuator_gear": 0,
+    #     }
+    # )
+    # sys = sys.tree_replace(
+    #     {
+    #         "geom_friction": friction_sample,
+    #         "body_inertia": inertia,
+    #         "body_mass": mass,
+    #         "dof_damping": damping,
+    #         "actuator_gear": gear,
+    #     }
+    # )
     return sys, in_axes, samples
 
 
