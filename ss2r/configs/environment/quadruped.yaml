@@ -15,18 +15,16 @@ train_params:
   torso: [-250, 250]
   friction: [0., 0.]
   damping: [0., 0.]
-  gear_hip:
-    x: [-20., 20.]
-    y: [-20., 20.]
-    z: [-60., 60.]
-  gear_knee: [0., 0.]
+  gear:
+    lift: [-20., 20.]
+    yaw: [-20., 20.]
+    extend: [-20., 20.]
 
 eval_params:
   torso: [-250, 250]
   friction: [0., 0.]
   damping: [0., 45.]
-  gear_hip:
-    x: [-20., 20.]
-    y: [-20., 20.]
-    z: [-60., 60.]
-  gear_knee: [-40., 40.]
+  gear:
+    lift: [-20., 20.]
+    yaw: [-20., 20.]
+    extend: [-20., 20.]

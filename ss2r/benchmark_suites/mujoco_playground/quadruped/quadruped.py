@@ -47,10 +47,20 @@ def domain_randomization(sys, rng, cfg):
         inertia = sys.body_inertia.at[_TORSO_ID].multiply(scale**3)
         rng, rng_ = jax.random.split(rng)
         damping_sample = jax.random.uniform(
-            rng_, minval=cfg.damping[0], maxval=cfg.friction[1]
+            rng_, minval=cfg.damping[0], maxval=cfg.damping[1]
         )
         damping = sys.dof_damping.copy()
         damping = damping.at[jp.asarray(_JOINTS_IDS)].add(damping_sample)
+        rng = jax.random.split(rng, 3)
+        gear_lift = jax.random.uniform(
+            rng_, minval=cfg.gear.lift[0], maxval=cfg.gear.lift[1]
+        )
+        gear_yaw = jax.random.uniform(
+            rng_, minval=cfg.gear.yaw[0], maxval=cfg.gear.yaw[1]
+        )
+        gear_extend = jax.random.uniform(
+            rng_, minval=cfg.gear.extend[0], maxval=cfg.gear.extend[1]
+        )
         return (
             friction_sample,
             mass,
