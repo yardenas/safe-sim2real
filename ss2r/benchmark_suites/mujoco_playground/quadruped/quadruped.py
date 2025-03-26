@@ -22,6 +22,7 @@ RUN_SPEED = 5.0
 
 _TORSO_ID = 1
 _TOE_IDS = [7, 11, 15, 19]
+_JOINTS_IDS = [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21]
 
 
 def domain_randomization(sys, rng, cfg):
@@ -34,7 +35,7 @@ def domain_randomization(sys, rng, cfg):
         friction_sample = sys.geom_friction.copy()
         friction_sample = friction_sample.at[0, 0].add(friction)
         # Toes have a default friction coefficient of 1.5
-        friction_sample = friction_sample.at[_TOE_IDS, 0].add(friction)
+        friction_sample = friction_sample.at[jp.asarray(_TOE_IDS), 0].add(friction)
         rng, rng_ = jax.random.split(rng)
         torso_density_sample = jax.random.uniform(
             rng_, minval=cfg.torso[0], maxval=cfg.torso[1]
@@ -43,30 +44,34 @@ def domain_randomization(sys, rng, cfg):
         scale = (torso_density_sample + 1000) / 1000.0
         mass = sys.body_mass.at[_TORSO_ID].multiply(scale)
         inertia = sys.body_inertia.at[_TORSO_ID].multiply(scale**3)
+        rng, rng_ = jax.random.split(rng)
+        damping_sample = jax.random.uniform(
+            rng_, minval=cfg.damping[0], maxval=cfg.friction[1]
+        )
+        damping = sys.dof_damping.copy()
+        damping = damping.at[jp.asarray(_JOINTS_IDS)].add(damping_sample)
         return (
             friction_sample,
             mass,
             inertia,
+            damping,
             jp.stack(
-                [friction, torso_density_sample],
+                [friction, torso_density_sample, damping],
                 axis=-1,
             ),
         )
 
-    friction_sample, mass, inertia, samples = randomize(rng)
+    friction_sample, mass, inertia, damping, samples = randomize(rng)
     in_axes = jax.tree_map(lambda x: None, sys)
     in_axes = in_axes.tree_replace(
-        {
-            "geom_friction": 0,
-            "body_inertia": 0,
-            "body_mass": 0,
-        }
+        {"geom_friction": 0, "body_inertia": 0, "body_mass": 0, "dof_damping": 0}
     )
     sys = sys.tree_replace(
         {
             "geom_friction": friction_sample,
             "body_inertia": inertia,
             "body_mass": mass,
+            "dof_damping": damping,
         }
     )
     return sys, in_axes, samples
