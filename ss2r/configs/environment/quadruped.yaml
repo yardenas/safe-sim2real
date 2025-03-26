@@ -3,7 +3,7 @@ defaults:
 
 task_name: SafeQuadrupedWalk
 task_params:
-  angle_tolerance: -20.
+  angle_tolerance: -15.
   action_repeat: 1
   ctrl_dt: 0.02
   episode_length: 1000

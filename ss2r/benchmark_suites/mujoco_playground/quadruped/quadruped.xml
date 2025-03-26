@@ -4,8 +4,8 @@
     <include file="./materials.xml"/>
     <option timestep="0.005" solver="Newton" iterations="4" ls_iterations="8"/>
     <custom>
-        <numeric data="8" name="max_contact_points"/>
-        <numeric data="8" name="max_geom_pairs"/>
+        <numeric data="4" name="max_contact_points"/>
+        <numeric data="4" name="max_geom_pairs"/>
     </custom>
     <default>
         <geom solimp=".9 .99 .003" solref=".01 1"/>
