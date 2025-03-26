@@ -56,7 +56,7 @@ def domain_randomization(sys, rng, cfg):
             inertia,
             damping,
             jp.stack(
-                [friction, torso_density_sample, damping],
+                [friction, torso_density_sample, damping_sample],
                 axis=-1,
             ),
         )
