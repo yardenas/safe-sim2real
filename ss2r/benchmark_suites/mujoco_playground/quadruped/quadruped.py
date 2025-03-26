@@ -364,15 +364,16 @@ dm_control_suite.register_environment(
 )
 
 for run in [True, False]:
-    run_str = "Run" if run else "Walk"
 
-    def make(**kwargs):
+    def make(run, **kwargs):
+        run_str = "Run" if run else "Walk"
         limit = kwargs["config"]["angle_tolerance"]
         env = dm_control_suite.load(f"Quadruped{run_str}", **kwargs)
         env = ConstraintWrapper(env, limit)
         return env
 
+    run_str = "Run" if run else "Walk"
     name_str = f"SafeQuadruped{run_str}"
     dm_control_suite.register_environment(
-        name_str, make, dm_control_suite.walker.default_config
+        name_str, partial(make, run=run), dm_control_suite.walker.default_config
     )
