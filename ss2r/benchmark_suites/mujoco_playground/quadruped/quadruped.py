@@ -40,9 +40,7 @@ def domain_randomization(sys, rng, cfg):
             rng_, minval=cfg.torso[0], maxval=cfg.torso[1]
         )
         # Default density of 1000.
-        torso_volume = sys.body_mass[_TORSO_ID] / 1000
-        torso_sample = torso_volume * torso_density_sample
-        scale = (torso_sample + sys.body_mass[_TORSO_ID]) / sys.body_mass[_TORSO_ID]
+        scale = (torso_density_sample + 1000) / 1000.0
         mass = sys.body_mass.at[_TORSO_ID].multiply(scale)
         inertia = sys.body_inertia.at[_TORSO_ID].multiply(scale**3)
         return (
@@ -50,7 +48,7 @@ def domain_randomization(sys, rng, cfg):
             mass,
             inertia,
             jp.stack(
-                [friction, torso_sample],
+                [friction, torso_density_sample],
                 axis=-1,
             ),
         )
