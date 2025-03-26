@@ -24,6 +24,21 @@ _TORSO_ID = 1
 _TOE_IDS = [7, 11, 15, 19]
 _JOINTS_IDS = [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21]
 
+actuator_names_to_ids = {
+    "yaw_front_left": 0,
+    "lift_front_left": 1,
+    "extend_front_left": 2,
+    "yaw_front_right": 3,
+    "lift_front_right": 4,
+    "extend_front_right": 5,
+    "yaw_back_right": 6,
+    "lift_back_right": 7,
+    "extend_back_right": 8,
+    "yaw_back_left": 9,
+    "lift_back_left": 10,
+    "extend_back_left": 11,
+}
+
 
 def domain_randomization(sys, rng, cfg):
     @jax.vmap
@@ -61,6 +76,17 @@ def domain_randomization(sys, rng, cfg):
         gear_extend = jax.random.uniform(
             rng_, minval=cfg.gear.extend[0], maxval=cfg.gear.extend[1]
         )
+        gear_sample = sys.actuator_gear.copy()
+        for name, id_ in actuator_names_to_ids.items():
+            if "yaw" in name:
+                update = gear_yaw
+            elif "extend" in name:
+                update = gear_extend
+            elif "lift" in name:
+                update = gear_lift
+            else:
+                raise ValueError(f"Unknown actuator: {name}")
+            gear_sample = gear_sample.at[id_, 0].multiply(update)
         return (
             friction_sample,
             mass,
