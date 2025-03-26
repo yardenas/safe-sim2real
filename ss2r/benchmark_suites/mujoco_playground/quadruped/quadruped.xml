@@ -2,11 +2,11 @@
     <include file="./skybox.xml"/>
     <include file="./visual.xml"/>
     <include file="./materials.xml"/>
-    <option timestep="0.005" solver="Newton" iterations="4"/>
+    <option timestep="0.005" solver="Newton" iterations="4" ls_iterations="8"/>
     <custom>
         <numeric data="4" name="max_contact_points"/>
         <numeric data="4" name="max_geom_pairs"/>
-        <numeric data="8" name="solver_maxls"/>
+        <numeric data="10" name="matrix_inv_iterations"/>
     </custom>
     <default>
         <geom solimp=".9 .99 .003" solref=".01 1" conaffinity="0" condim="3" contype="0"/>
@@ -25,7 +25,7 @@
             </default>
             <default class="knee">
                 <joint axis="0 1 0" range="-60 50"/>
-                <geom size=".065" fromto="0 0 0 .25 0 -.25" contype="1"/>
+                <geom size=".065" fromto="0 0 0 .25 0 -.25"/>
             </default>
             <default class="ankle">
                 <joint axis="0 1 0" range="-45 55"/>
