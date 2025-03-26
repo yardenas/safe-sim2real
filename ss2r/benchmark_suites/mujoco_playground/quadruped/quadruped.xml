@@ -2,10 +2,11 @@
     <include file="./skybox.xml"/>
     <include file="./visual.xml"/>
     <include file="./materials.xml"/>
-    <option timestep="0.005" solver="Newton" iterations="4" ls_iterations="8"/>
+    <option timestep="0.005" solver="Newton" iterations="4"/>
     <custom>
         <numeric data="4" name="max_contact_points"/>
         <numeric data="4" name="max_geom_pairs"/>
+        <numeric data="15" name="solver_maxls"/>
     </custom>
     <default>
         <geom solimp=".9 .99 .003" solref=".01 1"/>
