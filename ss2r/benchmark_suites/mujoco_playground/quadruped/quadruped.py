@@ -35,7 +35,6 @@ def domain_randomization(sys, rng, cfg):
         friction_sample = friction_sample.at[0, 0].add(friction)
         # Toes have a default friction coefficient of 1.5
         friction_sample = friction_sample.at[_TOE_IDS, 0].add(friction)
-        friction_sample = jp.clip(friction_sample, a_min=0.0, a_max=1.0)
         rng, rng_ = jax.random.split(rng)
         torso_density_sample = jax.random.uniform(
             rng_, minval=cfg.torso[0], maxval=cfg.torso[1]
