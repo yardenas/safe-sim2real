@@ -6,10 +6,10 @@
     <custom>
         <numeric data="4" name="max_contact_points"/>
         <numeric data="4" name="max_geom_pairs"/>
-        <numeric data="15" name="solver_maxls"/>
+        <numeric data="8" name="solver_maxls"/>
     </custom>
     <default>
-        <geom solimp=".9 .99 .003" solref=".01 1"/>
+        <geom solimp=".9 .99 .003" solref=".01 1" conaffinity="0" condim="3" contype="0"/>
         <default class="body">
             <geom  type="capsule" size=".08" condim="1" material="self" density="500"/>
             <joint type="hinge" damping="30" armature=".01"
@@ -25,14 +25,14 @@
             </default>
             <default class="knee">
                 <joint axis="0 1 0" range="-60 50"/>
-                <geom size=".065" fromto="0 0 0 .25 0 -.25"/>
+                <geom size=".065" fromto="0 0 0 .25 0 -.25" contype="1"/>
             </default>
             <default class="ankle">
                 <joint axis="0 1 0" range="-45 55"/>
                 <geom size=".055" fromto="0 0 0 0 0 -.25"/>
             </default>
             <default class="toe">
-                <geom type="sphere" size=".08" material="effector" friction="1.5"/>
+                <geom type="sphere" size=".08" material="effector" friction="1.5" contype="1"/>
                 <site type="sphere" size=".084" material="site"  group="4"/>
             </default>
         </default>
@@ -51,7 +51,7 @@
         </default>
     </default>
     <worldbody>
-        <geom name="floor" type="plane" size="100. 100. .5" material="grid"/>
+        <geom conaffinity="1" condim="3" name="floor" type="plane" size="100. 100. .5" material="grid"/>
         <camera name="global"  pos="-10 10 10" xyaxes="-1 -1 0 1 0 1" mode="trackcom"/>
         <body name="torso" childclass="body" pos="0 0 .57">
             <freejoint name="root"/>
@@ -64,7 +64,7 @@
             <geom name="eye_l" type="cylinder" size=".05"  fromto=".1 .07 .12 .31 .07 .08" mass="0"/>
             <site name="pupil_l" type="sphere" size=".033"  pos=".3 .07 .08" zaxis="1 0 0" material="eye"/>
             <site name="workspace" type="sphere" size=".3 .3 .3"  material="site" pos=".8 0 -.2" group="3"/>
-            <geom name="torso" type="ellipsoid" size=".3 .27 .2" density="1000"/>
+            <geom name="torso" type="ellipsoid" size=".3 .27 .2" density="1000" contype="1"/>
             <site name="torso" size=".05" rgba="1 0 0 1" />
             <body name="hip_front_left" pos=".2 .2 0" euler="0 0 45" childclass="hip">
                 <joint name="yaw_front_left" class="yaw"/>
