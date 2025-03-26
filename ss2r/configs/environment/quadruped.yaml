@@ -16,15 +16,15 @@ train_params:
   friction: [0., 0.]
   damping: [0., 0.]
   gear:
-    lift: [0.9, 1.1]
-    yaw: [0.9, 1.1]
-    extend: [0.9, 1.1]
+    lift: [0.95, 1.05]
+    yaw: [0.95, 1.05]
+    extend: [0.95, 1.05]
 
 eval_params:
   torso: [-250, 250]
   friction: [-0.25, 0.25]
   damping: [0., 0.]
   gear:
-    lift: [0.9, 1.1]
-    yaw: [0.9, 1.1]
-    extend: [0.9, 1.1]
+    lift: [0.95, 1.05]
+    yaw: [0.95, 1.05]
+    extend: [0.95, 1.05]
