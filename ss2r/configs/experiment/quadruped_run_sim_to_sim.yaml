@@ -19,4 +19,4 @@ agent:
   activation: swish
   reset_on_eval: false
   cost_robustness: 
-    cost_penalty: 1.
+    cost_penalty: 5e-4
