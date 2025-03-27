@@ -125,5 +125,10 @@ while not terminal:
     state, trajectory = collect_episode(rng_)
     truncation = state.info["truncation"]
     terminal = (state.done.astype(bool) & (~truncation.astype(bool))).any()
+    # Save trajectory using pickle
+    with open("trajectory.pkl", "wb") as f:
+        pickle.dump(trajectory, f)
+
+    print("Trajectory saved.")
 
 print(trajectory.extras["state_extras"]["disagreement"])
