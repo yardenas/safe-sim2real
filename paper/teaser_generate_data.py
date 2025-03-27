@@ -118,15 +118,15 @@ while not terminal:
     trajectory = collect_episode(rng_)
     truncation = trajectory.info["truncation"]
     terminated = trajectory.done.astype(bool) & (~truncation.astype(bool))
-    trajectory = jax.tree_map(
-        lambda x: jax.device_put(x, jax.devices("cpu")[0]), trajectory
-    )
-    only_terminated_trajectories = jax.tree_map(
-        lambda x: x[:, terminated.any(axis=0)],
-        trajectory,
-    )
     terminal = terminated.any()
 
+trajectory = jax.tree_map(
+    lambda x: jax.device_put(x, jax.devices("cpu")[0]), trajectory
+)
+only_terminated_trajectories = jax.tree_map(
+    lambda x: x[:, terminated.any(axis=0)],
+    trajectory,
+)
 with open("trajectory.pkl", "wb") as f:
     pickle.dump(only_terminated_trajectories, f)
 print("Trajectory saved.")
