@@ -6,6 +6,7 @@ import jax.numpy as jnp
 from brax.envs import State, Wrapper
 
 from ss2r.benchmark_suites.mujoco_playground import BraxDomainRandomizationVmapWrapper
+from ss2r.benchmark_suites.wrappers import DomainRandomizationVmapWrapper
 
 
 class PropagationFn(Protocol):
@@ -31,9 +32,16 @@ def _get_obs(state):
 class PTSD(Wrapper):
     def __init__(self, env, randomzation_fn, num_perturbed_envs):
         super().__init__(env)
-        self.perturbed_env = BraxDomainRandomizationVmapWrapper(
-            env, randomzation_fn, augment_state=False
-        )
+        if hasattr(env, "sys"):
+            self.perturbed_env = DomainRandomizationVmapWrapper(
+                env, randomzation_fn, augment_state=False
+            )
+        elif hasattr(env, "mjx_model"):
+            self.perturbed_env = BraxDomainRandomizationVmapWrapper(
+                env, randomzation_fn, augment_state=False
+            )
+        else:
+            raise ValueError("Should be either mujoco playground or brax env")
         self.num_perturbed_envs = num_perturbed_envs
 
     def reset(self, rng: jax.Array) -> State:

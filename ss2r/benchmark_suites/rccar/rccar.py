@@ -27,7 +27,8 @@ def domain_randomization(sys, rng, cfg):
 
     @jax.vmap
     def randomize(rng):
-        bounds = CarParams(**cfg)
+        bounds = cfg["bounds"]
+        bounds = CarParams(bounds)
         # Define a custom tree structure that treats lists as leaves
         treedef = jtu.tree_structure(bounds, is_leaf=lambda x: isinstance(x, list))
         # Generate random keys only for the relevant leaves (i.e., lists with 2 elements)
