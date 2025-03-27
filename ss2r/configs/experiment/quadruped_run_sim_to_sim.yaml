@@ -3,7 +3,7 @@ defaults:
   - mujoco_playground_dm_control
   - override /environment: quadruped
   - override /agent/penalizer: lagrangian
-  # - override /agent/cost_robustness: ucb_cost
+  - override /agent/cost_robustness: ucb_cost
   - override /agent/propagation: ts1
   - _self_
 
