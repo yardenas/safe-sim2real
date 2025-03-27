@@ -1,3 +1,5 @@
+from functools import partial
+
 import jax
 import jax.numpy as jnp
 from brax.envs import Env, Wrapper
@@ -100,15 +102,16 @@ class ConstraintWrapper(Wrapper):
 
 
 for run in [True, False]:
-    run_str = "Run" if run else "Walk"
 
-    def make(**kwargs):
+    def make(run, **kwargs):
+        run_str = "Run" if run else "Walk"
         angular_velocity_limit = kwargs.pop("joint_velocity_limit", 16.25)
         env = dm_control_suite.load(f"Walker{run_str}", **kwargs)
         env = ConstraintWrapper(env, angular_velocity_limit)
         return env
 
+    run_str = "Run" if run else "Walk"
     name_str = f"SafeWalker{run_str}"
     dm_control_suite.register_environment(
-        name_str, make, dm_control_suite.walker.default_config
+        name_str, partial(make, run=run), dm_control_suite.walker.default_config
     )

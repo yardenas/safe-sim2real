@@ -10,6 +10,7 @@ from ss2r.benchmark_suites.brax.humanoid import humanoid
 from ss2r.benchmark_suites.mujoco_playground.cartpole import cartpole as dm_cartpole
 from ss2r.benchmark_suites.mujoco_playground.go1_joystick import go1_joystick
 from ss2r.benchmark_suites.mujoco_playground.humanoid import humanoid as dm_humanoid
+from ss2r.benchmark_suites.mujoco_playground.quadruped import quadruped
 from ss2r.benchmark_suites.mujoco_playground.walker import walker
 from ss2r.benchmark_suites.rccar import rccar
 from ss2r.benchmark_suites.utils import get_domain_name, get_task_config
@@ -198,6 +199,10 @@ randomization_fns = {
     "SafeJointTorqueGo1JoystickFlatTerrain": go1_joystick.domain_randomization,
     "ant": ant.domain_randomization,
     "ant_safe": ant.domain_randomization,
+    "QuadrupedWalk": quadruped.domain_randomization,
+    "QuadrupedRun": quadruped.domain_randomization,
+    "SafeQuadrupedWalk": quadruped.domain_randomization,
+    "SafeQuadrupedRun": quadruped.domain_randomization,
     "WalkerWalk": walker.domain_randomization,
     "WalkerRun": walker.domain_randomization,
     "SafeWalkerWalk": walker.domain_randomization,
@@ -242,6 +247,10 @@ render_fns = {
     "CartpoleSwingupSparse": functools.partial(mujoco_playground.render),
     "CartpoleBalanceSparse": functools.partial(mujoco_playground.render),
     "CartpoleBalance": functools.partial(mujoco_playground.render),
+    "QuadrupedWalk": functools.partial(mujoco_playground.render, camera="x"),
+    "QuadrupedRun": functools.partial(mujoco_playground.render, camera="x"),
+    "SafeQuadrupedWalk": functools.partial(mujoco_playground.render, camera="x"),
+    "SafeQuadrupedRun": functools.partial(mujoco_playground.render, camera="x"),
     "WalkerWalk": functools.partial(mujoco_playground.render, camera="side"),
     "WalkerRun": functools.partial(mujoco_playground.render, camera="side"),
     "SafeWalkerWalk": functools.partial(mujoco_playground.render, camera="side"),

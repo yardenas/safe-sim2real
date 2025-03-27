@@ -185,6 +185,7 @@ def train(
     cost_robustness: QTransformation = SACCost(),
     use_bro: bool = True,
     normalize_budget: bool = True,
+    reset_on_eval: bool = True,
 ):
     if min_replay_size >= num_timesteps:
         raise ValueError(
