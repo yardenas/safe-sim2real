@@ -1,8 +1,6 @@
 # @package _global_
 defaults:
-  - override /environment: rccar
-  - override /environment/train_car_params: car_2_blend
-  - override /environment/eval_car_params: car_2_blend
+  - override /environment: rccar_real
   - override /agent/cost_robustness: ucb_cost
   - override /agent/propagation: ts1
   - _self_
