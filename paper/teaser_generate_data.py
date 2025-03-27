@@ -6,12 +6,12 @@ import pickle
 import jax
 import jax.nn as jnn
 from brax.training.acme import running_statistics
-from brax.training.acting import generate_unroll
 from hydra import compose, initialize
 
 import ss2r.algorithms.sac.networks as sac_networks
 from ss2r import benchmark_suites
 from ss2r.algorithms.sac.wrappers import PTSD, ModelDisagreement
+from ss2r.rl.utils import rollout
 
 # %%
 parser = argparse.ArgumentParser(description="Load and play policy")
@@ -107,28 +107,24 @@ rng = jax.random.PRNGKey(0)
 def collect_episode(key):
     keys = jax.random.split(key, cfg.training.num_envs)
     state = train_env.reset(keys)
-    state, trajectory = generate_unroll(
-        train_env,
-        state,
-        inference_fn,
-        key,
-        unroll_length=1000,
-        extra_fields=("truncation", "disagreement"),
-    )
-    return state, trajectory
+    _, trajectory = rollout(train_env, inference_fn, 1000, key, state)
+    return trajectory
 
 
 terminal = False
 while not terminal:
     print("Collecting trajectory...")
     rng, rng_ = jax.random.split(rng)
-    state, trajectory = collect_episode(rng_)
-    truncation = state.info["truncation"]
-    terminal = state.done.astype(bool) & (~truncation.astype(bool))
-    terminal = terminal.any()  # type: ignore
-    # Save trajectory using pickle
-    with open("trajectory.pkl", "wb") as f:
-        pickle.dump(trajectory, f)
-    print("Trajectory saved.")
+    trajectory = collect_episode(rng_)
+    truncation = trajectory.info["truncation"]
+    terminated = trajectory.done.astype(bool) & (~truncation.astype(bool))
+    only_terminated_trajectories = jax.tree_map(
+        lambda x: x[:, terminated.any(axis=0)],
+        trajectory,
+    )
+    terminal = terminated.any()
 
+with open("trajectory.pkl", "wb") as f:
+    pickle.dump(only_terminated_trajectories, f)
+print("Trajectory saved.")
 print(trajectory.extras["state_extras"]["disagreement"])

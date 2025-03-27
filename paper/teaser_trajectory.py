@@ -1,23 +1,42 @@
 # %%
-import argparse
 import pickle
 
-# %%
-parser = argparse.ArgumentParser(description="Load and play policy")
-parser.add_argument(
-    "--trajectory_path",
-    type=str,
-    required=False,
-    default="./data/trajectory.pkl",
-    help="Path to the trajectory file",
-)
+import jax
+import matplotlib.animation as animation
+import matplotlib.pyplot as plt
+import numpy as np
+from mujoco_playground import registry
 
-args = parser.parse_args()
+from ss2r.common.pytree import pytrees_unstack
+
 # %%
 
-with open(args.trajectory_path, "rb") as f:
+with open("./data/trajectory.pkl", "rb") as f:
     trajectory = pickle.load(f)
 
 
 # %%
-terminated = 1 - trajectory.extras["state_extras"]["truncation"]
+
+env_name = "Go1JoystickFlatTerrain"
+env_cfg = registry.get_default_config(env_name)
+env = registry.load(env_name, config=env_cfg)
+videos = []
+for i in range(5):
+    ep_trajectory = jax.tree_map(lambda x: x[:, i], trajectory)
+    ep_trajectory = pytrees_unstack(ep_trajectory)
+    video = env.render(ep_trajectory)
+    videos.append(video)
+frames = np.asarray(videos).transpose(0, 1, 4, 2, 3)
+
+# %%
+fig, ax = plt.subplots()
+im = ax.imshow(frames[0])
+
+
+def update(frame):
+    im.set_array(frame)
+    return [im]
+
+
+ani = animation.FuncAnimation(fig, update, frames=frames, interval=50, blit=True)
+plt.show()
