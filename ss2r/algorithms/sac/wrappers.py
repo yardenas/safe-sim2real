@@ -127,6 +127,6 @@ class ModelDisagreement(Wrapper):
         nstate = self.env.step(state, action)
         next_obs = state.info["state_propagation"]["next_obs"]
         variance = jnp.var(next_obs, axis=0).mean(-1)
-        nstate.info["disagreement"] = variance * 0.0
+        nstate.info["disagreement"] = variance
         nstate.metrics["disagreement"] = variance
         return nstate
