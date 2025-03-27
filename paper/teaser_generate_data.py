@@ -127,7 +127,7 @@ while not terminal:
     truncation = state.info["truncation"]
     terminal = state.done.astype(bool) & (~truncation.astype(bool))
     trajectory = jax.tree_map(
-        lambda x: jnp.take(x, jnp.nonzero(terminal), axis=0), trajectory
+        lambda x: jnp.take(x, jnp.nonzero(terminal)[0], axis=0), trajectory
     )
     terminal = terminal.any()  # type: ignore
     # Save trajectory using pickle
