@@ -17,7 +17,7 @@ train_params:
   damping: [0., 0.]
   gear:
     lift: [0.75, 1.5]
-    yaw: [0.75, 1.5]
+    yaw: [1., 1.]
     extend: [0.75, 1.5]
 
 eval_params:
