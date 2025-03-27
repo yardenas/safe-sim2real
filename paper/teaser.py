@@ -5,6 +5,7 @@ import pickle
 
 import jax
 import jax.nn as jnn
+import jax.numpy as jnp
 from brax.training.acme import running_statistics
 from brax.training.acting import generate_unroll
 from hydra import compose, initialize
@@ -124,7 +125,11 @@ while not terminal:
     rng, rng_ = jax.random.split(rng)
     state, trajectory = collect_episode(rng_)
     truncation = state.info["truncation"]
-    terminal = (state.done.astype(bool) & (~truncation.astype(bool))).any()
+    terminal = state.done.astype(bool) & (~truncation.astype(bool))
+    trajectory = jax.tree_map(
+        lambda x: jnp.take(x, jnp.nonzero(terminal), axis=0), trajectory
+    )
+    terminal = terminal.any()  # type: ignore
     # Save trajectory using pickle
     with open("trajectory.pkl", "wb") as f:
         pickle.dump(trajectory, f)
