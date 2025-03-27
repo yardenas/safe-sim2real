@@ -124,6 +124,6 @@ while not terminal:
     rng, rng_ = jax.random.split(rng)
     state, trajectory = collect_episode(rng_)
     truncation = state.info["truncation"]
-    terminal = (state.done & (~truncation)).any()
+    terminal = (state.done.astype(bool) & (~truncation.astype(bool))).any()
 
 print(trajectory.extras["state_extras"]["disagreement"])
