@@ -5,7 +5,6 @@ import pickle
 
 import jax
 import jax.nn as jnn
-import jax.numpy as jnp
 from brax.training.acme import running_statistics
 from brax.training.acting import generate_unroll
 from hydra import compose, initialize
@@ -39,7 +38,7 @@ def make_config(additional_overrides=None):
                 "+experiment=go1_sim_to_real",
                 "training.num_envs=8192",
                 # Set more agressive commands to make it fall
-                "environment.task_params.command_config.a=[5., 5.2, 5.2]",
+                "environment.task_params.command_config.a=[1.5, 1.2, 2.5]",
                 "environment.task_params.command_config.b=[0.99, 0.99, 0.99]",
             ]
             + additional_overrides,
@@ -126,14 +125,10 @@ while not terminal:
     state, trajectory = collect_episode(rng_)
     truncation = state.info["truncation"]
     terminal = state.done.astype(bool) & (~truncation.astype(bool))
-    trajectory = jax.tree_map(
-        lambda x: jnp.take(x, jnp.nonzero(terminal)[0], axis=0), trajectory
-    )
     terminal = terminal.any()  # type: ignore
     # Save trajectory using pickle
     with open("trajectory.pkl", "wb") as f:
         pickle.dump(trajectory, f)
-
     print("Trajectory saved.")
 
 print(trajectory.extras["state_extras"]["disagreement"])

@@ -20,3 +20,4 @@ with open(args.trajectory_path, "rb") as f:
 
 
 # %%
+terminated = 1 - trajectory.extras["state_extras"]["truncation"]
