@@ -36,7 +36,7 @@ def make_config(additional_overrides=None):
             overrides=[
                 "writers=[stderr]",
                 "+experiment=go1_sim_to_real",
-                "training.num_envs=24",
+                "training.num_envs=1024",
                 # Set more agressive commands to make it fall
                 "environment.task_params.command_config.a=[1.5, 1.2, 2.5]",
                 "environment.task_params.command_config.b=[0.99, 0.99, 0.99]",
@@ -130,4 +130,4 @@ only_terminated_trajectories = jax.tree_map(
 with open("trajectory.pkl", "wb") as f:
     pickle.dump(only_terminated_trajectories, f)
 print("Trajectory saved.")
-print(trajectory.extras["state_extras"]["disagreement"])
+print(trajectory.info["disagreement"])
