@@ -36,7 +36,7 @@ def make_config(additional_overrides=None):
             overrides=[
                 "writers=[stderr]",
                 "+experiment=go1_sim_to_real",
-                "training.num_envs=1024",
+                "training.num_envs=96",
                 # Set more agressive commands to make it fall
                 "environment.task_params.command_config.a=[1.5, 1.2, 2.5]",
                 "environment.task_params.command_config.b=[0.99, 0.99, 0.99]",
