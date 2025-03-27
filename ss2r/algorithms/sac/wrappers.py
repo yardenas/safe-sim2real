@@ -118,7 +118,8 @@ class ModelDisagreement(Wrapper):
     def reset(self, rng: jax.Array) -> State:
         state = self.env.reset(rng)
         next_obs = state.info["state_propagation"]["next_obs"]
-        variance = jnp.var(next_obs, axis=0).mean(-1)
+        variance = jnp.nanvar(next_obs, axis=0).mean(-1)
+        variance = jnp.where(jnp.isnan(variance), 0.0, variance)
         state.info["disagreement"] = variance
         state.metrics["disagreement"] = variance
         return state
@@ -127,6 +128,6 @@ class ModelDisagreement(Wrapper):
         nstate = self.env.step(state, action)
         next_obs = state.info["state_propagation"]["next_obs"]
         variance = jnp.var(next_obs, axis=0).mean(-1)
-        nstate.info["disagreement"] = variance
+        nstate.info["disagreement"] = variance * 0.0
         nstate.metrics["disagreement"] = variance
         return nstate
