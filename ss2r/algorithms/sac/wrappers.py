@@ -129,6 +129,7 @@ class ModelDisagreement(Wrapper):
         next_obs = state.info["state_propagation"]["next_obs"]
         variance = jnp.nanvar(next_obs, axis=0).mean(-1)
         variance = jnp.where(jnp.isnan(variance), 0.0, variance)
+        variance = jnp.clip(variance, a_max=1000.0)
         nstate.info["disagreement"] = variance
         nstate.metrics["disagreement"] = variance
         return nstate
