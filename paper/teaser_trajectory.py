@@ -33,21 +33,40 @@ frames = np.asarray(videos)
 disagreement_values = np.asarray(disagreement_values)  # type: ignore
 
 # %%
-fig, ax = plt.subplots()
-im = ax.imshow(frames[0, 0])
-text = ax.text(10, 10, "", fontsize=12, color="red", backgroundcolor="white")
+fig, (ax_frame, ax_plot) = plt.subplots(
+    1, 2, figsize=(10, 5), gridspec_kw={"width_ratios": [3, 1]}
+)
+
+im = ax_frame.imshow(frames[0, 0])
+ax_frame.axis("off")  # Hide the axis for the frame display
+
+# Plot the initial disagreement line plot on the right
+ax_plot.set_xlim(0, frames.shape[1])
+ax_plot.set_ylim(np.min(disagreement_values), np.max(disagreement_values))
+(line,) = ax_plot.plot([], [], color="blue")
+ax_plot.set_title("Disagreement Over Time")
+ax_plot.set_xlabel("Frame ID")
+ax_plot.set_ylabel("Disagreement")
+
+x_data, y_data = [], []
 
 
 def update(frame_idx):
     frame = frames[0, frame_idx]
     im.set_array(frame)
-    # Scale disagreement for visualization (optional)
-    disagreement = disagreement_values[0, frame_idx]
-    text.set_text(f"Disagreement: {disagreement:.2f}")
-    return [im, text]
+
+    # Update disagreement plot
+    x_data.append(frame_idx)
+    y_data.append(disagreement_values[0, frame_idx])
+
+    line.set_data(x_data, y_data)
+    ax_plot.set_xlim(0, max(10, frame_idx))  # Adjust x-axis limit dynamically
+
+    return [im, line]
 
 
 ani = animation.FuncAnimation(
     fig, update, frames=frames.shape[1], interval=50, blit=True
 )
+plt.tight_layout()
 plt.show()
