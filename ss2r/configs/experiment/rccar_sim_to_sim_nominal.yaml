@@ -1,8 +1,6 @@
 # @package _global_
 defaults:
-  - override /environment: rccar_real
-  - override /agent/cost_robustness: ucb_cost
-  - override /agent/propagation: ts1
+  - override /environment: rccar
   - override /agent/penalizer: lagrangian
   - _self_
 
@@ -17,9 +15,9 @@ training:
   num_envs: 4096
   num_timesteps: 20000000
   episode_length: 250
-  train_domain_randomization: true
+  train_domain_randomization: false
   eval_domain_randomization: true
-  safety_budget: 2.5
+  safety_budget: 5.0
 
 agent:
   grad_updates_per_step: 64
@@ -30,5 +28,3 @@ agent:
   penalizer:
     lagrange_multiplier: 0.1
     penalty_multiplier: 5e-6
-  cost_robustness:
-    cost_penalty: 50.

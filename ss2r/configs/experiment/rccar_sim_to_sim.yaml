@@ -1,10 +1,9 @@
 # @package _global_
 defaults:
   - override /environment: rccar
-  - override /environment/train_car_params: car_2
-  - override /environment/eval_car_params: car_2_blend
   - override /agent/cost_robustness: ucb_cost
   - override /agent/propagation: ts1
+  - override /agent/penalizer: lagrangian
   - _self_
 
 environment:
@@ -15,21 +14,21 @@ environment:
   sample_init_pose: true
 
 training:
-  num_envs: 128
-  num_timesteps: 500000
+  num_envs: 4096
+  num_timesteps: 20000000
   episode_length: 250
   train_domain_randomization: true
   eval_domain_randomization: true
-  value_privileged: true
   safety_budget: 5.0
 
 agent:
-  grad_updates_per_step: 128
-  batch_size: 128
+  grad_updates_per_step: 64
+  batch_size: 256
   min_replay_size: 100
-  max_replay_size: 100000
-  hidden_layer_sizes: [64, 64]
-  safety_discounting: 0.99
+  max_replay_size: 1048576
+  policy_hidden_layer_sizes: [64, 64]
   penalizer:
     lagrange_multiplier: 0.1
     penalty_multiplier: 5e-6
+  cost_robustness:
+    cost_penalty: 50.
