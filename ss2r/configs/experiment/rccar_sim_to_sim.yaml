@@ -26,7 +26,6 @@ agent:
   min_replay_size: 100
   max_replay_size: 100000
   policy_hidden_layer_sizes: [64, 64]
-  safety_discounting: 0.99
   penalizer:
     lagrange_multiplier: 0.1
     penalty_multiplier: 5e-6
