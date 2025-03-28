@@ -1,6 +1,7 @@
 # @package _global_
 defaults:
   - override /environment: rccar
+  - override /agent/penalizer: lagrangian
   - _self_
 
 environment:
