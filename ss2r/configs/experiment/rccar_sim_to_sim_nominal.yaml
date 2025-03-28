@@ -1,8 +1,6 @@
 # @package _global_
 defaults:
   - override /environment: rccar
-  - override /agent/cost_robustness: ucb_cost
-  - override /agent/propagation: ts1
   - override /agent/penalizer: lagrangian
   - _self_
 
