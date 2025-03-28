@@ -27,4 +27,5 @@ agent:
   policy_hidden_layer_sizes: [64, 64]
   penalizer:
     lagrange_multiplier: 0.1
-    penalty_multiplier: 5e-6
+    penalty_multiplier: 0.001
+    penalty_multiplier_factor: 1e-4
