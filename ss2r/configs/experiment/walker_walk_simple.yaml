@@ -9,5 +9,5 @@ training:
   num_timesteps: 2000000
   train_domain_randomization: false
   eval_domain_randomization: false
-  safe: false
+  safe: true
   safety_budget: 100.
