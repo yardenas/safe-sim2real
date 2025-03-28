@@ -22,9 +22,9 @@ train_params:
 
 eval_params:
   torso: [-300., 300.]
-  friction: [-0.95, 0.]
+  friction: [-1. 1.]
   damping: [0., 0.]
   gear:
     lift: [0.75, 1.5]
-    yaw: [0.75, 1.5]
+    yaw: [0.5, 2.]
     extend: [0.75, 1.5]
