@@ -14,18 +14,18 @@ environment:
   sample_init_pose: true
 
 training:
-  num_envs: 128
-  num_timesteps: 1000000
+  num_envs: 4096
+  num_timesteps: 50000000
   episode_length: 250
   train_domain_randomization: true
   eval_domain_randomization: true
   safety_budget: 2.5
 
 agent:
-  grad_updates_per_step: 128
-  batch_size: 128
+  grad_updates_per_step: 64
+  batch_size: 256
   min_replay_size: 100
-  max_replay_size: 100000
+  max_replay_size: 1048576
   policy_hidden_layer_sizes: [64, 64]
   penalizer:
     lagrange_multiplier: 0.1
