@@ -5,6 +5,7 @@ import pickle
 
 import jax
 import jax.nn as jnn
+import numpy as np
 from brax.training.acme import running_statistics
 from hydra import compose, initialize
 
@@ -127,7 +128,31 @@ only_terminated_trajectories = jax.tree_map(
     lambda x: x[:, terminated.any(axis=0)],
     trajectory,
 )
+
+
+def split_trajectories(trajectory):
+    done_array = np.array(trajectory.done)
+    trajectories = []
+    for i in range(done_array.shape[1]):
+        indices = np.where(done_array[:, i] == 1)[0]
+        # Add the first index (0) at the beginning to capture the initial segment
+        split_indices = np.concatenate(([0], indices + 1))
+        for j in range(len(split_indices) - 1):
+            # Extract sub-trajectory
+            start, end = split_indices[j], split_indices[j + 1]
+            sub_trajectory = jax.tree_map(lambda x: x[start:end, i], trajectory)
+            trajectories.append(sub_trajectory)
+        # Add the remaining part of the trajectory after the last done=True, if any
+        if split_indices[-1] < done_array.shape[0]:
+            sub_trajectory = jax.tree_map(
+                lambda x: x[split_indices[-1] :, i], trajectory
+            )
+            trajectories.append(sub_trajectory)
+    return trajectories
+
+
+flattened_trajectories = split_trajectories(trajectory)
 with open("trajectory.pkl", "wb") as f:
-    pickle.dump(only_terminated_trajectories, f)
+    pickle.dump(flattened_trajectories, f)
 print("Trajectory saved.")
 print(trajectory.info["disagreement"])
