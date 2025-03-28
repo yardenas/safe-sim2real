@@ -1,6 +1,9 @@
 # @package _global_
 defaults:
   - override /environment: rccar
+  - override /agent/cost_robustness: ucb_cost
+  - override /agent/propagation: ts1
+  - override /agent/penalizer: lagrangian
   - _self_
 
 environment:
@@ -15,15 +18,15 @@ training:
   num_timesteps: 500000
   episode_length: 250
   train_domain_randomization: false
-  eval_domain_randomization: false
-  safety_budget: 5.
+  eval_domain_randomization: true
+  safety_budget: 5.0
 
 agent:
   grad_updates_per_step: 128
   batch_size: 128
   min_replay_size: 100
   max_replay_size: 100000
-  hidden_layer_sizes: [64, 64]
+  policy_hidden_layer_sizes: [64, 64]
   penalizer:
     lagrange_multiplier: 0.1
     penalty_multiplier: 5e-6
