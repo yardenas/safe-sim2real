@@ -43,8 +43,8 @@ def make_rccar_envs(cfg, train_wrap_env_fn):
     task_cfg = dict(get_task_config(cfg))
     task_cfg.pop("domain_name")
     task_cfg.pop("task_name")
-    train_car_params = task_cfg.pop("train_car_params")
-    eval_car_params = task_cfg.pop("eval_car_params")
+    train_car_params = task_cfg.pop("train_params")
+    eval_car_params = task_cfg.pop("eval_params")
     train_key, eval_key = jax.random.split(jax.random.PRNGKey(cfg.training.seed))
     action_delay, obs_delay = (
         task_cfg.pop("action_delay"),
@@ -59,12 +59,11 @@ def make_rccar_envs(cfg, train_wrap_env_fn):
         )
     if sliding_window > 0:
         train_env = FrameActionStack(train_env, num_stack=sliding_window)
-    # FIXME (yarden): train_car_params should be instead the same as the rest of the environment types
     train_randomization_fn = (
         prepare_randomization_fn(
             train_key,
             cfg.training.num_envs,
-            train_car_params["bounds"],
+            train_car_params,
             cfg.environment.task_name,
         )
         if cfg.training.train_domain_randomization
@@ -75,6 +74,7 @@ def make_rccar_envs(cfg, train_wrap_env_fn):
         episode_length=cfg.training.episode_length,
         action_repeat=cfg.training.action_repeat,
         randomization_fn=train_randomization_fn,
+        augment_state=False,
     )
     eval_env = rccar.RCCar(eval_car_params["nominal"], **task_cfg)
     if action_delay > 0 or obs_delay > 0:
@@ -87,7 +87,7 @@ def make_rccar_envs(cfg, train_wrap_env_fn):
         prepare_randomization_fn(
             eval_key,
             cfg.training.num_eval_envs,
-            eval_car_params["bounds"],
+            eval_car_params,
             cfg.environment.task_name,
         )
         if cfg.training.eval_domain_randomization
@@ -98,7 +98,7 @@ def make_rccar_envs(cfg, train_wrap_env_fn):
         episode_length=cfg.training.episode_length,
         action_repeat=cfg.training.action_repeat,
         randomization_fn=eval_randomization_fn,
-        augment_state=cfg.training.train_domain_randomization,
+        augment_state=False,
     )
     return train_env, eval_env
 
