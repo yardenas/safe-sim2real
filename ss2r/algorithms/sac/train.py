@@ -191,7 +191,7 @@ def train(
         raise ValueError(
             "No training will happen because min_replay_size >= num_timesteps"
         )
-
+    episodic_safety_budget = safety_budget
     if safety_discounting != 1.0 and normalize_budget:
         safety_budget = (
             (safety_budget / episode_length)
@@ -610,6 +610,7 @@ def train(
         episode_length=episode_length,
         action_repeat=action_repeat,
         key=eval_key,
+        budget=episodic_safety_budget,
     )
 
     # Run initial eval
