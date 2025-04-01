@@ -151,6 +151,7 @@ def train(
     action_repeat: int = 1,
     num_envs: int = 1,
     num_eval_envs: int = 128,
+    num_eval_episodes: int = 10,
     wrap_env_fn: Optional[Callable[[Any], Any]] = None,
     learning_rate: float = 1e-4,
     critic_learning_rate: float = 1e-4,
@@ -191,7 +192,7 @@ def train(
         raise ValueError(
             "No training will happen because min_replay_size >= num_timesteps"
         )
-
+    episodic_safety_budget = safety_budget
     if safety_discounting != 1.0 and normalize_budget:
         safety_budget = (
             (safety_budget / episode_length)
@@ -610,6 +611,8 @@ def train(
         episode_length=episode_length,
         action_repeat=action_repeat,
         key=eval_key,
+        budget=episodic_safety_budget,
+        num_episodes=num_eval_episodes,
     )
 
     # Run initial eval
