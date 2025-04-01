@@ -1,10 +1,16 @@
+# %%
+from math import floor, log10
+
 import jax
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
 import numpy as np
+import seaborn.objects as so
 from hydra import compose, initialize
 from mujoco_playground import registry
 from mujoco_playground._src import mjx_env
+from seaborn import axes_style
+from tueplots import bundles, figsizes
 
 from ss2r import benchmark_suites
 from ss2r.algorithms.sac.wrappers import PTSD, ModelDisagreement
@@ -83,18 +89,61 @@ state = dummy_state.replace(data=data)
 step = lambda state, action: env.step(state, action)
 state = jax.jit(jax.vmap(step))(state, action)
 
+
 # %%
-print(state.info["disagreement"].mean())
-plt.figure(figsize=(10, 6))
+def sci_notation(num, decimal_digits=1, precision=None, exponent=None):
+    """
+    Returns a string representation of the scientific
+    notation of the given number formatted for use with
+    LaTeX or Mathtext, with specified number of significant
+    decimal digits and precision (number of decimal digits
+    to show). The exponent to be used can also be specified
+    explicitly.
+    """
+    if exponent is None:
+        exponent = int(floor(log10(abs(num))))
+    coeff = round(num / float(10**exponent), decimal_digits)
+    if precision is None:
+        precision = decimal_digits
+
+    return r"${0:.{2}f}\times10^{{{1:d}}}$".format(coeff, exponent, precision)
+
+
+def sci_format(val):
+    if val == 0:
+        return "$0$"
+    exp = int(np.floor(np.log10(abs(val)))) if val != 0 else 0
+    coeff = val / (10**exp)
+    if coeff == 1:
+        return rf"$10^{{{exp}}}$"
+    return rf"${{{coeff:.0f} \times 10^{{{exp}}}}}$"
+
+
+# %%
+theme = bundles.neurips2024()
+so.Plot.config.theme.update(axes_style("white") | theme | {"legend.frameon": False})
+plt.rcParams.update(bundles.neurips2024())
+plt.rcParams.update(
+    figsizes.neurips2024(nrows=1, ncols=1, rel_width=0.5, pad_inches=0.050)
+)
+fig = plt.figure()
 cp = plt.contourf(
     theta,
     theta_dot,
     state.info["disagreement"].reshape(grid_shape[1:]),
     50,
-    cmap="viridis",
+    cmap="rocket",
 )
-plt.colorbar(cp, label="Value Function")
-plt.xlabel("Theta (Pole Angle)")
-plt.ylabel("Theta Dot (Pole Angular Velocity)")
-plt.title("Value Function Contour Plot (Theta, Theta Dot)")
-plt.show()
+cbar = fig.colorbar(cp, label="Disagreement")
+
+vmin, vmax = cp.get_clim()
+vmid = (vmin + vmax) / 2
+
+# Set ticks to show only the min, mid, and max values
+cbar.set_ticks([vmin, vmid, vmax])
+cbar.set_ticklabels([sci_format(vmin), sci_format(vmid), sci_format(vmax)])
+plt.xlabel(r"$\theta$")
+plt.ylabel(r"$\dot{\theta}$")
+plt.xticks([-np.pi, 0, np.pi], [r"$-\pi$", r"$0$", r"$\pi$"])
+cp.set_edgecolor("face")
+fig.savefig("cartpole-disagreement.pdf")
