@@ -40,6 +40,7 @@ training:
   episode_length: 1000
   num_envs: 2048
   num_eval_envs: 128
+  num_eval_episodes: 10
   action_repeat: 1
   render: true
   num_timesteps: 1000000

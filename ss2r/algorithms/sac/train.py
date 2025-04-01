@@ -151,6 +151,7 @@ def train(
     action_repeat: int = 1,
     num_envs: int = 1,
     num_eval_envs: int = 128,
+    num_eval_episodes: int = 10,
     wrap_env_fn: Optional[Callable[[Any], Any]] = None,
     learning_rate: float = 1e-4,
     critic_learning_rate: float = 1e-4,
@@ -611,6 +612,7 @@ def train(
         action_repeat=action_repeat,
         key=eval_key,
         budget=episodic_safety_budget,
+        num_episodes=num_eval_episodes,
     )
 
     # Run initial eval
