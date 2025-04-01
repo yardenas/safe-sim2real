@@ -11,3 +11,4 @@ training:
   eval_domain_randomization: false
   safe: true
   safety_budget: 100.
+  num_eval_episodes: 1

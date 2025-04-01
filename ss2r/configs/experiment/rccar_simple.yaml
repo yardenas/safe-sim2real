@@ -18,6 +18,7 @@ training:
   train_domain_randomization: false
   eval_domain_randomization: false
   safety_budget: 5.0
+  num_eval_episodes: 1
 
 agent:
   grad_updates_per_step: 64
