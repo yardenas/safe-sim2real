@@ -126,3 +126,4 @@ class ConstraintsEvaluator(Evaluator):
             **training_metrics,
             **metrics,
         }
+        return metrics
