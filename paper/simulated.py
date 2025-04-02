@@ -28,6 +28,9 @@ def load_evaluation(data, seed, category, environment):
 
 def config_to_category(config):
     if "cost_robustness" in config["agent"]:
+        name = config["agent"]["cost_robustness"]["name"]
+        if name == "ramu":
+            return "ramu"
         return "ptsd"
     elif config["training"]["train_domain_randomization"]:
         return "dr"
@@ -60,7 +63,7 @@ def walk_wandb_runs(project, filters):
 
 filters = {
     "display_name": {
-        "$regex": "apr01-nominal-aga$|apr01-dr-aga$|apr01-ptsd-aga|mar28-simple-aga"
+        "$regex": "apr01-nominal-aga$|apr01-dr-aga$|apr01-ptsd-aga|mar28-simple-aga|apr01-ramu-aga"
     }
 }
 
@@ -141,9 +144,9 @@ so.Plot(
             "#994E95",
             "#666666",
         ],
-        order=["ptsd", "dr", "nominal"],
+        order=["ptsd", "ramu", "dr", "nominal"],
     ),
-    marker=so.Nominal(values=marker_styles, order=["ptsd", "dr", "nominal"]),
+    marker=so.Nominal(values=marker_styles, order=["ptsd", "ramu", "dr", "nominal"]),
 ).label(
     x=r"$\hat{C}(\pi)$",
     y=r"$\hat{J}(\pi)$",
@@ -220,6 +223,7 @@ axes[0].annotate(
 legend = fig.legends.pop(0)
 
 text = {
+    "ramu": "\sf RAMU",
     "ptsd": "\sf PTSD",
     "dr": "\sf Domain Randomization",
     "nominal": "\sf Nominal",
@@ -227,8 +231,14 @@ text = {
 
 optimum_handle, optimum_label = ax.get_legend_handles_labels()
 
+handles = []
+for handle, marker in zip(legend.legend_handles, marker_styles):
+    handle.set_marker(marker)
+    handle.set_linewidth(0)
+    handle.set_markersize(3.5)
+    handles.append(handle)
 fig.legend(
-    legend.legend_handles + optimum_handle,
+    handles + optimum_handle,
     [text[t.get_text()] for t in legend.texts] + optimum_label,
     loc="center",
     bbox_to_anchor=(0.5, 1.05),
