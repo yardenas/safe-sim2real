@@ -2,10 +2,12 @@ from typing import Any, Dict, Mapping, Tuple, Union
 
 import jax
 import jax.numpy as jp
+import mujoco
 import mujoco as mj
 from etils import epath
 from flax import struct
 from mujoco import mjx
+from mujoco_playground._src import mjx_env
 
 import ss2r.benchmark_suites.safety_gym.lidar as lidar
 
@@ -56,7 +58,8 @@ def build_arena(spec: mj.MjSpec, visualize: bool = False):
         lidar.add_lidar_rings(spec)
 
 
-class GoToGoal:
+# TODO (yarden): should not depend on mujoco playground eventually
+class GoToGoal(mjx_env.MjxEnv):
     def __init__(self):
         mjSpec: mj.MjSpec = mj.MjSpec.from_file(filename=str(_XML_PATH), assets={})
         build_arena(mjSpec, visualize=True)
@@ -165,6 +168,10 @@ class GoToGoal:
         )
         return lidar_readings
 
+    def reset(self, rng) -> State:
+        # FIXME (yarden): should actually reset.
+        return self.initial
+
     def step(self, state: State, action: jax.Array) -> State:
         data = mjx_step(self._mjx_model, state.data, action, n_substeps=1)
         reward, goal_dist = self.get_reward(data, state.info)
@@ -178,6 +185,22 @@ class GoToGoal:
         observations = self.lidar_observations(data)
         info = {"rng": rng, "last_goal_dist": goal_dist}
         return State(data, observations, reward, cost, info)  # type: ignore
+
+    @property
+    def xml_path(self) -> str:
+        return _XML_PATH
+
+    @property
+    def action_size(self) -> int:
+        return self._mjx_model.nu
+
+    @property
+    def mj_model(self) -> mujoco.MjModel:
+        return self._mj_model
+
+    @property
+    def mjx_model(self) -> mjx.Model:
+        return self._mjx_model
 
 
 def mjx_step(
