@@ -13,6 +13,7 @@ from ss2r.benchmark_suites.mujoco_playground.humanoid import humanoid as dm_huma
 from ss2r.benchmark_suites.mujoco_playground.quadruped import quadruped
 from ss2r.benchmark_suites.mujoco_playground.walker import walker
 from ss2r.benchmark_suites.rccar import rccar
+from ss2r.benchmark_suites.safety_gym import go_to_goal
 from ss2r.benchmark_suites.utils import get_domain_name, get_task_config
 from ss2r.benchmark_suites.wrappers import (
     ActionObservationDelayWrapper,
@@ -28,6 +29,8 @@ def make(cfg, train_wrap_env_fn=lambda env: env):
         return make_rccar_envs(cfg, train_wrap_env_fn)
     elif domain_name == "mujoco_playground":
         return make_mujoco_playground_envs(cfg, train_wrap_env_fn)
+    elif domain_name == "safety_gym":
+        return make_safety_gym_envs(cfg, train_wrap_env_fn)
 
 
 def prepare_randomization_fn(key, num_envs, cfg, task_name):
@@ -187,6 +190,49 @@ def make_mujoco_playground_envs(cfg, train_wrap_env_fn):
     return train_env, eval_env
 
 
+def make_safety_gym_envs(cfg, train_wrap_env_fn):
+    from ss2r.benchmark_suites.mujoco_playground import wrap_for_brax_training
+    from ss2r.benchmark_suites.safety_gym import go_to_goal
+
+    task_cfg = dict(get_task_config(cfg))
+    train_env = go_to_goal.GoToGoal()
+    train_env = train_wrap_env_fn(train_env)
+    eval_env = go_to_goal.GoToGoal()
+    train_key, eval_key = jax.random.split(jax.random.PRNGKey(cfg.training.seed))
+    train_randomization_fn = (
+        prepare_randomization_fn(
+            train_key, cfg.training.num_envs, task_cfg.train_params, task_cfg.task_name
+        )
+        if cfg.training.train_domain_randomization
+        else None
+    )
+    train_env = wrap_for_brax_training(
+        train_env,
+        randomization_fn=train_randomization_fn,
+        episode_length=cfg.training.episode_length,
+        action_repeat=cfg.training.action_repeat,
+        augment_state=False,
+    )
+    eval_randomization_fn = (
+        prepare_randomization_fn(
+            eval_key,
+            cfg.training.num_eval_envs,
+            task_cfg.eval_params,
+            task_cfg.task_name,
+        )
+        if cfg.training.eval_domain_randomization
+        else None
+    )
+    eval_env = wrap_for_brax_training(
+        eval_env,
+        episode_length=cfg.training.episode_length,
+        action_repeat=cfg.training.action_repeat,
+        randomization_fn=eval_randomization_fn,
+        augment_state=False,
+    )
+    return train_env, eval_env
+
+
 randomization_fns = {
     "cartpole": cartpole.domain_randomization,
     "cartpole_safe": cartpole.domain_randomization,
@@ -217,6 +263,7 @@ randomization_fns = {
     "CartpoleBalance": dm_cartpole.domain_randomization,
     "HumanoidWalk": dm_humanoid.domain_randomization,
     "SafeHumanoidWalk": dm_humanoid.domain_randomization,
+    "go_to_goal": go_to_goal.domain_randomization,
 }
 
 render_fns = {
@@ -255,6 +302,7 @@ render_fns = {
     "WalkerRun": functools.partial(mujoco_playground.render, camera="side"),
     "SafeWalkerWalk": functools.partial(mujoco_playground.render, camera="side"),
     "SafeWalkerRun": functools.partial(mujoco_playground.render, camera="side"),
-    "HumanoidWalk": functools.partial(mujoco_playground.render),
-    "SafeHumanoidWalk": functools.partial(mujoco_playground.render),
+    "HumanoidWalk": mujoco_playground.render,
+    "SafeHumanoidWalk": mujoco_playground.render,
+    "go_to_goal": mujoco_playground.render,
 }
