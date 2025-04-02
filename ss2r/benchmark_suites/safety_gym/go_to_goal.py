@@ -69,6 +69,10 @@ class GoToGoal(mjx_env.MjxEnv):
         self._mj_model = mjSpec.compile()
         self._post_init()
         self._mjx_model = mjx.put_model(self._mj_model)
+        placements, keepouts, _ = _sample_layout(
+            jax.random.PRNGKey(0),
+            {"goal": ObjectSpec(0.3, 1), "hazard": ObjectSpec(0.2, 10)},
+        )
 
     def _post_init(self) -> None:
         """Post initialization for the model."""
@@ -169,6 +173,8 @@ class GoToGoal(mjx_env.MjxEnv):
         return jp.hstack([lidar.flatten(), other_sensors])
 
     def reset(self, rng) -> State:
+        # FIXME (yarden): should be not hard-coded
+        placements, keepouts, _ = _sample_layout(rng, {"goal": ObjectSpec(0.3, 1)})
         data = mjx_env.init(self.mjx_model)
         initial_goal_dist = jp.linalg.norm(
             data.site_xpos[self._goal_site_id][:2]
@@ -230,20 +236,21 @@ def placement_is_valid(xy, object_keepout, other_xy, other_keepout):
 
 def draw_until_valid(rng, object_keepout, other_xy, other_keepout):
     def cond_fn(val):
-        i, conflicted, _ = val
+        i, conflicted, *_ = val
         return jp.logical_and(i < 1000, conflicted)
 
     def body_fn(val):
-        i, _, _ = val
-        xy = draw_placement(rng, object_keepout)
+        i, _, _, rng = val
+        rng, rng_ = jax.random.split(rng)
+        xy = draw_placement(rng_, object_keepout)
         conflicted = jp.logical_not(
             placement_is_valid(xy, object_keepout, other_xy, other_keepout)
         )
-        return i + 1, conflicted, xy
+        return i + 1, conflicted, xy, rng
 
     # Initial state: (iteration index, conflicted flag, placeholder for xy)
-    init_val = (0, True, jp.zeros((2,)))  # Assuming xy is a 2D point
-    i, _, xy = jax.lax.while_loop(cond_fn, body_fn, init_val)
+    init_val = (0, True, jp.zeros((2,)), rng)  # Assuming xy is a 2D point
+    i, _, xy, *_ = jax.lax.while_loop(cond_fn, body_fn, init_val)
     return xy, i
 
 
@@ -252,20 +259,21 @@ def _sample_layout(
 ) -> Tuple[jax.Array, jax.Array, dict[str, Tuple[int, jax.Array]]]:
     num_objects = sum(spec.num_objects for spec in objects_spec.values())
     all_placements = jp.ones((num_objects, 2)) * 100.0
-    all_keepouts = jp.ones(num_objects) * 1000.0
+    all_keepouts = jp.zeros(num_objects)
     layout = defaultdict(list)
+    flat_idx = 0
     for j, (name, object_spec) in enumerate(objects_spec.items()):
         rng, rng_ = jax.random.split(rng)
         keys = jax.random.split(rng_, object_spec.num_objects)
         for i, key in enumerate(keys):
-            xy, i = draw_until_valid(
+            xy, _ = draw_until_valid(
                 key, object_spec.keepout, all_placements, all_keepouts
             )
-            if i >= 1000:
-                raise ValueError("Could not sample a position")
-            flat_idx = j * object_spec.num_objects + i
+            # TODO (yarden): technically should quit if not valid sampling.
             all_placements = all_placements.at[flat_idx, :].set(xy)
+            all_keepouts = all_keepouts.at[flat_idx].set(object_spec.keepout)
             layout[name].append((flat_idx, xy))
+            flat_idx += 1
     return all_placements, all_keepouts, layout  # type: ignore
 
 
