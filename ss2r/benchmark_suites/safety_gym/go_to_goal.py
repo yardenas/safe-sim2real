@@ -67,7 +67,6 @@ class GoToGoal(mjx_env.MjxEnv):
         mjSpec: mj.MjSpec = mj.MjSpec.from_file(filename=str(_XML_PATH), assets={})
         build_arena(mjSpec, visualize=visualize_lidar)
         self._mj_model = mjSpec.compile()
-        self._post_init()
         self._mjx_model = mjx.put_model(self._mj_model)
         # FIXME (yarden): make sure to handle the sizes of the vases/hazards
         self.spec = {
@@ -75,30 +74,29 @@ class GoToGoal(mjx_env.MjxEnv):
             "hazards": ObjectSpec(0.18, 10),
             "vases": ObjectSpec(0.15, 10),
         }
+        self._post_init()
 
     def _post_init(self) -> None:
         """Post initialization for the model."""
         # For reward function
         self._robot_site_id = self._mj_model.site("robot").id
         self._goal_site_id = self._mj_model.site("goal_site").id
-        self._goal_x_joint_id = self._mj_model.joint("goal_x").id
-        self._goal_y_joint_id = self._mj_model.joint("goal_y").id
         self._goal_body_id = self._mj_model.body("goal").id
+        self._goal_mocap_id = self._mj_model.mocap("goal").id
         self._robot_body_id = self._mj_model.body("robot").id
+        self._hazards_body_ids = [
+            self._mj_model.body(f"hazard_{id_}")
+            for id_ in range(self.spec["hazards"].num_objects)
+        ]
+        vases_names = [f"vase_{id_}" for id_ in range(self.spec["vases"].num_objects)]
+        self._vases_body_ids = [self._mj_model.body(name) for name in vases_names]
+        self._vases_qpos_ids = [
+            mjx_env.get_qpos_ids(self.mj_model, name) for name in vases_names
+        ]
         # For cost function
-        self._collision_obstacle_ids = [
-            self._mj_model.geom("vase_0").id,
-            self._mj_model.geom("vase_1").id,
-            self._mj_model.geom("pillar_0").id,
-        ]
-        self._hazard_obstacle_ids = [
-            self._mj_model.body("hazard_0").id,
-            self._mj_model.body("hazard_1").id,
-        ]
         self._robot_geom_id = self._mj_model.geom("robot").id
         self._pointarrow_geom_id = self._mj_model.geom("pointarrow").id
-        self._obstacles = ["vase", "hazard", "pillar"]
-        self._obstacle_count = {"vase": 2, "hazard": 2, "pillar": 1}
+        self._init_q = self._mj_model.qpos0
 
     def get_reward(
         self, data: mjx.Data, info: dict[str, Any]
@@ -115,6 +113,10 @@ class GoToGoal(mjx_env.MjxEnv):
         # Initial state
         new_rng, goal_key = jax.random.split(rng)
         new_xy = jax.random.uniform(goal_key, (2,), minval=-3.0, maxval=3.0)
+        # TODO (yarden): goal position should not be sampled via joint, but as
+        # a mocap
+        # TODO (yarden): should resample the goal position besed on the
+        # positions of the other objects
         new_qpos = data.qpos.at[
             jp.array([self._goal_x_joint_id, self._goal_y_joint_id])
         ].set(new_xy)
@@ -141,19 +143,16 @@ class GoToGoal(mjx_env.MjxEnv):
         return cost.astype(jp.float32)
 
     def lidar_observations(self, data: mjx.Data) -> jax.Array:
-        """Compute Lidar observations."""
         robot_body_pos = data.xpos[self._robot_body_id]
         robot_body_mat = data.xmat[self._robot_body_id].reshape(3, 3)
         # Vectorized obstacle position retrieval
-        obstacle_ids = [
-            self._mj_model.body(f"{obstacle}_{i}").id
-            for obstacle in self._obstacles
-            for i in range(self._obstacle_count[obstacle])
+        obstacle_positions = data.xpos[
+            jp.array(self._hazards_body_ids + self._vases_body_ids)
         ]
-        obstacle_positions = data.xpos[jp.array(obstacle_ids)]
+        # FIXME: the goal_body_id should actually be goal_mocap_id, and we should get
+        # the position via the mocap
         goal_positions = data.xpos[jp.array([self._goal_body_id])]
         object_positions = jp.array([])
-
         lidar_readings = jp.array(
             [
                 lidar.compute_lidar(robot_body_pos, robot_body_mat, obstacle_positions),
@@ -174,9 +173,44 @@ class GoToGoal(mjx_env.MjxEnv):
         other_sensors = self.sensor_observations(data)
         return jp.hstack([lidar.flatten(), other_sensors])
 
+    def _update_data(
+        self,
+        layout: dict[str, list[tuple[int, jax.Array]]],
+        rng: jax.Array,
+        data: mjx.Data | None = None,
+    ) -> tuple[jax.Array, jax.Array]:
+        if data is None:
+            new_qpos = self._init_q
+            hazard_mocap_pos = self._mj_model.body_pos[self._hazards_body_ids]
+            goal_mocap_pos = self._mj_model.body_pos[self._goal_body_id]
+            # FIXME (yarden): not sure about the right order here
+            new_mocap_pos = jp.hstack((hazard_mocap_pos, goal_mocap_pos))
+        else:
+            new_qpos = data.qpos
+            new_mocap_pos = data.mocap_pos
+        for name, (_, positions) in layout.items():
+            if name == "goal":
+                assert len(positions) == 1
+                new_mocap_pos = new_mocap_pos[self._goal_mocap_id].set(positions[0])
+            elif name == "hazards":
+                for xy, id_ in zip(positions, self._hazards_body_ids):
+                    new_mocap_pos = new_mocap_pos.at[id_].set(xy)
+            elif name == "vases":
+                for xy, ids in zip(positions, self._vases_qpos_ids):
+                    rng, rng_ = jax.random.split(rng)
+                    rotation = jax.random.uniform(rng_, minval=0.0, maxval=2 * jp.pi)
+                    quat = _rot2quat(rotation)
+                    # FIXME (yarden): this is not necessarily the right order.
+                    pos = jp.hstack((xy, quat))
+                    new_qpos = new_qpos.at[ids].set(pos)
+            else:
+                assert False, "Something is off with the names provided in spec."
+        return new_mocap_pos, new_qpos
+
     def reset(self, rng) -> State:
-        placements, keepouts, _ = _sample_layout(rng, self.spec)
-        data = mjx_env.init(self.mjx_model)
+        layout = _sample_layout(rng, self.spec)
+        mocap_pos, qpos = self._update_data(layout, rng)
+        data = mjx_env.init(self.mjx_model, qpos=qpos, mocap_pos=mocap_pos)
         initial_goal_dist = jp.linalg.norm(
             data.site_xpos[self._goal_site_id][:2]
             - data.site_xpos[self._robot_site_id][0:2]
@@ -226,6 +260,10 @@ class GoToGoal(mjx_env.MjxEnv):
         return self._mjx_model
 
 
+def _rot2quat(theta):
+    return jp.array([jp.cos(theta / 2), 0, 0, jp.sin(theta / 2)])
+
+
 class ObjectSpec(NamedTuple):
     keepout: float
     num_objects: int
@@ -262,7 +300,7 @@ def draw_until_valid(rng, object_keepout, other_xy, other_keepout):
 
 def _sample_layout(
     rng: jax.Array, objects_spec: dict[str, ObjectSpec]
-) -> Tuple[jax.Array, jax.Array, dict[str, Tuple[int, jax.Array]]]:
+) -> dict[str, list[tuple[int, jax.Array]]]:
     num_objects = sum(spec.num_objects for spec in objects_spec.values())
     all_placements = jp.ones((num_objects, 2)) * 100.0
     all_keepouts = jp.zeros(num_objects)
@@ -280,7 +318,7 @@ def _sample_layout(
             all_keepouts = all_keepouts.at[flat_idx].set(object_spec.keepout)
             layout[name].append((flat_idx, xy))
             flat_idx += 1
-    return all_placements, all_keepouts, layout  # type: ignore
+    return layout
 
 
 def constrain_placement(placement: tuple, keepout: float) -> tuple:
