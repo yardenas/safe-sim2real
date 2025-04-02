@@ -50,7 +50,6 @@ def compute_lidar(
 
 def add_lidar_rings(spec: mj.MjSpec):
     robot_body = spec.body("robot")
-
     # Add LIDAR rings above the robot body
     for i, category in enumerate(LIDAR_GROUPS):
         lidar_body = robot_body.add_body(name=f"lidar_{category}")

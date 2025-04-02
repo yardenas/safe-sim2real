@@ -1,0 +1,12 @@
+# @package _global_
+defaults:
+  - mujoco_playground_dm_control
+  - override /environment: go_to_goal
+  - _self_
+
+training:
+  num_timesteps: 2000000
+  train_domain_randomization: false
+  eval_domain_randomization: false
+  safe: true
+  safety_budget: 25

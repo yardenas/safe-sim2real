@@ -3,12 +3,13 @@ from typing import Any, Dict, Mapping, Tuple, Union
 import jax
 import jax.numpy as jp
 import mujoco as mj
+from etils import epath
 from flax import struct
 from mujoco import mjx
 
 import ss2r.benchmark_suites.safety_gym.lidar as lidar
 
-_XML_PATH = "xml/point.xml"
+_XML_PATH = epath.Path(__file__).parent / "point.xml"
 
 Observation = Union[jax.Array, Mapping[str, jax.Array]]
 
@@ -57,7 +58,7 @@ def build_arena(spec: mj.MjSpec, visualize: bool = False):
 
 class GoToGoal:
     def __init__(self):
-        mjSpec: mj.MjSpec = mj.MjSpec.from_file(filename=_XML_PATH, assets={})
+        mjSpec: mj.MjSpec = mj.MjSpec.from_file(filename=str(_XML_PATH), assets={})
         build_arena(mjSpec, visualize=True)
         self._mj_model = mjSpec.compile()
         self._post_init()
@@ -79,14 +80,14 @@ class GoToGoal:
 
     def _post_init(self) -> None:
         """Post initialization for the model."""
-        # FOR REWARD FUNCTION
+        # For reward function
         self._robot_site_id = self._mj_model.site("robot").id
         self._goal_site_id = self._mj_model.site("goal_site").id
         self._goal_x_joint_id = self._mj_model.joint("goal_x").id
         self._goal_y_joint_id = self._mj_model.joint("goal_y").id
         self._goal_body_id = self._mj_model.body("goal").id
         self._robot_body_id = self._mj_model.body("robot").id
-        # FOR COST FUNCTION
+        # For cost function
         self._collision_obstacle_ids = [
             self._mj_model.geom("vase_0").id,
             self._mj_model.geom("vase_1").id,
