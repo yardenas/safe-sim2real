@@ -1,3 +1,4 @@
+from collections import defaultdict
 from typing import Any, Dict, Mapping, NamedTuple, Tuple, Union
 
 import jax
@@ -218,51 +219,54 @@ class ObjectSpec(NamedTuple):
     num_objects: int
 
 
+def placement_is_valid(xy, object_keepout, other_xy, other_keepout):
+    def check_single(other_xy, other_keepout):
+        dist = jp.linalg.norm(xy - other_xy)
+        return dist >= (other_keepout + object_keepout)
+
+    validity_checks = jax.vmap(check_single)(other_xy, other_keepout)
+    return jp.all(validity_checks)
+
+
+def draw_until_valid(rng, object_keepout, other_xy, other_keepout):
+    def cond_fn(val):
+        i, conflicted, _ = val
+        return jp.logical_and(i < 1000, conflicted)
+
+    def body_fn(val):
+        i, _, _ = val
+        xy = draw_placement(rng, object_keepout)
+        conflicted = jp.logical_not(
+            placement_is_valid(xy, object_keepout, other_xy, other_keepout)
+        )
+        return i + 1, conflicted, xy
+
+    # Initial state: (iteration index, conflicted flag, placeholder for xy)
+    init_val = (0, True, jp.zeros((2,)))  # Assuming xy is a 2D point
+    i, _, xy = jax.lax.while_loop(cond_fn, body_fn, init_val)
+    return xy, i
+
+
 def _sample_layout(
     rng: jax.Array, objects_spec: dict[str, ObjectSpec]
-) -> Union[Dict[str, jp.ndarray], None]:
-    def placement_is_valid(xy, keepout):
-        def check_single(other_name_xy):
-            other_xy, other_keepout = other_name_xy
-            dist = jp.linalg.norm(xy - other_xy)
-            return dist >= (other_keepout + keepout)
-
-        validity_checks = jax.vmap(check_single)(
-            jp.array(
-                [
-                    (other_xy, objects_spec[other_name].keepout)
-                    for other_name, other_xy in layout.items()
-                ]
-            )
-        )
-        return jp.all(validity_checks)
-
-    def draw_until_valid(rng, keepout):
-        def cond_fn(val):
-            i, conflicted, _ = val
-            return jp.logical_and(i < 1000, conflicted)
-
-        def body_fn(val):
-            i, _, _ = val
-            xy = draw_placement(rng, keepout)
-            conflicted = jp.logical_not(placement_is_valid(xy))
-            return i + 1, conflicted, xy
-
-        # Initial state: (iteration index, conflicted flag, placeholder for xy)
-        init_val = (0, True, jp.zeros((2,)))  # Assuming xy is a 2D point
-        i, _, xy = jax.lax.while_loop(cond_fn, body_fn, init_val)
-        return xy, i
-
-    layout = {}
-    for name, object_spec in objects_spec.items():
+) -> Tuple[jax.Array, jax.Array, dict[str, Tuple[int, jax.Array]]]:
+    num_objects = sum(spec.num_objects for spec in objects_spec.values())
+    all_placements = jp.ones((num_objects, 2)) * 100.0
+    all_keepouts = jp.ones(num_objects) * 1000.0
+    layout = defaultdict(list)
+    for j, (name, object_spec) in enumerate(objects_spec.items()):
         rng, rng_ = jax.random.split(rng)
         keys = jax.random.split(rng_, object_spec.num_objects)
         for i, key in enumerate(keys):
-            xy, i = draw_until_valid(key, object_spec.keepout)
+            xy, i = draw_until_valid(
+                key, object_spec.keepout, all_placements, all_keepouts
+            )
             if i >= 1000:
                 raise ValueError("Could not sample a position")
-            layout[f"name_{i}"] = xy
-    return layout
+            flat_idx = j * object_spec.num_objects + i
+            all_placements = all_placements.at[flat_idx, :].set(xy)
+            layout[name].append((flat_idx, xy))
+    return all_placements, all_keepouts, layout  # type: ignore
 
 
 def constrain_placement(placement: tuple, keepout: float) -> tuple:
