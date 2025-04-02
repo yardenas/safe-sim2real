@@ -177,7 +177,7 @@ class GoToGoal(mjx_env.MjxEnv):
         return State(data, obs, jp.zeros(()), jp.zeros(()), {}, info)  # type: ignore
 
     def step(self, state: State, action: jax.Array) -> State:
-        data = mjx_step(self._mjx_model, state.data, action, n_substeps=1)
+        data = mjx_step(self._mjx_model, state.data, action, n_substeps=2)
         reward, goal_dist = self.get_reward(data, state.info)
         # Reset goal if robot inside goal
         # TODO (yarden): not hard-code this
