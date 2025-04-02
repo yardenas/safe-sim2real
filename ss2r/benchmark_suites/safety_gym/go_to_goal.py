@@ -1,4 +1,4 @@
-from typing import Any, Dict, Mapping, Tuple, Union
+from typing import Any, Dict, Mapping, NamedTuple, Tuple, Union
 
 import jax
 import jax.numpy as jp
@@ -15,6 +15,7 @@ _XML_PATH = epath.Path(__file__).parent / "point.xml"
 
 Observation = Union[jax.Array, Mapping[str, jax.Array]]
 BASE_SENSORS = ["accelerometer", "velocimeter", "gyro", "magnetometer"]
+_EXTENTS = (-2.0, -2.0, 2.0, 2.0)
 
 
 def domain_randomization(sys, rng, cfg):
@@ -212,48 +213,72 @@ class GoToGoal(mjx_env.MjxEnv):
         return self._mjx_model
 
 
-def _generate_new_layout(self):
-    extents = self.task.placement_extents
-    for i in range(50):
-        for _ in range(10000):
-        new_layout = self._sample_layout(extents)
-        if new_layout is not None:
-            return new_layout
-        extents = utils.increase_extents(extents)
-        new_placements = {}
-        for name, (placements, keepout) in self._placements.items():
-        if placements is not None:
-            if i == 48:
-            new_placements[name] = (None, keepout)
-            else:
-            new_placements[name] = ([utils.increase_extents(extents for extents in placements)], keepout)
-        self._placements = new_placements
-    raise utils.ResamplingError("Failed to generate layout")
+class ObjectSpec(NamedTuple):
+    keepout: float
+    num_objects: int
 
-def _sample_layout(self, extents) -> Union[dict, None]:
-    def placement_is_valid(xy: np.ndarray):
-        for other_name, other_xy in layout.items():
-        other_keepout = self._placements[other_name][1]
-        dist = np.linalg.norm(xy - other_xy)
-        if dist < other_keepout + self.config.placements_margin + keepout:
-            return False
-        return True
+
+def _sample_layout(
+    rng: jax.Array, objects_spec: dict[str, ObjectSpec]
+) -> Union[Dict[str, jp.ndarray], None]:
+    def placement_is_valid(xy, keepout):
+        def check_single(other_name_xy):
+            other_xy, other_keepout = other_name_xy
+            dist = jp.linalg.norm(xy - other_xy)
+            return dist >= (other_keepout + keepout)
+
+        validity_checks = jax.vmap(check_single)(
+            jp.array(
+                [
+                    (other_xy, objects_spec[other_name].keepout)
+                    for other_name, other_xy in layout.items()
+                ]
+            )
+        )
+        return jp.all(validity_checks)
+
+    def draw_until_valid(rng, keepout):
+        def cond_fn(val):
+            i, conflicted, _ = val
+            return jp.logical_and(i < 1000, conflicted)
+
+        def body_fn(val):
+            i, _, _ = val
+            xy = draw_placement(rng, keepout)
+            conflicted = jp.logical_not(placement_is_valid(xy))
+            return i + 1, conflicted, xy
+
+        # Initial state: (iteration index, conflicted flag, placeholder for xy)
+        init_val = (0, True, jp.zeros((2,)))  # Assuming xy is a 2D point
+        i, _, xy = jax.lax.while_loop(cond_fn, body_fn, init_val)
+        return xy, i
+
     layout = {}
-    if isinstance(extents, tuple) or isinstance(extents, list):
-        extents = {k: extents for k in self._placements.keys()}
-    for name, (placements, keepout) in self._placements.items():
-        conflicted = True
-        for _ in range(1000):
-        object_extents = extents[name]
-        xy = utils.draw_placement(self.rs, placements,
-                                    object_extents, keepout)
-        if placement_is_valid(xy):
-            conflicted = False
-            break
-        if conflicted:
-        return None
-        layout[name] = xy
+    for name, object_spec in objects_spec.items():
+        rng, rng_ = jax.random.split(rng)
+        keys = jax.random.split(rng_, object_spec.num_objects)
+        for i, key in enumerate(keys):
+            xy, i = draw_until_valid(key, object_spec.keepout)
+            if i >= 1000:
+                raise ValueError("Could not sample a position")
+            layout[f"name_{i}"] = xy
     return layout
+
+
+def constrain_placement(placement: tuple, keepout: float) -> tuple:
+    """Helper function to constrain a single placement by the keepout radius"""
+    xmin, ymin, xmax, ymax = placement
+    return xmin + keepout, ymin + keepout, xmax - keepout, ymax - keepout
+
+
+def draw_placement(rng: jax.Array, keepout) -> jax.Array:
+    choice = constrain_placement(_EXTENTS, keepout)
+    xmin, ymin, xmax, ymax = choice
+    min_ = jp.hstack((xmin, ymin))
+    max_ = jp.hstack((xmax, ymax))
+    pos = jax.random.uniform(rng, shape=(2,), minval=min_, maxval=max_)
+    return pos
+
 
 def mjx_step(
     model: mjx.Model,
