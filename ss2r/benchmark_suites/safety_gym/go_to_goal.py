@@ -157,9 +157,9 @@ class GoToGoal:
 
         lidar_readings = jp.array(
             [
-                lidar._lidar(robot_body_pos, robot_body_mat, obstacle_positions),
-                lidar._lidar(robot_body_pos, robot_body_mat, goal_positions),
-                lidar._lidar(robot_body_pos, robot_body_mat, object_positions),
+                lidar.compute_lidar(robot_body_pos, robot_body_mat, obstacle_positions),
+                lidar.compute_lidar(robot_body_pos, robot_body_mat, goal_positions),
+                lidar.compute_lidar(robot_body_pos, robot_body_mat, object_positions),
             ]
         )
         return lidar_readings
