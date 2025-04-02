@@ -1,0 +1,9 @@
+defaults:
+  - safety_gym_base
+
+task_name: go_to_goal
+task_params: {}
+
+# Sample uniformly around the nominal value
+train_params: {}
+eval_params: {}
