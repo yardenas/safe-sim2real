@@ -213,23 +213,47 @@ class GoToGoal(mjx_env.MjxEnv):
 
 
 def _generate_new_layout(self):
-extents = self.task.placement_extents
-for i in range(50):
-    for _ in range(10000):
-    new_layout = self._sample_layout(extents)
-    if new_layout is not None:
-        return new_layout
-    extents = utils.increase_extents(extents)
-    new_placements = {}
-    for name, (placements, keepout) in self._placements.items():
-    if placements is not None:
-        if i == 48:
-        new_placements[name] = (None, keepout)
-        else:
-        new_placements[name] = ([utils.increase_extents(extents for extents in placements)], keepout)
-    self._placements = new_placements
-raise utils.ResamplingError("Failed to generate layout")
+    extents = self.task.placement_extents
+    for i in range(50):
+        for _ in range(10000):
+        new_layout = self._sample_layout(extents)
+        if new_layout is not None:
+            return new_layout
+        extents = utils.increase_extents(extents)
+        new_placements = {}
+        for name, (placements, keepout) in self._placements.items():
+        if placements is not None:
+            if i == 48:
+            new_placements[name] = (None, keepout)
+            else:
+            new_placements[name] = ([utils.increase_extents(extents for extents in placements)], keepout)
+        self._placements = new_placements
+    raise utils.ResamplingError("Failed to generate layout")
 
+def _sample_layout(self, extents) -> Union[dict, None]:
+    def placement_is_valid(xy: np.ndarray):
+        for other_name, other_xy in layout.items():
+        other_keepout = self._placements[other_name][1]
+        dist = np.linalg.norm(xy - other_xy)
+        if dist < other_keepout + self.config.placements_margin + keepout:
+            return False
+        return True
+    layout = {}
+    if isinstance(extents, tuple) or isinstance(extents, list):
+        extents = {k: extents for k in self._placements.keys()}
+    for name, (placements, keepout) in self._placements.items():
+        conflicted = True
+        for _ in range(1000):
+        object_extents = extents[name]
+        xy = utils.draw_placement(self.rs, placements,
+                                    object_extents, keepout)
+        if placement_is_valid(xy):
+            conflicted = False
+            break
+        if conflicted:
+        return None
+        layout[name] = xy
+    return layout
 
 def mjx_step(
     model: mjx.Model,
