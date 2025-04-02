@@ -69,10 +69,12 @@ class GoToGoal(mjx_env.MjxEnv):
         self._mj_model = mjSpec.compile()
         self._post_init()
         self._mjx_model = mjx.put_model(self._mj_model)
-        placements, keepouts, _ = _sample_layout(
-            jax.random.PRNGKey(0),
-            {"goal": ObjectSpec(0.3, 1), "hazard": ObjectSpec(0.2, 10)},
-        )
+        # FIXME (yarden): make sure to handle the sizes of the vases/hazards
+        self.spec = {
+            "goal": ObjectSpec(0.3, 1),
+            "hazards": ObjectSpec(0.18, 10),
+            "vases": ObjectSpec(0.15, 10),
+        }
 
     def _post_init(self) -> None:
         """Post initialization for the model."""
@@ -173,8 +175,7 @@ class GoToGoal(mjx_env.MjxEnv):
         return jp.hstack([lidar.flatten(), other_sensors])
 
     def reset(self, rng) -> State:
-        # FIXME (yarden): should be not hard-coded
-        placements, keepouts, _ = _sample_layout(rng, {"goal": ObjectSpec(0.3, 1)})
+        placements, keepouts, _ = _sample_layout(rng, self.spec)
         data = mjx_env.init(self.mjx_model)
         initial_goal_dist = jp.linalg.norm(
             data.site_xpos[self._goal_site_id][:2]
