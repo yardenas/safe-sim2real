@@ -60,26 +60,12 @@ def build_arena(spec: mj.MjSpec, visualize: bool = False):
 
 # TODO (yarden): should not depend on mujoco playground eventually
 class GoToGoal(mjx_env.MjxEnv):
-    def __init__(self):
+    def __init__(self, visualize_lidar: bool = False):
         mjSpec: mj.MjSpec = mj.MjSpec.from_file(filename=str(_XML_PATH), assets={})
-        build_arena(mjSpec, visualize=True)
+        build_arena(mjSpec, visualize=visualize_lidar)
         self._mj_model = mjSpec.compile()
         self._post_init()
         self._mjx_model = mjx.put_model(self._mj_model)
-        data = mjx.make_data(self._mjx_model)
-        data = mjx.forward(self._mjx_model, data)
-        initial_goal_dist = jp.linalg.norm(
-            data.site_xpos[self._goal_site_id][:2]
-            - data.site_xpos[self._robot_site_id][0:2]
-        )
-        self.initial = State(
-            data,
-            jp.zeros((3, lidar.NUM_LIDAR_BINS)),
-            jp.zeros(()),
-            jp.zeros(()),
-            jax.random.PRNGKey(0),
-            initial_goal_dist,
-        )
 
     def _post_init(self) -> None:
         """Post initialization for the model."""
@@ -168,9 +154,19 @@ class GoToGoal(mjx_env.MjxEnv):
         )
         return lidar_readings
 
+    def get_obs(self, data: mjx.Data) -> jax.Array:
+        lidar = self.lidar_observations(data)
+        return lidar.flatten()
+
     def reset(self, rng) -> State:
-        # FIXME (yarden): should actually reset.
-        return self.initial
+        data = mjx_env.init(self.mjx_model)
+        initial_goal_dist = jp.linalg.norm(
+            data.site_xpos[self._goal_site_id][:2]
+            - data.site_xpos[self._robot_site_id][0:2]
+        )
+        info = {"rng": rng, "last_goal_dist": initial_goal_dist, "cost": 0.0}
+        obs = self.get_obs(data)
+        return State(data, obs, jp.zeros(()), jp.zeros(()), {}, info)  # type: ignore
 
     def step(self, state: State, action: jax.Array) -> State:
         data = mjx_step(self._mjx_model, state.data, action, n_substeps=1)
@@ -182,9 +178,14 @@ class GoToGoal(mjx_env.MjxEnv):
             condition, self._reset_goal, lambda d, r: (d, r), data, state.info["rng"]
         )
         cost = self.get_cost(data)
-        observations = self.lidar_observations(data)
-        info = {"rng": rng, "last_goal_dist": goal_dist}
-        return State(data, observations, reward, cost, info)  # type: ignore
+        obs = self.get_obs(data)
+        state.info["last_goal_dist"] = goal_dist
+        state.info["rng"] = rng
+        state.info["cost"] = cost
+        done = jp.isnan(data.qpos).any() | jp.isnan(data.qvel).any()
+        done = done.astype(jp.float32)
+        state = state.replace(data=data, obs=obs, reward=reward, done=done)  # type: ignore
+        return state
 
     @property
     def xml_path(self) -> str:
