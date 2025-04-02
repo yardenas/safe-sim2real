@@ -14,6 +14,7 @@ import ss2r.benchmark_suites.safety_gym.lidar as lidar
 _XML_PATH = epath.Path(__file__).parent / "point.xml"
 
 Observation = Union[jax.Array, Mapping[str, jax.Array]]
+BASE_SENSORS = ["accelerometer", "velocimeter", "gyro", "magnetometer"]
 
 
 def domain_randomization(sys, rng, cfg):
@@ -154,9 +155,16 @@ class GoToGoal(mjx_env.MjxEnv):
         )
         return lidar_readings
 
+    def sensor_observations(self, data: mjx.Data) -> jax.Array:
+        vals = []
+        for sensor in BASE_SENSORS:
+            vals.append(mjx_env.get_sensor_data(self.mj_model, data, sensor))
+        return jp.hstack(vals)
+
     def get_obs(self, data: mjx.Data) -> jax.Array:
         lidar = self.lidar_observations(data)
-        return lidar.flatten()
+        other_sensors = self.sensor_observations(data)
+        return jp.hstack([lidar.flatten(), other_sensors])
 
     def reset(self, rng) -> State:
         data = mjx_env.init(self.mjx_model)
