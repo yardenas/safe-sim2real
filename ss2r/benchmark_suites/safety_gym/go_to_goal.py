@@ -212,6 +212,25 @@ class GoToGoal(mjx_env.MjxEnv):
         return self._mjx_model
 
 
+def _generate_new_layout(self):
+extents = self.task.placement_extents
+for i in range(50):
+    for _ in range(10000):
+    new_layout = self._sample_layout(extents)
+    if new_layout is not None:
+        return new_layout
+    extents = utils.increase_extents(extents)
+    new_placements = {}
+    for name, (placements, keepout) in self._placements.items():
+    if placements is not None:
+        if i == 48:
+        new_placements[name] = (None, keepout)
+        else:
+        new_placements[name] = ([utils.increase_extents(extents for extents in placements)], keepout)
+    self._placements = new_placements
+raise utils.ResamplingError("Failed to generate layout")
+
+
 def mjx_step(
     model: mjx.Model,
     data: mjx.Data,
