@@ -3910,31 +3910,6 @@ files = [
 ]
 
 [[package]]
-name = "safe-adaptation-gym"
-version = "0.0.0"
-description = ""
-optional = false
-python-versions = ">3.8"
-groups = ["main"]
-files = []
-develop = false
-
-[package.dependencies]
-dm_control = ">=0.0.403778684"
-gym = ">=0.21.0"
-numpy = ">=1.22.1"
-xmltodict = ">=0.12.0"
-
-[package.extras]
-dev = ["Pillow", "matplotlib", "pytest (>=4.4.0)"]
-
-[package.source]
-type = "git"
-url = "https://git@github.com/lasgroup/safe-adaptation-gym.git"
-reference = "HEAD"
-resolved_reference = "44cdc8054ac5b20c23b0bc8b9fb6bc216e89033b"
-
-[[package]]
 name = "scipy"
 version = "1.13.0"
 description = "Fundamental algorithms for scientific computing in Python"
@@ -4916,18 +4891,6 @@ files = [
 ]
 
 [[package]]
-name = "xmltodict"
-version = "0.13.0"
-description = "Makes working with XML feel like you are working with JSON"
-optional = false
-python-versions = ">=3.4"
-groups = ["main"]
-files = [
-    {file = "xmltodict-0.13.0-py2.py3-none-any.whl", hash = "sha256:aa89e8fd76320154a40d19a0df04a4695fb9dc5ba977cbb68ab3e4eb225e7852"},
-    {file = "xmltodict-0.13.0.tar.gz", hash = "sha256:341595a488e3e01a85a9d8911d8912fd922ede5fecc4dce437eb4b6c8d037e56"},
-]
-
-[[package]]
 name = "zipp"
 version = "3.19.1"
 description = "Backport of pathlib-compatible object wrapper for zip files"
@@ -4946,4 +4909,4 @@ test = ["big-O", "jaraco.functools", "jaraco.itertools", "jaraco.test", "more-it
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.10,<3.12"
-content-hash = "856c1f90e1b8a0a83355727cd7b3eea929356190e89a269bcbe0b08c61073575"
+content-hash = "0bb1fa2d89538cb5d7687c71f3f361cdce9f0a8633e52ae33b253c6788555898"
