@@ -1,0 +1,79 @@
+<mujoco>
+    <!-- For memory constraints -->
+    <size njmax="3000" nconmax="1000"/>
+    <option timestep="0.01"/>
+    <default>
+        <geom condim="6" density="1"/>
+        <joint damping=".001"/>
+        <motor ctrlrange="-1 1" ctrllimited="true" forcerange="-.05 .05" forcelimited="true"/>
+        <velocity ctrlrange="-1 1" ctrllimited="true" forcerange="-.05 .05" forcelimited="true"/>
+        <site size="0.032" type="sphere"/>
+    </default>
+    <worldbody>
+        <!-- Visualisation -->
+        <light cutoff="100" diffuse="1 1 1" dir="0 0 -1" directional="true"exponent="1" pos="0 0 0.5" specular="0 0 0" castshadow="false"/>
+        <camera name="fixednear" pos="0 -2 2" zaxis="0 -1 1"/>
+        <camera name="fixedfar" pos="0 -5 5" zaxis="0 -1 1"/>
+        <!-- Floor with material from asset section -->
+        <geom name="floor" type="plane" condim="6" size="5 5 0.1" rgba="1 1 1 1" material="MatPlane"/>
+        <body name="robot" pos="0 0 .1">
+            <!-- <camera name="vision" pos="0 0 .15" xyaxes="0 -1 0 .4 0 1" fovy="90"/> -->
+            <!-- <geom name="camera" pos="-.2 0 0" type="sphere" size=".05"/> -->
+            <joint type="slide" axis="1 0 0" name="x" damping="0.01"/>
+            <joint type="slide" axis="0 1 0" name="y" damping="0.01"/>
+            <joint type="hinge" axis="0 0 1" name="z" damping="0.005"/>
+            <geom name="robot" type="sphere" size=".1" friction="1 0.01 0.01" rgba="1 0 0 1"/>
+            <geom name="pointarrow" pos="0.1 0 0" size="0.05 0.05 0.05" rgba="0 0 1 1" type="box"/>
+            <!-- marker inside robot -->
+            <site name="robot" pos="0 0 0.1" rgba="1 0 0 .1"/>
+        </body>
+        <body name="goal" pos="1 1 0.1">
+            <joint type="slide" axis="1 0 0" name="goal_x"/>
+            <joint type="slide" axis="0 1 0" name="goal_y" />
+            <geom name="goal" type="cylinder" size="0.3 0.1" rgba="0 1 0 0.5" contype="0" conaffinity="0"/>
+            <site name="goal_site" pos="0 0 0.1" size="0.15" type="sphere" rgba="0 1 0 0"/>
+        </body>
+        <body name="vase_0" pos="1.438927460972344 0.46769674899877245 0.1" quat="-0.9130183732396514 0.0 0.0 0.40791843562999286">
+            <freejoint name="vase_0"/>
+            <geom name="vase_0" type="box" size="0.1 0.1 0.1" density="0.001" rgba="0 1 1 1" user="1"/>
+        </body>
+        <body name="vase_1" pos="1.1798326551379281 0.17517805537995867 0.1" quat="-0.3792566347245731 0.0 0.0 0.9252915243410542">
+            <freejoint name="vase_1"/>
+            <geom name="vase_1" type="box" size="0.1 0.1 0.1" density="0.001" rgba="0 1 1 1" user="1"/>
+        </body>
+        <body name="pillar_0" pos="0.7438937106789532 0.5843964204034877 0.5">
+            <geom name="pillar_0" type="capsule" size="0.2 0.5" rgba="0.5 0.5 1.0 1.0" user="1" contype="1" conaffinity="1"/>
+        </body>
+        <body name="hazard_0"  pos="-1.440257179243639 0.02903870076122339 0.02" quat="-0.9953190125466519 0.0 0.0 0.09664400272731813">
+            <geom name="hazard_0" type="cylinder" size="0.2 0.01" rgba="0.0 0.0 1.0 0.25" user="1" contype="0" conaffinity="0"/>
+        </body>
+        <body name="hazard_1"  pos="-1.0791088583958812 0.8789550077307491 0.02" quat="-0.6810379043239667 0.0 0.0 0.7322481634487175">
+            <geom name="hazard_1" type="cylinder" size="0.2 0.01" rgba="0.0 0.0 1.0 0.25" user="1" contype="0" conaffinity="0"/>
+        </body>
+    </worldbody>
+    <sensor>
+        <!-- Used for observation -->
+        <accelerometer site="robot" name="accelerometer"/>
+        <velocimeter site="robot" name="velocimeter"/>
+        <gyro site="robot" name="gyro"/>
+        <magnetometer site="robot" name="magnetometer"/>
+        <!-- Used for intrinsic constraints -->
+        <subtreecom body="robot" name="subtreecom"/>
+        <subtreelinvel body="robot" name="subtreelinvel"/>
+        <subtreeangmom body="robot" name="subtreeangmom"/>
+    </sensor>
+    <actuator>
+        <!-- Force applied to robot frame, not world frame -> the local x-axis is no longer aligned with the world x-axis when rotated -->
+        <motor gear="0.3 0 0 0 0 0" site="robot" name="x"/>
+        <!-- N.B. jointinparent not supported in mjx -->
+        <velocity gear="0.3" joint="z" name="z"/>
+    </actuator>
+    <asset>
+        <texture type="skybox" builtin="gradient" rgb1="0.527 0.582 0.906" rgb2="0.1 0.1 0.35"
+            width="800" height="800" markrgb="1 1 1" mark="random" random="0.001"/>
+        <texture name="texplane" builtin="checker" height="100" width="100"
+            rgb1="0.7 0.7 0.7" rgb2="0.8 0.8 0.8" type="2d"/>
+        <material name="MatPlane" reflectance="0.1" shininess="0.1" specular="0.1"
+            texrepeat="10 10" texture="texplane"/>
+    </asset>
+</mujoco>

@@ -1,22 +1,30 @@
 defaults:
-  - robustness: null
+  - cost_robustness: null
+  - reward_robustness: null
   - penalizer: crpo
+  - propagation: null
 
 name: sac
 learning_rate: 3e-4
 critic_learning_rate: 3e-4
 cost_critic_learning_rate: 3e-4
+alpha_learning_rate: 3e-4
+init_alpha: null
 discounting: 0.99
+min_alpha: 0.
 safety_discounting: 0.99
 batch_size: 256
-num_trajectories_per_env: 1
 normalize_observations: True
 reward_scaling: 1.0
+cost_scaling: 1.0
 tau: 0.005
-min_replay_size: 0
+min_replay_size: 8192
 max_replay_size: 1000000
 grad_updates_per_step: 512
 deterministic_eval: true
-hidden_layer_sizes: [128, 128]
+policy_hidden_layer_sizes: [128, 128]
+value_hidden_layer_sizes: [512, 512]
 activation: swish
-propagation: standard
+use_bro: true
+normalize_budget: true
+reset_on_eval: true

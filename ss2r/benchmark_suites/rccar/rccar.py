@@ -27,7 +27,8 @@ def domain_randomization(sys, rng, cfg):
 
     @jax.vmap
     def randomize(rng):
-        bounds = CarParams(**cfg)
+        bounds = cfg["bounds"]
+        bounds = CarParams(**bounds)
         # Define a custom tree structure that treats lists as leaves
         treedef = jtu.tree_structure(bounds, is_leaf=lambda x: isinstance(x, list))
         # Generate random keys only for the relevant leaves (i.e., lists with 2 elements)
@@ -216,7 +217,7 @@ class RCCar(Env):
         goal_dist = jnp.linalg.norm(next_dynamics_state[:2])
         prev_goal_dist = state.pipeline_state[2]
         reward = prev_goal_dist - goal_dist
-        goal_achieved = jnp.less_equal(goal_dist, 0.3)
+        goal_achieved = jnp.less_equal(goal_dist, 0.35)
         reward += goal_achieved.astype(jnp.float32)
         reward -= jnp.linalg.norm(action) * self.control_penalty_scale
         cost = cost_fn(dynamics_state[..., :2], self.obstacles)

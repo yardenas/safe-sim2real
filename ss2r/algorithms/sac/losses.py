@@ -16,6 +16,7 @@
 
 See: https://arxiv.org/pdf/1812.05905.pdf
 """
+
 from typing import Any, TypeAlias
 
 import jax
@@ -25,7 +26,7 @@ from brax.training.types import Params, PRNGKey
 
 from ss2r.algorithms.sac.networks import SafeSACNetworks
 from ss2r.algorithms.sac.penalizers import Penalizer
-from ss2r.algorithms.sac.robustness import QTransformation, SACBase
+from ss2r.algorithms.sac.robustness import QTransformation
 
 Transition: TypeAlias = types.Transition
 
@@ -33,13 +34,16 @@ Transition: TypeAlias = types.Transition
 def make_losses(
     sac_network: SafeSACNetworks,
     reward_scaling: float,
+    cost_scaling: float,
     discounting: float,
     safety_discounting: float,
     action_size: int,
+    use_bro: bool,
+    init_alpha: float | None,
 ):
     """Creates the SAC losses."""
 
-    target_entropy = -0.5 * action_size
+    target_entropy = -0.5 * action_size if init_alpha is None else init_alpha
     policy_network = sac_network.policy_network
     qr_network = sac_network.qr_network
     qc_network = sac_network.qc_network
@@ -73,21 +77,17 @@ def make_losses(
         alpha: jnp.ndarray,
         transitions: Transition,
         key: PRNGKey,
+        target_q_fn: QTransformation,
         safe: bool = False,
-        target_q_fn: QTransformation = SACBase(),
     ) -> jnp.ndarray:
-        domain_params = transitions.extras["state_extras"].get(
-            "domain_parameters", None
-        )
-        if domain_params is not None:
-            action = jnp.concatenate([transitions.action, domain_params], axis=-1)
-        else:
-            action = transitions.action
+        action = transitions.action
         q_network = qc_network if safe else qr_network
+        scale = cost_scaling if safe else reward_scaling
         gamma = safety_discounting if safe else discounting
         q_old_action = q_network.apply(
             normalizer_params, q_params, transitions.observation, action
         )
+        key, another_key = jax.random.split(key)
 
         def policy(obs: jax.Array) -> tuple[jax.Array, jax.Array]:
             next_dist_params = policy_network.apply(
@@ -106,7 +106,14 @@ def make_losses(
             normalizer_params, target_q_params, obs, action
         )
         target_q = target_q_fn(
-            transitions, q_fn, policy, gamma, domain_params, alpha, reward_scaling
+            transitions,
+            q_fn,
+            policy,
+            gamma,
+            alpha,
+            scale,
+            another_key,
+            use_bro,
         )
         q_error = q_old_action - jnp.expand_dims(target_q, -1)
         # Better bootstrapping for truncated episodes.
@@ -135,17 +142,15 @@ def make_losses(
         )
         log_prob = parametric_action_distribution.log_prob(dist_params, action)
         action = parametric_action_distribution.postprocess(action)
-        domain_params = transitions.extras["state_extras"].get(
-            "domain_parameters", None
-        )
-        if domain_params is not None:
-            action = jnp.concatenate([action, domain_params], axis=-1)
         qr_action = qr_network.apply(
             normalizer_params, qr_params, transitions.observation, action
         )
-        min_qr = jnp.min(qr_action, axis=-1)
+        if use_bro:
+            qr = jnp.mean(qr_action, axis=-1)
+        else:
+            qr = jnp.min(qr_action, axis=-1)
         aux = {}
-        actor_loss = -min_qr.mean()
+        actor_loss = -qr.mean()
         exploration_loss = (alpha * log_prob).mean()
         if qc_params is not None:
             assert qc_network is not None
@@ -153,12 +158,12 @@ def make_losses(
                 normalizer_params, qc_params, transitions.observation, action
             )
             mean_qc = jnp.mean(qc_action, axis=-1)
-            constraint = safety_budget - mean_qc.mean()
+            constraint = safety_budget - mean_qc.mean() / cost_scaling
             actor_loss, penalizer_aux, penalizer_params = penalizer(
                 actor_loss, constraint, jax.lax.stop_gradient(penalizer_params)
             )
             aux["constraint_estimate"] = constraint
-            aux["cost"] = mean_qc.mean()
+            aux["cost"] = mean_qc.mean() / cost_scaling
             aux["penalizer_params"] = penalizer_params
             aux |= penalizer_aux
         actor_loss += exploration_loss

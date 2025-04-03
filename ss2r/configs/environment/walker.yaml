@@ -1,0 +1,23 @@
+defaults:
+  - mujoco_playground_base
+task_name: SafeWalkerWalk
+
+task_params:
+  action_repeat: 1
+  ctrl_dt: 0.025
+  episode_length: 1000
+  sim_dt: 0.0025
+  vision: false
+  joint_velocity_limit: 16.25 # 65 * 0.25 (rad/s)
+
+train_params:
+  torso_length: [0.0, 0.0]
+  friction: [0.0, 0.0]
+  joint_damping: [0.0, 0.0]
+  gear: [0., 20.]
+
+eval_params:
+  torso_length: [-0.75, 0.75]
+  friction: [0., 0.]
+  joint_damping: [0., 0.]
+  gear: [0., 20.]

@@ -1,0 +1,30 @@
+defaults:
+  - mujoco_playground_base
+
+task_name: SafeQuadrupedRun
+task_params:
+  angle_tolerance: -20.
+  action_repeat: 1
+  ctrl_dt: 0.02
+  episode_length: 1000
+  sim_dt: 0.005
+  vision: false
+
+# Sample uniformly around the nominal value
+train_params:
+  torso: [0., 0.]
+  friction: [0., 0.]
+  damping: [0., 0.]
+  gear:
+    lift: [0.75, 1.5]
+    yaw: [1., 1.]
+    extend: [0.75, 1.5]
+
+eval_params:
+  torso: [-300., 300.]
+  friction: [-0.95, 0.]
+  damping: [0., 0.]
+  gear:
+    lift: [0.75, 1.5]
+    yaw: [0.5, 2.]
+    extend: [0.75, 1.5]

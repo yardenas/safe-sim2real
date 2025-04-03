@@ -1,7 +1,9 @@
 # @package _global_
 defaults:
   - override /environment: cartpole
-  - override /agent/robustness: cvar
+  - override /agent/cost_robustness: ucb_cost
+  - override /agent/propagation: ts1
+  - _self_
 
 training:
   num_timesteps: 500000
@@ -10,18 +12,16 @@ training:
   safety_budget: 75
   train_domain_randomization: true
   eval_domain_randomization: true
-  privileged: true
+  value_privileged: true
 
 environment:
   train_params:
-    mass: [-0.09, 0.]
+    gain: [0, 5]
     gear: [0., 0.]
 
   eval_params:
-    mass: [0.0, 0.0]
-    gear: [0., 50.]
+    gain: [0, 0]
+    gear: [0., 300.]
 
 agent:
   grad_updates_per_step: 256
-  num_trajectories_per_env: 128
-  propagation: ts1

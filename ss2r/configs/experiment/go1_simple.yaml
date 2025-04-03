@@ -1,0 +1,10 @@
+# @package _global_
+defaults:
+  - go1_joystick
+  - _self_
+
+training:
+  train_domain_randomization: false
+  eval_domain_randomization: false
+  num_eval_episodes: 1
+  safe: false

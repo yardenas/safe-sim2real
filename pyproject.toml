@@ -17,17 +17,19 @@ dm-control = "^1.0.16"
 dm-env = "^1.6"
 pillow = "^10.2.0"
 moviepy = "^1.0.3"
-safe-adaptation-gym = { git = "https://git@github.com/lasgroup/safe-adaptation-gym.git" }
 jmp = { git = "https://github.com/deepmind/jmp" }
 tensorboard = "^2.16.2"
-jaxlib = {url = "https://storage.googleapis.com/jax-releases/cuda11/jaxlib-0.4.23+cuda11.cudnn86-cp310-cp310-manylinux2014_x86_64.whl", extras = ["cuda11_pip"]}
+jaxlib = { url = "https://storage.googleapis.com/jax-releases/cuda11/jaxlib-0.4.23+cuda11.cudnn86-cp310-cp310-manylinux2014_x86_64.whl", extras = [
+    "cuda11_pip",
+] }
 dm-haiku = "^0.0.12"
 distrax = "^0.1.5"
 jax = "0.4.25"
-brax = "^0.11.0"
+brax = "^0.12.1"
 equinox = "^0.11.4"
 pyqt6 = "^6.7.0"
-
+playground = "^0.0.4"
+mujoco = "3.3.0"
 
 [[tool.poetry.source]]
 name = "PyPI"
@@ -36,20 +38,26 @@ priority = "primary"
 [tool.poetry.group.dev.dependencies]
 mypy = "^1.7.0"
 pre-commit = "^3.5.0"
-ruff = "^0.1.5"
 pytest = "^7.4.3"
 pytest-mock = "^3.12.0"
 types-tabulate = "^0.9.0.20240106"
 seaborn = "^0.13.2"
 ipykernel = "^6.29.4"
-
+tueplots = "^0.0.17"
+ruff = "^0.9.6"
 
 [tool.poetry.group.wandb.dependencies]
 wandb = "^0.16.4"
 
-
 [tool.poetry.group.hydra-submitit.dependencies]
 hydra-submitit-launcher = "^1.2.0"
+
+
+[tool.poetry.group.onnx.dependencies]
+tf2onnx = "^1.16.1"
+tensorflow-cpu = "^2.18.0"
+onnxruntime = "^1.20.1"
+keras = "^3.9.0"
 
 [build-system]
 requires = ["poetry-core"]
@@ -59,6 +67,7 @@ build-backend = "poetry.core.masonry.api"
 line-length = 88
 ignore = ["E731"]
 exclude = [
+    "papers",         # Exclude the papers folder
     ".bzr",
     ".direnv",
     ".eggs",
@@ -96,3 +105,4 @@ disallow_untyped_defs = false
 disallow_subclassing_any = false
 disallow_untyped_calls = false
 strict_optional = true
+exclude = ["./papers"]

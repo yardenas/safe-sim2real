@@ -36,14 +36,16 @@ training:
   safe: true
   safety_budget: 25
   seed: 0
-  num_evals: 25
+  num_evals: 15
   episode_length: 1000
   num_envs: 2048
   num_eval_envs: 128
+  num_eval_episodes: 10
   action_repeat: 1
   render: true
   num_timesteps: 1000000
-  privileged: false
+  value_privileged: false
+  policy_privileged: false
   train_domain_randomization: true
   eval_domain_randomization: true
   store_policy: true
