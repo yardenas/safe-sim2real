@@ -105,7 +105,6 @@ def sci_notation(num, decimal_digits=1, precision=None, exponent=None):
     coeff = round(num / float(10**exponent), decimal_digits)
     if precision is None:
         precision = decimal_digits
-
     return r"${0:.{2}f}\times10^{{{1:d}}}$".format(coeff, exponent, precision)
 
 
