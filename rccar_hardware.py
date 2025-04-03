@@ -35,7 +35,7 @@ def fetch_wandb_policy(run_id):
         observation_size=7,
         action_size=2,
         preprocess_observations_fn=normalize,
-        hidden_layer_sizes=config["agent"]["hidden_layer_sizes"],
+        policy_hidden_layer_sizes=config["agent"]["policy_hidden_layer_sizes"],
         activation=activation,
     )
     make_policy = make_inference_fn(sac_network)
