@@ -38,7 +38,7 @@ def play_recorded_trajectory(actions, env):
     return trajectory
 
 
-@hydra.main(version_base=None, config_path="ss2r/configs", config_name="check_rccar")
+@hydra.main(version_base=None, config_path="../ss2r/configs", config_name="check_rccar")
 def main(cfg):
     baseline_trajectory = load_trajectory(cfg.baseline_trajectory)
     check_trajectory = load_trajectory(cfg.check_trajectory)

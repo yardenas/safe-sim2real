@@ -35,8 +35,8 @@ from brax.v1 import envs as envs_v1
 
 import ss2r.algorithms.sac.losses as sac_losses
 import ss2r.algorithms.sac.networks as sac_networks
+from ss2r.algorithms.penalizers import Penalizer
 from ss2r.algorithms.sac import gradients
-from ss2r.algorithms.sac.penalizers import Penalizer
 from ss2r.algorithms.sac.robustness import QTransformation, SACBase, SACCost, UCBCost
 from ss2r.rl.evaluation import ConstraintsEvaluator
 
@@ -650,8 +650,9 @@ def train(
         ) = training_epoch_with_timing(
             training_state, env_state, buffer_state, epoch_key
         )
-        reset_keys = jax.random.split(epoch_key, num_envs)
-        env_state = reset_fn(reset_keys)
+        if reset_on_eval:
+            reset_keys = jax.random.split(epoch_key, num_envs)
+            env_state = reset_fn(reset_keys)
         current_step = int(training_state.env_steps)
 
         # Eval and logging

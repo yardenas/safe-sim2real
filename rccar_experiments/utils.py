@@ -69,8 +69,8 @@ def make_env(cfg, controller=None):
     task_cfg = dict(get_task_config(cfg))
     task_cfg.pop("domain_name")
     task_cfg.pop("task_name")
-    train_car_params = task_cfg.pop("train_car_params")
-    task_cfg.pop("eval_car_params")
+    train_car_params = task_cfg.pop("train_params")
+    task_cfg.pop("eval_params")
     if controller is not None:
         dynamics = hardware.HardwareDynamics(controller=controller)
     else:

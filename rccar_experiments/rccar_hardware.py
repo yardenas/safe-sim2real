@@ -35,7 +35,7 @@ def fetch_wandb_policy(run_id):
         observation_size=7,
         action_size=2,
         preprocess_observations_fn=normalize,
-        hidden_layer_sizes=config["agent"]["hidden_layer_sizes"],
+        policy_hidden_layer_sizes=config["agent"]["policy_hidden_layer_sizes"],
         activation=activation,
     )
     make_policy = make_inference_fn(sac_network)
@@ -55,16 +55,21 @@ def save_trajectory(trajectory, path):
         pickle.dump(trajectory, f)
 
 
-@hydra.main(version_base=None, config_path="ss2r/configs", config_name="rccar_hardware")
+@hydra.main(
+    version_base=None, config_path="../ss2r/configs", config_name="rccar_hardware"
+)
 def main(cfg):
     traj_count = 0
     rng = jax.random.PRNGKey(cfg.seed)
     logger = TrainingLogger(cfg)
-    with hardware.connect(
-        car_id=cfg.car_id,
-        port_number=cfg.port_number,
-        control_frequency=cfg.control_frequency,
-    ) as controller, jax.disable_jit():
+    with (
+        hardware.connect(
+            car_id=cfg.car_id,
+            port_number=cfg.port_number,
+            control_frequency=cfg.control_frequency,
+        ) as controller,
+        jax.disable_jit(),
+    ):
         if cfg.policy_id is not None:
             assert cfg.playback_policy is None
             policy_fn = fetch_wandb_policy(cfg.policy_id)
