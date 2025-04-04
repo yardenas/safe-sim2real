@@ -11,6 +11,7 @@ training:
   eval_domain_randomization: false
   safety_budget: 100
   num_eval_episodes: 1
+  num_envs: 2048
 
 agent:
   reward_scaling: 10.0
@@ -21,5 +22,4 @@ agent:
   discounting: 0.995
   learning_rate: 0.001
   entropy_cost: 0.01
-  num_envs: 2048
   batch_size: 1024
