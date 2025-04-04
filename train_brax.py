@@ -9,13 +9,15 @@ from omegaconf import OmegaConf
 
 import ss2r.algorithms.sac.networks as sac_networks
 from ss2r import benchmark_suites
-from ss2r.algorithms.sac import robustness as rb
-from ss2r.algorithms.sac.penalizers import (
+from ss2r.algorithms.penalizers import (
     CRPO,
     AugmentedLagrangian,
+    AugmentedLagrangianParams,
     CRPOParams,
+    Lagrangian,
     LagrangianParams,
 )
+from ss2r.algorithms.sac import robustness as rb
 from ss2r.algorithms.sac.wrappers import PTSD, ModelDisagreement
 from ss2r.common.logging import TrainingLogger
 
@@ -30,13 +32,22 @@ def get_state_path() -> str:
 def get_penalizer(cfg):
     if cfg.agent.penalizer.name == "lagrangian":
         penalizer = AugmentedLagrangian(cfg.agent.penalizer.penalty_multiplier_factor)
-        penalizer_state = LagrangianParams(
+        penalizer_state = AugmentedLagrangianParams(
             cfg.agent.penalizer.lagrange_multiplier,
             cfg.agent.penalizer.penalty_multiplier,
         )
     elif cfg.agent.penalizer.name == "crpo":
         penalizer = CRPO(cfg.agent.penalizer.eta)
         penalizer_state = CRPOParams(cfg.agent.penalizer.burnin)
+    elif cfg.agent.penalizer.name == "ppo_lagrangian":
+        penalizer = Lagrangian(cfg.agent.penalizer.multiplier_lr)
+        init_lagrange_multiplier = jax.numpy.log(
+            jax.numpy.exp(cfg.agent.penalizer.initial_lagrange_multiplier) - 1.0
+        )
+        penalizer_state = LagrangianParams(
+            init_lagrange_multiplier,
+            penalizer.optimizer.init(init_lagrange_multiplier),
+        )
     else:
         raise ValueError(f"Unknown penalizer {cfg.agent.penalizer.name}")
     return penalizer, penalizer_state
@@ -162,8 +173,9 @@ def get_train_fn(cfg):
         )
     elif cfg.agent.name == "ppo":
         import jax.nn as jnn
-        from brax.training.agents.ppo import networks as ppo_networks
-        from brax.training.agents.ppo import train as ppo
+
+        from ss2r.algorithms.ppo import networks as ppo_networks
+        from ss2r.algorithms.ppo import train as ppo
 
         agent_cfg = dict(cfg.agent)
         training_cfg = {
@@ -213,8 +225,16 @@ def get_train_fn(cfg):
             **training_cfg,
             network_factory=network_factory,
             restore_checkpoint_path=f"{get_state_path()}/ckpt",
-            wrap_env=False,
+            penalizer=penalizer,
+            penalizer_params=penalizer_params,
         )
+        cost_robustness = get_cost_robustness(cfg)
+        # TODO (yarden): that's a hack for now. Need to think of a
+        # better way to implement this.
+        if isinstance(cost_robustness, rb.UCBCost):
+            train_fn = functools.partial(
+                train_fn, use_ptsd=True, ptsd_lambda=cost_robustness.lambda_
+            )
     else:
         raise ValueError(f"Unknown agent name: {cfg.agent.name}")
     return train_fn
