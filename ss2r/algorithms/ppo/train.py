@@ -71,6 +71,7 @@ def train(
     num_envs: int = 1,
     max_devices_per_host: Optional[int] = None,
     num_eval_envs: int = 128,
+    num_eval_episodes: int = 10,
     learning_rate: float = 1e-4,
     entropy_cost: float = 1e-4,
     discounting: float = 0.9,
@@ -312,6 +313,7 @@ def train(
         action_repeat=action_repeat,
         key=eval_key,
         budget=original_safety_budget,
+        num_episodes=num_eval_episodes,
     )
 
     # Run initial eval
