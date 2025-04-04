@@ -26,7 +26,7 @@ import jax.numpy as jnp
 import numpy as np
 import optax
 from absl import logging
-from brax import base, envs
+from brax import envs
 from brax.training import pmap, types
 from brax.training.acme import running_statistics, specs
 from brax.training.types import Params, PRNGKey
@@ -67,7 +67,6 @@ def train(
     num_timesteps: int,
     episode_length: int,
     update_step_factory: TrainingStepFactory = ppo_training_step.update_fn,
-    wrap_env: bool = True,
     action_repeat: int = 1,
     num_envs: int = 1,
     num_trajectories_per_env: int = 1,
@@ -98,14 +97,13 @@ def train(
     normalize_advantage: bool = True,
     eval_env: Optional[envs.Env] = None,
     policy_params_fn: Callable[..., None] = lambda *args: None,
-    randomization_fn: Optional[
-        Callable[[base.System, jnp.ndarray], Tuple[base.System, base.System]]
-    ] = None,
     restore_checkpoint_path: Optional[str] = None,
     safety_budget: float = float("inf"),
     penalizer: Penalizer | None = None,
     penalizer_params: Params | None = None,
     safe: bool = False,
+    use_ptsd: bool = False,
+    ptsd_lambda: float = 0.0,
 ):
     assert batch_size * num_minibatches % num_envs == 0
     if not safe:
@@ -156,30 +154,8 @@ def train(
     # way for different processes.
     key_policy, key_value = jax.random.split(global_key, 2)
     del global_key
-
     assert num_envs % device_count == 0
-
     env = environment
-    if wrap_env:
-        v_randomization_fn = None
-        if randomization_fn is not None:
-            randomization_batch_size = num_envs // local_device_count
-            # all devices gets the same randomization rng
-            randomization_rng = jax.random.split(key_env, randomization_batch_size)
-            v_randomization_fn = functools.partial(
-                randomization_fn, rng=randomization_rng
-            )
-        if isinstance(environment, envs.Env):
-            wrap_for_training = envs.training.wrap
-        else:
-            wrap_for_training = envs_v1.wrappers.wrap_for_training
-        env = wrap_for_training(
-            environment,
-            episode_length=episode_length,
-            action_repeat=action_repeat,
-            randomization_fn=v_randomization_fn,
-        )
-
     env = TrackOnlineCosts(env)
     reset_fn = jax.jit(jax.vmap(jax.vmap(env.reset)))
     key_envs = jax.random.split(
@@ -190,7 +166,6 @@ def train(
         (local_devices_to_use, num_trajectories_per_env, -1) + key_envs.shape[1:],
     )
     env_state = reset_fn(key_envs)
-
     normalize = lambda x, y: x
     if normalize_observations:
         normalize = running_statistics.normalize
@@ -213,14 +188,9 @@ def train(
         normalize_advantage=normalize_advantage,
         penalizer=penalizer,
         penalizer_params=penalizer_params,
-    )
-    compute_constraint = functools.partial(
-        ppo_losses.compute_constraint,
-        ppo_network=ppo_network,
-        cost_scaling=cost_scaling,
         safety_budget=safety_budget,
-        safety_discounting=safety_discounting,
-        safety_gae_lambda=safety_gae_lambda,
+        use_ptsd=use_ptsd,
+        ptsd_lambda=ptsd_lambda,
     )
     training_step = update_step_factory(
         loss_fn,
@@ -229,13 +199,12 @@ def train(
         unroll_length,
         num_minibatches,
         make_policy,
-        compute_constraint,
-        penalizer.update if penalizer is not None else None,
         num_updates_per_batch,
         batch_size,
         num_envs,
         env_step_per_training_step,
         safe,
+        use_ptsd,
     )
 
     def training_epoch(
@@ -332,20 +301,6 @@ def train(
     training_state = jax.device_put_replicated(
         training_state, jax.local_devices()[:local_devices_to_use]
     )
-
-    if not eval_env:
-        eval_env = environment
-    if wrap_env:
-        if randomization_fn is not None:
-            v_randomization_fn = functools.partial(
-                randomization_fn, rng=jax.random.split(eval_key, num_eval_envs)
-            )
-        eval_env = wrap_for_training(
-            eval_env,
-            episode_length=episode_length,
-            action_repeat=action_repeat,
-            randomization_fn=v_randomization_fn,
-        )
     evaluator = ConstraintsEvaluator(
         eval_env,
         functools.partial(make_policy, deterministic=deterministic_eval),

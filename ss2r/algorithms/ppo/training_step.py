@@ -18,13 +18,12 @@ def update_fn(
     unroll_length,
     num_minibatches,
     make_policy,
-    compute_constraint,
-    update_penalizer_state,
     num_updates_per_batch,
     batch_size,
     num_envs,
     env_step_per_training_step,
     safe,
+    use_ptsd,
 ):
     gradient_update_fn = gradients.gradient_update_fn(
         loss_fn, optimizer, pmap_axis_name=_PMAP_AXIS_NAME, has_aux=True
@@ -37,23 +36,14 @@ def update_fn(
     ):
         optimizer_state, params, penalizer_params, key = carry
         key, key_loss = jax.random.split(key)
-        if safe:
-            constraint = compute_constraint(params, data, normalizer_params)
-        else:
-            constraint = None
         (_, aux), params, optimizer_state = gradient_update_fn(
             params,
             normalizer_params,
             data,
             key_loss,
-            constraint,
             optimizer_state=optimizer_state,
         )
-        if safe:
-            penalizer_aux, penalizer_params = update_penalizer_state(
-                constraint, penalizer_params
-            )
-            aux |= penalizer_aux
+        penalizer_params = aux.pop("penalizer_params", None)
         return (optimizer_state, params, penalizer_params, key), aux
 
     def sgd_step(
@@ -95,6 +85,8 @@ def update_fn(
         extra_fields = ("truncation",)
         if safe:
             extra_fields += ("cost", "cumulative_cost")  # type: ignore
+        if use_ptsd:
+            extra_fields += ("disagreement",)  # type: ignore
 
         def f(carry, unused_t):
             current_state, current_key = carry

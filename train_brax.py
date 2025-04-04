@@ -165,8 +165,9 @@ def get_train_fn(cfg):
         )
     elif cfg.agent.name == "ppo":
         import jax.nn as jnn
-        from brax.training.agents.ppo import networks as ppo_networks
-        from brax.training.agents.ppo import train as ppo
+
+        from ss2r.algorithms.ppo import networks as ppo_networks
+        from ss2r.algorithms.ppo import train as ppo
 
         agent_cfg = dict(cfg.agent)
         training_cfg = {
@@ -210,14 +211,24 @@ def get_train_fn(cfg):
             policy_obs_key=policy_obs_key,
         )
         penalizer, penalizer_params = get_penalizer(cfg)
+        agent_cfg.pop("penalizer")
         train_fn = functools.partial(
             ppo.train,
             **agent_cfg,
             **training_cfg,
             network_factory=network_factory,
             restore_checkpoint_path=f"{get_state_path()}/ckpt",
+            penalizer=penalizer,
+            penalizer_params=penalizer_params,
             wrap_env=False,
         )
+        cost_robustness = get_cost_robustness(cfg)
+        # TODO (yarden): that's a hack for now. Need to think of a
+        # better way to implement this.
+        if isinstance(cost_robustness, rb.UCBCost):
+            train_fn = functools.partial(
+                train_fn, use_ptsd=True, ptsd_lambda=cost_robustness.lambda_
+            )
     else:
         raise ValueError(f"Unknown agent name: {cfg.agent.name}")
     return train_fn

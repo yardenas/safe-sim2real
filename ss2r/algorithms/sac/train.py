@@ -650,8 +650,9 @@ def train(
         ) = training_epoch_with_timing(
             training_state, env_state, buffer_state, epoch_key
         )
-        reset_keys = jax.random.split(epoch_key, num_envs)
-        env_state = reset_fn(reset_keys)
+        if reset_on_eval:
+            reset_keys = jax.random.split(epoch_key, num_envs)
+            env_state = reset_fn(reset_keys)
         current_step = int(training_state.env_steps)
 
         # Eval and logging
