@@ -69,7 +69,6 @@ def train(
     update_step_factory: TrainingStepFactory = ppo_training_step.update_fn,
     action_repeat: int = 1,
     num_envs: int = 1,
-    num_trajectories_per_env: int = 1,
     max_devices_per_host: Optional[int] = None,
     num_eval_envs: int = 128,
     learning_rate: float = 1e-4,
@@ -88,6 +87,7 @@ def train(
     cost_scaling: float = 1.0,
     clipping_epsilon: float = 0.3,
     gae_lambda: float = 0.95,
+    max_grad_norm: Optional[float] = None,
     safety_gae_lambda: float = 0.95,
     deterministic_eval: bool = False,
     network_factory: types.NetworkFactory[
@@ -158,12 +158,10 @@ def train(
     env = environment
     env = TrackOnlineCosts(env)
     reset_fn = jax.jit(jax.vmap(jax.vmap(env.reset)))
-    key_envs = jax.random.split(
-        key_env, num_trajectories_per_env * num_envs // process_count
-    )
+    key_envs = jax.random.split(key_env, num_envs // process_count)
     key_envs = jnp.reshape(
         key_envs,
-        (local_devices_to_use, num_trajectories_per_env, -1) + key_envs.shape[1:],
+        (local_devices_to_use, -1) + key_envs.shape[1:],
     )
     env_state = reset_fn(key_envs)
     normalize = lambda x, y: x
@@ -174,6 +172,11 @@ def train(
     )
     make_policy = ppo_networks.make_inference_fn(ppo_network)
     optimizer = optax.adam(learning_rate=learning_rate)
+    if max_grad_norm is None:
+        optimizer = optax.chain(
+            optax.clip_by_global_norm(max_grad_norm),
+            optax.adam(learning_rate=learning_rate),
+        )
     loss_fn = functools.partial(
         ppo_losses.compute_ppo_loss,
         ppo_network=ppo_network,
@@ -342,13 +345,10 @@ def train(
             )
             current_step = int(_unpmap(training_state.env_steps))
             key_env, tmp_key = jax.random.split(key_env)
-            key_envs = jax.random.split(
-                tmp_key, num_trajectories_per_env * num_envs // process_count
-            )
+            key_envs = jax.random.split(tmp_key, num_envs // process_count)
             key_envs = jnp.reshape(
                 key_envs,
-                (local_devices_to_use, num_trajectories_per_env, -1)
-                + key_envs.shape[1:],
+                (local_devices_to_use, -1) + key_envs.shape[1:],
             )
             # TODO: move extra reset logic to the AutoResetWrapper.
             env_state = reset_fn(key_envs) if num_resets_per_eval > 0 else env_state

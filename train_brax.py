@@ -15,6 +15,7 @@ from ss2r.algorithms.penalizers import (
     AugmentedLagrangianParams,
     CRPOParams,
     Lagrangian,
+    LagrangianParams,
 )
 from ss2r.algorithms.sac import robustness as rb
 from ss2r.algorithms.sac.wrappers import PTSD, ModelDisagreement
@@ -39,7 +40,14 @@ def get_penalizer(cfg):
         penalizer = CRPO(cfg.agent.penalizer.eta)
         penalizer_state = CRPOParams(cfg.agent.penalizer.burnin)
     elif cfg.agent.penalizer.name == "ppo_lagrangian":
-        penalizer = Lagrangian(cfg.agent.penalizer.lagrange_multiplier)
+        penalizer = Lagrangian(cfg.agent.penalizer.multiplier_lr)
+        init_lagrange_multiplier = jax.numpy.log(
+            jax.numpy.exp(cfg.agent.penalizer.initial_lagrange_multiplier) - 1.0
+        )
+        penalizer_state = LagrangianParams(
+            init_lagrange_multiplier,
+            penalizer.optimizer.init(init_lagrange_multiplier),
+        )
     else:
         raise ValueError(f"Unknown penalizer {cfg.agent.penalizer.name}")
     return penalizer, penalizer_state
@@ -211,7 +219,6 @@ def get_train_fn(cfg):
             policy_obs_key=policy_obs_key,
         )
         penalizer, penalizer_params = get_penalizer(cfg)
-        agent_cfg.pop("penalizer")
         train_fn = functools.partial(
             ppo.train,
             **agent_cfg,
