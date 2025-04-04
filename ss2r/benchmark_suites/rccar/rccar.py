@@ -219,6 +219,7 @@ class RCCar(Env):
         reward = prev_goal_dist - goal_dist
         goal_achieved = jnp.less_equal(goal_dist, 0.35)
         reward += goal_achieved.astype(jnp.float32)
+        reward -= jnp.linalg.norm(action) * self.control_penalty_scale
         cost = cost_fn(dynamics_state[..., :2], self.obstacles)
         # FIXME (yarden): this is great for sim, but what about real?
         # One way: don't override the state in that case, but let it collide in reality, just compute costs here.
