@@ -38,6 +38,11 @@ class State:
     info: Dict[str, Any]
 
 
+class ObjectSpec(NamedTuple):
+    keepout: float
+    num_objects: int
+
+
 def geoms_colliding(state: mjx.Data, geom1: int, geom2: int) -> jax.Array:
     """Return True if the two geoms are colliding."""
     return get_collision_info(state.contact, geom1, geom2)[0] < 0
@@ -55,25 +60,71 @@ def get_collision_info(
     return dist, normal
 
 
-def build_arena(spec: mj.MjSpec, visualize: bool = False):
+def build_arena(
+    spec: mj.MjSpec,
+    layout: dict[str, list[tuple[int, jax.Array]]],
+    visualize: bool = False,
+):
     """Build the arena (currently, just adds Lidar rings). Future: dynamically add obstacles, hazards, objects, goal here"""
     if visualize:
         lidar.add_lidar_rings(spec)
+
+    vases_spec = layout["vases"]
+    for i, (_, xy) in enumerate(vases_spec):
+        name = f"vase_{i}"
+        xyz = jp.hstack([xy, 0.1])
+        volume = 0.1**3
+        density = 0.001
+        vase = spec.worldbody.add_body(name=name, pos=xyz, mass=volume * density)
+        geom = dict(
+            type=mujoco.mjtGeom.mjGEOM_BOX,
+            size=[0.1, 0.1, 0.1],
+            rgba=[0, 1, 1, 1],
+            userdata=jp.ones(1),
+        )
+        vase.add_geom(name=f"{name}_geom", **geom)
+        vase.add_freejoint()
+    hazards_spec = layout["hazards"]
+    for i, (_, xy) in enumerate(hazards_spec):
+        name = f"hazard_{i}"
+        geom = dict(
+            type=mujoco.mjtGeom.mjGEOM_CYLINDER,
+            size=[0.2, 0.01, 0],
+            rgba=[0.0, 0.0, 1.0, 0.25],
+            userdata=jp.ones(1),
+            contype=jp.zeros(()),
+            conaffinity=jp.zeros(()),
+        )
+        xyz = jp.hstack([xy, 2e-2])
+        hazard = spec.worldbody.add_body(name=name, pos=xyz)
+        hazard.add_geom(name=f"{name}_geom", **geom)
+    goal_pos = layout["goal"][0][1]
+    xyz = jp.hstack([goal_pos, 0.3 / 2.0 + 1e-2])
+    goal = spec.worldbody.add_body(name="goal", pos=xyz, mocap=True)
+    goal.add_geom(
+        name="goal_geom",
+        type=mujoco.mjtGeom.mjGEOM_CYLINDER,
+        size=[0.3, 0.15, 0],
+        rgba=[0, 1, 0, 0.5],
+        contype=jp.zeros(()),
+        conaffinity=jp.zeros(()),
+    )
 
 
 # TODO (yarden): should not depend on mujoco playground eventually
 class GoToGoal(mjx_env.MjxEnv):
     def __init__(self, visualize_lidar: bool = False):
-        mjSpec: mj.MjSpec = mj.MjSpec.from_file(filename=str(_XML_PATH), assets={})
-        build_arena(mjSpec, visualize=visualize_lidar)
-        self._mj_model = mjSpec.compile()
-        self._mjx_model = mjx.put_model(self._mj_model)
-        # FIXME (yarden): make sure to handle the sizes of the vases/hazards
         self.spec = {
             "goal": ObjectSpec(0.3, 1),
             "hazards": ObjectSpec(0.18, 10),
             "vases": ObjectSpec(0.15, 10),
         }
+        mj_spec: mj.MjSpec = mj.MjSpec.from_file(filename=str(_XML_PATH), assets={})
+        layout = _sample_layout(jax.random.PRNGKey(0), self.spec)
+        build_arena(mj_spec, layout, visualize=visualize_lidar)
+        self._mj_model = mj_spec.compile()
+        self._mjx_model = mjx.put_model(self._mj_model)
+        # FIXME (yarden): make sure to handle the sizes of the vases/hazards
         self._post_init()
 
     def _post_init(self) -> None:
@@ -262,11 +313,6 @@ class GoToGoal(mjx_env.MjxEnv):
 
 def _rot2quat(theta):
     return jp.array([jp.cos(theta / 2), 0, 0, jp.sin(theta / 2)])
-
-
-class ObjectSpec(NamedTuple):
-    keepout: float
-    num_objects: int
 
 
 def placement_is_valid(xy, object_keepout, other_xy, other_keepout):
