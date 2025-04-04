@@ -11,6 +11,7 @@ action_delay: 0
 sliding_window: 0
 sample_init_pose: true
 control_penalty_scale: 0.01
+last_action_penalty_scale: 0.
 
 train_params:
   nominal:
