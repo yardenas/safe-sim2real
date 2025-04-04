@@ -1,5 +1,6 @@
 # %%
 import warnings
+from math import floor, log10
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -120,8 +121,21 @@ aggregated_data["normalized_episode_reward"] = aggregated_data.apply(
     axis=1,
 )
 
+budgets = {
+    "RaceCar": 5,
+    "SafeCartpoleSwingup": 100,
+    "SafeHumanoidWalk": 100,
+    "SafeQuadrupedRun": 100,
+    "SafeWalkerWalk": 100,
+}
+
+aggregated_data["normalized_episode_cost"] = aggregated_data.apply(
+    lambda row: row["eval/episode_cost"] / budgets[row["environment"]], axis=1
+)
 
 # %%
+
+
 def draw_optimum(ax, x, y):
     ax.scatter(
         x,
@@ -133,6 +147,34 @@ def draw_optimum(ax, x, y):
         linewidth=0.5,
         label="Optimum on $\mathcal{{M}}^\star$",
     )
+
+
+def sci_notation(
+    num,
+    decimal_digits=1,
+    precision=None,
+    exponent=None,
+    disable_scaling=False,
+    prefix="",
+):
+    """
+    Returns a string representation of the scientific
+    notation of the given number formatted for use with
+    LaTeX or Mathtext, with specified number of significant
+    decimal digits and precision (number of decimal digits
+    to show). The exponent to be used can also be specified
+    explicitly.
+    """
+    if num == 0:
+        return f"${prefix}0$"
+    if exponent is None:
+        exponent = int(floor(log10(abs(num))))
+    coeff = round(num / float(10**exponent), decimal_digits)
+    if precision is None:
+        precision = decimal_digits
+    if disable_scaling:
+        return rf"${prefix}{coeff * 10**exponent:.{precision}f}$"
+    return rf"${prefix}{coeff:.{precision}f}\times10^{{{exponent:d}}}$"
 
 
 def fill_unsafe(ax, x):
@@ -148,7 +190,7 @@ fig = plt.figure()
 marker_styles = ["o", "x", "^", "s", "*"]
 so.Plot(
     aggregated_data[aggregated_data["category"] != "simple"],
-    x="eval/episode_cost",
+    x="normalized_episode_cost",
     y="normalized_episode_reward",
     marker="category",
     color="category",
@@ -183,19 +225,13 @@ so.Plot(
 axes = fig.get_axes()
 optimum = (
     aggregated_data[aggregated_data["category"] == "simple"]
-    .groupby("environment")[["normalized_episode_reward", "eval/episode_cost"]]
+    .groupby("environment")[["normalized_episode_reward", "normalized_episode_cost"]]
     .median()
 )
-budgets = {
-    "RaceCar": 5,
-    "SafeCartpoleSwingup": 100,
-    "SafeHumanoidWalk": 100,
-    "SafeQuadrupedRun": 100,
-    "SafeWalkerWalk": 100,
-}
+
 opts = {
     k: (
-        optimum.loc[k]["eval/episode_cost"],
+        optimum.loc[k]["normalized_episode_cost"],
         optimum.loc[k]["normalized_episode_reward"],
     )
     for k in budgets.keys()
@@ -204,26 +240,31 @@ scale = lambda x: [y * 1 / 1.1 for y in x]
 for i, (ax, env_name) in enumerate(zip(axes, budgets.keys())):
     ax.grid(True, linewidth=0.5, c="gainsboro", zorder=0)
     draw_optimum(ax, *opts[env_name])
-    fill_unsafe(ax, budgets[env_name])
+    fill_unsafe(ax, 1.0)
     ax.axvline(
-        x=budgets[env_name],
+        x=1.0,
         color="black",
         alpha=0.2,
         linestyle=(0, (1, 1)),
         linewidth=1.25,
     )
+
     xticks = xlims = ax.get_xlim()
     xticks = ax.get_xticks()
-    xticks = list(xticks) + [budgets[env_name]]
-    xticks = sorted(set(xticks))
+    xticks = list(xticks) + [1.0]
     if i == 0:
-        xticks.remove(10)
+        xticks.remove(2.5)
+    xticks = sorted(set(xticks))
     xtick_labels = [
-        str(int(tick)) if tick != budgets[env_name] else "Budget" for tick in xticks
+        sci_notation(tick, disable_scaling=True, prefix=r"\times")
+        if tick != 1.0
+        else "Budget"
+        for tick in xticks
     ]
     ax.set_xticks(xticks)
     ax.set_xticklabels(xtick_labels)
     ax.set_xlim(xlims)
+    ax.set_ylim(-0.05, 1.075)
 
 axes[0].annotate(
     "Unsafe",
