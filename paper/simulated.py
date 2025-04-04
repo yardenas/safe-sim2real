@@ -41,30 +41,56 @@ def config_to_category(config):
         return "simple"
 
 
+task_to_best_tightening = {
+    "SafeQuadrupedRun": 5,
+    "SafeCartpoleSwingup": 5,
+    "SafeWalkerWalk": 50,
+    "SafeHumanoidWalk": 25,
+    "RaceCar": 0,
+}
+
+
+def handle_run(run):
+    metrics = run.history(
+        keys=["eval/episode_reward", "eval/episode_cost", "_step"],
+        x_axis="_step",
+        pandas=False,
+    )
+    safe = run.config["training"]["safe"]
+    if not safe:
+        return
+    config = run.config
+    environment = config["environment"]["task_name"]
+    metrics = pd.DataFrame(metrics)
+    if environment == "rccar":
+        environment = "RaceCar"
+    if (
+        "apr04-righten" in config["wandb"]["notes"]
+        or "apr04-tighten" in config["wandb"]["notes"]
+    ):
+        if config["training"]["safety_budget"] != task_to_best_tightening[environment]:
+            return
+        else:
+            category = "tightening"
+    else:
+        category = config_to_category(config)
+    seed = config["training"]["seed"]
+    return metrics, seed, category, environment
+
+
 def walk_wandb_runs(project, filters):
     runs = api.runs(project, filters=filters)
     print(f"Fetching {len(runs)} runs")
     for run in runs:
-        metrics = run.history(
-            keys=["eval/episode_reward", "eval/episode_cost", "_step"],
-            x_axis="_step",
-            pandas=False,
-        )
-        safe = run.config["training"]["safe"]
-        if not safe:
+        out = handle_run(run)
+        if out is None:
             continue
-        metrics = pd.DataFrame(metrics)
-        seed = run.config["training"]["seed"]
-        category = config_to_category(run.config)
-        environment = run.config["environment"]["task_name"]
-        if environment == "rccar":
-            environment = "RaceCar"
-        yield metrics, seed, category, environment
+        yield out
 
 
 filters = {
     "display_name": {
-        "$regex": "apr01-nominal-aga$|apr01-dr-aga$|apr01-ptsd-aga|mar28-simple-aga|apr01-ramu-aga"
+        "$regex": "apr01-nominal-aga$|apr01-dr-aga$|apr01-ptsd-aga|mar28-simple-aga|apr01-ramu-aga|apr04-tighten-aga|apr04-righten-aga"
     }
 }
 
@@ -186,9 +212,11 @@ so.Plot(
             "#994E95",
             "#666666",
         ],
-        order=["ptsd", "ramu", "dr", "nominal"],
+        order=["ptsd", "ramu", "dr", "nominal", "tightening"],
     ),
-    marker=so.Nominal(values=marker_styles, order=["ptsd", "ramu", "dr", "nominal"]),
+    marker=so.Nominal(
+        values=marker_styles, order=["ptsd", "ramu", "dr", "nominal", "tightening"]
+    ),
 ).label(
     x=r"$\hat{C}(\pi)$",
     y=r"$\hat{J}(\pi)$",
@@ -268,6 +296,7 @@ text = {
     "ptsd": "\sf PTSD",
     "dr": "\sf Domain Randomization",
     "nominal": "\sf Nominal",
+    "tightening": "\sf Tightening",
 }
 
 optimum_handle, optimum_label = ax.get_legend_handles_labels()
@@ -283,7 +312,7 @@ fig.legend(
     [text[t.get_text()] for t in legend.texts] + optimum_label,
     loc="center",
     bbox_to_anchor=(0.5, 1.05),
-    ncol=5,
+    ncol=6,
     frameon=False,
     handletextpad=0.25,
     handlelength=1.0,
