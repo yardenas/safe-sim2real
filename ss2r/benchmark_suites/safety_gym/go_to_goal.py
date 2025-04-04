@@ -70,6 +70,10 @@ def build_arena(
         lidar.add_lidar_rings(spec)
 
     vases_spec = layout["vases"]
+    maybe_floor = spec.worldbody.geoms[0]
+    assert maybe_floor.name == "floor"
+    size = max(_EXTENTS)
+    maybe_floor.size = jp.array([size + 0.1, size + 0.1, 0.1])
     for i, (_, xy) in enumerate(vases_spec):
         name = f"vase_{i}"
         xyz = jp.hstack([xy, 0.1])
@@ -105,7 +109,7 @@ def build_arena(
         name="goal_geom",
         type=mujoco.mjtGeom.mjGEOM_CYLINDER,
         size=[0.3, 0.15, 0],
-        rgba=[0, 1, 0, 0.5],
+        rgba=[0, 1, 0, 0.25],
         contype=jp.zeros(()),
         conaffinity=jp.zeros(()),
     )
@@ -123,6 +127,8 @@ class GoToGoal(mjx_env.MjxEnv):
         layout = _sample_layout(jax.random.PRNGKey(0), self.spec)
         build_arena(mj_spec, layout, visualize=visualize_lidar)
         self._mj_model = mj_spec.compile()
+        path = epath.Path(__file__).parent / "test.xml"
+        mj_spec.to_file(str(path))
         self._mjx_model = mjx.put_model(self._mj_model)
         # FIXME (yarden): make sure to handle the sizes of the vases/hazards
         self._post_init()
@@ -352,11 +358,11 @@ def _sample_layout(
     all_keepouts = jp.zeros(num_objects)
     layout = defaultdict(list)
     flat_idx = 0
-    for j, (name, object_spec) in enumerate(objects_spec.items()):
+    for _, (name, object_spec) in enumerate(objects_spec.items()):
         rng, rng_ = jax.random.split(rng)
         keys = jax.random.split(rng_, object_spec.num_objects)
-        for i, key in enumerate(keys):
-            xy, _ = draw_until_valid(
+        for _, key in enumerate(keys):
+            xy, iter_ = draw_until_valid(
                 key, object_spec.keepout, all_placements, all_keepouts
             )
             # TODO (yarden): technically should quit if not valid sampling.
@@ -364,6 +370,8 @@ def _sample_layout(
             all_keepouts = all_keepouts.at[flat_idx].set(object_spec.keepout)
             layout[name].append((flat_idx, xy))
             flat_idx += 1
+            if iter_ >= 1000:
+                print("Failed to find a valid sample for", name)
     return layout
 
 
