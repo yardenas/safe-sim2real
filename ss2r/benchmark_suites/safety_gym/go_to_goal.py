@@ -113,13 +113,15 @@ def build_arena(
         contype=jp.zeros(()),
         conaffinity=jp.zeros(()),
     )
+    # TODO: add site to goal
 
 
 # TODO (yarden): should not depend on mujoco playground eventually
 class GoToGoal(mjx_env.MjxEnv):
     def __init__(self, visualize_lidar: bool = False):
         self.spec = {
-            "goal": ObjectSpec(0.3, 1),
+            "robot": ObjectSpec(0.4, 1),
+            "goal": ObjectSpec(0.305, 1),
             "hazards": ObjectSpec(0.18, 10),
             "vases": ObjectSpec(0.15, 10),
         }
@@ -137,7 +139,8 @@ class GoToGoal(mjx_env.MjxEnv):
         """Post initialization for the model."""
         # For reward function
         self._robot_site_id = self._mj_model.site("robot").id
-        self._goal_site_id = self._mj_model.site("goal_site").id
+        # TODO: not sure the goal should have a site.
+        self._goal_site_id = self._mj_model.body("goal_site").id
         self._goal_body_id = self._mj_model.body("goal").id
         self._goal_mocap_id = self._mj_model.mocap("goal").id
         self._robot_body_id = self._mj_model.body("robot").id
@@ -321,13 +324,13 @@ def _rot2quat(theta):
     return jp.array([jp.cos(theta / 2), 0, 0, jp.sin(theta / 2)])
 
 
-def placement_is_valid(xy, object_keepout, other_xy, other_keepout):
+def placement_not_valid(xy, object_keepout, other_xy, other_keepout):
     def check_single(other_xy, other_keepout):
         dist = jp.linalg.norm(xy - other_xy)
-        return dist >= (other_keepout + object_keepout)
+        return dist < (other_keepout + object_keepout)
 
     validity_checks = jax.vmap(check_single)(other_xy, other_keepout)
-    return jp.all(validity_checks)
+    return jp.any(validity_checks)
 
 
 def draw_until_valid(rng, object_keepout, other_xy, other_keepout):
@@ -339,9 +342,7 @@ def draw_until_valid(rng, object_keepout, other_xy, other_keepout):
         i, _, _, rng = val
         rng, rng_ = jax.random.split(rng)
         xy = draw_placement(rng_, object_keepout)
-        conflicted = jp.logical_not(
-            placement_is_valid(xy, object_keepout, other_xy, other_keepout)
-        )
+        conflicted = placement_not_valid(xy, object_keepout, other_xy, other_keepout)
         return i + 1, conflicted, xy, rng
 
     # Initial state: (iteration index, conflicted flag, placeholder for xy)
