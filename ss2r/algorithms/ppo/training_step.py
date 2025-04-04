@@ -82,7 +82,7 @@ def update_fn(
                 training_state.params.value,
             )
         )
-        extra_fields = ("truncation",)
+        extra_fields = ("truncation", "episode_metrics", "episode_done")
         if safe:
             extra_fields += ("cost", "cumulative_cost")  # type: ignore
         if use_ptsd:
@@ -99,7 +99,6 @@ def update_fn(
                 unroll_length,
                 extra_fields=extra_fields,
             )
-            generate_unroll = jax.vmap(generate_unroll)
             next_state, data = generate_unroll(current_state)
             return (next_state, next_key), data
 

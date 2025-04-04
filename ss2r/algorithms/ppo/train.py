@@ -158,18 +158,19 @@ def train(
     assert num_envs % device_count == 0
     env = environment
     env = TrackOnlineCosts(env)
-    reset_fn = jax.jit(jax.vmap(jax.vmap(env.reset)))
+    reset_fn = jax.jit(jax.vmap(env.reset))
     key_envs = jax.random.split(key_env, num_envs // process_count)
     key_envs = jnp.reshape(
         key_envs,
         (local_devices_to_use, -1) + key_envs.shape[1:],
     )
     env_state = reset_fn(key_envs)
+    obs_shape = jax.tree_util.tree_map(lambda x: x.shape[2:], env_state.obs)
     normalize = lambda x, y: x
     if normalize_observations:
         normalize = running_statistics.normalize
     ppo_network = network_factory(
-        env_state.obs.shape[-1], env.action_size, preprocess_observations_fn=normalize
+        obs_shape, env.action_size, preprocess_observations_fn=normalize
     )
     make_policy = ppo_networks.make_inference_fn(ppo_network)
     optimizer = optax.adam(learning_rate=learning_rate)
@@ -262,15 +263,15 @@ def train(
         value=ppo_network.value_network.init(key_value),
         cost_value=ppo_network.cost_value_network.init(key_value),
     )  # type: ignore
-
+    obs_shape = jax.tree_util.tree_map(
+        lambda x: specs.Array(x.shape[-1:], jnp.dtype("float32")), env_state.obs
+    )
     training_state = TrainingState(  # pytype: disable=wrong-arg-types  # jax-ndarray
         optimizer_state=optimizer.init(
             init_params
         ),  # pytype: disable=wrong-arg-types  # numpy-scalars
         params=init_params,
-        normalizer_params=running_statistics.init_state(
-            specs.Array(env_state.obs.shape[-1:], jnp.dtype("float32"))
-        ),
+        normalizer_params=running_statistics.init_state(obs_shape),
         env_steps=0,
         penalizer_params=penalizer_params,
     )  # type: ignore

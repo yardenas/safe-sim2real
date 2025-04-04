@@ -227,7 +227,6 @@ def get_train_fn(cfg):
             restore_checkpoint_path=f"{get_state_path()}/ckpt",
             penalizer=penalizer,
             penalizer_params=penalizer_params,
-            wrap_env=False,
         )
         cost_robustness = get_cost_robustness(cfg)
         # TODO (yarden): that's a hack for now. Need to think of a
