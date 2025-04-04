@@ -82,7 +82,7 @@ def update_fn(
                 training_state.params.value,
             )
         )
-        extra_fields = ("truncation", "episode_metrics", "episode_done")
+        extra_fields = ("truncation",)
         if safe:
             extra_fields += ("cost", "cumulative_cost")  # type: ignore
         if use_ptsd:
