@@ -9,13 +9,14 @@ from omegaconf import OmegaConf
 
 import ss2r.algorithms.sac.networks as sac_networks
 from ss2r import benchmark_suites
-from ss2r.algorithms.sac import robustness as rb
-from ss2r.algorithms.sac.penalizers import (
+from ss2r.algorithms.penalizers import (
     CRPO,
     AugmentedLagrangian,
+    AugmentedLagrangianParams,
     CRPOParams,
-    LagrangianParams,
+    Lagrangian,
 )
+from ss2r.algorithms.sac import robustness as rb
 from ss2r.algorithms.sac.wrappers import PTSD, ModelDisagreement
 from ss2r.common.logging import TrainingLogger
 
@@ -30,13 +31,15 @@ def get_state_path() -> str:
 def get_penalizer(cfg):
     if cfg.agent.penalizer.name == "lagrangian":
         penalizer = AugmentedLagrangian(cfg.agent.penalizer.penalty_multiplier_factor)
-        penalizer_state = LagrangianParams(
+        penalizer_state = AugmentedLagrangianParams(
             cfg.agent.penalizer.lagrange_multiplier,
             cfg.agent.penalizer.penalty_multiplier,
         )
     elif cfg.agent.penalizer.name == "crpo":
         penalizer = CRPO(cfg.agent.penalizer.eta)
         penalizer_state = CRPOParams(cfg.agent.penalizer.burnin)
+    elif cfg.agent.penalizer.name == "ppo_lagrangian":
+        penalizer = Lagrangian(cfg.agent.penalizer.lagrange_multiplier)
     else:
         raise ValueError(f"Unknown penalizer {cfg.agent.penalizer.name}")
     return penalizer, penalizer_state
