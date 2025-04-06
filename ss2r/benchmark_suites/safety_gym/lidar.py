@@ -23,11 +23,9 @@ def compute_lidar(
     def ego_xy(pos):
         robot_3vec = robot_pos
         """Transforms world position to ego-centric robot frame in 2D."""
-        pos_3vec = jp.concatenate(
-            [pos, jp.array([0.0])]
-        )  # Add zero z-coordinate -- not needed I thin
-        world_3vec = pos_3vec - robot_3vec  # make sure obstacle pos is 3D
-        return jp.matmul(world_3vec, robot_mat)[:2]  # Extract X, Y onl
+        pos_3vec = jp.concatenate([pos, jp.array([0.0])])
+        world_3vec = pos_3vec - robot_3vec
+        return jp.matmul(world_3vec, robot_mat)[:2]
 
     for pos in targets_pos:
         if pos.shape == (3,):

@@ -56,7 +56,7 @@ def _main(argv: Sequence[str]) -> None:
     """Launches MuJoCo interactive viewer fed by MJX."""
     if len(argv) > 1:
         raise app.UsageError("Too many command-line arguments.")
-    with jax.disable_jit(True):
+    with jax.disable_jit(False):
         task = go_to_goal.GoToGoal()
         reset_fn = jax.jit(task.reset)
         rng = jax.random.PRNGKey(0)
@@ -85,8 +85,6 @@ def _main(argv: Sequence[str]) -> None:
                 viewer.sync()
                 while viewer.is_running():
                     start = time.time()
-                    print("Goal dist: ", states[-1].info["last_goal_dist"])
-                    print("Cost: ", states[-1].info["cost"])
                     mujoco.mjv_applyPerturbPose(m, d, viewer.perturb, 0)
                     mujoco.mjv_applyPerturbForce(m, d, viewer.perturb)
                     data = states[-1].data.replace(
@@ -99,6 +97,8 @@ def _main(argv: Sequence[str]) -> None:
                     states[-1] = states[-1].replace(data=data)
                     ctrl = jp.array(VIEWERGLOBAL_STATE["ctrl"])
                     states.append(step_fn(states[-1], ctrl))
+                    if states[-1].info["goal_reached"]:
+                        print("Reward: ", states[-1].reward)
                     lidar.update_lidar_rings(states[-1].obs[: 16 * 3], m)
                     if VIEWERGLOBAL_STATE["reset"]:
                         rng, rng_ = jax.random.split(rng)

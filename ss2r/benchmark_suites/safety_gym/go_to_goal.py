@@ -292,7 +292,12 @@ class GoToGoal(mjx_env.MjxEnv):
             data.mocap_pos[self._goal_mocap_id][:2]
             - data.site_xpos[self._robot_site_id][0:2]
         )
-        info = {"rng": rng, "last_goal_dist": initial_goal_dist, "cost": jp.zeros(())}
+        info = {
+            "rng": rng,
+            "last_goal_dist": initial_goal_dist,
+            "cost": jp.zeros(()),
+            "goal_reached": jp.zeros(()),
+        }
         obs = self.get_obs(data)
         return State(data, obs, jp.zeros(()), jp.zeros(()), {}, info)  # type: ignore
 
@@ -315,6 +320,7 @@ class GoToGoal(mjx_env.MjxEnv):
         state.info["last_goal_dist"] = goal_dist
         state.info["rng"] = rng
         state.info["cost"] = cost
+        state.info["goal_reached"] = condition.astype(jp.float32)
         done = jp.isnan(data.qpos).any() | jp.isnan(data.qvel).any()
         done = done.astype(jp.float32)
         state = state.replace(data=data, obs=obs, reward=reward, done=done)  # type: ignore
