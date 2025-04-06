@@ -11,12 +11,12 @@ from mujoco_playground._src import mjx_env
 
 import ss2r.benchmark_suites.safety_gym.lidar as lidar
 
-# _XML_PATH = "xml/point.xml"
 _XML_PATH = epath.Path(__file__).parent / "point.xml"
 
 Observation = Union[jax.Array, Mapping[str, jax.Array]]
 BASE_SENSORS = ["accelerometer", "velocimeter", "gyro", "magnetometer"]
 _EXTENTS = (-2.0, -2.0, 2.0, 2.0)
+_GOAL_SIZE = 0.3
 
 
 def domain_randomization(sys, rng, cfg):
@@ -60,7 +60,6 @@ def get_collision_info(
     return dist, normal
 
 
-# sample_layout(vase: [10, 5], hazard: [20, 2], goal : []): [-2, -2, 2, 2]-> (vase: [x y theta])
 def build_arena(
     spec: mj.MjSpec, objects: dict[str, ObjectSpec], visualize: bool = False
 ):
@@ -70,7 +69,6 @@ def build_arena(
     assert maybe_floor.name == "floor"
     size = max(_EXTENTS)
     maybe_floor.size = jp.array([size + 0.1, size + 0.1, 0.1])
-
     # Reposition robot
     for i in range(objects["vases"].num_objects):
         volume = 0.1**3
@@ -79,22 +77,19 @@ def build_arena(
             name=f"vase_{i}",
             mass=volume * density,
         )
-
         vase.add_geom(
-            name=f"vase_{i}_geom",
+            name=f"vase_{i}",
             type=mj.mjtGeom.mjGEOM_BOX,
             size=[0.1, 0.1, 0.1],
             rgba=[0, 1, 1, 1],
             userdata=jp.ones(1),
         )
-
         # Free joint bug in visualizer: https://github.com/google-deepmind/mujoco/issues/2508
-        vase.add_freejoint(name=f"vase_{i}_joint")
-
+        vase.add_freejoint(name=f"vase_{i}")
     for i in range(objects["hazards"].num_objects):
         hazard = spec.worldbody.add_body(name=f"hazard_{i}", mocap=True)
         hazard.add_geom(
-            name=f"hazard_{i}_geom",
+            name=f"hazard_{i}",
             type=mj.mjtGeom.mjGEOM_CYLINDER,
             size=[0.2, 0.01, 0],
             rgba=[0.0, 0.0, 1.0, 0.25],
@@ -102,27 +97,26 @@ def build_arena(
             contype=jp.zeros(()),
             conaffinity=jp.zeros(()),
         )
-
     goal = spec.worldbody.add_body(name="goal", mocap=True)
     goal.add_geom(
-        name="goal_geom",
+        name="goal",
         type=mj.mjtGeom.mjGEOM_CYLINDER,
-        size=[0.3, 0.15, 0],
+        size=[_GOAL_SIZE, _GOAL_SIZE / 2.0, 0],
         rgba=[0, 1, 0, 0.25],
         contype=jp.zeros(()),
         conaffinity=jp.zeros(()),
     )
-
     # Visualize lidar rings
     if visualize:
         lidar.add_lidar_rings(spec)
 
 
-class GoToGoal:
-    def __init__(self):
+# TODO (yarden): should not depend on mujoco playground eventually
+class GoToGoal(mjx_env.MjxEnv):
+    def __init__(self, visualize_lidar: bool = True):
         self.spec = {
             "robot": ObjectSpec(0.4, 1),
-            "goal": ObjectSpec(0.305, 1),
+            "goal": ObjectSpec(_GOAL_SIZE + 0.05, 1),
             "hazards": ObjectSpec(0.18, 10),
             "vases": ObjectSpec(0.15, 10),
         }
@@ -130,11 +124,7 @@ class GoToGoal:
         mjSpec: mj.MjSpec = mj.MjSpec.from_file(filename=str(_XML_PATH), assets={})
         build_arena(mjSpec, objects=self.spec, visualize=True)
         self._mj_model = mjSpec.compile()
-
-        # print(mjSpec.to_xml())
-
         self._mjx_model = mjx.put_model(self._mj_model)
-
         self._post_init()
 
     def _post_init(self) -> None:
@@ -142,21 +132,22 @@ class GoToGoal:
         # For reward function
         self._robot_site_id = self._mj_model.site("robot").id
         self._goal_body_id = self._mj_model.body("goal").id
-
         # For cost function
+        vases_names = [f"vase_{id_}" for id_ in range(self.spec["vases"].num_objects)]
+        self._vases_qpos_ids = [
+            mjx_env.get_qpos_ids(self.mj_model, [name]) for name in vases_names
+        ]
         self._robot_geom_id = self._mj_model.geom("robot").id
         self._pointarrow_geom_id = self._mj_model.geom("pointarrow").id
         # Geoms, not bodies
         self._collision_obstacle_geoms_ids = [
-            self._mj_model.geom(f"vase_{i}_geom").id
+            self._mj_model.geom(f"vase_{i}").id
             for i in range(self.spec["vases"].num_objects)
-            # + self._mj_model.geom(f'pillar{i}').id for i in range(self._num_pillars)
         ]
         self._hazard_body_ids = [
             self._mj_model.body(f"hazard_{i}").id
             for i in range(self.spec["hazards"].num_objects)
-        ]  # Bodies, not geoms
-
+        ]
         # For lidar
         self._robot_body_id = self._mj_model.body("robot").id
         self._vase_body_ids = [
@@ -164,26 +155,13 @@ class GoToGoal:
             for i in range(self.spec["vases"].num_objects)
         ]
         self._obstacle_body_ids = self._vase_body_ids + self._hazard_body_ids
-        self._object_body_ids: list[int] = []
-        # For position updates
-        self._robot_x_id = self._mj_model.joint("x").id
-        self._robot_y_id = self._mj_model.joint("y").id
-        self._robot_joint_qposadr = [
-            self._mj_model.jnt_qposadr[joint_id]
-            for joint_id in [self._robot_x_id, self._robot_y_id]
-        ]
         self._goal_mocap_id = self._mj_model.body("goal").mocapid[0]
         self._hazard_mocap_id = [
             self._mj_model.body(f"hazard_{i}").mocapid[0]
             for i in range(self.spec["hazards"].num_objects)
         ]
-        self._vase_joint_ids = [
-            self._mj_model.joint(f"vase_{i}_joint").id
-            for i in range(self.spec["vases"].num_objects)
-        ]
-        self._vase_joint_qposadr = [
-            self._mj_model.jnt_qposadr[joint_id] for joint_id in self._vase_joint_ids
-        ]
+        self._robot_qpos_ids = mjx_env.get_qpos_ids(self._mj_model, ["x", "y", "z"])
+        self._init_q = self._mj_model.qpos0
 
     def get_reward(
         self, data: mjx.Data, last_goal_dist: jax.Array
@@ -195,36 +173,19 @@ class GoToGoal:
         return reward, goal_distance
 
     def _reset_goal(self, data: mjx.Data, rng: jax.Array) -> tuple[mjx.Data, jax.Array]:
-        # Initial state
-
-        # new_rng, goal_key = jax.random.split(rng)
-        # new_xy = jax.random.uniform(goal_key, (2,), minval=-2.0, maxval=2.0)
-        # # new_qpos = data.qpos.at[jp.array([self._goal_x_joint_id, self._goal_y_joint_id])].set(new_xy)
-        # # data = data.replace(qpos=new_qpos)
-        # data = data.replace(mocap_pos=data.mocap_pos.at[self._goal_mocap_id, :2].set(new_xy))
-        # jax.debug.print("New goal position: {pos}", pos=new_xy)
-        # return data, rng
-
-        # TODO: probably could just use xpos with self._obstacle_body_ids instead of mocap_pos as well - it seems to work
-        rng, goal_key = jax.random.split(rng)
-        hazard_pos = data.mocap_pos[jp.array(self._hazard_mocap_id)][:, :2]
-        vases_pos = data.xpos[jp.array(self._vase_body_ids)][:, :2]
-        other_xy = jp.vstack([hazard_pos, vases_pos])
-
-        hazard_keepout = jp.full((hazard_pos.shape[0],), self.spec["hazards"].keepout)
-        vases_keepout = jp.full((vases_pos.shape[0],), self.spec["vases"].keepout)
+        other_xy = self.obstacle_positions(data)[:, :2]
+        num_vases = self.spec["vases"].num_objects
+        num_hazards = self.spec["hazards"].num_objects
+        hazard_keepout = jp.full((num_hazards,), self.spec["hazards"].keepout)
+        vases_keepout = jp.full((num_vases,), self.spec["vases"].keepout)
         other_keepout = jp.hstack([hazard_keepout, vases_keepout])
-
+        rng, goal_key = jax.random.split(rng)
         xy, _ = draw_until_valid(
             goal_key, self.spec["goal"].keepout, other_xy, other_keepout
         )
-
-        # new_qpos = data.qpos.at[jp.array([self._goal_x_joint_id, self._goal_y_joint_id])].set(new_xy)
-        # data = data.replace(qpos=new_qpos)
         data = data.replace(
             mocap_pos=data.mocap_pos.at[self._goal_mocap_id, :2].set(xy)
         )
-        # jax.debug.print("New goal position: {pos}", pos=xy)
         return data, rng
 
     def obstacle_positions(self, data: mjx.Data) -> jax.Array:
@@ -264,23 +225,16 @@ class GoToGoal:
         """Compute Lidar observations."""
         robot_body_pos = data.xpos[self._robot_body_id]
         robot_body_mat = data.xmat[self._robot_body_id].reshape(3, 3)
-
-        # Vectorized obstacle position retrieval -- note we can use xpos even for mocap positions after they have been updated
-        # These values seem to be equal; TODO: using mocap_pos is maybe more correct
         obstacle_positions = data.xpos[jp.array(self._obstacle_body_ids)]
         goal_positions = data.mocap_pos[jp.array([self._goal_mocap_id])]
-        object_positions = (
-            data.xpos[jp.array(self._object_body_ids)] if self._object_body_ids else []
-        )
-
-        lidar_readings = jp.array(
-            [
+        object_positions = jp.array([])
+        lidar_readings = jp.hstack(
+            (
                 lidar.compute_lidar(robot_body_pos, robot_body_mat, obstacle_positions),
                 lidar.compute_lidar(robot_body_pos, robot_body_mat, goal_positions),
                 lidar.compute_lidar(robot_body_pos, robot_body_mat, object_positions),
-            ]
+            )
         )
-
         return lidar_readings
 
     def sensor_observations(self, data: mjx.Data) -> jax.Array:
@@ -294,78 +248,57 @@ class GoToGoal:
         other_sensors = self.sensor_observations(data)
         return jp.hstack([lidar.flatten(), other_sensors])
 
-    def update_positions(
+    def _update_data(
         self,
-        data: mjx.Data,
         layout: dict[str, list[tuple[int, jax.Array]]],
         rng: jax.Array,
-    ) -> mjx.Data:
-        mocap_pos = data.mocap_pos
-        qpos = data.qpos
-
-        # Set robot position
-        qpos = data.qpos.at[jp.array(self._robot_joint_qposadr)].set(
-            layout["robot"][0][1]
-        )
-
-        # N.B. could not figure out how to do it with get_qpos_ids, it seems to repeat some indices and hence does not set stuff correctly
-        for i, (_, xy) in enumerate(layout["vases"]):
-            rng, rng_ = jax.random.split(rng)
-            adr = self._vase_joint_qposadr[i]
-            rotation = jax.random.uniform(rng_, minval=0.0, maxval=2 * jp.pi)
-            quat = _rot2quat(rotation)
-            qpos = qpos.at[adr : adr + 7].set(jp.hstack([xy, 0.1, quat]))
-
-        # Set hazard positions
-        for i, (_, xy) in enumerate(layout["hazards"]):
-            mocap_pos = mocap_pos.at[self._hazard_mocap_id[i]].set(
-                jp.hstack([xy, 0.02])
-            )
-
-        # Set goal position
-        mocap_pos = mocap_pos.at[self._goal_mocap_id].set(
-            jp.hstack([layout["goal"][0][1], 0.3 / 2.0 + 1e-2])
-        )
-
-        data = data.replace(qpos=qpos, mocap_pos=mocap_pos)
-
-        return data, rng
+        data: mjx.Data | None = None,
+    ) -> tuple[jax.Array, jax.Array]:
+        if data is None:
+            new_qpos = jp.asarray(self._init_q)
+            new_mocap_pos = jp.zeros((self.mjx_model.nmocap, 3))
+        else:
+            new_qpos = data.qpos
+            new_mocap_pos = data.mocap_pos
+        for name, data in layout.items():
+            _, positions = zip(*data)
+            if name == "goal":
+                assert len(positions) == 1
+                xyz = jp.hstack([positions[0], _GOAL_SIZE / 2.0 + 1e-2])
+                new_mocap_pos = new_mocap_pos.at[self._goal_mocap_id].set(xyz)
+            elif name == "hazards":
+                for xy, id_ in zip(positions, self._hazard_mocap_id):
+                    xyz = jp.hstack([xy, 0.02])
+                    new_mocap_pos = new_mocap_pos.at[id_].set(xyz)
+            elif name == "vases":
+                for xy, ids in zip(positions, self._vases_qpos_ids):
+                    rng, rng_ = jax.random.split(rng)
+                    rotation = jax.random.uniform(rng_, minval=-jp.pi, maxval=2 * jp.pi)
+                    quat = _rot2quat(rotation)
+                    pos = jp.hstack((xy, 0.1 - 4e-5, quat))
+                    new_qpos = new_qpos.at[ids].set(pos)
+            elif name == "robot":
+                assert len(positions) == 1
+                xy = positions[0]
+                rng, rng_ = jax.random.split(rng)
+                rotation = jax.random.uniform(rng_, minval=-jp.pi, maxval=2 * jp.pi)
+                pos = jp.hstack((xy, rotation))
+                new_qpos = new_qpos.at[self._robot_qpos_ids].set(pos)
+            else:
+                assert False, "Something is off with the names provided in spec."
+        return new_qpos, new_mocap_pos
 
     def reset(self, rng) -> State:
-        data = mjx.make_data(self._mjx_model)
-
-        # Set initial object positions
         layout = _sample_layout(rng, self.spec)
-        data, rng = self.update_positions(data, layout, rng)
-        data = mjx.forward(
-            self._mjx_model, data
-        )  # Make sure updated positions are reflected in data
-
-        # Check updated positiosn are correct
-        # print("Hazards:")
-        # print(layout["hazards"])
-        # print(data.mocap_pos[jp.array(self._hazard_mocap_id)])
-
-        # print("Vases:")
-        # print(layout["vases"])
-        # print(data.xpos[jp.array(self._vase_body_ids)])
-
-        # print("Goal:")
-        # print(layout["goal"])
-        # print(data.mocap_pos[self._goal_mocap_id])
-
-        # print("Robot:")
-        # print(layout["robot"])
-        # print(data.xpos[jp.array(self._robot_body_id)])
-
+        rng, rng_ = jax.random.split(rng)
+        qpos, mocap_pos = self._update_data(layout, rng_)
+        data = mjx_env.init(self.mjx_model, qpos=qpos, mocap_pos=mocap_pos)
         initial_goal_dist = jp.linalg.norm(
             data.mocap_pos[self._goal_mocap_id][:2]
             - data.site_xpos[self._robot_site_id][0:2]
         )
         info = {"rng": rng, "last_goal_dist": initial_goal_dist, "cost": jp.zeros(())}
-
         obs = self.get_obs(data)
-
         return State(data, obs, jp.zeros(()), jp.zeros(()), {}, info)  # type: ignore
 
     def step(self, state: State, action: jax.Array) -> State:
@@ -374,19 +307,22 @@ class GoToGoal:
             self._mj_model.actuator_ctrlrange[:, 1],
         )
         action = (action + 1.0) / 2.0 * (upper - lower) + lower
-        data = mjx_env.mjx_step(self._mjx_model, state.data, action, n_substeps=2)
+        data = mjx_env.step(self._mjx_model, state.data, action, n_substeps=2)
         reward, goal_dist = self.get_reward(data, state.info["last_goal_dist"])
         # Reset goal if robot inside goal
-        condition = goal_dist < 0.3
+        condition = goal_dist < _GOAL_SIZE
         data, rng = jax.lax.cond(
             condition, self._reset_goal, lambda d, r: (d, r), data, state.info["rng"]
         )
         cost = self.get_cost(data)
-        observations = self.get_obs(data)
+        obs = self.get_obs(data)
+        state.info["last_goal_dist"] = goal_dist
+        state.info["rng"] = rng
+        state.info["cost"] = cost
         done = jp.isnan(data.qpos).any() | jp.isnan(data.qvel).any()
         done = done.astype(jp.float32)
-        info = {"rng": rng, "cost": cost, "last_goal_dist": goal_dist}
-        return State(data, observations, reward, done, state.metrics, info)  # type: ignore
+        state = state.replace(data=data, obs=obs, reward=reward, done=done)  # type: ignore
+        return state
 
     @property
     def xml_path(self) -> str:
@@ -403,10 +339,6 @@ class GoToGoal:
     @property
     def mjx_model(self) -> mjx.Model:
         return self._mjx_model
-
-    @property
-    def observation_size(self) -> int:
-        return 3 * lidar.NUM_LIDAR_BINS + len(BASE_SENSORS) * 3
 
 
 # PLACEMENT FNS
@@ -426,7 +358,7 @@ def placement_not_valid(xy, object_keepout, other_xy, other_keepout):
 def draw_until_valid(rng, object_keepout, other_xy, other_keepout):
     def cond_fn(val):
         i, conflicted, *_ = val
-        return jp.logical_and(i < 1000, conflicted)
+        return jp.logical_and(i < 10000, conflicted)
 
     def body_fn(val):
         i, _, _, rng = val
@@ -461,9 +393,8 @@ def _sample_layout(
             all_keepouts = all_keepouts.at[flat_idx].set(object_spec.keepout)
             layout[name].append((flat_idx, xy))
             flat_idx += 1
-
             jax.lax.cond(
-                iter_ >= 1000,
+                iter_ >= 10000,
                 lambda _: jax.debug.print(f"Failed to find a valid sample for {name}"),
                 lambda _: None,
                 operand=None,
