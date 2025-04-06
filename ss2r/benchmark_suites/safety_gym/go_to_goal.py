@@ -273,7 +273,7 @@ class GoToGoal(mjx_env.MjxEnv):
             elif name == "vases":
                 for xy, ids in zip(positions, self._vases_qpos_ids):
                     rng, rng_ = jax.random.split(rng)
-                    rotation = jax.random.uniform(rng_, minval=-jp.pi, maxval=2 * jp.pi)
+                    rotation = jax.random.uniform(rng_, minval=-jp.pi, maxval=jp.pi)
                     quat = _rot2quat(rotation)
                     pos = jp.hstack((xy, 0.1 - 4e-5, quat))
                     new_qpos = new_qpos.at[ids].set(pos)
@@ -281,7 +281,7 @@ class GoToGoal(mjx_env.MjxEnv):
                 assert len(positions) == 1
                 xy = positions[0]
                 rng, rng_ = jax.random.split(rng)
-                rotation = jax.random.uniform(rng_, minval=-jp.pi, maxval=2 * jp.pi)
+                rotation = jax.random.uniform(rng_, minval=-jp.pi, maxval=jp.pi)
                 pos = jp.hstack((xy, rotation))
                 new_qpos = new_qpos.at[self._robot_qpos_ids].set(pos)
             else:
