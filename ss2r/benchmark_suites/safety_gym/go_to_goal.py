@@ -106,7 +106,6 @@ def build_arena(
         contype=jp.zeros(()),
         conaffinity=jp.zeros(()),
     )
-    # Visualize lidar rings
     if visualize:
         lidar.add_lidar_rings(spec)
 
@@ -120,9 +119,8 @@ class GoToGoal(mjx_env.MjxEnv):
             "hazards": ObjectSpec(0.18, 10),
             "vases": ObjectSpec(0.15, 10),
         }
-
         mjSpec: mj.MjSpec = mj.MjSpec.from_file(filename=str(_XML_PATH), assets={})
-        build_arena(mjSpec, objects=self.spec, visualize=True)
+        build_arena(mjSpec, objects=self.spec, visualize=visualize_lidar)
         self._mj_model = mjSpec.compile()
         self._mjx_model = mjx.put_model(self._mj_model)
         self._post_init()
