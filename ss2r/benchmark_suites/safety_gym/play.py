@@ -99,7 +99,8 @@ def _main(argv: Sequence[str]) -> None:
                     states.append(step_fn(states[-1], ctrl))
                     if states[-1].info["goal_reached"]:
                         print("Reward: ", states[-1].reward)
-                    lidar.update_lidar_rings(states[-1].obs[: 16 * 3], m)
+                    print("obs", states[-1].obs[:3])
+                    # lidar.update_lidar_rings(states[-1].obs[: 16 * 3], m)
                     if VIEWERGLOBAL_STATE["reset"]:
                         rng, rng_ = jax.random.split(rng)
                         states.append(reset_fn(rng_))

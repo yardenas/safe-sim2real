@@ -163,11 +163,19 @@ class GoToGoal(mjx_env.MjxEnv):
     def get_reward(
         self, data: mjx.Data, last_goal_dist: jax.Array
     ) -> tuple[jax.Array, jax.Array]:
-        goal_distance = jp.linalg.norm(
-            data.xpos[self._goal_body_id][:2] - data.site_xpos[self._robot_site_id][0:2]
-        )
+        goal_distance = jp.linalg.norm(self._robot_to_goal(data)[:2])
         reward = last_goal_dist - goal_distance
         return reward, goal_distance
+
+    def _robot_to_goal(self, data: mjx.Data) -> jax.Array:
+        return data.xpos[self._goal_body_id] - data.xpos[self._robot_body_id]
+
+    def _compass(self, data: mjx.Data) -> jax.Array:
+        v = self._robot_to_goal(data)
+        ori = data.xmat[self._robot_body_id].reshape(3, 3)
+        v = jp.matmul(v, ori)
+        v = v / (jp.linalg.norm(v) + 0.001)
+        return v[:2]
 
     def _reset_goal(self, data: mjx.Data, rng: jax.Array) -> tuple[mjx.Data, jax.Array]:
         # other_xy = self.obstacle_positions(data)[:, :2]
@@ -235,9 +243,12 @@ class GoToGoal(mjx_env.MjxEnv):
         return jp.hstack(vals)
 
     def get_obs(self, data: mjx.Data) -> jax.Array:
-        lidar = self.lidar_observations(data)
+        # lidar = self.lidar_observations(data)
+        # FIXME (yarden): this is wrong
+        magnitude = jp.linalg.norm(self._robot_to_goal(data))
+        direction = self._compass(data)
         other_sensors = self.sensor_observations(data)
-        return jp.hstack([lidar.flatten(), other_sensors])
+        return jp.hstack([magnitude, direction, other_sensors])
 
     def _update_data(
         self,
@@ -315,6 +326,9 @@ class GoToGoal(mjx_env.MjxEnv):
             condition, self._reset_goal, lambda d, r: (d, r), data, state.info["rng"]
         )
         reward = jp.where(condition, reward + 1.0, reward)
+        goal_dist = jp.where(
+            condition, jp.linalg.norm(self._robot_to_goal(data)[:2]), goal_dist
+        )
         cost = self.get_cost(data)
         obs = self.get_obs(data)
         state.info["last_goal_dist"] = goal_dist
