@@ -115,8 +115,8 @@ class GoToGoal(mjx_env.MjxEnv):
         self.spec = {
             "robot": ObjectSpec(0.4, 1),
             "goal": ObjectSpec(_GOAL_SIZE + 0.05, 1),
-            "hazards": ObjectSpec(0.18, 10),
-            "vases": ObjectSpec(0.15, 10),
+            "hazards": ObjectSpec(0.18, 0),
+            "vases": ObjectSpec(0.15, 0),
         }
         mj_spec: mj.MjSpec = mj.MjSpec.from_file(filename=str(_XML_PATH), assets={})
         build_arena(mj_spec, objects=self.spec, visualize=visualize_lidar)
