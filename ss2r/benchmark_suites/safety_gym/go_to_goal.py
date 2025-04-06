@@ -290,7 +290,11 @@ class GoToGoal(mjx_env.MjxEnv):
         layout = _sample_layout(rng, self.spec)
         rng, rng_ = jax.random.split(rng)
         qpos, mocap_pos = self._update_data(layout, rng_)
-        data = mjx_env.init(self.mjx_model, qpos=qpos, mocap_pos=mocap_pos)
+        mocap_quat = jp.zeros((self.mjx_model.nmocap, 4))
+        mocap_quat = mocap_quat.at[:, 0].set(1.0)
+        data = mjx_env.init(
+            self.mjx_model, qpos=qpos, mocap_pos=mocap_pos, mocap_quat=mocap_quat
+        )
         initial_goal_dist = jp.linalg.norm(
             data.mocap_pos[self._goal_mocap_id][:2]
             - data.site_xpos[self._robot_site_id][0:2]

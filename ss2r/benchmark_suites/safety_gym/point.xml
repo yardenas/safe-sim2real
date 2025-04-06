@@ -23,7 +23,7 @@
             <joint type="slide" axis="0 1 0" name="y" damping="0.01"/>
             <joint type="hinge" axis="0 0 1" name="z" damping="0.005"/>
             <geom name="robot" type="sphere" size=".1" friction="1 0.01 0.01" rgba="1 0 0 1"/>
-            <geom name="pointarrow" pos="0.1 0 0" size="0.05 0.05 0.05" rgba="0 0 1 1" type="box"/>
+            <geom name="pointarrow" pos="0.1 0 0" size="0.05 0.05 0.05" rgba="1 0 0 1" type="box"/>
             <!-- marker inside robot -->
             <site name="robot" pos="0 0 0.1" rgba="1 0 0 .1"/>
         </body>
