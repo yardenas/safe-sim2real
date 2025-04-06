@@ -200,16 +200,6 @@ class GoToGoal(mjx_env.MjxEnv):
                 for geom in self._collision_obstacle_geoms_ids
             ]
         )
-        # FOR DEBUG PURPOSES, UNCOMMENT THIS
-        colliding_obstacles = jax.lax.cond(
-            jp.any(colliding_obstacles),  # If there's any collision
-            lambda x: jax.debug.print(
-                "Collision detected with obstacles: {collisions}", collisions=x
-            )
-            or x,  # Print and return the collisions
-            lambda x: x,  # Otherwise, return the input unchanged
-            colliding_obstacles,  # The value to pass into the lambda
-        )
         # Hazard distance calculation (vectorized for all hazards)
         robot_pos = data.site_xpos[self._robot_site_id][:2]
         hazard_distances = jp.linalg.norm(
