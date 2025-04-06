@@ -395,12 +395,6 @@ def _sample_layout(
             all_keepouts = all_keepouts.at[flat_idx].set(object_spec.keepout)
             layout[name].append((flat_idx, xy))
             flat_idx += 1
-            jax.lax.cond(
-                iter_ >= 10000,
-                lambda _: jax.debug.print(f"Failed to find a valid sample for {name}"),
-                lambda _: None,
-                operand=None,
-            )
     return layout
 
 
