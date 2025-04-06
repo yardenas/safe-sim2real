@@ -304,5 +304,5 @@ render_fns = {
     "SafeWalkerRun": functools.partial(mujoco_playground.render, camera="side"),
     "HumanoidWalk": mujoco_playground.render,
     "SafeHumanoidWalk": mujoco_playground.render,
-    "go_to_goal": mujoco_playground.render,
+    "go_to_goal": functools.partial(mujoco_playground.render, camera="fixedfar"),
 }
