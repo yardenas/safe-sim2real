@@ -15,8 +15,7 @@ _XML_PATH = epath.Path(__file__).parent / "point.xml"
 
 Observation = Union[jax.Array, Mapping[str, jax.Array]]
 BASE_SENSORS = ["accelerometer", "velocimeter", "gyro", "magnetometer"]
-# _EXTENTS = (-2.0, -2.0, 2.0, 2.0)
-_EXTENTS = (-1.0, -1.0, 1.0, 1.0)
+_EXTENTS = (-2.0, -2.0, 2.0, 2.0)
 _GOAL_SIZE = 0.3
 
 

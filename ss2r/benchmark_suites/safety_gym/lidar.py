@@ -6,7 +6,7 @@ LIDAR_GROUPS = ["obstacle", "goal", "object"]
 
 # For calculations
 NUM_LIDAR_BINS = 16
-LIDAR_MAX_DIST = 2.0
+LIDAR_MAX_DIST = 3.0
 
 # Visualisation
 BASE_OFFSET = 0.5

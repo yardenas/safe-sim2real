@@ -24,8 +24,7 @@
             <joint type="hinge" axis="0 0 1" name="z" damping="0.005"/>
             <geom name="robot" type="sphere" size=".1" friction="1 0.01 0.01" rgba="1 0 0 1"/>
             <geom name="pointarrow" pos="0.1 0 0" size="0.05 0.05 0.05" rgba="1 0 0 1" type="box"/>
-            <!-- marker inside robot -->
-            <site name="robot" pos="0 0 0.1" rgba="1 0 0 .1"/>
+            <site name="robot" rgba="1 0 0 .1"/>
         </body>
     </worldbody>
     <sensor>
@@ -40,9 +39,7 @@
         <subtreeangmom body="robot" name="subtreeangmom"/>
     </sensor>
     <actuator>
-        <!-- Force applied to robot frame, not world frame -> the local x-axis is no longer aligned with the world x-axis when rotated -->
         <motor gear="0.3 0 0 0 0 0" site="robot" name="x"/>
-        <!-- N.B. jointinparent not supported in mjx -->
         <velocity gear="0.3" joint="z" name="z"/>
     </actuator>
     <asset>
