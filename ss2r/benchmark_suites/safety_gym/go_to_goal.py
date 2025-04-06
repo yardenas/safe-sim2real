@@ -113,7 +113,7 @@ def build_arena(
         contype=jp.zeros(()),
         conaffinity=jp.zeros(()),
     )
-    # TODO: add site to goal
+    goal.add_site(name="goal_site")
 
 
 # TODO (yarden): should not depend on mujoco playground eventually
@@ -139,7 +139,6 @@ class GoToGoal(mjx_env.MjxEnv):
         """Post initialization for the model."""
         # For reward function
         self._robot_site_id = self._mj_model.site("robot").id
-        # TODO: not sure the goal should have a site.
         self._goal_site_id = self._mj_model.body("goal_site").id
         self._goal_body_id = self._mj_model.body("goal").id
         self._goal_mocap_id = self._mj_model.mocap("goal").id
@@ -182,6 +181,12 @@ class GoToGoal(mjx_env.MjxEnv):
         ].set(new_xy)
         return data.replace(qpos=new_qpos), new_rng
 
+    def obstacle_positions(self, data: mjx.Data) -> jax.Array:
+        obstacle_positions = data.xpos[
+            jp.array(self._hazards_body_ids + self._vases_body_ids)
+        ]
+        return obstacle_positions
+
     def get_cost(self, data: mjx.Data) -> jax.Array:
         # Check if robot or pointarrow geom collide with any vase or pillar
         colliding_obstacles = jp.array(
@@ -206,9 +211,7 @@ class GoToGoal(mjx_env.MjxEnv):
         robot_body_pos = data.xpos[self._robot_body_id]
         robot_body_mat = data.xmat[self._robot_body_id].reshape(3, 3)
         # Vectorized obstacle position retrieval
-        obstacle_positions = data.xpos[
-            jp.array(self._hazards_body_ids + self._vases_body_ids)
-        ]
+        obstacle_positions = self.obstacle_positions(data)
         # FIXME: the goal_body_id should actually be goal_mocap_id, and we should get
         # the position via the mocap
         goal_positions = data.xpos[jp.array([self._goal_body_id])]
