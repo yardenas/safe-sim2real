@@ -309,6 +309,7 @@ class GoToGoal(mjx_env.MjxEnv):
         data, rng = jax.lax.cond(
             condition, self._reset_goal, lambda d, r: (d, r), data, state.info["rng"]
         )
+        reward = jp.where(condition, reward + 1.0, reward)
         cost = self.get_cost(data)
         obs = self.get_obs(data)
         state.info["last_goal_dist"] = goal_dist
