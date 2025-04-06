@@ -73,7 +73,7 @@ def add_lidar_rings(spec: mj.MjSpec):
 
 
 def update_lidar_rings(lidar_values: jax.Array, model: mj.MjModel):
-    obstacle_lidar, goal_lidar, object_lidar = lidar_values
+    obstacle_lidar, goal_lidar, object_lidar = jp.split(lidar_values, 3)
     # Update data just for viewer
     for lidars, category in zip(
         [obstacle_lidar, goal_lidar, object_lidar], LIDAR_GROUPS
