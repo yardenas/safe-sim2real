@@ -186,7 +186,8 @@ class GoToGoal(mjx_env.MjxEnv):
         return data, rng
 
     def obstacle_positions(self, data: mjx.Data) -> jax.Array:
-        obstacle_positions = data.xpos[jp.array(self._obstacle_body_ids)]
+        # obstacle_positions = data.xpos[jp.array(self._obstacle_body_ids)]
+        obstacle_positions = jp.array([])
         return obstacle_positions
 
     def get_cost(self, data: mjx.Data) -> jax.Array:
