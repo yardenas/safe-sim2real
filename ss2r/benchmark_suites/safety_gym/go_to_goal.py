@@ -71,11 +71,9 @@ def build_arena(
     maybe_floor.size = jp.array([size + 0.1, size + 0.1, 0.1])
     # Reposition robot
     for i in range(objects["vases"].num_objects):
-        volume = 0.1**3
         density = 0.001
         vase = spec.worldbody.add_body(
             name=f"vase_{i}",
-            mass=volume * density,
         )
         vase.add_geom(
             name=f"vase_{i}",
@@ -83,6 +81,7 @@ def build_arena(
             size=[0.1, 0.1, 0.1],
             rgba=[0, 1, 1, 1],
             userdata=jp.ones(1),
+            density=density,
         )
         # Free joint bug in visualizer: https://github.com/google-deepmind/mujoco/issues/2508
         vase.add_freejoint(name=f"vase_{i}")
@@ -119,9 +118,9 @@ class GoToGoal(mjx_env.MjxEnv):
             "hazards": ObjectSpec(0.18, 10),
             "vases": ObjectSpec(0.15, 10),
         }
-        mjSpec: mj.MjSpec = mj.MjSpec.from_file(filename=str(_XML_PATH), assets={})
-        build_arena(mjSpec, objects=self.spec, visualize=visualize_lidar)
-        self._mj_model = mjSpec.compile()
+        mj_spec: mj.MjSpec = mj.MjSpec.from_file(filename=str(_XML_PATH), assets={})
+        build_arena(mj_spec, objects=self.spec, visualize=visualize_lidar)
+        self._mj_model = mj_spec.compile()
         self._mjx_model = mjx.put_model(self._mj_model)
         self._post_init()
 
