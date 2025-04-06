@@ -212,7 +212,8 @@ class GoToGoal(mjx_env.MjxEnv):
         """Compute Lidar observations."""
         robot_body_pos = data.xpos[self._robot_body_id]
         robot_body_mat = data.xmat[self._robot_body_id].reshape(3, 3)
-        obstacle_positions = data.xpos[jp.array(self._obstacle_body_ids)]
+        # obstacle_positions = data.xpos[jp.array(self._obstacle_body_ids)]
+        obstacle_positions = jp.array([])
         goal_positions = data.mocap_pos[jp.array([self._goal_mocap_id])]
         object_positions = jp.array([])
         lidar_readings = jp.hstack(
