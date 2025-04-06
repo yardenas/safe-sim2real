@@ -10,3 +10,6 @@ training:
   eval_domain_randomization: false
   safe: true
   safety_budget: 25
+
+agent:
+  activation: swish

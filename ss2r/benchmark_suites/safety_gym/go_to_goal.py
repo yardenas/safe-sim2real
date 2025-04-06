@@ -170,7 +170,8 @@ class GoToGoal(mjx_env.MjxEnv):
         return reward, goal_distance
 
     def _reset_goal(self, data: mjx.Data, rng: jax.Array) -> tuple[mjx.Data, jax.Array]:
-        other_xy = self.obstacle_positions(data)[:, :2]
+        # other_xy = self.obstacle_positions(data)[:, :2]
+        other_xy = jp.array([])
         num_vases = self.spec["vases"].num_objects
         num_hazards = self.spec["hazards"].num_objects
         hazard_keepout = jp.full((num_hazards,), self.spec["hazards"].keepout)
@@ -191,6 +192,7 @@ class GoToGoal(mjx_env.MjxEnv):
         return obstacle_positions
 
     def get_cost(self, data: mjx.Data) -> jax.Array:
+        return 0.0
         # Check if robot or pointarrow geom collide with any vase or pillar
         colliding_obstacles = jp.array(
             [
