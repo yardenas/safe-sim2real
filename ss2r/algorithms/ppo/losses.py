@@ -160,7 +160,7 @@ def make_losses(
             "policy_loss": policy_loss,
             "entropy_loss": entropy_loss,
         }
-        if penalizer is not None and False:
+        if penalizer is not None:
             cost_value_apply = ppo_network.cost_value_network.apply
             cost = data.extras["state_extras"]["cost"] * cost_scaling
             if use_ptsd:
@@ -186,16 +186,18 @@ def make_losses(
             cost_v_loss = jnp.mean(cost_v_error * cost_v_error) * 0.5 * 0.5
             ongoing_costs = data.extras["state_extras"]["cumulative_cost"].max(0).mean()
             constraint = safety_budget - vcs.mean()
-            policy_loss, penalizer_aux, _ = penalizer(
-                policy_loss,
-                constraint,
-                jax.lax.stop_gradient(penalizer_params),
-                rest=-cost_advantages.mean(),
-            )
+            # FIXME (YARDEN
+            # )
+            # policy_loss, penalizer_aux, _ = penalizer(
+            #     policy_loss,
+            #     constraint,
+            #     jax.lax.stop_gradient(penalizer_params),
+            #     rest=-cost_advantages.mean(),
+            # )
             aux["constraint_estimate"] = constraint
             aux["cost_v_loss"] = cost_v_loss
             aux["ongoing_costs"] = ongoing_costs
-            aux |= penalizer_aux
+            # aux |= penalizer_aux
         total_loss = policy_loss + entropy_loss
         return total_loss, aux
 
