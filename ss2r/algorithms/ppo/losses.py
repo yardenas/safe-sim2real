@@ -198,7 +198,7 @@ def make_losses(
             #     jax.lax.stop_gradient(penalizer_params),
             #     rest=-cost_advantages.mean(),
             # )
-            policy_loss -= cost_advantages.mean()
+            policy_loss = -cost_advantages.mean()
             aux["constraint_estimate"] = constraint
             aux["ongoing_costs"] = ongoing_costs
             # aux |= penalizer_aux
