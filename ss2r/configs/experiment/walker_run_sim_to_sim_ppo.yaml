@@ -28,7 +28,7 @@ agent:
   discounting: 0.995
   safety_discounting: 0.99
   learning_rate: 0.001
-  entropy_cost: 0.05
+  entropy_cost: 0.01
   batch_size: 1024
   safety_gae_lambda: 0.95
   penalizer:
