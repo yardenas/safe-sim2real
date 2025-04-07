@@ -18,7 +18,7 @@ def get_state_path() -> str:
     return log_path
 
 
-env_name = "WalkerWalk"
+env_name = "HumanoidWalk"
 env = registry.load(env_name)
 env_cfg = registry.get_default_config(env_name)
 eval_env = registry.load(env_name, config=env_cfg)
