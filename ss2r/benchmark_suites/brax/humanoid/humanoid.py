@@ -157,7 +157,7 @@ class ConstraintWrapper(Wrapper):
         nstate = self.env.step(state, action)
         cost = jnp.zeros_like(nstate.reward)
         for qpos_id, joint_range in zip(self.qpos_ids, self.joint_ranges):
-            angle = nstate.data.qpos[qpos_id]
+            angle = nstate.pipeline_state.qpos[qpos_id]
             normalized_angle = normalize_angle(angle)
             lower_limit = normalize_angle(joint_range[0] - self.angle_tolerance)
             upper_limit = normalize_angle(joint_range[1] + self.angle_tolerance)
