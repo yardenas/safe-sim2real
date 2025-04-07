@@ -41,9 +41,7 @@ def get_penalizer(cfg):
         penalizer_state = CRPOParams(cfg.agent.penalizer.burnin)
     elif cfg.agent.penalizer.name == "ppo_lagrangian":
         penalizer = Lagrangian(cfg.agent.penalizer.multiplier_lr)
-        init_lagrange_multiplier = jax.numpy.log(
-            jax.numpy.exp(cfg.agent.penalizer.initial_lagrange_multiplier) - 1.0
-        )
+        init_lagrange_multiplier = cfg.agent.penalizer.initial_lagrange_multiplier
         penalizer_state = LagrangianParams(
             init_lagrange_multiplier,
             penalizer.optimizer.init(init_lagrange_multiplier),
