@@ -238,6 +238,5 @@ def compute_ppo_loss(
         aux["constraint_estimate"] = constraint
         aux["cost_v_loss"] = cost_v_loss
         aux["ongoing_costs"] = ongoing_costs
-        aux["penalizer_params"] = penalizer_params
         aux |= penalizer_aux
     return total_loss, aux
