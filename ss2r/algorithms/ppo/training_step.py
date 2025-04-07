@@ -10,6 +10,7 @@ from brax.training.types import PRNGKey
 
 from ss2r.algorithms.ppo import _PMAP_AXIS_NAME, Metrics, TrainingState
 from ss2r.algorithms.ppo import losses as ppo_losses
+from ss2r.algorithms.sac.losses import Transition
 
 
 def update_fn(
@@ -50,6 +51,15 @@ def update_fn(
         normalizer_params: running_statistics.RunningStatisticsState,
     ):
         optimizer_state, params, penalizer_params, key = carry
+        cost = data.extras["state_extras"]["cost"]
+        data = Transition(
+            observation=data.observation,
+            action=data.action,
+            reward=-cost,
+            discount=data.discount,
+            next_observation=data.next_observation,
+            extras=data.extras,
+        )
         (
             policy_optimizer_state,
             value_optimizer_state,
