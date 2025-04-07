@@ -9,6 +9,7 @@ from brax.training import types
 from brax.training.acme import running_statistics
 from brax.training.types import Params
 
+from ss2r.algorithms.penalizers import Penalizer
 from ss2r.algorithms.ppo import losses as ppo_losses
 
 _PMAP_AXIS_NAME = "i"
@@ -43,6 +44,7 @@ TrainingStepFactory: TypeAlias = Callable[
         int,
         int,
         Callable[[Any], types.Policy],
+        Penalizer | None,
         int,
         int,
         int,
