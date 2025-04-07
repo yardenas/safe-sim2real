@@ -137,35 +137,15 @@ def make_losses(
             policy_logits, data.extras["policy_extras"]["raw_action"]
         )
         behavior_log_probs = data.extras["policy_extras"]["log_prob"]
-        # _, advantages = compute_gae(
-        #     truncation=truncation,
-        #     termination=termination,
-        #     rewards=rewards,
-        #     values=baseline,
-        #     bootstrap_value=bootstrap_value,
-        #     lambda_=gae_lambda,
-        #     discount=discounting,
-        # )
-        cost_value_apply = ppo_network.cost_value_network.apply
-        cost = data.extras["state_extras"]["cost"] * cost_scaling
-        if use_ptsd:
-            cost += ptsd_lambda * data.extras["state_extras"]["disagreement"]
-        cost_baseline = cost_value_apply(
-            normalizer_params, cost_value_params, data.observation
-        )
-        cost_bootstrap_value = cost_value_apply(
-            normalizer_params, cost_value_params, data.next_observation[-1]
-        )
-        vcs, cost_advantages = compute_gae(
+        _, advantages = compute_gae(
             truncation=truncation,
             termination=termination,
-            rewards=cost,
-            values=cost_baseline,
-            bootstrap_value=cost_bootstrap_value,
-            lambda_=safety_gae_lambda,
-            discount=safety_discounting,
+            rewards=rewards,
+            values=baseline,
+            bootstrap_value=bootstrap_value,
+            lambda_=gae_lambda,
+            discount=discounting,
         )
-        advantages = -cost_advantages
         if normalize_advantage:
             advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
         rho_s = jnp.exp(target_log_probs - behavior_log_probs)
@@ -204,16 +184,15 @@ def make_losses(
             cost_advantages *= rho_s
             ongoing_costs = data.extras["state_extras"]["cumulative_cost"].max(0).mean()
             constraint = safety_budget - vcs.mean()
-            policy_loss = -cost_advantages.mean()
-            # policy_loss, penalizer_aux, _ = penalizer(
-            #     policy_loss,
-            #     constraint,
-            #     jax.lax.stop_gradient(penalizer_params),
-            #     rest=-cost_advantages.mean(),
-            # )
+            policy_loss, penalizer_aux, _ = penalizer(
+                policy_loss,
+                constraint,
+                jax.lax.stop_gradient(penalizer_params),
+                rest=-cost_advantages.mean(),
+            )
             aux["constraint_estimate"] = constraint
             aux["ongoing_costs"] = ongoing_costs
-            # aux |= penalizer_aux
+            aux |= penalizer_aux
         total_loss = policy_loss + entropy_loss
         return total_loss, aux
 

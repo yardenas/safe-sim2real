@@ -10,7 +10,6 @@ from brax.training.types import PRNGKey
 
 from ss2r.algorithms.ppo import _PMAP_AXIS_NAME, Metrics, TrainingState
 from ss2r.algorithms.ppo import losses as ppo_losses
-from ss2r.algorithms.sac.losses import Transition
 
 
 def update_fn(
