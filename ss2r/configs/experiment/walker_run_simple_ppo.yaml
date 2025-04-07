@@ -14,15 +14,16 @@ training:
   eval_domain_randomization: false
   safety_budget: 100
   num_eval_episodes: 1
-  num_envs: 8192
+  num_envs: 2048
 
 agent:
   reward_scaling: 10.0
   normalize_observations: true
   unroll_length: 30
   num_minibatches: 32
-  num_updates_per_batch: 16
+  num_updates_per_batch: 4
   discounting: 0.995
+  safety_discounting: 0.99
   learning_rate: 0.001
-  entropy_cost: 0.01
+  entropy_cost: 0.05
   batch_size: 1024
