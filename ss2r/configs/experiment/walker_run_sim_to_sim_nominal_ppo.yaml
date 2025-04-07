@@ -31,4 +31,4 @@ agent:
   safety_gae_lambda: 0.95
   penalizer:
     initial_lagrange_multiplier: 0.2
-    multiplier_lr: 1e-4
+    multiplier_lr: 1e-2
