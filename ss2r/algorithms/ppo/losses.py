@@ -222,7 +222,7 @@ def compute_ppo_loss(
             lambda_=safety_gae_lambda,
             discount=safety_discounting,
         )
-        cost_advantages -= cost_advantages.mean()
+        # cost_advantages -= cost_advantages.mean()
         cost_advantages *= rho_s
         cost_v_error = vcs - cost_baseline
         cost_v_loss = jnp.mean(cost_v_error * cost_v_error) * 0.5 * 0.5
