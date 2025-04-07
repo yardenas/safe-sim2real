@@ -128,7 +128,6 @@ class GoToGoal(mjx_env.MjxEnv):
         """Post initialization for the model."""
         # For reward function
         self._robot_site_id = self._mj_model.site("robot").id
-        self._goal_body_id = self._mj_model.body("goal").id
         # For cost function
         vases_names = [f"vase_{id_}" for id_ in range(self.spec["vases"].num_objects)]
         self._vases_qpos_ids = [
@@ -168,7 +167,7 @@ class GoToGoal(mjx_env.MjxEnv):
         return reward, goal_distance
 
     def _robot_to_goal(self, data: mjx.Data) -> jax.Array:
-        return data.xpos[self._goal_body_id] - data.xpos[self._robot_body_id]
+        return data.mocap_pos[self._goal_mocap_id] - data.xpos[self._robot_body_id]
 
     def _compass(self, data: mjx.Data) -> jax.Array:
         v = self._robot_to_goal(data)
@@ -177,7 +176,9 @@ class GoToGoal(mjx_env.MjxEnv):
         v = v / (jp.linalg.norm(v) + 0.001)
         return v[:2]
 
-    def _reset_goal(self, data: mjx.Data, rng: jax.Array) -> tuple[mjx.Data, jax.Array]:
+    def _reset_goal(
+        self, data: mjx.Data, rng: jax.Array
+    ) -> tuple[mjx.Data, jax.Array, jax.Array]:
         # other_xy = self.obstacle_positions(data)[:, :2]
         other_xy = jp.array([])
         num_vases = self.spec["vases"].num_objects
@@ -192,7 +193,8 @@ class GoToGoal(mjx_env.MjxEnv):
         data = data.replace(
             mocap_pos=data.mocap_pos.at[self._goal_mocap_id, :2].set(xy)
         )
-        return data, rng
+        new_goal_distance = jp.linalg.norm(self._robot_to_goal(data)[:2])
+        return data, rng, new_goal_distance
 
     def obstacle_positions(self, data: mjx.Data) -> jax.Array:
         # obstacle_positions = data.xpos[jp.array(self._obstacle_body_ids)]
@@ -319,13 +321,14 @@ class GoToGoal(mjx_env.MjxEnv):
         reward, goal_dist = self.get_reward(data, state.info["last_goal_dist"])
         # Reset goal if robot inside goal
         condition = goal_dist < _GOAL_SIZE
-        data, rng = jax.lax.cond(
-            condition, self._reset_goal, lambda d, r: (d, r), data, state.info["rng"]
+        data, rng, goal_dist = jax.lax.cond(
+            condition,
+            self._reset_goal,
+            lambda d, r: (d, r, goal_dist),
+            data,
+            state.info["rng"],
         )
         reward = jp.where(condition, reward + 1.0, reward)
-        goal_dist = jp.where(
-            condition, jp.linalg.norm(self._robot_to_goal(data)[:2]), goal_dist
-        )
         cost = self.get_cost(data)
         obs = self.get_obs(data)
         state.info["last_goal_dist"] = goal_dist
