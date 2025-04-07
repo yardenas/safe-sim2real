@@ -56,7 +56,7 @@ def update_fn(
             cost_value_optimizer_state,
         ) = optimizer_state
         key, key_loss = jax.random.split(key)
-        (_, aux), policy_params, optimizer_state = policy_gradient_update_fn(
+        (_, aux), policy_params, policy_optimizer_state = policy_gradient_update_fn(
             params.policy,
             params.value,
             params.cost_value,
