@@ -1,7 +1,6 @@
 from typing import Any, NamedTuple, Protocol, TypeVar
 
 import jax
-import jax.nn as jnn
 import jax.numpy as jnp
 import optax
 
@@ -132,7 +131,7 @@ class Lagrangian:
         rest: Any,
     ) -> tuple[jax.Array, dict[str, Any], LagrangianParams]:
         cost_advantage = -rest
-        lagrange_multiplier = jnn.softplus(params.lagrange_multiplier)
+        lagrange_multiplier = params.lagrange_multiplier
         actor_loss += lagrange_multiplier * cost_advantage
         actor_loss = actor_loss / (1.0 + lagrange_multiplier)
         aux: dict[str, Any] = {}
@@ -145,8 +144,7 @@ class Lagrangian:
         new_lagrange_multiplier = update_lagrange_multiplier(
             constraint, params.lagrange_multiplier, self.learning_rate
         )
-        lagrange_multiplier = jnn.softplus(new_lagrange_multiplier)
-        aux = {"lagrange_multiplier": lagrange_multiplier}
+        aux = {"lagrange_multiplier": new_lagrange_multiplier}
         return aux, LagrangianParams(new_lagrange_multiplier, params.optimizer_state)
 
 
