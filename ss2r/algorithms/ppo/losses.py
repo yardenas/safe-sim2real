@@ -230,7 +230,7 @@ def compute_ppo_loss(
         constraint = safety_budget - vcs.mean()
         policy_loss, aux, penalizer_params = penalizer(
             policy_loss,
-            constraint,
+            jax.lax.stop_gradient(constraint),
             jax.lax.stop_gradient(penalizer_params),
             rest=-cost_advantages.mean(),
         )

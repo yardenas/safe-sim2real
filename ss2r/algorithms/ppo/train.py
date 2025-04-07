@@ -204,6 +204,7 @@ def train(
         unroll_length,
         num_minibatches,
         make_policy,
+        penalizer,
         num_updates_per_batch,
         batch_size,
         num_envs,
