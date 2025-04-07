@@ -108,8 +108,6 @@ def update_fn(
             (),
             length=batch_size * num_minibatches // num_envs,
         )
-        assert data.observation.shape[1] == 1
-        data = jax.tree_util.tree_map(lambda x: x.squeeze(1), data)
         # Have leading dimensions (batch_size * num_minibatches, unroll_length)
         data = jax.tree_util.tree_map(lambda x: jnp.swapaxes(x, 1, 2), data)
         data = jax.tree_util.tree_map(
