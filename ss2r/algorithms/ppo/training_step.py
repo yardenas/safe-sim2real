@@ -138,7 +138,7 @@ def update_fn(
             (),
             length=num_updates_per_batch,
         )
-
+        aux |= state.metrics
         new_training_state = TrainingState(
             optimizer_state=optimizer_state,
             params=params,
