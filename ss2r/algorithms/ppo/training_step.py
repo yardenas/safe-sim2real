@@ -90,6 +90,8 @@ def update_fn(
             )
             aux |= penalizer_aux
             aux |= cost_value_aux
+        else:
+            cost_value_params = params.cost_value
         optimizer_state = (
             policy_optimizer_state,
             value_optimizer_state,
