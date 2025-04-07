@@ -160,7 +160,7 @@ def make_losses(
             "policy_loss": policy_loss,
             "entropy_loss": entropy_loss,
         }
-        if penalizer is not None:
+        if penalizer is not None and False:
             cost_value_apply = ppo_network.cost_value_network.apply
             cost = data.extras["state_extras"]["cost"] * cost_scaling
             if use_ptsd:
