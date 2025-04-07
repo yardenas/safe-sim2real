@@ -28,3 +28,6 @@ agent:
   entropy_cost: 0.05
   batch_size: 1024
   safety_gae_lambda: 0.0
+  penalizer:
+    initial_lagrange_multiplier: 0.2
+    multiplier_lr: 1e-4
