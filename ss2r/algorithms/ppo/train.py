@@ -35,12 +35,7 @@ from etils import epath
 from orbax import checkpoint as ocp
 
 from ss2r.algorithms.penalizers import Penalizer
-from ss2r.algorithms.ppo import (
-    _PMAP_AXIS_NAME,
-    Metrics,
-    TrainingState,
-    TrainingStepFactory,
-)
+from ss2r.algorithms.ppo import _PMAP_AXIS_NAME, Metrics, TrainingState
 from ss2r.algorithms.ppo import losses as ppo_losses
 from ss2r.algorithms.ppo import networks as ppo_networks
 from ss2r.algorithms.ppo import training_step as ppo_training_step
@@ -66,7 +61,7 @@ def train(
     environment: Union[envs_v1.Env, envs.Env],
     num_timesteps: int,
     episode_length: int,
-    update_step_factory: TrainingStepFactory = ppo_training_step.update_fn,
+    update_step_factory=ppo_training_step.update_fn,
     action_repeat: int = 1,
     num_envs: int = 1,
     max_devices_per_host: Optional[int] = None,
