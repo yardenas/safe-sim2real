@@ -192,16 +192,15 @@ def make_losses(
             cost_advantages = jnp.minimum(surrogate1_cost, surrogate2_cost)
             ongoing_costs = data.extras["state_extras"]["cumulative_cost"].max(0).mean()
             constraint = safety_budget - vcs.mean()
-            # policy_loss, penalizer_aux, _ = penalizer(
-            #     policy_loss,
-            #     constraint,
-            #     jax.lax.stop_gradient(penalizer_params),
-            #     rest=-cost_advantages.mean(),
-            # )
-            policy_loss = cost_advantages.mean()
+            policy_loss, penalizer_aux, _ = penalizer(
+                policy_loss,
+                constraint,
+                jax.lax.stop_gradient(penalizer_params),
+                rest=-cost_advantages.mean(),
+            )
             aux["constraint_estimate"] = constraint
             aux["ongoing_costs"] = ongoing_costs
-            # aux |= penalizer_aux
+            aux |= penalizer_aux
         total_loss = policy_loss + entropy_loss
         return total_loss, aux
 
