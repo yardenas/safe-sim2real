@@ -6,11 +6,12 @@ defaults:
   - override /agent: ppo
   - _self_
 
-environment:
-  task_name: SafeWalkerRun
+# environment:
+#   task_name: SafeWalkerRun
 
 training:
-  num_timesteps: 150000000
+  # num_timesteps: 150000000
+  num_timesteps: 60000000
   safe: true
   train_domain_randomization: true
   eval_domain_randomization: true
