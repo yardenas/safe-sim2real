@@ -18,7 +18,6 @@ def update_fn(
     unroll_length,
     num_minibatches,
     make_policy,
-    penalizer,
     num_updates_per_batch,
     batch_size,
     num_envs,
@@ -44,11 +43,7 @@ def update_fn(
             key_loss,
             optimizer_state=optimizer_state,
         )
-        if safe:
-            penalizer_aux, penalizer_params = penalizer.update(
-                aux["constraint_estimate"], penalizer_params
-            )
-            aux |= penalizer_aux
+        penalizer_params = aux.pop("penalizer_params", None)
         return (optimizer_state, params, penalizer_params, key), aux
 
     def sgd_step(
