@@ -228,7 +228,7 @@ def compute_ppo_loss(
         cost_v_loss = jnp.mean(cost_v_error * cost_v_error) * 0.5 * 0.5
         ongoing_costs = data.extras["state_extras"]["cumulative_cost"].max(0).mean()
         constraint = safety_budget - vcs.mean()
-        policy_loss, aux, penalizer_params = penalizer(
+        policy_loss, penalizer_aux, penalizer_params = penalizer(
             policy_loss,
             jax.lax.stop_gradient(constraint),
             jax.lax.stop_gradient(penalizer_params),
@@ -239,4 +239,5 @@ def compute_ppo_loss(
         aux["cost_v_loss"] = cost_v_loss
         aux["ongoing_costs"] = ongoing_costs
         aux["penalizer_params"] = penalizer_params
+        aux |= penalizer_aux
     return total_loss, aux
