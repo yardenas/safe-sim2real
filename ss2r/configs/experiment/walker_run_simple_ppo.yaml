@@ -21,7 +21,7 @@ agent:
   normalize_observations: true
   unroll_length: 30
   num_minibatches: 32
-  num_updates_per_batch: 4
+  num_updates_per_batch: 16
   discounting: 0.995
   safety_discounting: 0.99
   learning_rate: 0.001
