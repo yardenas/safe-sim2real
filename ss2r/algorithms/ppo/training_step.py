@@ -51,15 +51,6 @@ def update_fn(
         normalizer_params: running_statistics.RunningStatisticsState,
     ):
         optimizer_state, params, penalizer_params, key = carry
-        cost = data.extras["state_extras"]["cost"]
-        data = Transition(
-            observation=data.observation,
-            action=data.action,
-            reward=-cost,
-            discount=data.discount,
-            next_observation=data.next_observation,
-            extras=data.extras,
-        )
         (
             policy_optimizer_state,
             value_optimizer_state,
