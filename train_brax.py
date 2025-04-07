@@ -188,8 +188,6 @@ def get_train_fn(cfg):
                 "eval_domain_randomization",
                 "render",
                 "store_policy",
-                "safe",
-                "safety_budget",
             ]
         }
         policy_hidden_layer_sizes = agent_cfg.pop("policy_hidden_layer_sizes")
