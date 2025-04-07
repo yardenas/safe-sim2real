@@ -133,9 +133,8 @@ class Lagrangian:
     ) -> tuple[jax.Array, dict[str, Any], LagrangianParams]:
         cost_advantage = -rest
         lagrange_multiplier = jnn.softplus(params.lagrange_multiplier)
-        # actor_loss += lagrange_multiplier * cost_advantage
-        # actor_loss = actor_loss / (1.0 + lagrange_multiplier)
-        actor_loss = cost_advantage
+        actor_loss += lagrange_multiplier * cost_advantage
+        actor_loss = actor_loss / (1.0 + lagrange_multiplier)
         aux: dict[str, Any] = {}
         new_params = params
         return actor_loss, aux, new_params
