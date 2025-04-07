@@ -53,6 +53,11 @@ class CRPO:
         }
         return actor_loss, aux, new_params
 
+    def update(
+        self, constraint: jax.Array, params: Params
+    ) -> tuple[dict[str, Any], Params]:
+        return {}, params
+
 
 class AugmentedLagrangianParams(NamedTuple):
     lagrange_multiplier: jax.Array
