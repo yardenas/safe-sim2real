@@ -121,7 +121,6 @@ class LagrangianParams(NamedTuple):
 class Lagrangian:
     def __init__(self, multiplier_lr: float) -> None:
         self.optimizer = optax.adam(learning_rate=multiplier_lr)
-        self.learning_rate = multiplier_lr
 
     def __call__(
         self,
@@ -142,16 +141,26 @@ class Lagrangian:
     def update(
         self, constraint: jax.Array, params: LagrangianParams
     ) -> tuple[jax.Array, LagrangianParams]:
-        new_lagrange_multiplier = update_lagrange_multiplier(
-            constraint, params.lagrange_multiplier, self.learning_rate
+        new_lagrange_multiplier, new_optimizer_state, loss = update_lagrange_multiplier(
+            constraint,
+            params.lagrange_multiplier,
+            self.optimizer,
+            params.optimizer_state,
         )
         lagrange_multiplier = jnn.softplus(new_lagrange_multiplier)
         aux = {"lagrange_multiplier": lagrange_multiplier}
-        return aux, LagrangianParams(new_lagrange_multiplier, params.optimizer_state)
+        aux["lagrange_multiplier_loss"] = loss
+        return aux, LagrangianParams(new_lagrange_multiplier, new_optimizer_state)
 
 
 def update_lagrange_multiplier(
-    constraint: jax.Array, lagrange_multiplier: jax.Array, learning_rate: float
+    constraint: jax.Array,
+    lagrange_multiplier: jax.Array,
+    optimizer: optax.GradientTransformation,
+    optimizer_state: optax.OptState,
 ) -> jax.Array:
-    new_multiplier = jnp.maximum(lagrange_multiplier - learning_rate * constraint, 0.0)
-    return new_multiplier
+    loss = lambda multiplier: multiplier * constraint
+    loss, grad = jax.value_and_grad(loss)(lagrange_multiplier)
+    updates, new_optimizer_state = optimizer.update(grad, optimizer_state)
+    new_multiplier = optax.apply_updates(lagrange_multiplier, updates)
+    return new_multiplier, new_optimizer_state, loss
