@@ -29,13 +29,22 @@ class CRPO:
         self.eta = eta
 
     def __call__(
-        self, actor_loss: jax.Array, constraint: jax.Array, params: CRPOParams
+        self,
+        actor_loss: jax.Array,
+        constraint: jax.Array,
+        params: CRPOParams,
+        *,
+        rest: Any,
     ) -> tuple[jax.Array, dict[str, Any], CRPOParams]:
         active = jnp.greater(constraint + self.eta, 0.0) | jnp.greater(params.burnin, 0)
+        if rest is not None:
+            loss_constraint = rest
+        else:
+            loss_constraint = constraint
         actor_loss = jnp.where(
             active,
             actor_loss,
-            -constraint,
+            -loss_constraint,
         )
         new_params = CRPOParams(jnp.clip(params.burnin - 1, a_min=-1))
         aux = {
