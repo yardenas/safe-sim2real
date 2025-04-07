@@ -173,14 +173,15 @@ def train(
         obs_shape, env.action_size, preprocess_observations_fn=normalize
     )
     make_policy = ppo_networks.make_inference_fn(ppo_network)
-    optimizer = optax.adam(learning_rate=learning_rate)
+    policy_optimizer = optax.adam(learning_rate=learning_rate)
+    value_optimizer = optax.adam(learning_rate=learning_rate)
+    cost_value_optimizer = optax.adam(learning_rate=learning_rate)
     if max_grad_norm is None:
-        optimizer = optax.chain(
+        policy_optimizer = optax.chain(
             optax.clip_by_global_norm(max_grad_norm),
             optax.adam(learning_rate=learning_rate),
         )
-    loss_fn = functools.partial(
-        ppo_losses.compute_ppo_loss,
+    policy_loss, value_loss, cost_value_loss = ppo_losses.make_losses(
         ppo_network=ppo_network,
         entropy_cost=entropy_cost,
         discounting=discounting,
@@ -191,15 +192,17 @@ def train(
         safety_gae_lambda=safety_gae_lambda,
         clipping_epsilon=clipping_epsilon,
         normalize_advantage=normalize_advantage,
-        penalizer=penalizer,
-        penalizer_params=penalizer_params,
         safety_budget=safety_budget,
         use_ptsd=use_ptsd,
         ptsd_lambda=ptsd_lambda,
     )
     training_step = update_step_factory(
-        loss_fn,
-        optimizer,
+        policy_loss,
+        value_loss,
+        cost_value_loss,
+        policy_optimizer,
+        value_optimizer,
+        cost_value_optimizer,
         env,
         unroll_length,
         num_minibatches,
@@ -267,9 +270,14 @@ def train(
     obs_shape = jax.tree_util.tree_map(
         lambda x: specs.Array(x.shape[-1:], jnp.dtype("float32")), env_state.obs
     )
+    policy_optimizer_state = policy_optimizer.init(init_params.policy)
+    value_optimizer_state = value_optimizer.init(init_params.value)
+    cost_value_optimizer_state = cost_value_optimizer.init(init_params.cost_value)
     training_state = TrainingState(  # pytype: disable=wrong-arg-types  # jax-ndarray
-        optimizer_state=optimizer.init(
-            init_params
+        optimizer_state=(
+            policy_optimizer_state,
+            value_optimizer_state,
+            cost_value_optimizer_state,
         ),  # pytype: disable=wrong-arg-types  # numpy-scalars
         params=init_params,
         normalizer_params=running_statistics.init_state(obs_shape),

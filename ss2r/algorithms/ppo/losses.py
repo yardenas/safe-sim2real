@@ -17,16 +17,10 @@
 See: https://arxiv.org/pdf/1707.06347.pdf
 """
 
-from typing import Any, Tuple
-
 import flax
 import jax
 import jax.numpy as jnp
-from brax.training import types
-from brax.training.agents.ppo import networks as ppo_networks
 from brax.training.types import Params
-
-from ss2r.algorithms.penalizers import Penalizer
 
 
 @flax.struct.dataclass
@@ -102,141 +96,155 @@ def compute_gae(
     return jax.lax.stop_gradient(vs), jax.lax.stop_gradient(advantages)
 
 
-def compute_ppo_loss(
-    params: SafePPONetworkParams,
-    normalizer_params: Any,
-    data: types.Transition,
-    rng: jnp.ndarray,
-    ppo_network: ppo_networks.PPONetworks,
-    entropy_cost: float = 1e-4,
-    discounting: float = 0.9,
-    safety_discounting: float = 0.9,
-    reward_scaling: float = 1.0,
-    cost_scaling: float = 1.0,
-    gae_lambda: float = 0.95,
-    safety_gae_lambda: float = 0.95,
-    safety_budget: float | None = None,
-    clipping_epsilon: float = 0.3,
-    normalize_advantage: bool = True,
-    penalizer: Penalizer | None = None,
-    penalizer_params: Params | None = None,
-    use_ptsd: bool = False,
-    ptsd_lambda: float = 0.0,
-) -> Tuple[jnp.ndarray, types.Metrics]:
-    """Computes PPO loss.
+def make_losses(
+    ppo_network,
+    clipping_epsilon,
+    entropy_cost,
+    reward_scaling,
+    discounting,
+    gae_lambda,
+    normalize_advantage,
+    cost_scaling,
+    safety_budget,
+    safety_discounting,
+    safety_gae_lambda,
+    use_ptsd,
+    ptsd_lambda,
+):
+    def compute_policy_loss(
+        policy_params,
+        value_params,
+        cost_value_params,
+        normalizer_params,
+        data,
+        penalizer,
+        penalizer_params,
+        key,
+    ):
+        parametric_action_distribution = ppo_network.parametric_action_distribution
+        policy_apply = ppo_network.policy_network.apply
+        value_apply = ppo_network.value_network.apply
+        data = jax.tree_util.tree_map(lambda x: jnp.swapaxes(x, 0, 1), data)
+        policy_logits = policy_apply(normalizer_params, policy_params, data.observation)
+        baseline = value_apply(normalizer_params, value_params, data.observation)
+        bootstrap_value = value_apply(
+            normalizer_params, value_params, data.next_observation[-1]
+        )
+        rewards = data.reward * reward_scaling
+        truncation = data.extras["state_extras"]["truncation"]
+        termination = (1 - data.discount) * (1 - truncation)
+        target_log_probs = parametric_action_distribution.log_prob(
+            policy_logits, data.extras["policy_extras"]["raw_action"]
+        )
+        behavior_log_probs = data.extras["policy_extras"]["log_prob"]
+        _, advantages = compute_gae(
+            truncation=truncation,
+            termination=termination,
+            rewards=rewards,
+            values=baseline,
+            bootstrap_value=bootstrap_value,
+            lambda_=gae_lambda,
+            discount=discounting,
+        )
+        if normalize_advantage:
+            advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
+        rho_s = jnp.exp(target_log_probs - behavior_log_probs)
+        surrogate1 = rho_s * advantages
+        surrogate2 = (
+            jnp.clip(rho_s, 1 - clipping_epsilon, 1 + clipping_epsilon) * advantages
+        )
+        policy_loss = -jnp.mean(jnp.minimum(surrogate1, surrogate2))
+        entropy = jnp.mean(parametric_action_distribution.entropy(policy_logits, key))
+        entropy_loss = -entropy_cost * entropy
+        aux = {
+            "policy_loss": policy_loss,
+            "entropy_loss": entropy_loss,
+        }
+        if penalizer is not None:
+            cost_value_apply = ppo_network.cost_value_network.apply
+            cost = data.extras["state_extras"]["cost"] * cost_scaling
+            if use_ptsd:
+                cost += ptsd_lambda * data.extras["state_extras"]["disagreement"]
+            cost_baseline = cost_value_apply(
+                normalizer_params, cost_value_params, data.observation
+            )
+            cost_bootstrap_value = cost_value_apply(
+                normalizer_params, cost_value_params, data.next_observation[-1]
+            )
+            vcs, cost_advantages = compute_gae(
+                truncation=truncation,
+                termination=termination,
+                rewards=cost,
+                values=cost_baseline,
+                bootstrap_value=cost_bootstrap_value,
+                lambda_=safety_gae_lambda,
+                discount=safety_discounting,
+            )
+            cost_advantages -= cost_advantages.mean()
+            cost_advantages *= rho_s
+            cost_v_error = vcs - cost_baseline
+            cost_v_loss = jnp.mean(cost_v_error * cost_v_error) * 0.5 * 0.5
+            ongoing_costs = data.extras["state_extras"]["cumulative_cost"].max(0).mean()
+            constraint = safety_budget - vcs.mean()
+            policy_loss, penalizer_aux, _ = penalizer(
+                policy_loss,
+                constraint,
+                jax.lax.stop_gradient(penalizer_params),
+                rest=-cost_advantages.mean(),
+            )
+            aux["constraint_estimate"] = constraint
+            aux["cost_v_loss"] = cost_v_loss
+            aux["ongoing_costs"] = ongoing_costs
+            aux |= penalizer_aux
+        total_loss = policy_loss + entropy_loss
+        return total_loss, aux
 
-    Args:
-      params: Network parameters,
-      normalizer_params: Parameters of the normalizer.
-      data: Transition that with leading dimension [B, T]. extra fields required
-        are ['state_extras']['truncation'] ['policy_extras']['raw_action']
-          ['policy_extras']['log_prob']
-      rng: Random key
-      ppo_network: PPO networks.
-      entropy_cost: entropy cost.
-      discounting: discounting,
-      reward_scaling: reward multiplier.
-      gae_lambda: General advantage estimation lambda.
-      clipping_epsilon: Policy loss clipping epsilon
-      normalize_advantage: whether to normalize advantage estimate
+    def compute_value_loss(params, normalizer_params, data):
+        value_apply = ppo_network.value_network.apply
+        data = jax.tree_util.tree_map(lambda x: jnp.swapaxes(x, 0, 1), data)
+        baseline = value_apply(normalizer_params, params, data.observation)
+        bootstrap_value = value_apply(
+            normalizer_params, params, data.next_observation[-1]
+        )
+        rewards = data.reward * reward_scaling
+        truncation = data.extras["state_extras"]["truncation"]
+        termination = (1 - data.discount) * (1 - truncation)
+        vs, _ = compute_gae(
+            truncation=truncation,
+            termination=termination,
+            rewards=rewards,
+            values=baseline,
+            bootstrap_value=bootstrap_value,
+            lambda_=gae_lambda,
+            discount=discounting,
+        )
+        v_error = vs - baseline
+        v_loss = jnp.mean(v_error**2) * 0.25
+        return v_loss, {"v_loss": v_loss}
 
-    Returns:
-      A tuple (loss, metrics)
-    """
-    parametric_action_distribution = ppo_network.parametric_action_distribution
-    policy_apply = ppo_network.policy_network.apply
-    value_apply = ppo_network.value_network.apply
-
-    # Put the time dimension first.
-    data = jax.tree_util.tree_map(lambda x: jnp.swapaxes(x, 0, 1), data)
-    policy_logits = policy_apply(normalizer_params, params.policy, data.observation)
-
-    baseline = value_apply(normalizer_params, params.value, data.observation)
-
-    bootstrap_value = value_apply(
-        normalizer_params, params.value, data.next_observation[-1]
-    )
-
-    rewards = data.reward * reward_scaling
-    truncation = data.extras["state_extras"]["truncation"]
-    termination = (1 - data.discount) * (1 - truncation)
-
-    target_action_log_probs = parametric_action_distribution.log_prob(
-        policy_logits, data.extras["policy_extras"]["raw_action"]
-    )
-    behaviour_action_log_probs = data.extras["policy_extras"]["log_prob"]
-
-    vs, advantages = compute_gae(
-        truncation=truncation,
-        termination=termination,
-        rewards=rewards,
-        values=baseline,
-        bootstrap_value=bootstrap_value,
-        lambda_=gae_lambda,
-        discount=discounting,
-    )
-    if normalize_advantage:
-        advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
-    rho_s = jnp.exp(target_action_log_probs - behaviour_action_log_probs)
-
-    surrogate_loss1 = rho_s * advantages
-    surrogate_loss2 = (
-        jnp.clip(rho_s, 1 - clipping_epsilon, 1 + clipping_epsilon) * advantages
-    )
-
-    policy_loss = -jnp.mean(jnp.minimum(surrogate_loss1, surrogate_loss2))
-
-    # Value function loss
-    v_error = vs - baseline
-    v_loss = jnp.mean(v_error * v_error) * 0.5 * 0.5
-
-    # Entropy reward
-    entropy = jnp.mean(parametric_action_distribution.entropy(policy_logits, rng))
-    entropy_loss = entropy_cost * -entropy
-
-    total_loss = policy_loss + v_loss + entropy_loss
-    aux = {
-        "total_loss": total_loss,
-        "policy_loss": policy_loss,
-        "v_loss": v_loss,
-        "entropy_loss": entropy_loss,
-    }
-    if penalizer is not None:
+    def compute_cost_value_loss(params, normalizer_params, data):
         cost_value_apply = ppo_network.cost_value_network.apply
+        data = jax.tree_util.tree_map(lambda x: jnp.swapaxes(x, 0, 1), data)
         cost = data.extras["state_extras"]["cost"] * cost_scaling
         if use_ptsd:
-            std = data.extras["state_extras"]["disagreement"]
-            cost += ptsd_lambda * std
-        cost_baseline = cost_value_apply(
-            normalizer_params, params.cost_value, data.observation
+            cost += ptsd_lambda * data.extras["state_extras"]["disagreement"]
+        cost_baseline = cost_value_apply(normalizer_params, params, data.observation)
+        cost_bootstrap = cost_value_apply(
+            normalizer_params, params, data.next_observation[-1]
         )
-        cost_bootstrap_value = cost_value_apply(
-            normalizer_params, params.cost_value, data.next_observation[-1]
-        )
-        vcs, cost_advantages = compute_gae(
+        truncation = data.extras["state_extras"]["truncation"]
+        termination = (1 - data.discount) * (1 - truncation)
+        vcs, _ = compute_gae(
             truncation=truncation,
             termination=termination,
             rewards=cost,
             values=cost_baseline,
-            bootstrap_value=cost_bootstrap_value,
+            bootstrap_value=cost_bootstrap,
             lambda_=safety_gae_lambda,
             discount=safety_discounting,
         )
-        cost_advantages -= cost_advantages.mean()
-        cost_advantages *= rho_s
-        cost_v_error = vcs - cost_baseline
-        cost_v_loss = jnp.mean(cost_v_error * cost_v_error) * 0.5 * 0.5
-        ongoing_costs = data.extras["state_extras"]["cumulative_cost"].max(0).mean()
-        constraint = safety_budget - vcs.mean()
-        policy_loss, penalizer_aux, penalizer_params = penalizer(
-            policy_loss,
-            jax.lax.stop_gradient(constraint),
-            jax.lax.stop_gradient(penalizer_params),
-            rest=-cost_advantages.mean(),
-        )
-        total_loss = policy_loss + v_loss + entropy_loss + cost_v_loss
-        aux["constraint_estimate"] = constraint
-        aux["cost_v_loss"] = cost_v_loss
-        aux["ongoing_costs"] = ongoing_costs
-        aux |= penalizer_aux
-    return total_loss, aux
+        cost_error = vcs - cost_baseline
+        cost_v_loss = jnp.mean(cost_error**2) * 0.25
+        return cost_v_loss, {"cost_v_loss": cost_v_loss}
+
+    return compute_policy_loss, compute_value_loss, compute_cost_value_loss

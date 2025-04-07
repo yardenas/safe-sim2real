@@ -9,11 +9,16 @@ from brax.training.acme import running_statistics
 from brax.training.types import PRNGKey
 
 from ss2r.algorithms.ppo import _PMAP_AXIS_NAME, Metrics, TrainingState
+from ss2r.algorithms.ppo import losses as ppo_losses
 
 
 def update_fn(
-    loss_fn,
+    policy_loss_fn,
+    value_loss_fn,
+    cost_value_loss_fn,
     optimizer,
+    value_optimizer,
+    cost_value_optimizer,
     env,
     unroll_length,
     num_minibatches,
@@ -26,8 +31,17 @@ def update_fn(
     safe,
     use_ptsd,
 ):
-    gradient_update_fn = gradients.gradient_update_fn(
-        loss_fn, optimizer, pmap_axis_name=_PMAP_AXIS_NAME, has_aux=True
+    policy_gradient_update_fn = gradients.gradient_update_fn(
+        policy_loss_fn, optimizer, pmap_axis_name=_PMAP_AXIS_NAME, has_aux=True
+    )
+    value_gradient_update_fn = gradients.gradient_update_fn(
+        value_loss_fn, value_optimizer, pmap_axis_name=_PMAP_AXIS_NAME, has_aux=True
+    )
+    cost_value_gradient_update_fn = gradients.gradient_update_fn(
+        cost_value_loss_fn,
+        cost_value_optimizer,
+        pmap_axis_name=_PMAP_AXIS_NAME,
+        has_aux=True,
     )
 
     def minibatch_step(
@@ -36,19 +50,54 @@ def update_fn(
         normalizer_params: running_statistics.RunningStatisticsState,
     ):
         optimizer_state, params, penalizer_params, key = carry
+        (
+            policy_optimizer_state,
+            value_optimizer_state,
+            cost_value_optimizer_state,
+        ) = optimizer_state
         key, key_loss = jax.random.split(key)
-        (_, aux), params, optimizer_state = gradient_update_fn(
-            params,
+        (_, aux), policy_params, optimizer_state = policy_gradient_update_fn(
+            params.policy,
+            params.value,
+            params.cost_value,
             normalizer_params,
             data,
+            penalizer,
+            penalizer_params,
             key_loss,
-            optimizer_state=optimizer_state,
+            optimizer_state=policy_optimizer_state,
         )
+        (_, value_aux), value_params, value_optimizer_state = value_gradient_update_fn(
+            params.value,
+            normalizer_params,
+            data,
+            optimizer_state=value_optimizer_state,
+        )
+        aux |= value_aux
         if safe:
+            (
+                (_, cost_value_aux),
+                cost_value_params,
+                cost_value_optimizer_state,
+            ) = cost_value_gradient_update_fn(
+                params.cost_value,
+                normalizer_params,
+                data,
+                optimizer_state=cost_value_optimizer_state,
+            )
             penalizer_aux, penalizer_params = penalizer.update(
                 aux["constraint_estimate"], penalizer_params
             )
             aux |= penalizer_aux
+            aux |= cost_value_aux
+        optimizer_state = (
+            policy_optimizer_state,
+            value_optimizer_state,
+            cost_value_optimizer_state,
+        )
+        params = ppo_losses.SafePPONetworkParams(
+            policy_params, value_params, cost_value_params
+        )  # type: ignore
         return (optimizer_state, params, penalizer_params, key), aux
 
     def sgd_step(
