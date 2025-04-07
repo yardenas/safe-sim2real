@@ -204,6 +204,7 @@ def make_losses(
             cost_advantages *= rho_s
             ongoing_costs = data.extras["state_extras"]["cumulative_cost"].max(0).mean()
             constraint = safety_budget - vcs.mean()
+            policy_loss = -cost_advantages.mean()
             # policy_loss, penalizer_aux, _ = penalizer(
             #     policy_loss,
             #     constraint,
