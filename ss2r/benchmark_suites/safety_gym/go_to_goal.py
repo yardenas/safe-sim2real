@@ -299,10 +299,7 @@ class GoToGoal(mjx_env.MjxEnv):
         data = mjx_env.init(
             self.mjx_model, qpos=qpos, mocap_pos=mocap_pos, mocap_quat=mocap_quat
         )
-        initial_goal_dist = jp.linalg.norm(
-            data.mocap_pos[self._goal_mocap_id][:2]
-            - data.site_xpos[self._robot_site_id][0:2]
-        )
+        initial_goal_dist = jp.linalg.norm(self._robot_to_goal(data)[:2])
         info = {
             "rng": rng,
             "last_goal_dist": initial_goal_dist,
