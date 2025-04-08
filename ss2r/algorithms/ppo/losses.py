@@ -163,8 +163,8 @@ def make_losses(
         if penalizer is not None:
             cost_value_apply = ppo_network.cost_value_network.apply
             cost = data.extras["state_extras"]["cost"] * cost_scaling
-            if use_ptsd:
-                cost += ptsd_lambda * data.extras["state_extras"]["disagreement"]
+            # if use_ptsd:
+            #     cost += ptsd_lambda * data.extras["state_extras"]["disagreement"]
             cost_baseline = cost_value_apply(
                 normalizer_params, cost_value_params, data.observation
             )
