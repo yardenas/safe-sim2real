@@ -133,7 +133,6 @@ class Lagrangian:
         cost_advantage = -rest
         lagrange_multiplier = params.lagrange_multiplier
         actor_loss += lagrange_multiplier * cost_advantage
-        actor_loss = actor_loss / (1.0 + lagrange_multiplier)
         aux: dict[str, Any] = {}
         new_params = params
         return actor_loss, aux, new_params
