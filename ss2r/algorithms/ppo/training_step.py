@@ -123,9 +123,6 @@ def update_fn(
             shuffled_data,
             length=num_minibatches,
         )
-        aux["cumulative_costs_global"] = (
-            data.extras["state_extras"]["cumulative_cost"].max(1).mean()
-        )
         return (optimizer_state, params, penalizer_params, key), aux
 
     def training_step(
