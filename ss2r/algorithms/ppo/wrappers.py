@@ -24,8 +24,11 @@ class TrackOnlineCosts(Wrapper):
 
 
 class Saute(Wrapper):
-    def __init__(self, env, discounting, budget, penalty, terminate=False, lambda_=1.0):
+    def __init__(
+        self, env, episode_length, discounting, budget, penalty, terminate, lambda_
+    ):
         super().__init__(env)
+        budget = budget * (1 - discounting**episode_length) / (1 - discounting)
         self.budget = budget
         self.discounting = discounting
         self.terminate = terminate
