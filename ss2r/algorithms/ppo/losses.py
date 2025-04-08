@@ -192,7 +192,9 @@ def make_losses(
             )
             cost_advantages = -jnp.minimum(surrogate1_cost, surrogate2_cost)
             ongoing_costs = data.extras["state_extras"]["cumulative_cost"].max(0).mean()
-            constraint = safety_budget - vcs.mean()
+            constraint = safety_budget - ongoing_costs / 1000.0 / (
+                1.0 - safety_discounting
+            )
             # TODO (yarden): don't hard-code this
             constraint = jnp.clip(constraint, -1000.0, 0.0)
             policy_loss, penalizer_aux, _ = penalizer(
