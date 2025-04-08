@@ -19,12 +19,12 @@ training:
 
 environment:
   train_params:
-    gain: [0, 5]
+    gain: [0, 8]
     gear: [0., 0.]
 
   eval_params:
     gain: [0, 0]
-    gear: [0., 450.]
+    gear: [0., 300.]
 
 agent:
   reward_scaling: 10.0
