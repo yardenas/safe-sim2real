@@ -34,10 +34,3 @@ agent:
   penalizer:
     initial_lagrange_multiplier: 1e-2
     multiplier_lr: 7e-7
-
-environment:
-  eval_params:
-    torso_length: [0., 0.]
-    friction: [0., 0.]
-    joint_damping: [0., 0.]
-    gear: [0., 20.]
