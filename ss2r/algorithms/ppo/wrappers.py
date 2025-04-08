@@ -62,7 +62,6 @@ class Saute(Wrapper):
         cost = nstate.info.get("cost", jnp.zeros_like(nstate.reward))
         cost += self.disagreement_scale * nstate.info.get("disagreement", 0.0)
         saute_state -= cost / self.budget
-        jax.debug.print("state {state}", state=saute_state)
         saute_reward = jnp.where(saute_state <= 0.0, -self.penalty, nstate.reward)
         terminate = jnp.where(
             ((saute_state <= 0.0) & self.terminate) | nstate.done.astype(jnp.bool),
