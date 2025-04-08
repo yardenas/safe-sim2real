@@ -236,8 +236,8 @@ def make_losses(
         cost_value_apply = ppo_network.cost_value_network.apply
         data = jax.tree_util.tree_map(lambda x: jnp.swapaxes(x, 0, 1), data)
         cost = data.extras["state_extras"]["cost"] * cost_scaling
-        if use_ptsd:
-            cost += ptsd_lambda * data.extras["state_extras"]["disagreement"]
+        # if use_ptsd:
+        #     cost += ptsd_lambda * data.extras["state_extras"]["disagreement"]
         cost_baseline = cost_value_apply(normalizer_params, params, data.observation)
         cost_bootstrap = cost_value_apply(
             normalizer_params, params, data.next_observation[-1]
