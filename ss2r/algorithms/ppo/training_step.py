@@ -29,7 +29,8 @@ def update_fn(
     num_envs,
     env_step_per_training_step,
     safe,
-    use_ptsd,
+    use_saute,
+    use_disagreement,
 ):
     policy_gradient_update_fn = gradients.gradient_update_fn(
         policy_loss_fn, optimizer, pmap_axis_name=_PMAP_AXIS_NAME, has_aux=True
@@ -141,8 +142,10 @@ def update_fn(
         extra_fields = ("truncation",)
         if safe:
             extra_fields += ("cost", "cumulative_cost")  # type: ignore
-        if use_ptsd:
-            extra_fields += ("saute_reward", "disagreement")  # type: ignore
+        if use_saute:
+            extra_fields += ("saute_reward",)  # type: ignore
+        if use_disagreement:
+            extra_fields += ("disagreement",)  # type: ignore
 
         def f(carry, unused_t):
             current_state, current_key = carry

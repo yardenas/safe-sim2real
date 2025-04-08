@@ -98,10 +98,11 @@ def train(
     penalizer: Penalizer | None = None,
     penalizer_params: Params | None = None,
     safe: bool = False,
-    use_ptsd: bool = False,
+    use_saute: bool = False,
+    use_disagreement: bool = False,
 ):
     assert batch_size * num_minibatches % num_envs == 0
-    if not safe or use_ptsd:
+    if not safe or use_saute:
         penalizer = None
         penalizer_params = None
     original_safety_budget = safety_budget
@@ -195,7 +196,7 @@ def train(
         clipping_epsilon=clipping_epsilon,
         normalize_advantage=normalize_advantage,
         safety_budget=safety_budget,
-        use_ptsd=use_ptsd,
+        use_saute=use_saute,
     )
     training_step = update_step_factory(
         policy_loss,
@@ -214,7 +215,8 @@ def train(
         num_envs,
         env_step_per_training_step,
         safe,
-        use_ptsd,
+        use_saute,
+        use_disagreement,
     )
 
     def training_epoch(

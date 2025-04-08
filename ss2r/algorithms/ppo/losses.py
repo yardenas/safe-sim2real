@@ -108,7 +108,7 @@ def make_losses(
     safety_budget,
     safety_discounting,
     safety_gae_lambda,
-    use_ptsd,
+    use_saute,
 ):
     def compute_policy_loss(
         policy_params,
@@ -130,7 +130,7 @@ def make_losses(
             normalizer_params, value_params, data.next_observation[-1]
         )
         rewards = data.reward * reward_scaling
-        if use_ptsd:
+        if use_saute:
             rewards = data.extras["state_extras"]["saute_reward"] * reward_scaling
         truncation = data.extras["state_extras"]["truncation"]
         termination = (1 - data.discount) * (1 - truncation)
@@ -222,7 +222,7 @@ def make_losses(
             normalizer_params, params, data.next_observation[-1]
         )
         rewards = data.reward * reward_scaling
-        if use_ptsd:
+        if use_saute:
             rewards = data.extras["state_extras"]["saute_reward"] * reward_scaling
         truncation = data.extras["state_extras"]["truncation"]
         termination = (1 - data.discount) * (1 - truncation)

@@ -260,10 +260,15 @@ def get_train_fn(cfg):
         )
         # FIXME (yarden): that's a hack for now. Need to think of a
         # better way to implement this.
-        if "propagation" in cfg.agent and cfg.agent.propagation.name == "saute":
+        if "penalizer" in cfg.agent and cfg.agent.penalizer.name == "saute":
             train_fn = functools.partial(
                 train_fn,
-                use_ptsd=True,
+                use_saute=True,
+            )
+        if "propagation" in cfg.agent and cfg.agent.propagation.name == "ts1":
+            train_fn = functools.partial(
+                train_fn,
+                use_disagreement=True,
             )
     else:
         raise ValueError(f"Unknown agent name: {cfg.agent.name}")
