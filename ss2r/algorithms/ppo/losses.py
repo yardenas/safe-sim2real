@@ -191,11 +191,14 @@ def make_losses(
                 * negative_cost_advantages
             )
             cost_advantages = -jnp.minimum(surrogate1_cost, surrogate2_cost)
-            ongoing_costs = data.extras["state_extras"]["cumulative_cost"].max(0).mean()
-            constraint = safety_budget - ongoing_costs / 1000.0 / (
-                1.0 - safety_discounting
+            cumulative_cost = data.extras["state_extras"]["cumulative_cost"]
+            ongoing_costs = cumulative_cost.max(0).mean()
+            length_scale_factor = (
+                cumulative_cost.shape[0] / 1000.0 / (1 - safety_discounting)
             )
-            # TODO (yarden): don't hard-code this
+            constraint = (
+                safety_budget - length_scale_factor * ongoing_costs
+            )  # TODO (yarden): don't hard-code this
             constraint = jnp.clip(constraint, -1000.0, 0.0)
             policy_loss, penalizer_aux, _ = penalizer(
                 policy_loss,
@@ -205,6 +208,7 @@ def make_losses(
             )
             aux["constraint_estimate"] = constraint
             aux["ongoing_costs"] = ongoing_costs
+            aux["cumulative_costs"] = cumulative_cost.max(0).mean()
             aux |= penalizer_aux
         total_loss = policy_loss + entropy_loss
         return total_loss, aux
