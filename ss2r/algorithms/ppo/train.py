@@ -176,6 +176,14 @@ def train(
             optax.clip_by_global_norm(max_grad_norm),
             optax.adam(learning_rate=learning_rate),
         )
+        value_optimizer = optax.chain(
+            optax.clip_by_global_norm(max_grad_norm),
+            optax.adam(learning_rate=learning_rate),
+        )
+        cost_value_optimizer = optax.chain(
+            optax.clip_by_global_norm(max_grad_norm),
+            optax.adam(learning_rate=learning_rate),
+        )
     policy_loss, value_loss, cost_value_loss = ppo_losses.make_losses(
         ppo_network=ppo_network,
         entropy_cost=entropy_cost,
