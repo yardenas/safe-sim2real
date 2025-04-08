@@ -163,6 +163,8 @@ def make_losses(
         if penalizer is not None:
             cost_value_apply = ppo_network.cost_value_network.apply
             cost = data.extras["state_extras"]["cost"] * cost_scaling
+            if use_ptsd:
+                cost += ptsd_lambda * data.extras["state_extras"]["disagreement"]
             cost_baseline = cost_value_apply(
                 normalizer_params, cost_value_params, data.observation
             )
@@ -191,10 +193,6 @@ def make_losses(
             cost_advantages = -jnp.minimum(surrogate1_cost, surrogate2_cost)
             ongoing_costs = data.extras["state_extras"]["cumulative_cost"].max(0).mean()
             constraint = safety_budget - vcs.mean()
-            if use_ptsd:
-                constraint -= (
-                    ptsd_lambda * data.extras["state_extras"]["disagreement"].mean()
-                )
             # TODO (yarden): don't hard-code this
             constraint = jnp.clip(constraint, -1000.0, 0.0)
             policy_loss, penalizer_aux, _ = penalizer(
@@ -236,8 +234,8 @@ def make_losses(
         cost_value_apply = ppo_network.cost_value_network.apply
         data = jax.tree_util.tree_map(lambda x: jnp.swapaxes(x, 0, 1), data)
         cost = data.extras["state_extras"]["cost"] * cost_scaling
-        # if use_ptsd:
-        #     cost += ptsd_lambda * data.extras["state_extras"]["disagreement"]
+        if use_ptsd:
+            cost += ptsd_lambda * data.extras["state_extras"]["disagreement"]
         cost_baseline = cost_value_apply(normalizer_params, params, data.observation)
         cost_bootstrap = cost_value_apply(
             normalizer_params, params, data.next_observation[-1]
