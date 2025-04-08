@@ -128,6 +128,7 @@ def make_brax_envs(cfg, train_wrap_env_fn):
         episode_length=cfg.training.episode_length,
         action_repeat=cfg.training.action_repeat,
         randomization_fn=train_randomization_fn,
+        augment_state=False,
     )
     eval_randomization_fn = prepare_randomization_fn(
         eval_key, cfg.training.num_eval_envs, task_cfg.eval_params, task_cfg.task_name
@@ -139,7 +140,7 @@ def make_brax_envs(cfg, train_wrap_env_fn):
         randomization_fn=eval_randomization_fn
         if cfg.training.eval_domain_randomization
         else None,
-        augment_state=cfg.training.train_domain_randomization,
+        augment_state=False,
     )
     return train_env, eval_env
 
