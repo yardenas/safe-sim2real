@@ -32,4 +32,4 @@ agent:
   batch_size: 1024
   safety_gae_lambda: 0.95
   penalizer:
-    eta: 12.
+    eta: 15.
