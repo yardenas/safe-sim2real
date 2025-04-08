@@ -24,14 +24,14 @@ environment:
     gear: [0., 300.]
 
 agent:
-  reward_scaling: 0.5
+  reward_scaling: 10.0
   normalize_observations: true
-  unroll_length: 10
+  unroll_length: 30
   num_minibatches: 32
   num_updates_per_batch: 16
-  discounting: 0.99
+  discounting: 0.995
   safety_discounting: 0.99
-  learning_rate: 3e-4
+  learning_rate: 0.001
   entropy_cost: 0.01
   batch_size: 1024
   safety_gae_lambda: 0.0
