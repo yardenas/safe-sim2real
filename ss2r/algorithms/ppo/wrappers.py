@@ -52,7 +52,8 @@ class Saute(Wrapper):
         cost += self.disagreement_scale * nstate.info.get("disagreement", 0.0)
         saute_state -= cost / self.budget
         saute_state /= self.discounting
-        saute_reward = jnp.where(saute_state <= 0.0, -self.penalty, nstate.reward)
+        # saute_reward = jnp.where(saute_state <= 0.0, -self.penalty, nstate.reward)
+        saute_reward = nstate.reward
         terminate = jnp.where((saute_state <= 0.0) & self.terminate, True, False)
         nstate.info["saute_state"] = saute_state
         nstate.info["saute_reward"] = saute_reward
