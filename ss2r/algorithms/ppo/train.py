@@ -100,6 +100,7 @@ def train(
     safe: bool = False,
     use_ptsd: bool = False,
     ptsd_lambda: float = 0.0,
+    ptsd_beta: float = 0.0,
 ):
     assert batch_size * num_minibatches % num_envs == 0
     if not safe:
@@ -198,6 +199,7 @@ def train(
         safety_budget=safety_budget,
         use_ptsd=use_ptsd,
         ptsd_lambda=ptsd_lambda,
+        ptsd_beta=ptsd_beta,
     )
     training_step = update_step_factory(
         policy_loss,

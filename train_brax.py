@@ -62,7 +62,9 @@ def get_cost_robustness(cfg):
         del cfg.agent.cost_robustness.name
         robustness = rb.RAMU(**cfg.agent.cost_robustness)
     elif cfg.agent.cost_robustness.name == "ucb_cost":
-        robustness = rb.UCBCost(cfg.agent.cost_robustness.cost_penalty)
+        robustness = rb.UCBCost(
+            cfg.agent.cost_robustness.cost_penalty, cfg.agent.cost_robustness.beta
+        )
     else:
         raise ValueError("Unknown robustness")
     return robustness
@@ -229,7 +231,10 @@ def get_train_fn(cfg):
         # better way to implement this.
         if isinstance(cost_robustness, rb.UCBCost):
             train_fn = functools.partial(
-                train_fn, use_ptsd=True, ptsd_lambda=cost_robustness.lambda_
+                train_fn,
+                use_ptsd=True,
+                ptsd_lambda=cost_robustness.lambda_,
+                ptsd_beta=cost_robustness.beta_,
             )
     else:
         raise ValueError(f"Unknown agent name: {cfg.agent.name}")

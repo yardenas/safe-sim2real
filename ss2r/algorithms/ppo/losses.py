@@ -110,6 +110,7 @@ def make_losses(
     safety_gae_lambda,
     use_ptsd,
     ptsd_lambda,
+    ptsd_beta,
 ):
     def compute_policy_loss(
         policy_params,
@@ -164,7 +165,10 @@ def make_losses(
             cost_value_apply = ppo_network.cost_value_network.apply
             cost = data.extras["state_extras"]["cost"] * cost_scaling
             if use_ptsd:
-                cost += ptsd_lambda * data.extras["state_extras"]["disagreement"]
+                cost += (
+                    ptsd_lambda * data.extras["state_extras"]["disagreement"]
+                    + ptsd_beta
+                )
             cost_baseline = cost_value_apply(
                 normalizer_params, cost_value_params, data.observation
             )
@@ -194,7 +198,7 @@ def make_losses(
             cumulative_cost = data.extras["state_extras"]["cumulative_cost"]
             if use_ptsd:
                 disagreement = ptsd_lambda * data.extras["state_extras"]["disagreement"]
-                cumulative_cost += disagreement
+                cumulative_cost += disagreement + ptsd_beta
             ongoing_costs = cumulative_cost.mean()
             length_scale_factor = (
                 cumulative_cost.shape[0] / 1000.0 / (1 - safety_discounting)
@@ -247,6 +251,7 @@ def make_losses(
         cost = data.extras["state_extras"]["cost"] * cost_scaling
         if use_ptsd:
             cost += ptsd_lambda * data.extras["state_extras"]["disagreement"]
+            cost += ptsd_beta
         cost_baseline = cost_value_apply(normalizer_params, params, data.observation)
         cost_bootstrap = cost_value_apply(
             normalizer_params, params, data.next_observation[-1]
