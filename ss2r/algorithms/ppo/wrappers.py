@@ -52,7 +52,10 @@ class Saute(Wrapper):
         saute_state = state.info["saute_state"]
         ones = jnp.ones_like(saute_state)
         saute_state = jnp.where(
-            state.done | state.info.get("truncation", False), ones, saute_state
+            state.done.astype(jnp.bool)
+            | state.info.get("truncation", False).astype(jnp.bool),
+            ones,
+            saute_state,
         )
         nstate = self.env.step(state, action)
         cost = nstate.info.get("cost", jnp.zeros_like(nstate.reward))
