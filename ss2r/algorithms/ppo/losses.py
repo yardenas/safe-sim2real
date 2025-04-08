@@ -201,7 +201,6 @@ def make_losses(
                 correct_safety_budget - length_scale_factor * ongoing_costs
             )  # TODO (yarden): don't hard-code this
             normalized_constraint = constraint / 1000.0 / (1.0 - safety_discounting)
-            constraint = jnp.clip(constraint, -1000.0, 0.0)
             policy_loss, penalizer_aux, _ = penalizer(
                 policy_loss,
                 normalized_constraint,
