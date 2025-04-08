@@ -99,11 +99,9 @@ def train(
     penalizer_params: Params | None = None,
     safe: bool = False,
     use_ptsd: bool = False,
-    ptsd_lambda: float = 0.0,
-    ptsd_beta: float = 0.0,
 ):
     assert batch_size * num_minibatches % num_envs == 0
-    if not safe:
+    if not safe or use_ptsd:
         penalizer = None
         penalizer_params = None
     original_safety_budget = safety_budget
@@ -198,8 +196,6 @@ def train(
         normalize_advantage=normalize_advantage,
         safety_budget=safety_budget,
         use_ptsd=use_ptsd,
-        ptsd_lambda=ptsd_lambda,
-        ptsd_beta=ptsd_beta,
     )
     training_step = update_step_factory(
         policy_loss,

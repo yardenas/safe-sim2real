@@ -74,7 +74,7 @@ def update_fn(
             optimizer_state=value_optimizer_state,
         )
         aux |= value_aux
-        if safe:
+        if safe and penalizer is not None:
             (
                 (_, cost_value_aux),
                 cost_value_params,
@@ -142,7 +142,7 @@ def update_fn(
         if safe:
             extra_fields += ("cost", "cumulative_cost")  # type: ignore
         if use_ptsd:
-            extra_fields += ("disagreement",)  # type: ignore
+            extra_fields += ("saute_reward", "disagreement")  # type: ignore
 
         def f(carry, unused_t):
             current_state, current_key = carry

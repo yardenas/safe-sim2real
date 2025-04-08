@@ -21,16 +21,16 @@ from ss2r.benchmark_suites.wrappers import (
 )
 
 
-def make(cfg, train_wrap_env_fn=lambda env: env):
+def make(cfg, train_wrap_env_fn=lambda env: env, eval_wrap_env_fn=lambda env: env):
     domain_name = get_domain_name(cfg)
     if domain_name == "brax":
-        return make_brax_envs(cfg, train_wrap_env_fn)
+        return make_brax_envs(cfg, train_wrap_env_fn, eval_wrap_env_fn)
     elif domain_name == "rccar":
-        return make_rccar_envs(cfg, train_wrap_env_fn)
+        return make_rccar_envs(cfg, train_wrap_env_fn, eval_wrap_env_fn)
     elif domain_name == "mujoco_playground":
-        return make_mujoco_playground_envs(cfg, train_wrap_env_fn)
+        return make_mujoco_playground_envs(cfg, train_wrap_env_fn, eval_wrap_env_fn)
     elif domain_name == "safety_gym":
-        return make_safety_gym_envs(cfg, train_wrap_env_fn)
+        return make_safety_gym_envs(cfg, train_wrap_env_fn, eval_wrap_env_fn)
 
 
 def prepare_randomization_fn(key, num_envs, cfg, task_name):
@@ -42,7 +42,7 @@ def prepare_randomization_fn(key, num_envs, cfg, task_name):
     return vf_randomization_fn
 
 
-def make_rccar_envs(cfg, train_wrap_env_fn):
+def make_rccar_envs(cfg, train_wrap_env_fn, eval_wrap_env_fn):
     task_cfg = dict(get_task_config(cfg))
     task_cfg.pop("domain_name")
     task_cfg.pop("task_name")
@@ -80,6 +80,7 @@ def make_rccar_envs(cfg, train_wrap_env_fn):
         augment_state=False,
     )
     eval_env = rccar.RCCar(eval_car_params["nominal"], **task_cfg)
+    eval_env = eval_wrap_env_fn(eval_env)
     if action_delay > 0 or obs_delay > 0:
         eval_env = ActionObservationDelayWrapper(
             eval_env, action_delay=action_delay, obs_delay=obs_delay
@@ -106,7 +107,7 @@ def make_rccar_envs(cfg, train_wrap_env_fn):
     return train_env, eval_env
 
 
-def make_brax_envs(cfg, train_wrap_env_fn):
+def make_brax_envs(cfg, train_wrap_env_fn, eval_wrap_env_fn):
     task_cfg = get_task_config(cfg)
     train_env = envs.get_environment(
         task_cfg.task_name, backend=cfg.environment.backend, **task_cfg.task_params
@@ -115,6 +116,7 @@ def make_brax_envs(cfg, train_wrap_env_fn):
     eval_env = envs.get_environment(
         task_cfg.task_name, backend=cfg.environment.backend, **task_cfg.task_params
     )
+    eval_env = eval_wrap_env_fn(eval_env)
     train_key, eval_key = jax.random.split(jax.random.PRNGKey(cfg.training.seed))
     train_randomization_fn = (
         prepare_randomization_fn(
@@ -145,7 +147,7 @@ def make_brax_envs(cfg, train_wrap_env_fn):
     return train_env, eval_env
 
 
-def make_mujoco_playground_envs(cfg, train_wrap_env_fn):
+def make_mujoco_playground_envs(cfg, train_wrap_env_fn, eval_wrap_env_fn):
     from ml_collections import config_dict
     from mujoco_playground import registry
 
@@ -156,6 +158,7 @@ def make_mujoco_playground_envs(cfg, train_wrap_env_fn):
     train_env = registry.load(task_cfg.task_name, config=task_params)
     train_env = train_wrap_env_fn(train_env)
     eval_env = registry.load(task_cfg.task_name, config=task_params)
+    eval_env = eval_wrap_env_fn(eval_env)
     train_key, eval_key = jax.random.split(jax.random.PRNGKey(cfg.training.seed))
     train_randomization_fn = (
         prepare_randomization_fn(
@@ -191,7 +194,7 @@ def make_mujoco_playground_envs(cfg, train_wrap_env_fn):
     return train_env, eval_env
 
 
-def make_safety_gym_envs(cfg, train_wrap_env_fn):
+def make_safety_gym_envs(cfg, train_wrap_env_fn, eval_wrap_env_fn):
     from ss2r.benchmark_suites.mujoco_playground import wrap_for_brax_training
     from ss2r.benchmark_suites.safety_gym import go_to_goal
 

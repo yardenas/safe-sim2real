@@ -1,0 +1,5 @@
+name: saute
+num_envs: 32
+penalty: 0.
+terminate: false
+lambda_: 0.

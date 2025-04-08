@@ -2,8 +2,7 @@
 defaults:
   - override /environment: cartpole
   - override /agent: ppo
-  - override /agent/cost_robustness: ucb_cost
-  - override /agent/propagation: ts1
+  - override /agent/propagation: saute
   - _self_
 
 training:

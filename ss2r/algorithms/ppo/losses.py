@@ -109,8 +109,6 @@ def make_losses(
     safety_discounting,
     safety_gae_lambda,
     use_ptsd,
-    ptsd_lambda,
-    ptsd_beta,
 ):
     def compute_policy_loss(
         policy_params,
@@ -132,6 +130,8 @@ def make_losses(
             normalizer_params, value_params, data.next_observation[-1]
         )
         rewards = data.reward * reward_scaling
+        if use_ptsd:
+            rewards = data.extras["state_extras"]["saute_reward"] * reward_scaling
         truncation = data.extras["state_extras"]["truncation"]
         termination = (1 - data.discount) * (1 - truncation)
         target_log_probs = parametric_action_distribution.log_prob(
@@ -164,11 +164,6 @@ def make_losses(
         if penalizer is not None:
             cost_value_apply = ppo_network.cost_value_network.apply
             cost = data.extras["state_extras"]["cost"] * cost_scaling
-            if use_ptsd:
-                cost += (
-                    ptsd_lambda * data.extras["state_extras"]["disagreement"]
-                    + ptsd_beta
-                )
             cost_baseline = cost_value_apply(
                 normalizer_params, cost_value_params, data.observation
             )
@@ -196,9 +191,6 @@ def make_losses(
             )
             cost_advantages = -jnp.minimum(surrogate1_cost, surrogate2_cost)
             cumulative_cost = data.extras["state_extras"]["cumulative_cost"]
-            if use_ptsd:
-                disagreement = ptsd_lambda * data.extras["state_extras"]["disagreement"]
-                cumulative_cost += disagreement + ptsd_beta
             ongoing_costs = cumulative_cost.mean()
             length_scale_factor = (
                 cumulative_cost.shape[0] / 1000.0 / (1 - safety_discounting)
@@ -230,6 +222,8 @@ def make_losses(
             normalizer_params, params, data.next_observation[-1]
         )
         rewards = data.reward * reward_scaling
+        if use_ptsd:
+            rewards = data.extras["state_extras"]["saute_reward"] * reward_scaling
         truncation = data.extras["state_extras"]["truncation"]
         termination = (1 - data.discount) * (1 - truncation)
         vs, _ = compute_gae(
@@ -249,9 +243,6 @@ def make_losses(
         cost_value_apply = ppo_network.cost_value_network.apply
         data = jax.tree_util.tree_map(lambda x: jnp.swapaxes(x, 0, 1), data)
         cost = data.extras["state_extras"]["cost"] * cost_scaling
-        if use_ptsd:
-            cost += ptsd_lambda * data.extras["state_extras"]["disagreement"]
-            cost += ptsd_beta
         cost_baseline = cost_value_apply(normalizer_params, params, data.observation)
         cost_bootstrap = cost_value_apply(
             normalizer_params, params, data.next_observation[-1]

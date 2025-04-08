@@ -17,6 +17,7 @@ from ss2r.algorithms.penalizers import (
     Lagrangian,
     LagrangianParams,
 )
+from ss2r.algorithms.ppo.wrappers import Saute
 from ss2r.algorithms.sac import robustness as rb
 from ss2r.algorithms.sac.wrappers import PTSD, ModelDisagreement
 from ss2r.common.logging import TrainingLogger
@@ -107,7 +108,40 @@ def get_wrap_env_fn(cfg):
             env = ModelDisagreement(env)
             return env
 
-        return fn
+        return fn, lambda env: env
+    elif cfg.agent.propagation.name == "saute":
+
+        def fn(env):
+            key = jax.random.PRNGKey(cfg.training.seed)
+            env = PTSD(
+                env,
+                benchmark_suites.prepare_randomization_fn(
+                    key,
+                    cfg.agent.propagation.num_envs,
+                    cfg.environment.train_params,
+                    cfg.environment.task_name,
+                ),
+                cfg.agent.propagation.num_envs,
+            )
+            env = ModelDisagreement(env)
+            env = Saute(
+                env,
+                cfg.agent.safety_discounting,
+                cfg.training.safety_budget,
+                cfg.agent.propagation.penalty,
+                cfg.agent.propagation.terminate,
+                cfg.agent.propagation.lambda_,
+            )
+            return env
+
+        return fn, functools.partial(
+            Saute,
+            discounting=cfg.agent.safety_discounting,
+            budget=cfg.training.safety_budget,
+            penalty=cfg.agent.propagation.penalty,
+            terminate=False,
+            lambda_=cfg.agent.propagation.lambda_,
+        )
     else:
         raise ValueError("Propagation method not provided.")
 
@@ -226,15 +260,12 @@ def get_train_fn(cfg):
             penalizer=penalizer,
             penalizer_params=penalizer_params,
         )
-        cost_robustness = get_cost_robustness(cfg)
-        # TODO (yarden): that's a hack for now. Need to think of a
+        # FIXME (yarden): that's a hack for now. Need to think of a
         # better way to implement this.
-        if isinstance(cost_robustness, rb.UCBCost):
+        if "propagation" in cfg.agent and cfg.agent.propagation.name == "saute":
             train_fn = functools.partial(
                 train_fn,
                 use_ptsd=True,
-                ptsd_lambda=cost_robustness.lambda_,
-                ptsd_beta=cost_robustness.beta_,
             )
     else:
         raise ValueError(f"Unknown agent name: {cfg.agent.name}")
@@ -260,8 +291,10 @@ def main(cfg):
     )
     logger = TrainingLogger(cfg)
     train_fn = get_train_fn(cfg)
-    train_env_wrap_fn = get_wrap_env_fn(cfg)
-    train_env, eval_env = benchmark_suites.make(cfg, train_env_wrap_fn)
+    train_env_wrap_fn, eval_env_wrap_fn = get_wrap_env_fn(cfg)
+    train_env, eval_env = benchmark_suites.make(
+        cfg, train_env_wrap_fn, eval_env_wrap_fn
+    )
     steps = Counter()
     with jax.disable_jit(not cfg.jit):
         make_policy, params, _ = train_fn(
