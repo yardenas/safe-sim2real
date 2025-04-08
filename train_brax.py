@@ -47,6 +47,8 @@ def get_penalizer(cfg):
             init_lagrange_multiplier,
             penalizer.optimizer.init(init_lagrange_multiplier),
         )
+    elif cfg.agent.penalizer.name == "saute":
+        return None, None
     else:
         raise ValueError(f"Unknown penalizer {cfg.agent.penalizer.name}")
     return penalizer, penalizer_state
@@ -90,7 +92,7 @@ def get_reward_robustness(cfg):
 
 def get_wrap_env_fn(cfg):
     if "propagation" not in cfg.agent:
-        return lambda env: env
+        out = lambda env: env, lambda env: env
     elif cfg.agent.propagation.name == "ts1":
 
         def fn(env):
@@ -108,42 +110,36 @@ def get_wrap_env_fn(cfg):
             env = ModelDisagreement(env)
             return env
 
-        return fn, lambda env: env
-    elif cfg.agent.propagation.name == "saute":
+        out = fn, lambda env: env
+    else:
+        raise ValueError("Propagation method not provided.")
+    if "penalizer" in cfg.agent and cfg.agent.penalizer.name == "saute":
 
-        def fn(env):
-            key = jax.random.PRNGKey(cfg.training.seed)
-            env = PTSD(
-                env,
-                benchmark_suites.prepare_randomization_fn(
-                    key,
-                    cfg.agent.propagation.num_envs,
-                    cfg.environment.train_params,
-                    cfg.environment.task_name,
-                ),
-                cfg.agent.propagation.num_envs,
-            )
-            env = ModelDisagreement(env)
+        def saute_train(env):
+            env = out[0](env)
             env = Saute(
                 env,
                 cfg.agent.safety_discounting,
                 cfg.training.safety_budget,
-                cfg.agent.propagation.penalty,
-                cfg.agent.propagation.terminate,
-                cfg.agent.propagation.lambda_,
+                cfg.agent.penalizer.penalty,
+                cfg.agent.penalizer.terminate,
+                cfg.agent.penalizer.lambda_,
             )
             return env
 
-        return fn, functools.partial(
-            Saute,
-            discounting=cfg.agent.safety_discounting,
-            budget=cfg.training.safety_budget,
-            penalty=cfg.agent.propagation.penalty,
-            terminate=False,
-            lambda_=cfg.agent.propagation.lambda_,
-        )
-    else:
-        raise ValueError("Propagation method not provided.")
+        def saute_eval(env):
+            env = out[1](env)
+            env = Saute(
+                env,
+                cfg.agent.safety_discounting,
+                cfg.training.safety_budget,
+                0.0,
+                False,
+                0.0,
+            )
+            return env
+
+        return saute_train, saute_eval
 
 
 def get_train_fn(cfg):

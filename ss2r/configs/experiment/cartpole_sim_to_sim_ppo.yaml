@@ -2,7 +2,7 @@
 defaults:
   - override /environment: cartpole
   - override /agent: ppo
-  - override /agent/propagation: saute
+  - override /agent/propagation: ts1
   - _self_
 
 training:
