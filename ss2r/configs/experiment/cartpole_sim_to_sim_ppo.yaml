@@ -1,6 +1,7 @@
 # @package _global_
 defaults:
   - override /environment: cartpole
+  - override /agent: ppo
   - override /agent/cost_robustness: ucb_cost
   - override /agent/propagation: ts1
   - _self_

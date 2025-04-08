@@ -1,6 +1,8 @@
 # @package _global_
 defaults:
   - override /environment: cartpole
+  - override /agent: ppo
+  - _self_
 
 training:
   num_timesteps: 60000000
