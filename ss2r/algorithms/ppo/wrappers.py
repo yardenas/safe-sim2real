@@ -61,7 +61,7 @@ class Saute(Wrapper):
         saute_state /= self.discounting
         saute_reward = jnp.where(saute_state <= 0.0, -self.penalty, nstate.reward)
         terminate = jnp.where(
-            (saute_state <= 0.0) & self.terminate | nstate.done, True, False
+            ((saute_state <= 0.0) & self.terminate) | nstate.done, True, False
         )
         nstate.info["saute_state"] = saute_state
         nstate.info["saute_reward"] = saute_reward
