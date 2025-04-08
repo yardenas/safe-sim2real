@@ -86,7 +86,7 @@ def update_fn(
                 optimizer_state=cost_value_optimizer_state,
             )
             penalizer_aux, penalizer_params = penalizer.update(
-                aux["constraint_estimate"], penalizer_params
+                aux["normalized_constraint_estimate"], penalizer_params
             )
             aux |= penalizer_aux
             aux |= cost_value_aux

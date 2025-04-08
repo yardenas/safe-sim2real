@@ -208,6 +208,7 @@ def make_losses(
                 rest=-cost_advantages.mean(),
             )
             aux["constraint_estimate"] = constraint
+            aux["normalized_constraint_estimate"] = normalized_constraint
             aux["ongoing_costs"] = ongoing_costs * length_scale_factor
             aux["cumulative_costs"] = cumulative_cost.max(0).mean()
             aux |= penalizer_aux
