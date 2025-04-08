@@ -1,7 +1,7 @@
 defaults:
   - cost_robustness: null
   - reward_robustness: null
-  - penalizer: ppo_lagrangian
+  - penalizer: crpo
   - propagation: null
 
 name: ppo
