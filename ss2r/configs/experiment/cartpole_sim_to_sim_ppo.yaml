@@ -24,7 +24,7 @@ environment:
 
   eval_params:
     gain: [0, 0]
-    gear: [0., 300.]
+    gear: [0., 450.]
 
 agent:
   reward_scaling: 10.0
