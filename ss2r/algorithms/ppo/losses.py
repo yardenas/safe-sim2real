@@ -196,8 +196,9 @@ def make_losses(
             length_scale_factor = (
                 cumulative_cost.shape[0] / 1000.0 / (1 - safety_discounting)
             )
+            correct_safety_budget = safety_budget * (1.0 - safety_discounting) * 1000.0
             constraint = (
-                safety_budget - length_scale_factor * ongoing_costs
+                correct_safety_budget - length_scale_factor * ongoing_costs
             )  # TODO (yarden): don't hard-code this
             constraint = jnp.clip(constraint, -1000.0, 0.0)
             policy_loss, penalizer_aux, _ = penalizer(
@@ -207,7 +208,7 @@ def make_losses(
                 rest=-cost_advantages.mean(),
             )
             aux["constraint_estimate"] = constraint
-            aux["ongoing_costs"] = ongoing_costs
+            aux["ongoing_costs"] = ongoing_costs * length_scale_factor
             aux["cumulative_costs"] = cumulative_cost.max(0).mean()
             aux |= penalizer_aux
         total_loss = policy_loss + entropy_loss
