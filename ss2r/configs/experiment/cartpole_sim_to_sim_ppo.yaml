@@ -19,7 +19,7 @@ training:
 
 environment:
   train_params:
-    gain: [0, 5]
+    gain: [0, 3]
     gear: [0., 0.]
 
   eval_params:
