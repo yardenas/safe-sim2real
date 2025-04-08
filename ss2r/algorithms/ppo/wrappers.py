@@ -42,6 +42,7 @@ class Saute(Wrapper):
         state.info["saute_reward"] = state.reward
         state = state.replace(obs=jnp.hstack([state.obs, state.info["saute_state"]]))
         state.metrics["saute_reward"] = state.info["saute_reward"]
+        state.metrics["saute_state"] = state.info["saute_state"]
         return state
 
     def step(self, state, action):
@@ -56,6 +57,7 @@ class Saute(Wrapper):
         nstate.info["saute_state"] = saute_state
         nstate.info["saute_reward"] = saute_reward
         nstate.metrics["saute_reward"] = saute_reward
+        nstate.metrics["saute_state"] = saute_state
         nstate = nstate.replace(
             obs=jnp.hstack([nstate.obs, saute_state]),
             done=terminate.astype(nstate.done),
