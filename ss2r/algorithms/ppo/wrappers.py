@@ -28,7 +28,8 @@ class Saute(Wrapper):
         self, env, episode_length, discounting, budget, penalty, terminate, lambda_
     ):
         super().__init__(env)
-        budget = budget * (1 - discounting**episode_length) / (1 - discounting)
+        # Assumes that this is the budget for the undiscounted
+        # episode.
         self.budget = budget
         self.discounting = discounting
         self.terminate = terminate
@@ -61,7 +62,7 @@ class Saute(Wrapper):
         cost = nstate.info.get("cost", jnp.zeros_like(nstate.reward))
         cost += self.disagreement_scale * nstate.info.get("disagreement", 0.0)
         saute_state -= cost / self.budget
-        saute_state /= self.discounting
+        jax.debug.print("state {state}", state=saute_state)
         saute_reward = jnp.where(saute_state <= 0.0, -self.penalty, nstate.reward)
         terminate = jnp.where(
             ((saute_state <= 0.0) & self.terminate) | nstate.done.astype(jnp.bool),
