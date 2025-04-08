@@ -194,7 +194,7 @@ def make_losses(
             ongoing_costs = data.extras["state_extras"]["cumulative_cost"].max(0).mean()
             constraint = safety_budget - vcs.mean()
             # TODO (yarden): don't hard-code this
-            constraint = jnp.clip(constraint, 0.0, 1000.0)
+            constraint = jnp.clip(constraint, -1000.0, 0.0)
             policy_loss, penalizer_aux, _ = penalizer(
                 policy_loss,
                 constraint,
