@@ -191,7 +191,7 @@ def make_losses(
                 * negative_cost_advantages
             )
             cost_advantages = -jnp.minimum(surrogate1_cost, surrogate2_cost)
-            cumulative_cost = data.extras["state_extras"]["cumulative_cost"] + 0.5
+            cumulative_cost = data.extras["state_extras"]["cumulative_cost"] + 0.1
             ongoing_costs = cumulative_cost.mean()
             length_scale_factor = (
                 cumulative_cost.shape[0] / 1000.0 / (1 - safety_discounting)
