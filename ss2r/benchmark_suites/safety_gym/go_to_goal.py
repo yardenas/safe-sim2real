@@ -1,4 +1,5 @@
 from collections import defaultdict
+from itertools import product
 from typing import Any, Dict, Mapping, NamedTuple, Tuple, Union
 
 import jax
@@ -114,6 +115,12 @@ def build_arena(
         contype=jp.zeros(()),
         conaffinity=jp.zeros(()),
     )
+    for vase1, vase2 in product(
+        range(objects["vases"].num_objects), range(objects["vases"].num_objects)
+    ):
+        if vase1 == vase2:
+            continue
+        spec.add_exclude(bodyname1=f"vase_{vase1}", bodyname2=f"vase_{vase2}")
     if visualize:
         lidar.add_lidar_rings(spec)
 
