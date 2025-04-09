@@ -343,7 +343,7 @@ class GoToGoal(mjx_env.MjxEnv):
         data = mjx_env.step(self._mjx_model, state.data, action, n_substeps=2)
         reward, goal_dist = self.get_reward(data, state.info["last_goal_dist"])
         # Reset goal if robot inside goal
-        condition = goal_dist <= _GOAL_SIZE
+        condition = goal_dist <= _GOAL_SIZE + 1e-2
         data, rng, goal_dist = jax.lax.cond(
             condition,
             self._resample_goal,

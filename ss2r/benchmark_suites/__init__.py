@@ -3,7 +3,7 @@ import functools
 import jax
 from brax import envs
 
-from ss2r.benchmark_suites import brax, mujoco_playground, wrappers
+from ss2r.benchmark_suites import brax, mujoco_playground, safety_gym, wrappers
 from ss2r.benchmark_suites.brax.ant import ant
 from ss2r.benchmark_suites.brax.cartpole import cartpole
 from ss2r.benchmark_suites.brax.humanoid import humanoid
@@ -304,5 +304,5 @@ render_fns = {
     "SafeWalkerRun": functools.partial(mujoco_playground.render, camera="side"),
     "HumanoidWalk": mujoco_playground.render,
     "SafeHumanoidWalk": mujoco_playground.render,
-    "go_to_goal": functools.partial(mujoco_playground.render, camera="fixedfar"),
+    "go_to_goal": functools.partial(safety_gym.render, camera="fixedfar"),
 }
