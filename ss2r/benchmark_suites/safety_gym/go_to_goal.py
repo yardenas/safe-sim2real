@@ -24,7 +24,7 @@ _ROBOT_TO_SENSOR_TO_COMPONENTS = {
         "magnetometer": [0, 1],
     },
 }
-_EXTENTS = (-1.0, -1.0, 1.0, 1.0)
+_EXTENTS = (-2.0, -2.0, 2.0, 2.0)
 _GOAL_SIZE = 0.3
 
 
