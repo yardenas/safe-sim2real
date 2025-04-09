@@ -8,6 +8,7 @@ from etils import epath
 from flax import struct
 from mujoco import mjx
 from mujoco_playground._src import mjx_env
+from mujoco_playground._src.reward import tolerance
 
 import ss2r.benchmark_suites.safety_gym.lidar as lidar
 
@@ -164,9 +165,18 @@ class GoToGoal(mjx_env.MjxEnv):
     def get_reward(
         self, data: mjx.Data, last_goal_dist: jax.Array
     ) -> tuple[jax.Array, jax.Array]:
-        goal_distance = jp.linalg.norm(self._robot_to_goal(data)[:2])
-        reward = last_goal_dist - goal_distance
-        return reward, goal_distance
+        # goal_distance = jp.linalg.norm(self._robot_to_goal(data)[:2])
+        # reward = last_goal_dist - goal_distance
+        # return reward, goal_distance
+        robot_to_goal = jp.linalg.norm(self._robot_to_goal(data)[:2])
+        reward = tolerance(
+            robot_to_goal,
+            bounds=(0, 0.3),
+            margin=1,
+            value_at_margin=0,
+            sigmoid="linear",
+        )
+        return reward, robot_to_goal
 
     def _robot_to_goal(self, data: mjx.Data) -> jax.Array:
         return data.mocap_pos[self._goal_mocap_id] - data.xpos[self._robot_body_id]
@@ -334,7 +344,7 @@ class GoToGoal(mjx_env.MjxEnv):
         #     data,
         #     state.info["rng"],
         # )
-        reward = jp.where(condition, reward + 1.0, reward)
+        # reward = jp.where(condition, reward + 1.0, reward)
         cost = self.get_cost(data)
         obs = self.get_obs(data)
         state.info["last_goal_dist"] = goal_dist
