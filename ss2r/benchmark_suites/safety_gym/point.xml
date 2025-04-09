@@ -1,5 +1,8 @@
 <mujoco>
-    <option timestep="0.01" solver="Newton" iterations="4" ls_iterations="8"/>
+    <option timestep="0.01" solver="Newton" iterations="4" ls_iterations="4"/>
+    <custom>
+        <numeric data="10" name="max_geom_pairs"/>
+    </custom>
     <default>
         <geom condim="6" density="1"/>
         <joint damping=".001"/>
@@ -16,7 +19,6 @@
         <geom name="floor" type="plane" condim="6" size="5 5 0.1" rgba="1 1 1 1" material="MatPlane"/>
         <body name="robot" pos="0 0 .1">
             <!-- <camera name="vision" pos="0 0 .15" xyaxes="0 -1 0 .4 0 1" fovy="90"/> -->
-            <!-- <geom name="camera" pos="-.2 0 0" type="sphere" size=".05"/> -->
             <joint type="slide" axis="1 0 0" name="x" damping="0.01"/>
             <joint type="slide" axis="0 1 0" name="y" damping="0.01"/>
             <joint type="hinge" axis="0 0 1" name="z" damping="0.005"/>

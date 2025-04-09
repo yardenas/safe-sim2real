@@ -231,9 +231,12 @@ class GoToGoal(mjx_env.MjxEnv):
         hazard_distances = jp.linalg.norm(
             data.xpos[jp.array(self._hazard_body_ids)][:, :2] - robot_pos, axis=1
         )
-        vases_vels = data.qvel[jp.array(self._vases_qvel_ids)]
-        vases_linear_velocities = vases_vels.reshape(-1, 6)[:, :3]
-        vases_linear_velocities = jp.linalg.norm(vases_linear_velocities)
+        if self.spec["vases"].num_objects > 0:
+            vases_vels = data.qvel[jp.array(self._vases_qvel_ids)]
+            vases_linear_velocities = vases_vels.reshape(-1, 6)[:, :3]
+            vases_linear_velocities = jp.linalg.norm(vases_linear_velocities)
+        else:
+            vases_linear_velocities = jp.zeros(())
         cost = (
             jp.sum(colliding_obstacles)
             + jp.sum(hazard_distances <= 0.2)
