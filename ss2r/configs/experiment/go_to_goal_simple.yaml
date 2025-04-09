@@ -14,8 +14,8 @@ training:
 
 agent:
   activation: swish
-  # penalizer:
-  #   lagrange_multiplier: 0.1
-  #   penalty_multiplier: 0.001
-  #   penalty_multiplier_factor: 1e-4
+  penalizer:
+    lagrange_multiplier: 0.1
+    penalty_multiplier: 0.001
+    penalty_multiplier_factor: 1e-4
 
