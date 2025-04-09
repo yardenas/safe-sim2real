@@ -341,7 +341,8 @@ class GoToGoal(mjx_env.MjxEnv):
             state.info["rng"],
         )
         reward = jp.where(condition, reward + 1.0, reward)
-        cost = self.get_cost(data)
+        # cost = self.get_cost(data)
+        cost = jp.where(jp.linalg.norm(action) > 0.1, 1.0, 0.0)
         obs = self.get_obs(data)
         state.info["last_goal_dist"] = goal_dist
         state.info["rng"] = rng
