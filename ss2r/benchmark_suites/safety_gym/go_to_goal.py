@@ -231,7 +231,8 @@ class GoToGoal(mjx_env.MjxEnv):
             data.xpos[jp.array(self._hazard_body_ids)][:, :2] - robot_pos, axis=1
         )
         cost = jp.sum(colliding_obstacles) + jp.sum(hazard_distances <= 0.2)
-        return (cost > 0.0).astype(jp.float32)
+        # FIXME (yarden)
+        return (cost > 0.0).astype(jp.float32) * 25
 
     def lidar_observations(self, data: mjx.Data) -> jax.Array:
         """Compute Lidar observations."""
