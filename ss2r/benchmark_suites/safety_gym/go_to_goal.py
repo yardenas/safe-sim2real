@@ -125,6 +125,8 @@ def build_arena(
         if vase1 == vase2:
             continue
         spec.add_exclude(bodyname1=f"vase_{vase1}", bodyname2=f"vase_{vase2}")
+    for vase, geom in product(range(len(vases_spec)), ["pointarrow", "robot"]):
+        spec.add_pair(geomname1=f"vase_{vase}", geomname2=geom)
     if visualize:
         lidar.add_lidar_rings(spec)
 
