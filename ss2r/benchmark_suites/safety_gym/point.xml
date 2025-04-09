@@ -1,5 +1,5 @@
 <mujoco>
-    <option timestep="0.01" solver="Newton" iterations="4" ls_iterations="4"/>
+    <option timestep="0.01" solver="Newton" iterations="6" ls_iterations="8"/>
     <custom>
         <numeric data="10" name="max_geom_pairs"/>
     </custom>
