@@ -71,7 +71,9 @@ def get_collision_info(
 
 
 def build_arena(
-    spec: mj.MjSpec, objects: dict[str, ObjectSpec], visualize: bool = False
+    spec: mj.MjSpec,
+    layout: dict[str, list[tuple[int, jax.Array]]],
+    visualize: bool = False,
 ):
     """Build the arena (currently, just adds Lidar rings). Future: dynamically add obstacles, hazards, objects, goal here"""
     # Set floor size
@@ -79,8 +81,9 @@ def build_arena(
     assert maybe_floor.name == "floor"
     size = max(_EXTENTS)
     maybe_floor.size = jp.array([size + 0.1, size + 0.1, 0.1])
-    # Reposition robot
-    for i in range(objects["vases"].num_objects):
+    vases_spec = layout["vases"]
+    for i, (_, xy) in enumerate(vases_spec):
+        xyz = jp.hstack([xy, 0.1])
         density = 0.001
         vase = spec.worldbody.add_body(
             name=f"vase_{i}",
@@ -92,11 +95,14 @@ def build_arena(
             rgba=[0.0, 1.0, 1.0, 1.0],
             userdata=jp.ones(1),
             density=density,
+            pos=xyz,
         )
         # Free joint bug in visualizer: https://github.com/google-deepmind/mujoco/issues/2508
         vase.add_freejoint(name=f"vase_{i}")
-    for i in range(objects["hazards"].num_objects):
-        hazard = spec.worldbody.add_body(name=f"hazard_{i}", mocap=True)
+    hazards_spec = layout["hazards"]
+    for i, (_, xy) in enumerate(hazards_spec):
+        xyz = jp.hstack([xy, 2e-2])
+        hazard = spec.worldbody.add_body(name=f"hazard_{i}", mocap=True, pos=xyz)
         hazard.add_geom(
             name=f"hazard_{i}",
             type=mj.mjtGeom.mjGEOM_CYLINDER,
@@ -106,7 +112,9 @@ def build_arena(
             contype=jp.zeros(()),
             conaffinity=jp.zeros(()),
         )
-    goal = spec.worldbody.add_body(name="goal", mocap=True)
+    goal_pos = layout["goal"][0][1]
+    xyz = jp.hstack([goal_pos, 0.3 / 2.0 + 1e-2])
+    goal = spec.worldbody.add_body(name="goal", mocap=True, pos=xyz)
     goal.add_geom(
         name="goal",
         type=mj.mjtGeom.mjGEOM_CYLINDER,
@@ -115,9 +123,7 @@ def build_arena(
         contype=jp.zeros(()),
         conaffinity=jp.zeros(()),
     )
-    for vase1, vase2 in product(
-        range(objects["vases"].num_objects), range(objects["vases"].num_objects)
-    ):
+    for vase1, vase2 in product(range(len(vases_spec)), range(len(vases_spec))):
         if vase1 == vase2:
             continue
         spec.add_exclude(bodyname1=f"vase_{vase1}", bodyname2=f"vase_{vase2}")
@@ -127,7 +133,7 @@ def build_arena(
 
 # TODO (yarden): should not depend on mujoco playground eventually
 class GoToGoal(mjx_env.MjxEnv):
-    def __init__(self, *, visualize_lidar: bool = False):
+    def __init__(self, *, visualize_lidar: bool = False, seed: int = 0):
         self.spec = {
             "robot": ObjectSpec(0.4, 1),
             "goal": ObjectSpec(_GOAL_SIZE + 0.05, 1),
@@ -135,7 +141,8 @@ class GoToGoal(mjx_env.MjxEnv):
             "vases": ObjectSpec(0.15, 10),
         }
         mj_spec: mj.MjSpec = mj.MjSpec.from_file(filename=str(_XML_PATH), assets={})
-        build_arena(mj_spec, objects=self.spec, visualize=visualize_lidar)
+        layout = _sample_layout(jax.random.PRNGKey(seed), self.spec)
+        build_arena(mj_spec, layout=layout, visualize=visualize_lidar)
         self._mj_model = mj_spec.compile()
         self._mjx_model = mjx.put_model(self._mj_model)
         self._post_init()
@@ -284,7 +291,7 @@ class GoToGoal(mjx_env.MjxEnv):
                     rng, rng_ = jax.random.split(rng)
                     rotation = jax.random.uniform(rng_, minval=-jp.pi, maxval=jp.pi)
                     quat = _rot2quat(rotation)
-                    pos = jp.hstack((xy, 0.15, quat))
+                    pos = jp.hstack((xy, 0.1 + 5e-4, quat))
                     new_qpos = new_qpos.at[ids].set(pos)
             elif name == "robot":
                 assert len(positions) == 1
@@ -406,7 +413,7 @@ def _sample_layout(
         rng, rng_ = jax.random.split(rng)
         keys = jax.random.split(rng_, object_spec.num_objects)
         for _, key in enumerate(keys):
-            xy, iter_ = draw_until_valid(
+            xy, _ = draw_until_valid(
                 key, object_spec.keepout, all_placements, all_keepouts
             )
             # TODO (yarden): technically should quit if not valid sampling.
