@@ -1,6 +1,4 @@
 <mujoco>
-    <!-- For memory constraints -->
-    <size njmax="3000" nconmax="1000"/>
     <option timestep="0.01" solver="Newton" iterations="4" ls_iterations="8"/>
     <custom>
         <numeric data="15" name="max_contact_points"/>
