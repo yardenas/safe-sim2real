@@ -57,7 +57,7 @@ def _main(argv: Sequence[str]) -> None:
     if len(argv) > 1:
         raise app.UsageError("Too many command-line arguments.")
     with jax.disable_jit(False):
-        task = go_to_goal.GoToGoal()
+        task = go_to_goal.GoToGoal(visualize_lidar=True)
         reset_fn = jax.jit(task.reset)
         rng = jax.random.PRNGKey(0)
         states = collections.deque([reset_fn(rng)], maxlen=10)
@@ -109,7 +109,7 @@ def _main(argv: Sequence[str]) -> None:
                     if count % 1000 == 0:
                         print("reward", reward, count)
                         reward = 0
-                    # lidar.update_lidar_rings(states[-1].obs[: 16 * 3], m)
+                    lidar.update_lidar_rings(states[-1].obs[: 16 * 3], m)
                     if VIEWERGLOBAL_STATE["reset"]:
                         rng, rng_ = jax.random.split(rng)
                         states.append(reset_fn(rng_))

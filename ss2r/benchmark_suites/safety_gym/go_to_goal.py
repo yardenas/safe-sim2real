@@ -120,7 +120,7 @@ def build_arena(
 
 # TODO (yarden): should not depend on mujoco playground eventually
 class GoToGoal(mjx_env.MjxEnv):
-    def __init__(self, visualize_lidar: bool = True):
+    def __init__(self, *, visualize_lidar: bool = False):
         self.spec = {
             "robot": ObjectSpec(0.4, 1),
             "goal": ObjectSpec(_GOAL_SIZE + 0.05, 1),
@@ -185,7 +185,7 @@ class GoToGoal(mjx_env.MjxEnv):
         v = v / (jp.linalg.norm(v) + 0.001)
         return v[:2]
 
-    def _reset_goal(
+    def _resample_goal(
         self, data: mjx.Data, rng: jax.Array
     ) -> tuple[mjx.Data, jax.Array, jax.Array]:
         # other_xy = self.obstacle_positions(data)[:, :2]
@@ -331,18 +331,18 @@ class GoToGoal(mjx_env.MjxEnv):
         reward, goal_dist = self.get_reward(data, state.info["last_goal_dist"])
         # Reset goal if robot inside goal
         condition = goal_dist < _GOAL_SIZE
-        # data, rng, goal_dist = jax.lax.cond(
-        #     condition,
-        #     self._reset_goal,
-        #     lambda d, r: (d, r, goal_dist),
-        #     data,
-        #     state.info["rng"],
-        # )
+        data, rng, goal_dist = jax.lax.cond(
+            condition,
+            self._resample_goal,
+            lambda d, r: (d, r, goal_dist),
+            data,
+            state.info["rng"],
+        )
         reward = jp.where(condition, reward + 1.0, reward)
         cost = self.get_cost(data)
         obs = self.get_obs(data)
         state.info["last_goal_dist"] = goal_dist
-        # state.info["rng"] = rng
+        state.info["rng"] = rng
         state.info["cost"] = cost
         state.info["goal_reached"] = condition.astype(jp.float32)
         done = jp.isnan(data.qpos).any() | jp.isnan(data.qvel).any()
