@@ -158,6 +158,7 @@ class GoToGoal(mjx_env.MjxEnv):
             for i in range(self.spec["hazards"].num_objects)
         ]
         self._robot_qpos_ids = mjx_env.get_qpos_ids(self._mj_model, ["x", "y", "z"])
+        self._robot_qvel_ids = mjx_env.get_qvel_ids(self._mj_model, ["x", "y", "z"])
         self._init_q = self._mj_model.qpos0
 
     def get_reward(
@@ -248,10 +249,13 @@ class GoToGoal(mjx_env.MjxEnv):
     def get_obs(self, data: mjx.Data) -> jax.Array:
         # lidar = self.lidar_observations(data)
         # FIXME (yarden): this is wrong
-        magnitude = jp.linalg.norm(self._robot_to_goal(data))
-        direction = self._compass(data)
-        other_sensors = self.sensor_observations(data)
-        return jp.hstack([magnitude, direction, other_sensors])
+        # magnitude = jp.linalg.norm(self._robot_to_goal(data))
+        # direction = self._compass(data)
+        # other_sensors = self.sensor_observations(data)
+        # return jp.hstack([magnitude, direction, other_sensors])
+        robot_qpos = data.qpos[self._robot_qpos_ids]
+        robot_qvel = data.qvel[self._robot_qvel_ids]
+        return jp.hstack([robot_qpos, robot_qvel])
 
     def _update_data(
         self,

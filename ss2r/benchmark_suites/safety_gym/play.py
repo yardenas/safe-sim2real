@@ -99,10 +99,9 @@ def _main(argv: Sequence[str]) -> None:
                     states[-1] = states[-1].replace(data=data)
                     ctrl = jp.array(VIEWERGLOBAL_STATE["ctrl"])
                     states.append(step_fn(states[-1], ctrl))
-                    print(states[-1].obs)
-                    if states[-1].reward < -1e-1:
-                        print("reward", states[-1].reward, count)
-                    if states[-1].info["goal_reached"]:
+                    if count % 50 == 0:
+                        print(states[-1].obs)
+                    if states[-1].info["goal_reached"] and count % 100 == 0:
                         print("Goal reached", count)
                         print("reward", states[-1].reward, count)
                     count += 1
