@@ -136,7 +136,6 @@ class GoToGoal(mjx_env.MjxEnv):
     def _post_init(self) -> None:
         """Post initialization for the model."""
         # For reward function
-        self._robot_site_id = self._mj_model.site("robot").id
         # For cost function
         vases_names = [f"vase_{id_}" for id_ in range(self.spec["vases"].num_objects)]
         self._vases_qpos_ids = [
@@ -213,7 +212,7 @@ class GoToGoal(mjx_env.MjxEnv):
             ]
         )
         # Hazard distance calculation (vectorized for all hazards)
-        robot_pos = data.site_xpos[self._robot_site_id][:2]
+        robot_pos = data.xpos[self._robot_body_id][:2]
         hazard_distances = jp.linalg.norm(
             data.xpos[jp.array(self._hazard_body_ids)][:, :2] - robot_pos, axis=1
         )
@@ -278,7 +277,7 @@ class GoToGoal(mjx_env.MjxEnv):
                     rng, rng_ = jax.random.split(rng)
                     rotation = jax.random.uniform(rng_, minval=-jp.pi, maxval=jp.pi)
                     quat = _rot2quat(rotation)
-                    pos = jp.hstack((xy, 0.1 - 4e-5, quat))
+                    pos = jp.hstack((xy, 0.15, quat))
                     new_qpos = new_qpos.at[ids].set(pos)
             elif name == "robot":
                 assert len(positions) == 1
