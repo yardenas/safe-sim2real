@@ -255,7 +255,7 @@ class GoToGoal(mjx_env.MjxEnv):
         # return jp.hstack([magnitude, direction, other_sensors])
         robot_qpos = data.qpos[self._robot_qpos_ids]
         robot_qvel = data.qvel[self._robot_qvel_ids]
-        return jp.hstack([robot_qpos, robot_qvel, other_sensors])
+        return jp.hstack([robot_qpos, other_sensors])
 
     def _update_data(
         self,
