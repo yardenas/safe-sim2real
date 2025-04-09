@@ -270,7 +270,7 @@ class GoToGoal(mjx_env.MjxEnv):
             if name == "goal":
                 assert len(positions) == 1
                 xyz = jp.hstack([positions[0], _GOAL_SIZE / 2.0 + 1e-2])
-                new_mocap_pos = new_mocap_pos.at[self._goal_mocap_id].set(xyz)
+                # new_mocap_pos = new_mocap_pos.at[self._goal_mocap_id].set(xyz)
             elif name == "hazards":
                 for xy, id_ in zip(positions, self._hazard_mocap_id):
                     xyz = jp.hstack([xy, 0.02])
