@@ -11,7 +11,7 @@ training:
   safe: true
   safety_budget: 25
   # FIXME (yarden)
-  num_evals: 1
+  num_evals: 5
 
 agent:
   activation: swish
