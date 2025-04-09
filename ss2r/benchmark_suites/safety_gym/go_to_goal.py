@@ -251,11 +251,11 @@ class GoToGoal(mjx_env.MjxEnv):
         # FIXME (yarden): this is wrong
         # magnitude = jp.linalg.norm(self._robot_to_goal(data))
         # direction = self._compass(data)
-        # other_sensors = self.sensor_observations(data)
+        other_sensors = self.sensor_observations(data)
         # return jp.hstack([magnitude, direction, other_sensors])
         robot_qpos = data.qpos[self._robot_qpos_ids]
         robot_qvel = data.qvel[self._robot_qvel_ids]
-        return jp.hstack([robot_qpos, robot_qvel])
+        return jp.hstack([robot_qpos, robot_qvel, other_sensors])
 
     def _update_data(
         self,
