@@ -1,10 +1,11 @@
 from collections import defaultdict
 from itertools import product
-from typing import Any, Dict, Mapping, NamedTuple, Tuple, Union
+from typing import Any, Dict, Mapping, NamedTuple, Sequence, Tuple, Union
 
 import jax
 import jax.numpy as jp
 import mujoco as mj
+import numpy as np
 from etils import epath
 from flax import struct
 from mujoco import mjx
@@ -85,9 +86,7 @@ def build_arena(
     for i, (_, xy) in enumerate(vases_spec):
         xyz = jp.hstack([xy, 0.1])
         density = 0.001
-        vase = spec.worldbody.add_body(
-            name=f"vase_{i}",
-        )
+        vase = spec.worldbody.add_body(name=f"vase_{i}", pos=xyz)
         vase.add_geom(
             name=f"vase_{i}",
             type=mj.mjtGeom.mjGEOM_BOX,
@@ -95,7 +94,6 @@ def build_arena(
             rgba=[0.0, 1.0, 1.0, 1.0],
             userdata=jp.ones(1),
             density=density,
-            pos=xyz,
         )
         # Free joint bug in visualizer: https://github.com/google-deepmind/mujoco/issues/2508
         vase.add_freejoint(name=f"vase_{i}")
@@ -113,7 +111,7 @@ def build_arena(
             conaffinity=jp.zeros(()),
         )
     goal_pos = layout["goal"][0][1]
-    xyz = jp.hstack([goal_pos, 0.3 / 2.0 + 1e-2])
+    xyz = jp.hstack([goal_pos, _GOAL_SIZE / 2.0 + 1e-2])
     goal = spec.worldbody.add_body(name="goal", mocap=True, pos=xyz)
     goal.add_geom(
         name="goal",
@@ -153,7 +151,7 @@ class GoToGoal(mjx_env.MjxEnv):
         # For cost function
         vases_names = [f"vase_{id_}" for id_ in range(self.spec["vases"].num_objects)]
         self._vases_qpos_ids = [
-            mjx_env.get_qpos_ids(self.mj_model, [name]) for name in vases_names
+            _get_qpos_ids(self.mj_model, [name]) for name in vases_names
         ]
         self._robot_geom_id = self._mj_model.geom("robot").id
         self._pointarrow_geom_id = self._mj_model.geom("pointarrow").id
@@ -178,7 +176,7 @@ class GoToGoal(mjx_env.MjxEnv):
             self._mj_model.body(f"hazard_{i}").mocapid[0]
             for i in range(self.spec["hazards"].num_objects)
         ]
-        self._robot_qpos_ids = mjx_env.get_qpos_ids(self._mj_model, ["x", "y", "z"])
+        self._robot_qpos_ids = _get_qpos_ids(self._mj_model, ["x", "y", "z"])
         self._init_q = self._mj_model.qpos0
 
     def get_reward(
@@ -291,7 +289,7 @@ class GoToGoal(mjx_env.MjxEnv):
                     rng, rng_ = jax.random.split(rng)
                     rotation = jax.random.uniform(rng_, minval=-jp.pi, maxval=jp.pi)
                     quat = _rot2quat(rotation)
-                    pos = jp.hstack((xy, 0.1 + 5e-4, quat))
+                    pos = jp.hstack((xy, 0.1, quat))
                     new_qpos = new_qpos.at[ids].set(pos)
             elif name == "robot":
                 assert len(positions) == 1
@@ -369,7 +367,6 @@ class GoToGoal(mjx_env.MjxEnv):
         return self._mjx_model
 
 
-# PLACEMENT FNS
 def _rot2quat(theta):
     return jp.array([jp.cos(theta / 2), 0, 0, jp.sin(theta / 2)])
 
@@ -437,3 +434,21 @@ def draw_placement(rng: jax.Array, keepout) -> jax.Array:
     max_ = jp.hstack((xmax, ymax))
     pos = jax.random.uniform(rng, shape=(2,), minval=min_, maxval=max_)
     return pos
+
+
+def _qpos_width(joint_type: Union[int, mj.mjtJoint]) -> int:
+    """Get the dimensionality of the joint in qpos."""
+    if isinstance(joint_type, mj.mjtJoint):
+        joint_type = joint_type.value
+    return {0: 7, 1: 4, 2: 1, 3: 1}[joint_type]
+
+
+def _get_qpos_ids(model: mj.MjModel, joint_names: Sequence[str]) -> np.ndarray:
+    index_list: list[int] = []
+    for i, jnt_name in enumerate(joint_names):
+        jnt = model.joint(jnt_name).id
+        jnt_type = model.jnt_type[jnt]
+        qadr = model.jnt_qposadr[jnt]
+        qdim = _qpos_width(jnt_type)
+        index_list.extend(range(qadr, qadr + qdim))
+    return np.array(index_list)
