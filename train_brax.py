@@ -263,7 +263,7 @@ def get_train_fn(cfg):
         if "penalizer" in cfg.agent and cfg.agent.penalizer.name == "saute":
             train_fn = functools.partial(
                 train_fn,
-                use_saute=True,
+                use_saute=cfg.training.safe,
             )
         if "propagation" in cfg.agent and cfg.agent.propagation.name == "ts1":
             train_fn = functools.partial(
