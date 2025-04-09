@@ -178,13 +178,6 @@ class GoToGoal(mjx_env.MjxEnv):
     def _robot_to_goal(self, data: mjx.Data) -> jax.Array:
         return data.mocap_pos[self._goal_mocap_id] - data.xpos[self._robot_body_id]
 
-    def _compass(self, data: mjx.Data) -> jax.Array:
-        v = self._robot_to_goal(data)
-        ori = data.xmat[self._robot_body_id].reshape(3, 3)
-        v = jp.matmul(v, ori)
-        v = v / (jp.linalg.norm(v) + 0.001)
-        return v[:2]
-
     def _resample_goal(
         self, data: mjx.Data, rng: jax.Array
     ) -> tuple[mjx.Data, jax.Array, jax.Array]:
@@ -326,7 +319,7 @@ class GoToGoal(mjx_env.MjxEnv):
         data = mjx_env.step(self._mjx_model, state.data, action, n_substeps=2)
         reward, goal_dist = self.get_reward(data, state.info["last_goal_dist"])
         # Reset goal if robot inside goal
-        condition = goal_dist < _GOAL_SIZE
+        condition = goal_dist <= _GOAL_SIZE
         data, rng, goal_dist = jax.lax.cond(
             condition,
             self._resample_goal,
