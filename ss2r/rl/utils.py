@@ -1,9 +1,11 @@
+from functools import partial
+
 import jax
 from brax.envs import Env, State
 from brax.training.types import Policy
 
 
-@jax.jit(static_argnames=("env", "policy", "steps"))
+@partial(jax.jit, static_argnames=("env", "policy", "steps"))
 def rollout(
     env: Env,
     policy: Policy,
