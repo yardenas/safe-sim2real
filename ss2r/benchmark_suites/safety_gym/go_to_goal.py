@@ -15,7 +15,8 @@ _XML_PATH = epath.Path(__file__).parent / "point.xml"
 
 Observation = Union[jax.Array, Mapping[str, jax.Array]]
 BASE_SENSORS = ["accelerometer", "velocimeter", "gyro", "magnetometer"]
-_EXTENTS = (-2.0, -2.0, 2.0, 2.0)
+# BASE_SENSORS = ["accelerometer", "velocimeter", "magnetometer"]
+_EXTENTS = (-1.0, -1.0, 1.0, 1.0)
 _GOAL_SIZE = 0.3
 
 
@@ -321,18 +322,18 @@ class GoToGoal(mjx_env.MjxEnv):
         reward, goal_dist = self.get_reward(data, state.info["last_goal_dist"])
         # Reset goal if robot inside goal
         condition = goal_dist < _GOAL_SIZE
-        data, rng, goal_dist = jax.lax.cond(
-            condition,
-            self._reset_goal,
-            lambda d, r: (d, r, goal_dist),
-            data,
-            state.info["rng"],
-        )
+        # data, rng, goal_dist = jax.lax.cond(
+        #     condition,
+        #     self._reset_goal,
+        #     lambda d, r: (d, r, goal_dist),
+        #     data,
+        #     state.info["rng"],
+        # )
         reward = jp.where(condition, reward + 1.0, reward)
         cost = self.get_cost(data)
         obs = self.get_obs(data)
         state.info["last_goal_dist"] = goal_dist
-        state.info["rng"] = rng
+        # state.info["rng"] = rng
         state.info["cost"] = cost
         state.info["goal_reached"] = condition.astype(jp.float32)
         done = jp.isnan(data.qpos).any() | jp.isnan(data.qvel).any()
