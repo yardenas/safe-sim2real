@@ -100,7 +100,7 @@ def _main(argv: Sequence[str]) -> None:
                     ctrl = jp.array(VIEWERGLOBAL_STATE["ctrl"])
                     states.append(step_fn(states[-1], ctrl))
                     if count % 50 == 0:
-                        print(states[-1].obs)
+                        print("[", ", ".join(f"{x:.2f}" for x in states[-1].obs), "]")
                     if states[-1].info["goal_reached"] and count % 100 == 0:
                         print("Goal reached", count)
                         print("reward", states[-1].reward, count)

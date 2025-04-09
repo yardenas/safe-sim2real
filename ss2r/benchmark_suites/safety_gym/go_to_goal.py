@@ -15,7 +15,15 @@ _XML_PATH = epath.Path(__file__).parent / "point.xml"
 
 Observation = Union[jax.Array, Mapping[str, jax.Array]]
 BASE_SENSORS = ["accelerometer", "velocimeter", "gyro", "magnetometer"]
-# BASE_SENSORS = ["accelerometer", "velocimeter", "magnetometer"]
+
+_ROBOT_TO_SENSOR_TO_COMPONENTS = {
+    "point": {
+        "accelerometer": [0, 1],
+        "velocimeter": [0, 1],
+        "gyro": [-1],
+        "magnetometer": [0, 1],
+    },
+}
 _EXTENTS = (-1.0, -1.0, 1.0, 1.0)
 _GOAL_SIZE = 0.3
 
@@ -243,7 +251,11 @@ class GoToGoal(mjx_env.MjxEnv):
     def sensor_observations(self, data: mjx.Data) -> jax.Array:
         vals = []
         for sensor in BASE_SENSORS:
-            vals.append(mjx_env.get_sensor_data(self.mj_model, data, sensor))
+            sensor_data = mjx_env.get_sensor_data(self.mj_model, data, sensor)
+            # TODO: generalize to multiple robots
+            ids = jp.asarray(_ROBOT_TO_SENSOR_TO_COMPONENTS["point"][sensor])
+            sensor_data = sensor_data[ids]
+            vals.append(sensor_data)
         return jp.hstack(vals)
 
     def get_obs(self, data: mjx.Data) -> jax.Array:
