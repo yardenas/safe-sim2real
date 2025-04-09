@@ -155,6 +155,7 @@ class GoToGoal(mjx_env.MjxEnv):
         self._vases_qpos_ids = [
             _get_qpos_ids(self.mj_model, [name]) for name in vases_names
         ]
+        self._vases_qvel_ids = mjx_env.get_qvel_ids(self._mj_model, vases_names)
         self._robot_geom_id = self._mj_model.geom("robot").id
         self._pointarrow_geom_id = self._mj_model.geom("pointarrow").id
         # Geoms, not bodies
@@ -230,7 +231,14 @@ class GoToGoal(mjx_env.MjxEnv):
         hazard_distances = jp.linalg.norm(
             data.xpos[jp.array(self._hazard_body_ids)][:, :2] - robot_pos, axis=1
         )
-        cost = jp.sum(colliding_obstacles) + jp.sum(hazard_distances <= 0.2)
+        vases_vels = data.qvel[jp.array(self._vases_qvel_ids)]
+        vases_linear_velocities = vases_vels.reshape(-1, 6)[:, :3]
+        vases_linear_velocities = jp.linalg.norm(vases_linear_velocities)
+        cost = (
+            jp.sum(colliding_obstacles)
+            + jp.sum(hazard_distances <= 0.2)
+            + jp.sum(vases_linear_velocities > 5e-2)
+        )
         return (cost > 0.0).astype(jp.float32)
 
     def lidar_observations(self, data: mjx.Data) -> jax.Array:
@@ -291,7 +299,7 @@ class GoToGoal(mjx_env.MjxEnv):
                     rng, rng_ = jax.random.split(rng)
                     rotation = jax.random.uniform(rng_, minval=-jp.pi, maxval=jp.pi)
                     quat = _rot2quat(rotation)
-                    pos = jp.hstack((xy, 0.1, quat))
+                    pos = jp.hstack((xy, 0.1 - 1e-4, quat))
                     new_qpos = new_qpos.at[ids].set(pos)
             elif name == "robot":
                 assert len(positions) == 1
@@ -341,8 +349,7 @@ class GoToGoal(mjx_env.MjxEnv):
             state.info["rng"],
         )
         reward = jp.where(condition, reward + 1.0, reward)
-        # cost = self.get_cost(data)
-        cost = jp.where(jp.linalg.norm(action) > 0.8, 1.0, 0.0)
+        cost = self.get_cost(data)
         obs = self.get_obs(data)
         state.info["last_goal_dist"] = goal_dist
         state.info["rng"] = rng
