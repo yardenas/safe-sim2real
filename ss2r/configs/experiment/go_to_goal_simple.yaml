@@ -4,18 +4,12 @@ defaults:
   - override /environment: go_to_goal
   - _self_
 
-# FIXME: params are off
 training:
-  num_timesteps: 500000
+  num_timesteps: 1500000
   train_domain_randomization: false
   eval_domain_randomization: false
-  safe: false
+  safe: true
   safety_budget: 25
-  # FIXME (yarden)
-  num_evals: 5
-  num_envs: 1024
 
 agent:
   activation: swish
-  value_hidden_layer_sizes: [128]
-  grad_updates_per_step: 1
