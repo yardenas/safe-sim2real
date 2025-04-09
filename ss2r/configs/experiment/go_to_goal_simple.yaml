@@ -10,6 +10,8 @@ training:
   eval_domain_randomization: false
   safe: true
   safety_budget: 25
+  # FIXME (yarden)
+  num_evals: 1
 
 agent:
   activation: swish
