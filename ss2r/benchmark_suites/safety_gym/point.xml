@@ -2,6 +2,10 @@
     <!-- For memory constraints -->
     <size njmax="3000" nconmax="1000"/>
     <option timestep="0.01"/>
+    <custom>
+        <numeric data="15" name="max_contact_points"/>
+        <numeric data="10" name="max_geom_pairs"/>
+    </custom>
     <default>
         <geom condim="6" density="1"/>
         <joint damping=".001"/>

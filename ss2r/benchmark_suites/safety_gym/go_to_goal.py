@@ -88,7 +88,7 @@ def build_arena(
             name=f"vase_{i}",
             type=mj.mjtGeom.mjGEOM_BOX,
             size=[0.1, 0.1, 0.1],
-            rgba=[0, 1, 1, 1],
+            rgba=[0.0, 1.0, 1.0, 1.0],
             userdata=jp.ones(1),
             density=density,
         )
@@ -124,8 +124,8 @@ class GoToGoal(mjx_env.MjxEnv):
         self.spec = {
             "robot": ObjectSpec(0.4, 1),
             "goal": ObjectSpec(_GOAL_SIZE + 0.05, 1),
-            "hazards": ObjectSpec(0.18, 0),
-            "vases": ObjectSpec(0.15, 0),
+            "hazards": ObjectSpec(0.18, 10),
+            "vases": ObjectSpec(0.15, 10),
         }
         mj_spec: mj.MjSpec = mj.MjSpec.from_file(filename=str(_XML_PATH), assets={})
         build_arena(mj_spec, objects=self.spec, visualize=visualize_lidar)
@@ -188,8 +188,7 @@ class GoToGoal(mjx_env.MjxEnv):
     def _resample_goal(
         self, data: mjx.Data, rng: jax.Array
     ) -> tuple[mjx.Data, jax.Array, jax.Array]:
-        # other_xy = self.obstacle_positions(data)[:, :2]
-        other_xy = jp.array([])
+        other_xy = self.obstacle_positions(data)[:, :2]
         num_vases = self.spec["vases"].num_objects
         num_hazards = self.spec["hazards"].num_objects
         hazard_keepout = jp.full((num_hazards,), self.spec["hazards"].keepout)
@@ -206,12 +205,10 @@ class GoToGoal(mjx_env.MjxEnv):
         return data, rng, new_goal_distance
 
     def obstacle_positions(self, data: mjx.Data) -> jax.Array:
-        # obstacle_positions = data.xpos[jp.array(self._obstacle_body_ids)]
-        obstacle_positions = jp.array([])
+        obstacle_positions = data.xpos[jp.array(self._obstacle_body_ids)]
         return obstacle_positions
 
     def get_cost(self, data: mjx.Data) -> jax.Array:
-        return 0.0
         # Check if robot or pointarrow geom collide with any vase or pillar
         colliding_obstacles = jp.array(
             [
@@ -234,8 +231,7 @@ class GoToGoal(mjx_env.MjxEnv):
         """Compute Lidar observations."""
         robot_body_pos = data.xpos[self._robot_body_id]
         robot_body_mat = data.xmat[self._robot_body_id].reshape(3, 3)
-        # obstacle_positions = data.xpos[jp.array(self._obstacle_body_ids)]
-        obstacle_positions = jp.array([])
+        obstacle_positions = data.xpos[jp.array(self._obstacle_body_ids)]
         goal_positions = data.mocap_pos[jp.array([self._goal_mocap_id])]
         object_positions = jp.array([])
         lidar_readings = jp.hstack(
