@@ -4,7 +4,7 @@
     <option timestep="0.01"/>
     <custom>
         <numeric data="15" name="max_contact_points"/>
-        <numeric data="10" name="max_geom_pairs"/>
+        <numeric data="2" name="max_geom_pairs"/>
     </custom>
     <default>
         <geom condim="6" density="1"/>
