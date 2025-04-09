@@ -287,7 +287,8 @@ class GoToGoal(mjx_env.MjxEnv):
                 xy = positions[0]
                 rng, rng_ = jax.random.split(rng)
                 rotation = jax.random.uniform(rng_, minval=-jp.pi, maxval=jp.pi)
-                pos = jp.hstack((xy, rotation))
+                # pos = jp.hstack((xy, rotation))
+                pos = jp.array([-0.5, -0.5, 0.0])
                 new_qpos = new_qpos.at[self._robot_qpos_ids].set(pos)
             else:
                 assert False, "Something is off with the names provided in spec."
