@@ -166,7 +166,6 @@ class GoToGoal(mjx_env.MjxEnv):
             for i in range(self.spec["hazards"].num_objects)
         ]
         self._robot_qpos_ids = mjx_env.get_qpos_ids(self._mj_model, ["x", "y", "z"])
-        self._robot_qvel_ids = mjx_env.get_qvel_ids(self._mj_model, ["x", "y", "z"])
         self._init_q = self._mj_model.qpos0
 
     def get_reward(
@@ -280,7 +279,7 @@ class GoToGoal(mjx_env.MjxEnv):
             if name == "goal":
                 assert len(positions) == 1
                 xyz = jp.hstack([positions[0], _GOAL_SIZE / 2.0 + 1e-2])
-                # new_mocap_pos = new_mocap_pos.at[self._goal_mocap_id].set(xyz)
+                new_mocap_pos = new_mocap_pos.at[self._goal_mocap_id].set(xyz)
             elif name == "hazards":
                 for xy, id_ in zip(positions, self._hazard_mocap_id):
                     xyz = jp.hstack([xy, 0.02])
@@ -297,8 +296,7 @@ class GoToGoal(mjx_env.MjxEnv):
                 xy = positions[0]
                 rng, rng_ = jax.random.split(rng)
                 rotation = jax.random.uniform(rng_, minval=-jp.pi, maxval=jp.pi)
-                # pos = jp.hstack((xy, rotation))
-                pos = jp.array([-0.5, -0.5, 0.0])
+                pos = jp.hstack((xy, rotation))
                 new_qpos = new_qpos.at[self._robot_qpos_ids].set(pos)
             else:
                 assert False, "Something is off with the names provided in spec."
