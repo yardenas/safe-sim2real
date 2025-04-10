@@ -1,4 +1,5 @@
 import jax
+import jax.numpy as jnp
 import numpy as np
 from PIL import Image, ImageDraw
 
@@ -24,7 +25,15 @@ def add_text_to_frame(frame, text, position=(10, 10)):
 def render(env, policy, steps, rng, camera="fixedfar"):
     state = env.reset(rng)
     state = jax.tree_map(lambda x: x[:5], state)
+    orig_model = env._mjx_model
+    model = jax.tree_map(
+        lambda x, ax: jnp.take(x, jnp.arange(5), axis=ax) if ax is not None else x,
+        env._randomized_models,
+        env._in_axes,
+    )
+    env._mjx_model = model
     _, trajectory = rollout(env, policy, steps, rng[0], state)
+    env._mjx_model = orig_model
     videos = []
     for i in range(5):
         ep_trajectory = jax.tree_map(lambda x: x[:, i], trajectory)
