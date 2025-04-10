@@ -22,6 +22,6 @@ agent:
     penalty_multiplier: 2.
     penalty_multiplier_factor: 0.25
   cost_robustness:
-    cost_penalty: 50.
+    cost_penalty: 0.125
   propagation:
-    num_envs: 4
+    num_envs: 8
