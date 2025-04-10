@@ -15,6 +15,7 @@ from ss2r.rl.utils import rollout
 
 def render(env, policy, steps, rng, camera=None):
     state = env.reset(rng)
+    state = jax.tree_map(lambda x: x[:5], state)
     _, trajectory = rollout(env, policy, steps, rng[0], state)
     videos = []
     orig_model = env._mjx_model
