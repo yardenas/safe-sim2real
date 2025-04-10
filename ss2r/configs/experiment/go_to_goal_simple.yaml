@@ -11,11 +11,12 @@ training:
   eval_domain_randomization: false
   safe: true
   safety_budget: 25
+  action_repeat: 4
 
 agent:
   activation: swish
   penalizer:
-    lagrange_multiplier: 0.1
-    penalty_multiplier: 0.001
-    penalty_multiplier_factor: 1e-4
+    lagrange_multiplier: 5.
+    penalty_multiplier: 2.
+    penalty_multiplier_factor: 0.25
 
