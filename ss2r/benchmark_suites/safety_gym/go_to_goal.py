@@ -33,10 +33,46 @@ _GOAL_SIZE = 0.3
 def domain_randomization(sys, rng, cfg):
     @jax.vmap
     def randomize(rng):
-        return
+        rng, rng_ = jax.random.split(rng)
+        damping_x_sample = jax.random.uniform(
+            rng_, minval=cfg.damping.x[0], maxval=cfg.damping.x[1]
+        )
+        rng, rng_ = jax.random.split(rng)
+        damping_y_sample = jax.random.uniform(
+            rng_, minval=cfg.damping.y[0], maxval=cfg.damping.y[1]
+        )
+        rng, rng_ = jax.random.split(rng)
+        damping_z_sample = jax.random.uniform(
+            rng_, minval=cfg.damping.z[0], maxval=cfg.damping.z[1]
+        )
+        damping = jp.hstack((damping_x_sample, damping_y_sample, damping_z_sample))
+        dof_damping = sys.dof_damping.at[:3].add(damping)
+        gear = sys.actuator_gear.copy()
+        gear_x_sample = jax.random.uniform(
+            rng, minval=cfg.gear.x[0], maxval=cfg.gear.x[1]
+        )
+        gear_z_sample = jax.random.uniform(
+            rng, minval=cfg.gear.z[0], maxval=cfg.gear.z[1]
+        )
+        gear_sample = jp.hstack((gear_x_sample, gear_z_sample))
+        gear = gear.at[:2].add(gear_sample)
+        return dof_damping, gear, jp.hstack((damping, gear_sample))
 
+    dof_damping, gear, samples = randomize(rng)
     in_axes = jax.tree_map(lambda x: None, sys)
-    return sys, in_axes, jp.zeros(())
+    in_axes = in_axes.tree_replace(
+        {
+            "dof_damping": 0,
+            "actuator_gear": 0,
+        }
+    )
+    sys = sys.tree_replace(
+        {
+            "dof_damping": dof_damping,
+            "actuator_gear": gear,
+        }
+    )
+    return sys, in_axes, samples
 
 
 @struct.dataclass
