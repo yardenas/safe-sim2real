@@ -29,6 +29,8 @@ _ROBOT_TO_SENSOR_TO_COMPONENTS = {
 _EXTENTS = (-2.0, -2.0, 2.0, 2.0)
 _GOAL_SIZE = 0.3
 
+_ROBOT_ID = 1
+
 
 def domain_randomization(sys, rng, cfg):
     @jax.vmap
@@ -58,20 +60,34 @@ def domain_randomization(sys, rng, cfg):
         )
         gear = gear.at[0, 0].add(gear_x_sample)
         gear = gear.at[1, 0].add(gear_z_sample)
-        return dof_damping, gear, jp.hstack((damping, gear_x_sample, gear_z_sample))
+        rng, rng_ = jax.random.split(rng)
+        mass_scale = jax.random.uniform(rng_, minval=cfg.mass[0], maxval=cfg.mass[1])
+        mass = sys.body_mass.at[_ROBOT_ID].multiply(mass_scale)
+        inertia = sys.body_inertia.at[_ROBOT_ID, :].multiply(mass_scale**3)
+        return (
+            dof_damping,
+            gear,
+            mass,
+            inertia,
+            jp.hstack((damping, gear_x_sample, gear_z_sample, mass_scale)),
+        )
 
-    dof_damping, gear, samples = randomize(rng)
+    dof_damping, gear, mass, inertia, samples = randomize(rng)
     in_axes = jax.tree_map(lambda x: None, sys)
     in_axes = in_axes.tree_replace(
         {
             "dof_damping": 0,
             "actuator_gear": 0,
+            "body_inertia": 0,
+            "body_mass": 0,
         }
     )
     sys = sys.tree_replace(
         {
             "dof_damping": dof_damping,
             "actuator_gear": gear,
+            "body_inertia": inertia,
+            "body_mass": mass,
         }
     )
     return sys, in_axes, samples
