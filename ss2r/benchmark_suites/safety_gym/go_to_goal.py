@@ -48,9 +48,11 @@ def domain_randomization(sys, rng, cfg):
         damping = jp.hstack((damping_x_sample, damping_y_sample, damping_z_sample))
         dof_damping = sys.dof_damping.at[:3].multiply(damping)
         gear = sys.actuator_gear.copy()
+        rng, rng_ = jax.random.split(rng)
         gear_x_sample = jax.random.uniform(
             rng, minval=cfg.gear.x[0], maxval=cfg.gear.x[1]
         )
+        rng, rng_ = jax.random.split(rng)
         gear_z_sample = jax.random.uniform(
             rng, minval=cfg.gear.z[0], maxval=cfg.gear.z[1]
         )
