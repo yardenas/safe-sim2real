@@ -3,6 +3,7 @@ import jax.numpy as jnp
 import numpy as np
 from PIL import Image, ImageDraw
 
+from ss2r.benchmark_suites.mujoco_playground import BraxDomainRandomizationVmapWrapper
 from ss2r.common.pytree import pytrees_unstack
 from ss2r.rl.utils import rollout
 
@@ -22,24 +23,35 @@ def add_text_to_frame(frame, text, position=(10, 10)):
     return np.array(img)
 
 
+def _dig(env):
+    if env == env.unwrapped:
+        raise ValueError("Not wrapped")
+    if isinstance(env, BraxDomainRandomizationVmapWrapper):
+        return env
+    else:
+        return _dig(env.env)
+
+
 def render(env, policy, steps, rng, camera="fixedfar"):
     state = env.reset(rng)
     state = jax.tree_map(lambda x: x[:5], state)
-    _, trajectory = rollout(env, policy, steps, rng[0], state)
-    videos = []
     orig_model = env._mjx_model
+    if hasattr(env, "_randomized_models"):
+        render_env = _dig(env)
+        model = jax.tree_map(
+            lambda x, ax: jnp.take(x, jnp.arange(5), axis=ax) if ax is not None else x,
+            env._randomized_models,
+            env._in_axes,
+        )
+        render_env._randomized_models = model
+    else:
+        render_env = env
+    _, trajectory = rollout(render_env, policy, steps, rng[0], state)
+    env._mjx_model = orig_model
+    videos = []
     for i in range(5):
-        if hasattr(env, "_randomized_models"):
-            model = jax.tree_map(
-                lambda x, ax: jnp.take(x, i, axis=ax) if ax is not None else x,
-                env._randomized_models,
-                env._in_axes,
-            )
-        else:
-            model = env._mjx_model
         ep_trajectory = jax.tree_map(lambda x: x[:, i], trajectory)
         ep_trajectory = pytrees_unstack(ep_trajectory)
-        env._mjx_model = model
         video = env.render(ep_trajectory, camera=camera)
         cum_rewards = cum_costs = 0
         video_with_text = []
@@ -52,5 +64,4 @@ def render(env, policy, steps, rng, camera="fixedfar"):
             if ep_trajectory[t].done:
                 cum_rewards = cum_costs = 0
         videos.append(np.stack(video_with_text))
-    env._mjx_model = orig_model
     return np.asarray(videos).transpose(0, 1, 4, 2, 3)
