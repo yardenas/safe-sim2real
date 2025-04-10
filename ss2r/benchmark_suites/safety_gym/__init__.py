@@ -1,42 +1,26 @@
-from io import BytesIO
-
 import jax
 import jax.numpy as jnp
-import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 
 from ss2r.common.pytree import pytrees_unstack
 from ss2r.rl.utils import rollout
 
 
-def add_text_to_frame(frame, text):
-    fig, ax = plt.subplots(
-        figsize=(frame.shape[1] / 100, frame.shape[0] / 100), dpi=100
-    )
-    ax.imshow(frame)
-    ax.axis("off")
-    ax.text(
-        10,
-        25,
-        text,
-        color="white",
-        fontsize=14,
-        bbox=dict(facecolor="black", alpha=0.7, boxstyle="round,pad=0.3"),
-    )
-    # Render to memory
-    canvas = FigureCanvas(fig)
-    canvas.draw()
-    # Save to memory buffer
-    buf = BytesIO()
-    fig.savefig(buf, format="png", bbox_inches="tight", pad_inches=0)
-    buf.seek(0)
-    # Convert to array (no disk involved)
-    img = Image.open(buf).convert("RGB")
-    img_array = np.array(img)
-    plt.close(fig)
-    return img_array
+def add_text_to_frame(frame, text, font_size=20, position=(10, 10)):
+    img = Image.fromarray(frame)
+    draw = ImageDraw.Draw(img)
+    font = ImageFont.load_default()
+    bbox = draw.textbbox(position, text, font=font)
+    box_coords = [
+        bbox[0] - 5,
+        bbox[1] - 5,  # top-left
+        bbox[2] + 5,
+        bbox[3] + 5,  # bottom-right
+    ]
+    draw.rectangle(box_coords, fill=(0, 0, 0, 180))
+    draw.text(position, text, font=font, fill=(255, 255, 255))
+    return np.array(img)
 
 
 def render(env, policy, steps, rng, camera="fixedfar"):
