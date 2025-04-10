@@ -46,7 +46,7 @@ def domain_randomization(sys, rng, cfg):
             rng_, minval=cfg.damping.z[0], maxval=cfg.damping.z[1]
         )
         damping = jp.hstack((damping_x_sample, damping_y_sample, damping_z_sample))
-        dof_damping = sys.dof_damping.at[:3].add(damping)
+        dof_damping = sys.dof_damping.at[:3].multiply(damping)
         gear = sys.actuator_gear.copy()
         gear_x_sample = jax.random.uniform(
             rng, minval=cfg.gear.x[0], maxval=cfg.gear.x[1]
@@ -54,9 +54,9 @@ def domain_randomization(sys, rng, cfg):
         gear_z_sample = jax.random.uniform(
             rng, minval=cfg.gear.z[0], maxval=cfg.gear.z[1]
         )
-        gear_sample = jp.hstack((gear_x_sample, gear_z_sample))
-        gear = gear.at[:2].add(gear_sample)
-        return dof_damping, gear, jp.hstack((damping, gear_sample))
+        gear = gear.at[0, 0].add(gear_x_sample)
+        gear = gear.at[1, 0].add(gear_z_sample)
+        return dof_damping, gear, jp.hstack((damping, gear_x_sample, gear_z_sample))
 
     dof_damping, gear, samples = randomize(rng)
     in_axes = jax.tree_map(lambda x: None, sys)
