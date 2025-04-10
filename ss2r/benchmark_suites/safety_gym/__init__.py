@@ -1,17 +1,16 @@
 import jax
 import jax.numpy as jnp
 import numpy as np
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw
 
 from ss2r.common.pytree import pytrees_unstack
 from ss2r.rl.utils import rollout
 
 
-def add_text_to_frame(frame, text, font_size=20, position=(10, 10)):
+def add_text_to_frame(frame, text, position=(10, 10)):
     img = Image.fromarray(frame)
     draw = ImageDraw.Draw(img)
-    font = ImageFont.load_default()
-    bbox = draw.textbbox(position, text, font=font)
+    bbox = draw.textbbox(position, text)
     box_coords = [
         bbox[0] - 5,
         bbox[1] - 5,  # top-left
@@ -19,7 +18,7 @@ def add_text_to_frame(frame, text, font_size=20, position=(10, 10)):
         bbox[3] + 5,  # bottom-right
     ]
     draw.rectangle(box_coords, fill=(0, 0, 0, 180))
-    draw.text(position, text, font=font, fill=(255, 255, 255))
+    draw.text(position, text, fill=(255, 255, 255))
     return np.array(img)
 
 
@@ -42,15 +41,16 @@ def render(env, policy, steps, rng, camera="fixedfar"):
         ep_trajectory = pytrees_unstack(ep_trajectory)
         env._mjx_model = model
         video = env.render(ep_trajectory, camera=camera)
-        rewards = np.asarray([step.reward for step in ep_trajectory])
-        costs = np.asarray([step.info.get("cost", 0.0) for step in ep_trajectory])
-        cum_rewards = np.cumsum(rewards)
-        cum_costs = np.cumsum(costs)
+        cum_rewards = cum_costs = 0
         video_with_text = []
         for t, frame in enumerate(video):
-            text = f"Reward: {cum_rewards[t]:.2f}  |  Cost: {cum_costs[t]:.2f}"
+            cum_rewards += ep_trajectory[t].reward
+            cum_costs += ep_trajectory[t].info.get("cost", 0)
+            text = f"Reward: {cum_rewards:.2f}  |  Cost: {cum_costs:.2f}"
             frame_with_text = add_text_to_frame(frame, text)
             video_with_text.append(frame_with_text)
+            if ep_trajectory[t].done:
+                cum_rewards = cum_costs = 0
         videos.append(np.stack(video_with_text))
     env._mjx_model = orig_model
     return np.asarray(videos).transpose(0, 1, 4, 2, 3)
