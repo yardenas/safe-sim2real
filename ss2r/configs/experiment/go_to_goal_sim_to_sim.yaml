@@ -2,6 +2,8 @@
 defaults:
   - mujoco_playground_dm_control
   - override /environment: go_to_goal
+  - override /agent/cost_robustness: ucb_cost
+  - override /agent/propagation: ts1
   - override /agent/penalizer: lagrangian
   - _self_
 
