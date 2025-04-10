@@ -2,6 +2,7 @@
 defaults:
   - mujoco_playground_dm_control
   - override /environment: go_to_goal
+  - override /agent/penalizer: lagrangian
   - _self_
 
 training:
@@ -10,3 +11,12 @@ training:
   eval_domain_randomization: false
   safe: true
   safety_budget: 25
+  action_repeat: 4
+
+agent:
+  activation: swish
+  penalizer:
+    lagrange_multiplier: 5.
+    penalty_multiplier: 2.
+    penalty_multiplier_factor: 0.25
+
