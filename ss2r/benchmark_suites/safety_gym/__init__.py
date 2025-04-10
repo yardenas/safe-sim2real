@@ -1,5 +1,4 @@
 import jax
-import jax.numpy as jnp
 import numpy as np
 from PIL import Image, ImageDraw
 
@@ -27,19 +26,9 @@ def render(env, policy, steps, rng, camera="fixedfar"):
     state = jax.tree_map(lambda x: x[:5], state)
     _, trajectory = rollout(env, policy, steps, rng[0], state)
     videos = []
-    orig_model = env._mjx_model
     for i in range(5):
-        if hasattr(env, "_randomized_models"):
-            model = jax.tree_map(
-                lambda x, ax: jnp.take(x, i, axis=ax) if ax is not None else x,
-                env._randomized_models,
-                env._in_axes,
-            )
-        else:
-            model = env._mjx_model
         ep_trajectory = jax.tree_map(lambda x: x[:, i], trajectory)
         ep_trajectory = pytrees_unstack(ep_trajectory)
-        env._mjx_model = model
         video = env.render(ep_trajectory, camera=camera)
         cum_rewards = cum_costs = 0
         video_with_text = []
@@ -52,5 +41,4 @@ def render(env, policy, steps, rng, camera="fixedfar"):
             if ep_trajectory[t].done:
                 cum_rewards = cum_costs = 0
         videos.append(np.stack(video_with_text))
-    env._mjx_model = orig_model
     return np.asarray(videos).transpose(0, 1, 4, 2, 3)
