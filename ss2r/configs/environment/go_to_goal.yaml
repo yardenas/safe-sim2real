@@ -4,6 +4,22 @@ defaults:
 task_name: go_to_goal
 task_params: {}
 
-# Sample uniformly around the nominal value
-train_params: {}
-eval_params: {}
+train_params:
+  damping:
+    x: [1., 1.]
+    y: [1., 1.]
+    z: [1., 1.]
+  gear:
+    x: [-0.2, 0.2]
+    z: [-0.1, 0.1]
+  mass: [1., 1.]
+
+eval_params:
+  damping:
+    x: [0.6, 1.]
+    y: [0.6, 1.]
+    z: [0.7, 1.0]
+  gear:
+    x: [0., 0.1]
+    z: [0., 0.05]
+  mass: [1., 1.05]

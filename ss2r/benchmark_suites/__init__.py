@@ -194,7 +194,7 @@ def make_safety_gym_envs(cfg, train_wrap_env_fn):
     from ss2r.benchmark_suites.mujoco_playground import wrap_for_brax_training
     from ss2r.benchmark_suites.safety_gym import go_to_goal
 
-    task_cfg = dict(get_task_config(cfg))
+    task_cfg = get_task_config(cfg)
     train_env = go_to_goal.GoToGoal()
     train_env = train_wrap_env_fn(train_env)
     eval_env = go_to_goal.GoToGoal()

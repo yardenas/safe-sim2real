@@ -62,6 +62,8 @@ ax.set_xticks([0.0, 0.025, 0.05, 0.075, 0.1])
 xticks = ax.get_xticks()
 xtick_labels = [tick for tick in xticks]
 xtick_labels[0] = f"{xticks[0]}\n No Pessimism"
+# ax.yaxis.set_minor_locator(plt.NullLocator())
+ax.tick_params(axis="y", which="minor", width=0.5, length=2)
 ax.set_xticklabels(xtick_labels)
 lambdas = constraint["lambda"]
 costs = constraint["cumulative_cost"]

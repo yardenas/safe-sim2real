@@ -29,14 +29,68 @@ _ROBOT_TO_SENSOR_TO_COMPONENTS = {
 _EXTENTS = (-2.0, -2.0, 2.0, 2.0)
 _GOAL_SIZE = 0.3
 
+_ROBOT_ID = 1
+
 
 def domain_randomization(sys, rng, cfg):
     @jax.vmap
     def randomize(rng):
-        return
+        rng, rng_ = jax.random.split(rng)
+        damping_x_sample = jax.random.uniform(
+            rng_, minval=cfg.damping.x[0], maxval=cfg.damping.x[1]
+        )
+        rng, rng_ = jax.random.split(rng)
+        damping_y_sample = jax.random.uniform(
+            rng_, minval=cfg.damping.y[0], maxval=cfg.damping.y[1]
+        )
+        rng, rng_ = jax.random.split(rng)
+        damping_z_sample = jax.random.uniform(
+            rng_, minval=cfg.damping.z[0], maxval=cfg.damping.z[1]
+        )
+        damping = jp.hstack((damping_x_sample, damping_y_sample, damping_z_sample))
+        dof_damping = sys.dof_damping.at[:3].multiply(damping)
+        gear = sys.actuator_gear.copy()
+        rng, rng_ = jax.random.split(rng)
+        gear_x_sample = jax.random.uniform(
+            rng, minval=cfg.gear.x[0], maxval=cfg.gear.x[1]
+        )
+        rng, rng_ = jax.random.split(rng)
+        gear_z_sample = jax.random.uniform(
+            rng, minval=cfg.gear.z[0], maxval=cfg.gear.z[1]
+        )
+        gear = gear.at[0, 0].add(gear_x_sample)
+        gear = gear.at[1, 0].add(gear_z_sample)
+        rng, rng_ = jax.random.split(rng)
+        mass_scale = jax.random.uniform(rng_, minval=cfg.mass[0], maxval=cfg.mass[1])
+        mass = sys.body_mass.at[_ROBOT_ID].multiply(mass_scale)
+        inertia = sys.body_inertia.at[_ROBOT_ID, :].multiply(mass_scale**3)
+        return (
+            dof_damping,
+            gear,
+            mass,
+            inertia,
+            jp.hstack((damping, gear_x_sample, gear_z_sample, mass_scale)),
+        )
 
+    dof_damping, gear, mass, inertia, samples = randomize(rng)
     in_axes = jax.tree_map(lambda x: None, sys)
-    return sys, in_axes, jp.zeros(())
+    in_axes = in_axes.tree_replace(
+        {
+            "dof_damping": 0,
+            "actuator_gear": 0,
+            "body_inertia": 0,
+            "body_mass": 0,
+        }
+    )
+    sys = sys.tree_replace(
+        {
+            "dof_damping": dof_damping,
+            "actuator_gear": gear,
+            "body_inertia": inertia,
+            "body_mass": mass,
+        }
+    )
+    return sys, in_axes, samples
 
 
 @struct.dataclass
