@@ -32,16 +32,5 @@ agent:
   batch_size: 1024
   safety_gae_lambda: 0.0
   penalizer:
-    eta: 15.
-
-train_params:
-  torso_length: [-0.75, 0.75]
-  friction: [0.0, 0.0]
-  joint_damping: [0.0, 0.0]
-  gear: [0., 0.]
-
-eval_params:
-  torso_length: [-0.75, 0.75]
-  friction: [0., 0.]
-  joint_damping: [0., 0.]
-  gear: [0., 20.]
+    terminate: true
+    penalty: 2.
