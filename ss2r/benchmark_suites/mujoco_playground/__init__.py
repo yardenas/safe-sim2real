@@ -15,9 +15,17 @@ from ss2r.rl.utils import rollout
 
 def render(env, policy, steps, rng, camera=None):
     state = env.reset(rng)
-    _, trajectory = rollout(env, policy, steps, rng[0], state)
-    videos = []
+    state = jax.tree_map(lambda x: x[:5], state)
     orig_model = env._mjx_model
+    model = jax.tree_map(
+        lambda x, ax: jnp.take(x, jnp.arange(5), axis=ax) if ax is not None else x,
+        env._randomized_models,
+        env._in_axes,
+    )
+    env._mjx_model = model
+    _, trajectory = rollout(env, policy, steps, rng[0], state)
+    env._mjx_model = orig_model
+    videos = []
     for i in range(5):
         if hasattr(env, "_randomized_models"):
             model = jax.tree_map(

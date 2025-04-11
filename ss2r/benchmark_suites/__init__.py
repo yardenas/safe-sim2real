@@ -3,7 +3,7 @@ import functools
 import jax
 from brax import envs
 
-from ss2r.benchmark_suites import brax, mujoco_playground, wrappers
+from ss2r.benchmark_suites import brax, mujoco_playground, safety_gym, wrappers
 from ss2r.benchmark_suites.brax.ant import ant
 from ss2r.benchmark_suites.brax.cartpole import cartpole
 from ss2r.benchmark_suites.brax.humanoid import humanoid
@@ -198,7 +198,7 @@ def make_safety_gym_envs(cfg, train_wrap_env_fn, eval_wrap_env_fn):
     from ss2r.benchmark_suites.mujoco_playground import wrap_for_brax_training
     from ss2r.benchmark_suites.safety_gym import go_to_goal
 
-    task_cfg = dict(get_task_config(cfg))
+    task_cfg = get_task_config(cfg)
     train_env = go_to_goal.GoToGoal()
     train_env = train_wrap_env_fn(train_env)
     eval_env = go_to_goal.GoToGoal()
@@ -308,5 +308,5 @@ render_fns = {
     "SafeWalkerRun": functools.partial(mujoco_playground.render, camera="side"),
     "HumanoidWalk": mujoco_playground.render,
     "SafeHumanoidWalk": mujoco_playground.render,
-    "go_to_goal": mujoco_playground.render,
+    "go_to_goal": functools.partial(safety_gym.render, camera="fixedfar"),
 }

@@ -8,7 +8,7 @@ defaults:
 training:
   num_timesteps: 5000000
   train_domain_randomization: false
-  eval_domain_randomization: false
+  eval_domain_randomization: true
   safe: true
   safety_budget: 25
   action_repeat: 4
