@@ -130,7 +130,6 @@ def get_wrap_env_fn(cfg):
 
         def saute_eval(env):
             env = out[1](env)
-            # FIXME (yarden): lambda here should be zero?
             env = Saute(
                 env,
                 cfg.training.episode_length,
@@ -138,7 +137,7 @@ def get_wrap_env_fn(cfg):
                 cfg.training.safety_budget,
                 0.0,
                 False,
-                cfg.agent.penalizer.lambda_,
+                0.0,
             )
             return env
 

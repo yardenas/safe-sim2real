@@ -57,7 +57,7 @@ class Saute(Wrapper):
         )
         nstate = self.env.step(state, action)
         cost = nstate.info.get("cost", jnp.zeros_like(nstate.reward))
-        # cost += self.disagreement_scale
+        cost += self.disagreement_scale * nstate.info.get("disagreement", 0.0)
         saute_state -= cost / self.budget
         saute_reward = jnp.where(saute_state <= 0.0, -self.penalty, nstate.reward)
         terminate = jnp.where(
