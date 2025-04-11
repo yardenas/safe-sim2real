@@ -1,7 +1,6 @@
 from typing import Any, NamedTuple, Protocol, TypeVar
 
 import jax
-import jax.nn as jnn
 import jax.numpy as jnp
 import optax
 
@@ -29,13 +28,22 @@ class CRPO:
         self.eta = eta
 
     def __call__(
-        self, actor_loss: jax.Array, constraint: jax.Array, params: CRPOParams
+        self,
+        actor_loss: jax.Array,
+        constraint: jax.Array,
+        params: CRPOParams,
+        *,
+        rest: Any,
     ) -> tuple[jax.Array, dict[str, Any], CRPOParams]:
         active = jnp.greater(constraint + self.eta, 0.0) | jnp.greater(params.burnin, 0)
+        if rest is not None:
+            loss_constraint = rest
+        else:
+            loss_constraint = constraint
         actor_loss = jnp.where(
             active,
             actor_loss,
-            -constraint,
+            -loss_constraint,
         )
         new_params = CRPOParams(jnp.clip(params.burnin - 1, a_min=-1))
         aux = {
@@ -43,6 +51,11 @@ class CRPO:
             "crpo/active": active,
         }
         return actor_loss, aux, new_params
+
+    def update(
+        self, constraint: jax.Array, params: Params
+    ) -> tuple[dict[str, Any], Params]:
+        return {}, params
 
 
 class AugmentedLagrangianParams(NamedTuple):
@@ -107,6 +120,7 @@ class LagrangianParams(NamedTuple):
 class Lagrangian:
     def __init__(self, multiplier_lr: float) -> None:
         self.optimizer = optax.adam(learning_rate=multiplier_lr)
+        self.learning_rate = multiplier_lr
 
     def __call__(
         self,
@@ -117,35 +131,24 @@ class Lagrangian:
         rest: Any,
     ) -> tuple[jax.Array, dict[str, Any], LagrangianParams]:
         cost_advantage = -rest
-        lagrange_multiplier = jnn.softplus(params.lagrange_multiplier)
+        lagrange_multiplier = params.lagrange_multiplier
         actor_loss += lagrange_multiplier * cost_advantage
-        actor_loss = actor_loss / (1.0 + lagrange_multiplier)
-        aux, new_params = self.update(constraint, params)
+        aux: dict[str, Any] = {}
+        new_params = params
         return actor_loss, aux, new_params
 
     def update(
         self, constraint: jax.Array, params: LagrangianParams
     ) -> tuple[jax.Array, LagrangianParams]:
-        new_lagrange_multiplier, new_optimizer_state, loss = update_lagrange_multiplier(
-            constraint,
-            params.lagrange_multiplier,
-            self.optimizer,
-            params.optimizer_state,
+        new_lagrange_multiplier = update_lagrange_multiplier(
+            constraint, params.lagrange_multiplier, self.learning_rate
         )
-        lagrange_multiplier = jnn.softplus(new_lagrange_multiplier)
-        aux = {"lagrange_multiplier": lagrange_multiplier}
-        aux["lagrange_multiplier_loss"] = loss
-        return aux, LagrangianParams(new_lagrange_multiplier, new_optimizer_state)
+        aux = {"lagrange_multiplier": new_lagrange_multiplier}
+        return aux, LagrangianParams(new_lagrange_multiplier, params.optimizer_state)
 
 
 def update_lagrange_multiplier(
-    constraint: jax.Array,
-    lagrange_multiplier: jax.Array,
-    optimizer: optax.GradientTransformation,
-    optimizer_state: optax.OptState,
+    constraint: jax.Array, lagrange_multiplier: jax.Array, learning_rate: float
 ) -> jax.Array:
-    loss = lambda multiplier: multiplier * constraint
-    loss, grad = jax.value_and_grad(loss)(lagrange_multiplier)
-    updates, new_optimizer_state = optimizer.update(grad, optimizer_state)
-    new_multiplier = optax.apply_updates(lagrange_multiplier, updates)
-    return new_multiplier, new_optimizer_state, loss
+    new_multiplier = jnp.maximum(lagrange_multiplier - learning_rate * constraint, 0.0)
+    return new_multiplier

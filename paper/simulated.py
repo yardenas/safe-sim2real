@@ -88,12 +88,17 @@ def walk_wandb_runs(project, filters):
         yield out
 
 
+# filters = {
+#     "display_name": {
+#         "$regex": "apr01-nominal-aga$|apr01-dr-aga$|apr01-ptsd-aga|mar28-simple-aga|apr01-ramu-aga|apr04-tighten-aga|apr04-righten-aga"
+#     }
+# }
+
 filters = {
     "display_name": {
-        "$regex": "apr01-nominal-aga$|apr01-dr-aga$|apr01-ptsd-aga|mar28-simple-aga|apr01-ramu-aga|apr04-tighten-aga|apr04-righten-aga"
+        "$regex": "apr01-nominal-aga$|apr01-dr-aga$|apr01-ptsd-aga|mar28-simple-aga|apr01-ramu-aga"
     }
 }
-
 data = pd.concat(
     [
         load_evaluation(*summary_files_data)

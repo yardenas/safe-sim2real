@@ -5,7 +5,7 @@ defaults:
 backend: mjx
 task_name: humanoid_safe
 task_params:
-  angle_tolerance: 2.
+  angle_tolerance: 2.5
   terminate_when_unhealthy: true
   healthy_z_range: [1.0, 2.0]
 

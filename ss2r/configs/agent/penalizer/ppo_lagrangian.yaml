@@ -1,3 +1,3 @@
 name: ppo_lagrangian
-multiplier_lr: 5e-2
-initial_lagrange_multiplier: 0.5
+multiplier_lr: 7e-7
+initial_lagrange_multiplier: 0.01

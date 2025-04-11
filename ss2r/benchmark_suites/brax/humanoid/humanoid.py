@@ -135,17 +135,18 @@ class ConstraintWrapper(Wrapper):
             "left_shoulder2",
             "left_elbow",
         ]
-        self.joint_ids = jnp.asarray(
+        joint_ids = jnp.asarray(
             [
-                self.env.sys.mj_model.jnt_qposadr[
-                    mujoco.mj_name2id(
-                        env.sys.mj_model, mujoco.mjtObj.mjOBJ_JOINT.value, name
-                    )
-                ]
+                mujoco.mj_name2id(
+                    env.sys.mj_model, mujoco.mjtObj.mjOBJ_JOINT.value, name
+                )
                 for name in joint_names
             ]
         )
-        self.joint_ranges = self.env.sys.jnt_range[1:]
+        self.joint_ranges = [env.sys.mj_model.jnt_range[id_] for id_ in joint_ids]
+        self.qpos_ids = jnp.asarray(
+            [env.sys.mj_model.jnt_qposadr[id_] for id_ in joint_ids]
+        )
 
     def reset(self, rng: jax.Array) -> State:
         state = self.env.reset(rng)
@@ -154,10 +155,9 @@ class ConstraintWrapper(Wrapper):
 
     def step(self, state: State, action: jax.Array) -> State:
         nstate = self.env.step(state, action)
-        # qpos is in radians, even though the xml file specifies degrees
-        joint_angles = nstate.pipeline_state.qpos[self.joint_ids]
         cost = jnp.zeros_like(nstate.reward)
-        for _, (angle, joint_range) in enumerate(zip(joint_angles, self.joint_ranges)):
+        for qpos_id, joint_range in zip(self.qpos_ids, self.joint_ranges):
+            angle = nstate.pipeline_state.qpos[qpos_id]
             normalized_angle = normalize_angle(angle)
             lower_limit = normalize_angle(joint_range[0] - self.angle_tolerance)
             upper_limit = normalize_angle(joint_range[1] + self.angle_tolerance)
