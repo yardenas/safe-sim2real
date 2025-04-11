@@ -143,7 +143,7 @@ def update_fn(
         if safe:
             extra_fields += ("cost", "cumulative_cost")  # type: ignore
         if use_saute:
-            extra_fields += ("saute_reward",)  # type: ignore
+            extra_fields += ("saute_reward", "saute_state")  # type: ignore
         if use_disagreement:
             extra_fields += ("disagreement",)  # type: ignore
 
@@ -192,7 +192,6 @@ def update_fn(
             (),
             length=num_updates_per_batch,
         )
-        aux |= state.metrics
         new_training_state = TrainingState(
             optimizer_state=optimizer_state,
             params=params,
@@ -200,6 +199,10 @@ def update_fn(
             penalizer_params=penalizer_params,
             env_steps=training_state.env_steps + env_step_per_training_step,
         )  # type: ignore
+        if use_disagreement:
+            aux["disagreement"] = jnp.mean(data.extras["state_extras"]["disagreement"])
+        if use_saute:
+            aux["saute_state"] = jnp.mean(data.extras["state_extras"]["saute_state"])
         return (new_training_state, state, new_key), aux
 
     return training_step
