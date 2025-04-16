@@ -15,3 +15,6 @@ training:
   safe: false
   safety_budget: 100.
   num_eval_episodes: 1
+
+agent:
+  activation: swish
