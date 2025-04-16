@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import seaborn.objects as so
 from hydra import compose, initialize
+from matplotlib.colors import Normalize
 from mujoco_playground import registry
 from mujoco_playground._src import mjx_env
 from seaborn import axes_style
@@ -56,38 +57,44 @@ def make_env():
 
 
 # %%
+
 theta = np.linspace(-np.pi, np.pi, 50)
 theta_dot = np.linspace(-2 * np.pi, 2 * np.pi, 50)
-# Create a grid of all combinations of theta and theta_dot
-Theta, Theta_dot = np.meshgrid(theta, theta_dot)
-x = 0  # Fixed value
-x_dot = 0
 grid = np.array(np.meshgrid(theta, theta_dot))
-grid_shape = grid.shape  # Save the original grid shape for later
-flat_states = grid.reshape(2, -1).T  # Shape: (N, 3), where N = 100^3
-q = np.zeros((flat_states.shape[0], 2))
-q[:, 0] = x  # Set x to 0 for all states
-q[:, 1] = flat_states[:, 0]  # theta
-# Set qvel with the rest of the dimensions
-qvel = np.zeros((flat_states.shape[0], 2))
-qvel[:, 0] = x_dot
-qvel[:, 1] = flat_states[:, 1]
-env = make_env()
-action = np.zeros((flat_states.shape[0], env.mjx_model.nu))
-state = jax.jit(env.reset)(jax.random.PRNGKey(0))
-init = lambda q, qvel: mjx_env.init(env.mjx_model, qpos=q, qvel=qvel)
-data = jax.jit(jax.vmap(init))(q, qvel)
-obs = lambda data: env._get_obs(data, state.info)
-obs = jax.jit(jax.vmap(obs))(data)
-# Tile dimensions to match flat_states.shape[0]
-dummy_state = jax.tree_map(
-    lambda x: jnp.tile(x[None], (flat_states.shape[0],) + (1,) * x.ndim), state
-)
-zeros = jnp.zeros((flat_states.shape[0],))
-state = dummy_state.replace(data=data)
+grid_shape = grid.shape
 
-step = lambda state, action: env.step(state, action)
-state = jax.jit(jax.vmap(step))(state, action)
+
+@jax.jit
+def generate_data(action):
+    # Create a grid of all combinations of theta and theta_dot
+    x = 0  # Fixed value
+    x_dot = 0
+    flat_states = grid.reshape(2, -1).T  # Shape: (N, 3), where N = 100^3
+    q = np.zeros((flat_states.shape[0], 2))
+    q[:, 0] = x  # Set x to 0 for all states
+    q[:, 1] = flat_states[:, 0]  # theta
+    # Set qvel with the rest of the dimensions
+    qvel = np.zeros((flat_states.shape[0], 2))
+    qvel[:, 0] = x_dot
+    qvel[:, 1] = flat_states[:, 1]
+    env = make_env()
+    state = jax.jit(env.reset)(jax.random.PRNGKey(0))
+    init = lambda q, qvel: mjx_env.init(env.mjx_model, qpos=q, qvel=qvel)
+    data = jax.jit(jax.vmap(init))(q, qvel)
+    obs = lambda data: env._get_obs(data, state.info)
+    obs = jax.jit(jax.vmap(obs))(data)
+    # Tile dimensions to match flat_states.shape[0]
+    dummy_state = jax.tree_map(
+        lambda x: jnp.tile(x[None], (flat_states.shape[0],) + (1,) * x.ndim), state
+    )
+    state = dummy_state.replace(data=data)
+    step = lambda state: env.step(state, action)
+    state = jax.jit(jax.vmap(step))(state)
+    return state.info["disagreement"]
+
+
+actions = np.linspace(-1, 1, 6)[:, None]
+value_matrices = [generate_data(action) for action in actions]
 
 
 # %%
@@ -123,26 +130,36 @@ theme = bundles.neurips2024()
 so.Plot.config.theme.update(axes_style("white") | theme | {"legend.frameon": False})
 plt.rcParams.update(bundles.neurips2024())
 plt.rcParams.update(
-    figsizes.neurips2024(nrows=1, ncols=1, rel_width=0.5, pad_inches=0.050)
+    figsizes.neurips2024(nrows=1, ncols=6, pad_inches=0.050, height_to_width_ratio=1.1)
 )
-fig = plt.figure()
-cp = plt.contourf(
-    theta,
-    theta_dot,
-    state.info["disagreement"].reshape(grid_shape[1:]),
-    50,
-    cmap="rocket",
+fig, axes = plt.subplots(1, 6, sharex=True, sharey=True)
+vmin = np.min([v.min() for v in value_matrices])
+vmax = np.max([v.max() for v in value_matrices])
+norm = Normalize(vmin=vmin, vmax=vmax)
+# Plot each subplot
+for i, (ax, a, val) in enumerate(zip(axes, actions, value_matrices)):
+    cp = ax.contourf(
+        theta,
+        theta_dot,
+        value_matrices[i].reshape(grid_shape[1:]),
+        50,
+        cmap="rocket",
+        norm=norm,
+    )
+    cp.set_edgecolor("face")
+    ax.set_xticks([-np.pi, 0, np.pi], [r"$-\pi$", r"$0$", r"$\pi$"])
+    ax.set_title(f"$a = {a[0]:.1f}$")
+# Add one colorbar on the right
+cbar = fig.colorbar(
+    cp, ax=axes.ravel().tolist(), orientation="vertical", fraction=0.02, pad=0.01
 )
-cbar = fig.colorbar(cp, label="Disagreement")
+cbar.set_label("Disagreement")
 
 vmin, vmax = cp.get_clim()
 vmid = (vmin + vmax) / 2
-
 # Set ticks to show only the min, mid, and max values
 cbar.set_ticks([vmin, vmid, vmax])
 cbar.set_ticklabels([sci_format(vmin), sci_format(vmid), sci_format(vmax)])
-plt.xlabel(r"$\theta$")
-plt.ylabel(r"$\dot{\theta}$")
-plt.xticks([-np.pi, 0, np.pi], [r"$-\pi$", r"$0$", r"$\pi$"])
-cp.set_edgecolor("face")
+axes[0].set_ylabel(r"$\dot{\theta}$")
+fig.supxlabel(r"$\theta$")
 fig.savefig("cartpole-disagreement.pdf")
