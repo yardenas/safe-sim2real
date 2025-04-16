@@ -351,6 +351,10 @@ def train(
             cost_metrics = {}
             qc_params = None
             qc_optimizer_state = None
+        if isinstance(cost_robustness, UCBCost):
+            budget_penalty = cost_robustness.alpha
+        else:
+            budget_penalty = 0
         (actor_loss, aux), policy_params, policy_optimizer_state = actor_update(
             training_state.policy_params,
             training_state.normalizer_params,
@@ -359,7 +363,7 @@ def train(
             alpha,
             transitions,
             key_actor,
-            safety_budget,
+            jnp.maximum(safety_budget - budget_penalty, 0.0),
             penalizer,
             training_state.penalizer_params,
             optimizer_state=training_state.policy_optimizer_state,
