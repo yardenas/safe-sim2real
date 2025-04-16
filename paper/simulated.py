@@ -74,7 +74,7 @@ def walk_wandb_runs(project, filters):
 
 filters = {
     "display_name": {
-        "$regex": "apr01-nominal-aga$|apr01-dr-aga$|apr01-ptsd-aga|mar28-simple-aga|apr01-ramu-aga|apr11-g2g-ramu|apr11-g2g-ptsd|apr11-g2g-dr|apr11-g2g-nominal|apr11-g2g-simple"
+        "$regex": "apr01-nominal-aga$|apr01-dr-aga$|apr01-ptsd-aga|mar28-simple-aga|apr01-ramu-aga|apr11-g2g-ramu|apr11-g2g-ptsd|apr11-g2g-dr|apr11-g2g-nominal|apr11-g2g-simple-aga$"
     }
 }
 
