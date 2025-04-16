@@ -57,7 +57,10 @@ class PTSD(Wrapper):
 
     def step(self, state: State, action: jax.Array) -> State:
         nstate = self.env.step(state, action)
-        v_state, v_action = self._tile(state), self._tile(action)
+        v_action = self._tile(action)
+        dummy_tile = lambda x: state
+        dummy_tile = jax.vmap(dummy_tile)
+        v_state = dummy_tile(jnp.arange(self.num_perturbed_envs))
         perturbed_nstate = self.perturbed_env.step(v_state, v_action)
         next_obs = _get_obs(perturbed_nstate)
         nstate.info["state_propagation"]["next_obs"] = next_obs
