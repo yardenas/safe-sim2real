@@ -27,5 +27,3 @@ agent:
   penalizer:
     terminate: true
     penalty: 0.
-  propagation:
-    num_envs: 8
