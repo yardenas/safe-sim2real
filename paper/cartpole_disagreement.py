@@ -93,7 +93,7 @@ def generate_data(action):
     return state.info["disagreement"]
 
 
-actions = np.linspace(-1, 1, 6)[:, None]
+actions = np.linspace(0, 1, 4)[:, None]
 value_matrices = [generate_data(action) for action in actions]
 
 
@@ -130,9 +130,9 @@ theme = bundles.neurips2024()
 so.Plot.config.theme.update(axes_style("white") | theme | {"legend.frameon": False})
 plt.rcParams.update(bundles.neurips2024())
 plt.rcParams.update(
-    figsizes.neurips2024(nrows=1, ncols=6, pad_inches=0.050, height_to_width_ratio=1.1)
+    figsizes.neurips2024(nrows=1, ncols=4, pad_inches=0.050, height_to_width_ratio=1.0)
 )
-fig, axes = plt.subplots(1, 6, sharex=True, sharey=True)
+fig, axes = plt.subplots(1, 4, sharex=True, sharey=True)
 vmin = np.min([v.min() for v in value_matrices])
 vmax = np.max([v.max() for v in value_matrices])
 norm = Normalize(vmin=vmin, vmax=vmax)
