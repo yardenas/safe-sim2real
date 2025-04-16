@@ -33,6 +33,6 @@ agent:
   safety_gae_lambda: 0.95
   penalizer:
     terminate: true
-    penalty: 2.
+    penalty: 0.
   propagation:
     num_envs: 8
