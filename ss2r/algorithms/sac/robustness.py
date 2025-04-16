@@ -22,8 +22,9 @@ class QTransformation(Protocol):
 
 
 class UCBCost(QTransformation):
-    def __init__(self, lambda_: float) -> None:
+    def __init__(self, lambda_: float, alpha: float) -> None:
         self.lambda_ = lambda_
+        self.alpha = alpha
 
     def __call__(
         self,
@@ -40,7 +41,9 @@ class UCBCost(QTransformation):
         next_q = q_fn(transitions.next_observation, next_action)
         next_v = next_q.mean(axis=-1)
         std = transitions.extras["state_extras"]["disagreement"]
-        cost = transitions.extras["state_extras"]["cost"] + self.lambda_ * std
+        cost = (
+            transitions.extras["state_extras"]["cost"] + self.lambda_ * std + self.alpha
+        )
         target_q = jax.lax.stop_gradient(
             cost * scale + transitions.discount * gamma * next_v
         )
