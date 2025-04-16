@@ -14,12 +14,16 @@ training:
 
 agent:
   normalize_observations: true
-  num_minibatches: 2
-  num_updates_per_batch: 2
-  discounting: 0.99
+  num_minibatches: 32
+  unroll_length: 10
+  num_updates_per_batch: 8
+  discounting: 0.97
   safety_discounting: 0.99
   batch_size: 1024
   entropy_cost: 0.01
   learning_rate: 3e-4
   safety_gae_lambda: 0.95
   reward_scaling: 0.1
+  penalizer:
+    terminate: true
+    penalty: 0.
