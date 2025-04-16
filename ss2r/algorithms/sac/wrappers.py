@@ -68,7 +68,10 @@ class PTSD(Wrapper):
 
     def _tile(self, tree):
         return jax.tree_map(
-            lambda x: jnp.tile(x, (self.num_perturbed_envs,) + (1,) * x.ndim), tree
+            lambda x: jnp.tile(x, (self.num_perturbed_envs,) + (1,) * x.ndim)
+            if isinstance(x, jax.Array)
+            else x,
+            tree,
         )
 
 
