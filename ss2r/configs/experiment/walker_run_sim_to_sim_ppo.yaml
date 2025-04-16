@@ -11,7 +11,7 @@ defaults:
 
 training:
   # num_timesteps: 150000000
-  num_timesteps: 15000000
+  num_timesteps: 150000000
   safe: true
   train_domain_randomization: true
   eval_domain_randomization: true
