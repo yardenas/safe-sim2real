@@ -64,7 +64,9 @@ def get_cost_robustness(cfg):
         del cfg.agent.cost_robustness.name
         robustness = rb.RAMU(**cfg.agent.cost_robustness)
     elif cfg.agent.cost_robustness.name == "ucb_cost":
-        robustness = rb.UCBCost(cfg.agent.cost_robustness.cost_penalty)
+        robustness = rb.UCBCost(
+            cfg.agent.cost_robustness.cost_penalty, cfg.agent.cost_robustness.alpha
+        )
     else:
         raise ValueError("Unknown robustness")
     return robustness
