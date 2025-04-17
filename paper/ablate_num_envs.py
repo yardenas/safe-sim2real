@@ -15,7 +15,7 @@ warnings.filterwarnings("ignore")
 api = wandb.Api()
 
 
-def load_evaluation(data, seed, num_envs, runtime):
+def load_evaluation(data, seed, num_envs, runtime, environment):
     if data.index.name is None or data.index.name != "step":
         data.rename(columns={"_step": "step"}, inplace=True)
         data.set_index("step", inplace=True)
@@ -23,6 +23,7 @@ def load_evaluation(data, seed, num_envs, runtime):
     data["seed"] = seed
     data["num_envs"] = num_envs
     data["runtime"] = runtime
+    data["environment"] = environment
     return data
 
 
@@ -42,7 +43,8 @@ def handle_run(run):
     num_envs = config_to_num_envs(config)
     seed = config["training"]["seed"]
     runtime = run.summary["_runtime"]
-    return metrics, seed, num_envs, runtime
+    environment = config["environment"]["task_name"]
+    return metrics, seed, num_envs, runtime, environment
 
 
 def walk_wandb_runs(project, filters):
@@ -55,7 +57,7 @@ def walk_wandb_runs(project, filters):
         yield out
 
 
-filters = {"display_name": {"$regex": "apr16-performance"}}
+filters = {"display_name": {"$regex": "apr16-performance|apr16-performance-quad"}}
 
 data = pd.concat(
     [
@@ -146,15 +148,21 @@ for i, ax in enumerate(axes):
 fig.savefig("ablate-num-envs.pdf")
 
 # %%
-last_steps = data.groupby(["seed", "num_envs"]).tail(1).reset_index()
+last_steps = data.groupby(["seed", "num_envs", "environment"]).tail(1).reset_index()
 aggregated_data = last_steps[last_steps["num_envs"].isin([1, 2, 4, 8, 16, 32, 64, 128])]
-aggregated_data["runtime_normalized"] = (
-    aggregated_data["runtime"] / aggregated_data["runtime"].min()
+reference_values = (
+    aggregated_data[aggregated_data["num_envs"] == 1]
+    .set_index("environment")["runtime"]
+    .to_dict()
+)
+aggregated_data["runtime_normalized"] = aggregated_data.apply(
+    lambda row: row["runtime"] / reference_values[row["environment"]],
+    axis=1,
 )
 aggregated_data = aggregated_data.reset_index()
 aggregated_data = pd.melt(
     aggregated_data,
-    id_vars=["step", "seed", "num_envs"],  # columns to keep as-is
+    id_vars=["step", "seed", "num_envs", "environment"],  # columns to keep as-is
     value_vars=[
         "eval/episode_reward",
         "eval/episode_cost",
@@ -175,20 +183,33 @@ so.Plot(
     aggregated_data,
     x="num_envs",
     y="value",
+    color="environment",
+    marker="environment",
 ).facet(col="metric_name").share(x=True, y=False).add(
-    so.Line(
-        linewidth=1.0,
-        pointsize=2.5,
-        edgewidth=0.1,
-        marker=marker_styles[0],
-        color="#5F4690",
-    ),
+    so.Line(linewidth=1.0, pointsize=2.5, edgewidth=0.1),
     so.Agg("mean"),
-).add(
-    so.Band(alpha=0.15, color="#5F4690"), so.Est("mean", errorbar="se"), legend=False
-).scale(x="log2").label(
-    x="\# parameterizations $n$", title=lambda name: y_labels[name], y=""
-).theme(axes_style("ticks")).on(fig).plot()
+).add(so.Band(alpha=0.15), so.Est("mean", errorbar="se"), legend=False).scale(
+    x="log2",
+    color=so.Nominal(
+        values=[
+            "#5F4690",
+            "#1D6996",
+            "#38A6A5",
+            "#0F8554",
+            "#73AF48",
+            "#EDAD08",
+            "#E17C05",
+            "#CC503E",
+            "#94346E",
+            "#6F4070",
+            "#994E95",
+            "#666666",
+        ],
+    ),
+    marker=so.Nominal(values=marker_styles),
+).label(x="\# parameterizations $n$", title=lambda name: y_labels[name], y="").theme(
+    axes_style("ticks")
+).on(fig).plot()
 
 
 axes = fig.get_axes()
@@ -205,4 +226,15 @@ yticks = list(yticks)
 labels = [f"$\\times${tick:.1f}" for tick in yticks]
 axes[-1].set_yticklabels(labels)
 
+legend = fig.legends.pop(0)
+fig.legend(
+    legend.legend_handles,
+    [t.get_text().strip("Safe") for t in legend.texts],
+    loc="center",
+    bbox_to_anchor=(0.5, 1.01),
+    ncol=6,
+    frameon=False,
+    handletextpad=0.25,
+    handlelength=1.0,
+)
 fig.savefig("ablate-num-envs.pdf")
