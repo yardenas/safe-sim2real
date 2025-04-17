@@ -40,7 +40,9 @@ so.Plot(constraint, x="lambda", y="cumulative_cost").add(
     so.Line(linewidth=1.0, pointsize=3.5, edgewidth=0.5, marker="x", color="#5F4690"),
     so.Agg("median"),
 ).add(
-    so.Band(alpha=0.15, color="#5F4690"), so.Est("median", errorbar="ci"), legend=False
+    so.Band(alpha=0.15, color="#5F4690"),
+    so.Est("median", errorbar=("ci", 68)),
+    legend=False,
 ).scale(y="log").label(
     x="$\lambda$",
     y=r"$\hat{C}_{p^\star}(\pi)$",
@@ -110,13 +112,17 @@ def add_arrow(ax, x, min_val, max_val, times):
 ax.annotate(
     "Constraint \nin simulation",
     xy=(0.025, 12),
-    xytext=(0.01, 1.90),
+    xytext=(0.01, 1.05),
     arrowprops=dict(
-        arrowstyle="-|>", color="black", linewidth=0.75, connectionstyle="arc3,rad=0.2"
+        arrowstyle="-|>",
+        color="#1D6996",
+        linewidth=0.75,
+        connectionstyle="arc3,rad=0.2",
     ),
     bbox=dict(pad=-2, facecolor="none", edgecolor="none"),
     fontsize=base_font_size,
     va="center",
+    color="#1D6996",
 )
 
 cost = r"\hat{C}_{p^\star}(\pi)"
@@ -124,7 +130,7 @@ cost = r"\hat{C}_{p^\star}(\pi)"
 ax.annotate(
     f"${cost} =\; ${y_0:.2f}",
     xy=(0.05, y_0),
-    xytext=(0.025, y_0 + 100),
+    xytext=(0.025, y_0 + 200),
     fontsize=base_font_size,
     va="center",
 )
@@ -134,4 +140,6 @@ for i, lambda_val in enumerate([0.075]):
 add_arrow(ax, 0, budget, y_0, y_0 / budget)
 
 
+ax.set_ylim(0.3, 800)
+ax.set_title("Unitree Go1")
 fig.savefig("go1-lambda-ablation.pdf")

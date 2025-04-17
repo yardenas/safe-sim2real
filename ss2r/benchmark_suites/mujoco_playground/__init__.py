@@ -22,7 +22,7 @@ def _dig(env):
         return _dig(env.env)
 
 
-def render(env, policy, steps, rng, camera="fixedfar"):
+def render(env, policy, steps, rng, camera=None):
     state = env.reset(rng)
     state = jax.tree_map(lambda x: x[:5], state)
     orig_model = env._mjx_model
