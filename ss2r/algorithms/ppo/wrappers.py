@@ -38,13 +38,27 @@ class Saute(Wrapper):
 
     @property
     def observation_size(self):
-        return self.env.observation_size + 1
+        observation_size = self.env.observation_size
+        if isinstance(observation_size, dict):
+            observation_size = {k: v + 1 for k, v in observation_size.items()}
+        else:
+            observation_size += 1
+        return observation_size
 
     def reset(self, rng):
         state = self.env.reset(rng)
         state.info["saute_state"] = jnp.ones(())
         state.info["saute_reward"] = state.reward
-        state = state.replace(obs=jnp.hstack([state.obs, state.info["saute_state"]]))
+        if isinstance(state.obs, jax.Array):
+            state = state.replace(
+                obs=jnp.hstack([state.obs, state.info["saute_state"]])
+            )
+        else:
+            obs = {
+                k: jnp.hstack([v, state.info["saute_state"]])
+                for k, v in state.obs.items()
+            }
+            state = state.replace(obs=obs)
         state.metrics["saute_reward"] = state.info["saute_reward"]
         state.metrics["saute_state"] = state.info["saute_state"]
         return state
@@ -70,8 +84,12 @@ class Saute(Wrapper):
         nstate.info["saute_reward"] = saute_reward
         nstate.metrics["saute_reward"] = saute_reward
         nstate.metrics["saute_state"] = saute_state
+        if isinstance(nstate.obs, jax.Array):
+            obs = jnp.hstack([nstate.obs, saute_state])
+        else:
+            obs = {k: jnp.hstack([v, saute_state]) for k, v in nstate.obs.items()}
         nstate = nstate.replace(
-            obs=jnp.hstack([nstate.obs, saute_state]),
+            obs=obs,
             done=terminate.astype(jnp.float32),
         )
         return nstate
