@@ -205,7 +205,7 @@ def make_losses(
                 jax.lax.stop_gradient(penalizer_params),
                 rest=-cost_advantages.mean(),
             )
-            aux["constraint_estimate"] = constraint
+            aux["normalized_constraint_estimate"] = constraint
             aux["cumulative_costs"] = cumulative_cost.max(0).mean()
             aux |= penalizer_aux
         total_loss = policy_loss + entropy_loss
