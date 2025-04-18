@@ -2,6 +2,8 @@
 defaults:
   - override /environment: go1_joystick
   - override /agent: ppo
+  - override /agent/propagation: ts1
+  - override /agent/cost_robustness: ucb_cost
   - override /agent/penalizer: ppo_lagrangian
   - _self_
 
@@ -45,3 +47,7 @@ agent:
   activation: swish
   penalizer:
     multiplier_lr: 1e-2
+  propagation:
+    num_envs: 16
+  cost_robustness:
+    cost_penalty: 0.05
