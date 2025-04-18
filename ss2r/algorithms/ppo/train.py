@@ -100,6 +100,7 @@ def train(
     safe: bool = False,
     use_saute: bool = False,
     use_disagreement: bool = False,
+    disagreement_scale: float = 0.0,
 ):
     assert batch_size * num_minibatches % num_envs == 0
     if not safe or use_saute:
@@ -197,6 +198,8 @@ def train(
         normalize_advantage=normalize_advantage,
         safety_budget=safety_budget,
         use_saute=use_saute,
+        use_disagreement=use_disagreement,
+        disagreement_scale=disagreement_scale,
     )
     training_step = update_step_factory(
         policy_loss,

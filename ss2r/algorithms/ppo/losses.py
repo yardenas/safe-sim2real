@@ -109,6 +109,8 @@ def make_losses(
     safety_discounting,
     safety_gae_lambda,
     use_saute,
+    use_disagreement,
+    disagreement_scale,
 ):
     def compute_policy_loss(
         policy_params,
@@ -126,9 +128,8 @@ def make_losses(
         data = jax.tree_util.tree_map(lambda x: jnp.swapaxes(x, 0, 1), data)
         policy_logits = policy_apply(normalizer_params, policy_params, data.observation)
         baseline = value_apply(normalizer_params, value_params, data.observation)
-        bootstrap_value = value_apply(
-            normalizer_params, value_params, data.next_observation[-1]
-        )
+        terminal_obs = jax.tree_util.tree_map(lambda x: x[-1], data.next_observation)
+        bootstrap_value = value_apply(normalizer_params, value_params, terminal_obs)
         rewards = data.reward * reward_scaling
         if use_saute:
             rewards = data.extras["state_extras"]["saute_reward"] * reward_scaling
@@ -164,11 +165,14 @@ def make_losses(
         if penalizer is not None:
             cost_value_apply = ppo_network.cost_value_network.apply
             cost = data.extras["state_extras"]["cost"] * cost_scaling
+            if use_disagreement:
+                disagreement = data.extras["state_extras"]["disagreement"]
+                cost += disagreement * disagreement_scale
             cost_baseline = cost_value_apply(
                 normalizer_params, cost_value_params, data.observation
             )
             cost_bootstrap_value = cost_value_apply(
-                normalizer_params, cost_value_params, data.next_observation[-1]
+                normalizer_params, cost_value_params, terminal_obs
             )
             _, cost_advantages = compute_gae(
                 truncation=truncation,
@@ -218,9 +222,8 @@ def make_losses(
         value_apply = ppo_network.value_network.apply
         data = jax.tree_util.tree_map(lambda x: jnp.swapaxes(x, 0, 1), data)
         baseline = value_apply(normalizer_params, params, data.observation)
-        bootstrap_value = value_apply(
-            normalizer_params, params, data.next_observation[-1]
-        )
+        terminal_obs = jax.tree_util.tree_map(lambda x: x[-1], data.next_observation)
+        bootstrap_value = value_apply(normalizer_params, params, terminal_obs)
         rewards = data.reward * reward_scaling
         if use_saute:
             rewards = data.extras["state_extras"]["saute_reward"] * reward_scaling
@@ -243,10 +246,12 @@ def make_losses(
         cost_value_apply = ppo_network.cost_value_network.apply
         data = jax.tree_util.tree_map(lambda x: jnp.swapaxes(x, 0, 1), data)
         cost = data.extras["state_extras"]["cost"] * cost_scaling
+        if use_disagreement:
+            disagreement = data.extras["state_extras"]["disagreement"]
+            cost += disagreement * disagreement_scale
         cost_baseline = cost_value_apply(normalizer_params, params, data.observation)
-        cost_bootstrap = cost_value_apply(
-            normalizer_params, params, data.next_observation[-1]
-        )
+        terminal_obs = jax.tree_util.tree_map(lambda x: x[-1], data.next_observation)
+        cost_bootstrap = cost_value_apply(normalizer_params, params, terminal_obs)
         truncation = data.extras["state_extras"]["truncation"]
         termination = (1 - data.discount) * (1 - truncation)
         vcs, _ = compute_gae(

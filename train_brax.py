@@ -141,7 +141,8 @@ def get_wrap_env_fn(cfg):
             )
             return env
 
-        return saute_train, saute_eval
+        out = saute_train, saute_eval
+    return out
 
 
 def get_train_fn(cfg):
@@ -229,6 +230,7 @@ def get_train_fn(cfg):
         policy_obs_key = (
             "privileged_state" if cfg.training.policy_privileged else "state"
         )
+        cost_robustness = get_cost_robustness(cfg)
         del training_cfg["value_privileged"]
         del training_cfg["policy_privileged"]
         del agent_cfg["name"]
@@ -269,6 +271,7 @@ def get_train_fn(cfg):
             train_fn = functools.partial(
                 train_fn,
                 use_disagreement=True,
+                disagreement_scale=cost_robustness.lambda_,
             )
     else:
         raise ValueError(f"Unknown agent name: {cfg.agent.name}")

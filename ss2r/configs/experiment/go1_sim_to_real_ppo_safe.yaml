@@ -2,15 +2,18 @@
 defaults:
   - override /environment: go1_joystick
   - override /agent: ppo
+  - override /agent/penalizer: ppo_lagrangian
   - _self_
 
 environment:
-  task_name: Go1JoystickFlatTerrain
+  task_name: SafeJointGo1JoystickFlatTerrain
+  task_params:
+    soft_joint_pos_limit_factor: 0.75
 
 training:
   train_domain_randomization: true
   eval_domain_randomization: true
-  safe: false
+  safe: true
   num_envs: 8192
   action_repeat: 1
   num_evals: 10
