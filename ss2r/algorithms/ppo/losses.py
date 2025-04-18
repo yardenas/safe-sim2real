@@ -174,7 +174,7 @@ def make_losses(
             cost_bootstrap_value = cost_value_apply(
                 normalizer_params, cost_value_params, terminal_obs
             )
-            _, cost_advantages = compute_gae(
+            vsc, cost_advantages = compute_gae(
                 truncation=truncation,
                 termination=termination,
                 rewards=cost,
@@ -195,24 +195,17 @@ def make_losses(
             )
             cost_advantages = -jnp.minimum(surrogate1_cost, surrogate2_cost)
             cumulative_cost = data.extras["state_extras"]["cumulative_cost"]
-            ongoing_costs = cumulative_cost.mean()
-            length_scale_factor = (
-                cumulative_cost.shape[0] / 1000.0 / (1 - safety_discounting)
-            )
-            correct_safety_budget = safety_budget * (1.0 - safety_discounting) * 1000.0
-            constraint = (
-                correct_safety_budget - length_scale_factor * ongoing_costs
-            )  # TODO (yarden): don't hard-code this
-            normalized_constraint = constraint / 1000.0 / (1.0 - safety_discounting)
+            if use_disagreement:
+                disagreement = data.extras["state_extras"]["disagreement"]
+                cumulative_cost += disagreement * disagreement_scale
+            constraint = safety_budget - vsc.mean() / cost_scaling
             policy_loss, penalizer_aux, _ = penalizer(
                 policy_loss,
-                normalized_constraint,
+                constraint,
                 jax.lax.stop_gradient(penalizer_params),
                 rest=-cost_advantages.mean(),
             )
             aux["constraint_estimate"] = constraint
-            aux["normalized_constraint_estimate"] = normalized_constraint
-            aux["ongoing_costs"] = ongoing_costs * length_scale_factor
             aux["cumulative_costs"] = cumulative_cost.max(0).mean()
             aux |= penalizer_aux
         total_loss = policy_loss + entropy_loss

@@ -101,13 +101,15 @@ def train(
     use_saute: bool = False,
     use_disagreement: bool = False,
     disagreement_scale: float = 0.0,
+    normalize_budget: bool = True,
 ):
     assert batch_size * num_minibatches % num_envs == 0
     if not safe or use_saute:
         penalizer = None
         penalizer_params = None
     original_safety_budget = safety_budget
-    safety_budget = (safety_budget / episode_length) / (1.0 - safety_discounting)
+    if normalize_budget:
+        safety_budget = (safety_budget / episode_length) / (1.0 - safety_discounting)
     xt = time.time()
     process_count = jax.process_count()
     process_id = jax.process_index()

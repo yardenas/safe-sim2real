@@ -26,3 +26,4 @@ policy_hidden_layer_sizes: [32, 32, 32, 32]
 value_hidden_layer_sizes: [256, 256, 256, 256, 256]
 activation: swish
 max_grad_norm: 1.0
+normalize_budget: true
