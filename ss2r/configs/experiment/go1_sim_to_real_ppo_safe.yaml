@@ -48,6 +48,6 @@ agent:
   penalizer:
     multiplier_lr: 1e-2
   propagation:
-    num_envs: 16
+    num_envs: 8
   cost_robustness:
-    cost_penalty: 0.05
+    cost_penalty: 0.075
