@@ -20,6 +20,7 @@ training:
   num_timesteps: 200000000
   episode_length: 1000
   value_privileged: true
+  safety_budget: 20.
 
 agent:
   batch_size: 256
@@ -42,3 +43,5 @@ agent:
   reward_scaling: 1.0
   unroll_length: 20
   activation: swish
+  penalizer:
+    multiplier_lr: 1e-2
