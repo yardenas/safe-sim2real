@@ -13,34 +13,37 @@ from ss2r.common.pytree import pytrees_unstack
 from ss2r.rl.utils import rollout
 
 
+def _dig(env):
+    if env == env.unwrapped:
+        raise ValueError("Not wrapped")
+    if isinstance(env, BraxDomainRandomizationVmapWrapper):
+        return env
+    else:
+        return _dig(env.env)
+
+
 def render(env, policy, steps, rng, camera=None):
     state = env.reset(rng)
     state = jax.tree_map(lambda x: x[:5], state)
     orig_model = env._mjx_model
-    model = jax.tree_map(
-        lambda x, ax: jnp.take(x, jnp.arange(5), axis=ax) if ax is not None else x,
-        env._randomized_models,
-        env._in_axes,
-    )
-    env._mjx_model = model
-    _, trajectory = rollout(env, policy, steps, rng[0], state)
+    if hasattr(env, "_randomized_models"):
+        render_env = _dig(env)
+        model = jax.tree_map(
+            lambda x, ax: jnp.take(x, jnp.arange(5), axis=ax) if ax is not None else x,
+            env._randomized_models,
+            env._in_axes,
+        )
+        render_env._randomized_models = model
+    else:
+        render_env = env
+    _, trajectory = rollout(render_env, policy, steps, rng[0], state)
     env._mjx_model = orig_model
     videos = []
     for i in range(5):
-        if hasattr(env, "_randomized_models"):
-            model = jax.tree_map(
-                lambda x, ax: jnp.take(x, i, axis=ax) if ax is not None else x,
-                env._randomized_models,
-                env._in_axes,
-            )
-        else:
-            model = env._mjx_model
         ep_trajectory = jax.tree_map(lambda x: x[:, i], trajectory)
         ep_trajectory = pytrees_unstack(ep_trajectory)
-        env._mjx_model = model
         video = env.render(ep_trajectory, camera=camera)
         videos.append(video)
-    env._mjx_model = orig_model
     return np.asarray(videos).transpose(0, 1, 4, 2, 3)
 
 

@@ -29,7 +29,7 @@ def make_config(additional_overrides=None):
                 "+experiment=cartpole_swingup_sim_to_sim",
                 "training.num_envs=1",
                 "environment.train_params.pole_length=[-0.5, 0.5]",
-                "environment.train_params.gear=[0., 10.]",
+                # "environment.train_params.gear=[0., 10.]",
             ]
             + additional_overrides,
         )
@@ -58,25 +58,28 @@ def make_env():
 
 # %%
 
-theta = np.linspace(-np.pi, np.pi, 50)
-theta_dot = np.linspace(-2 * np.pi, 2 * np.pi, 50)
-grid = np.array(np.meshgrid(theta, theta_dot))
+thetas = np.linspace(0, np.pi, 4)
+# theta_dot = np.linspace(-2 * np.pi, 2 * np.pi, 50)
+x_dot = np.linspace(-2, 2, 50)
+action = np.linspace(-1, 1, 50)
+grid = np.array(np.meshgrid(action, x_dot))
 grid_shape = grid.shape
 
 
 @jax.jit
-def generate_data(action):
+def generate_data(theta):
     # Create a grid of all combinations of theta and theta_dot
     x = 0  # Fixed value
-    x_dot = 0
     flat_states = grid.reshape(2, -1).T  # Shape: (N, 3), where N = 100^3
-    q = np.zeros((flat_states.shape[0], 2))
-    q[:, 0] = x  # Set x to 0 for all states
-    q[:, 1] = flat_states[:, 0]  # theta
+    q = jnp.zeros((flat_states.shape[0], 2))
+    q = q.at[:, 0].set(x)
+    q = q.at[:, 1].set(theta)
     # Set qvel with the rest of the dimensions
     qvel = np.zeros((flat_states.shape[0], 2))
-    qvel[:, 0] = x_dot
-    qvel[:, 1] = flat_states[:, 1]
+    # qvel[:, 0] = x_dot
+    # qvel[:, 1] = flat_states[:, 1]
+    qvel[:, 0] = flat_states[:, 1]
+    qvel[:, 1] = 0
     env = make_env()
     state = jax.jit(env.reset)(jax.random.PRNGKey(0))
     init = lambda q, qvel: mjx_env.init(env.mjx_model, qpos=q, qvel=qvel)
@@ -88,13 +91,13 @@ def generate_data(action):
         lambda x: jnp.tile(x[None], (flat_states.shape[0],) + (1,) * x.ndim), state
     )
     state = dummy_state.replace(data=data)
-    step = lambda state: env.step(state, action)
-    state = jax.jit(jax.vmap(step))(state)
+    actions = flat_states[:, :1]
+    step = lambda state, action: env.step(state, action)
+    state = jax.jit(jax.vmap(step))(state, actions)
     return state.info["disagreement"]
 
 
-actions = np.linspace(0, 1, 4)[:, None]
-value_matrices = [generate_data(action) for action in actions]
+value_matrices = [generate_data(theta) for theta in thetas]
 
 
 # %%
@@ -125,30 +128,29 @@ def sci_format(val):
     return rf"${{{coeff:.0f} \times 10^{{{exp}}}}}$"
 
 
-# %%
 theme = bundles.neurips2024()
 so.Plot.config.theme.update(axes_style("white") | theme | {"legend.frameon": False})
 plt.rcParams.update(bundles.neurips2024())
 plt.rcParams.update(
-    figsizes.neurips2024(nrows=1, ncols=4, pad_inches=0.050, height_to_width_ratio=1.0)
+    figsizes.neurips2024(nrows=1, ncols=4, pad_inches=0.05, height_to_width_ratio=1.0)
 )
 fig, axes = plt.subplots(1, 4, sharex=True, sharey=True)
 vmin = np.min([v.min() for v in value_matrices])
 vmax = np.max([v.max() for v in value_matrices])
 norm = Normalize(vmin=vmin, vmax=vmax)
 # Plot each subplot
-for i, (ax, a, val) in enumerate(zip(axes, actions, value_matrices)):
+for i, (ax, theta, val) in enumerate(zip(axes, thetas, value_matrices)):
     cp = ax.contourf(
-        theta,
-        theta_dot,
+        action,
+        x_dot,
         value_matrices[i].reshape(grid_shape[1:]),
         50,
         cmap="rocket",
         norm=norm,
     )
     cp.set_edgecolor("face")
-    ax.set_xticks([-np.pi, 0, np.pi], [r"$-\pi$", r"$0$", r"$\pi$"])
-    ax.set_title(f"$a = {a[0]:.1f}$")
+    # ax.set_xticks([-np.pi, 0, np.pi], [r"$-\pi$", r"$0$", r"$\pi$"])
+    ax.set_title(f"$\\theta = {theta:.1f}$")
 # Add one colorbar on the right
 cbar = fig.colorbar(
     cp, ax=axes.ravel().tolist(), orientation="vertical", fraction=0.02, pad=0.01
@@ -160,6 +162,6 @@ vmid = (vmin + vmax) / 2
 # Set ticks to show only the min, mid, and max values
 cbar.set_ticks([vmin, vmid, vmax])
 cbar.set_ticklabels([sci_format(vmin), sci_format(vmid), sci_format(vmax)])
-axes[0].set_ylabel(r"$\dot{\theta}$")
-fig.supxlabel(r"$\theta$")
-fig.savefig("cartpole-disagreement.pdf")
+axes[0].set_ylabel(r"$\dot{x}$")
+fig.supxlabel(r"$a$")
+fig.savefig("cartpole-disagreement-action.pdf")

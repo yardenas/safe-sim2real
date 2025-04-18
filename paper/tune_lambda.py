@@ -2,9 +2,7 @@
 import warnings
 
 import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
-import seaborn as sns
 import seaborn.objects as so
 import wandb
 from seaborn import axes_style
@@ -68,178 +66,10 @@ aggregated_data = (
 
 
 # %%
-
-theme = bundles.jmlr2001()
+theme = bundles.neurips2024()
 so.Plot.config.theme.update(axes_style("white") | theme | {"legend.frameon": False})
-plt.rcParams.update(bundles.jmlr2001())
-plt.rcParams.update(figsizes.jmlr2001(nrows=1, ncols=2, height_to_width_ratio=0.8))
-fig, axes = plt.subplots(1, 2, sharey=True)
-aggregated_data["score"] = aggregated_data["eval/episode_reward"] / (
-    aggregated_data["eval/episode_cost"] + 10
-)
-
-sns.heatmap(
-    aggregated_data.pivot(
-        index="magnitude", columns="lambda", values="eval/episode_reward"
-    ).sort_index(ascending=False),
-    ax=axes[0],
-    # cmap="viridis",
-    linewidths=1.75,
-)
-axes[0].axvspan(5, 5.1, color="white")
-sns.heatmap(
-    aggregated_data.pivot(
-        index="magnitude", columns="lambda", values="eval/episode_cost"
-    ).sort_index(ascending=False),
-    ax=axes[1],
-    # cmap="viridis",
-    linewidths=1.75,
-)
-axes[1].axvspan(4, 4.1, color="white")
-fig.savefig("tune-lambda-cartpole.pdf")
-
-# %%
-
-theme = bundles.jmlr2001()
-so.Plot.config.theme.update(axes_style("white") | theme | {"legend.frameon": False})
-plt.rcParams.update(bundles.jmlr2001())
-plt.rcParams.update(figsizes.jmlr2001(nrows=1, ncols=1, height_to_width_ratio=0.8))
-fig = plt.figure()
-ax = fig.add_subplot(111, projection="3d")
-
-reward_pivot = aggregated_data.pivot(
-    index="lambda", columns="magnitude", values="eval/episode_reward"
-)
-cost_pivot = aggregated_data.pivot(
-    index="lambda", columns="magnitude", values="eval/episode_cost"
-)
-
-# Optionally, sort the lambda index in ascending order (or descending, if desired)
-reward_pivot = reward_pivot.sort_index(ascending=True)
-cost_pivot = cost_pivot.sort_index(ascending=True)
-
-# Convert the index and columns to numpy arrays for the meshgrid.
-lambdas = reward_pivot.index.values
-magnitudes = reward_pivot.columns.values
-
-# Create meshgrid. Note: meshgrid expects x and y values, so here we treat:
-# x-axis as lambda, and y-axis as magnitude.
-L, M = np.meshgrid(lambdas, magnitudes)
-
-# Our pivoted data arrays are 2D with shape (n_lambda, n_magnitude) but note:
-# When we pivoted, lambda became rows and magnitude became columns. So we need to transpose.
-reward_data = reward_pivot.values.T  # Now shape is (n_magnitudes, n_lambdas)
-cost_data = cost_pivot.values.T  # Same for cost
-# Plot the reward surface
-reward_surface = ax.plot_surface(
-    L, M, reward_data, cmap="viridis", alpha=0.8, edgecolor="none", label="Reward"
-)
-
-# Plot the cost surface (with some transparency)
-cost_surface = ax.plot_surface(
-    L, M, cost_data, cmap="coolwarm", alpha=0.8, edgecolor="none", label="Cost"
-)
-
-# Label axes
-ax.set_xlabel("Lambda")
-ax.set_ylabel("Perturbation Magnitude")
-ax.set_zlabel("Value")
-ax.set_title("3D Surface Plot: Reward and Cost")
-
-# Optionally add colorbars by creating separate mappable objects.
-fig.colorbar(reward_surface, ax=ax, shrink=0.5, aspect=10, pad=0.1, label="Reward")
-fig.colorbar(cost_surface, ax=ax, shrink=0.5, aspect=10, pad=0.05, label="Cost")
-
-plt.show()
-
-# %%
-
-theme = bundles.jmlr2001()
-so.Plot.config.theme.update(axes_style("white") | theme | {"legend.frameon": False})
-plt.rcParams.update(bundles.jmlr2001())
-plt.rcParams.update(figsizes.jmlr2001(nrows=1, ncols=5, height_to_width_ratio=1.1))
-plt.rcParams.update({"text.latex.preamble": r"\usepackage{amsmath}\usepackage{times}"})
-fig = plt.figure()
-set_size = r"\lvert\Xi\rvert"
-so.Plot(
-    aggregated_data,
-    x="eval/episode_cost",
-    y="eval/episode_reward",
-    marker="lambda",
-    color="lambda",
-).facet(col="magnitude").share(y=True, x=True).add(
-    so.Dot(pointsize=4.5, edgewidth=0.5), legend=True
-).scale(
-    color=so.Nominal(
-        values=[
-            "silver",
-            "silver",
-            "silver",
-            "silver",
-            "#5F4690",
-            "silver",
-            "silver",
-            "silver",
-        ],
-    ),
-).label(
-    x=r"$\hat{C}(\pi)$", y=r"$\hat{J}(\pi)$", title=lambda s: f"${set_size} = {s}$"
-).theme(axes_style("ticks")).on(fig).plot()
-
-
-def text_lambda(s):
-    return f"$\lambda$ = {s}"
-
-
-axes = fig.get_axes()
-for i, ax in enumerate(axes):
-    ax.grid(True, linewidth=0.5, c="gainsboro", zorder=0)
-legend = fig.legends.pop(0)
-fig.legend(
-    legend.legend_handles,
-    [text_lambda(t.get_text()) for t in legend.texts],
-    loc="center",
-    bbox_to_anchor=(0.5, 1.05),
-    ncol=8,
-    frameon=False,
-    handletextpad=-0.5,
-    columnspacing=0.5,
-)
-
-fig.savefig("tune-lambda-cartpole-2.pdf")
-
-
-# %%
-theme = bundles.jmlr2001()
-so.Plot.config.theme.update(axes_style("white") | theme | {"legend.frameon": False})
-plt.rcParams.update(bundles.jmlr2001())
-plt.rcParams.update(figsizes.jmlr2001(nrows=2, ncols=5, height_to_width_ratio=1.1))
-plt.rcParams.update({"text.latex.preamble": r"\usepackage{amsmath}\usepackage{times}"})
-fig = plt.figure()
-set_size = r"\lvert\Xi\rvert"
-so.Plot(
-    aggregated_data,
-    x="lambda",
-).facet(col="magnitude").pair(y=["eval/episode_reward", "eval/episode_cost"]).share(
-    x=True
-).add(
-    so.Line(linewidth=1.0, pointsize=2.5, edgewidth=0.1),
-    legend=False,
-).theme(axes_style("ticks")).on(fig).plot()
-
-
-axes = fig.get_axes()
-for i, ax in enumerate(axes):
-    ax.grid(True, linewidth=0.5, c="gainsboro", zorder=0)
-    ax.axvline(0.6, color="black", linewidth=0.5, zorder=1)
-
-fig.savefig("tune-lambda-cartpole-3.pdf")
-
-# %%
-theme = bundles.jmlr2001()
-so.Plot.config.theme.update(axes_style("white") | theme | {"legend.frameon": False})
-plt.rcParams.update(bundles.jmlr2001())
-plt.rcParams.update(figsizes.jmlr2001(nrows=1, ncols=2))
+plt.rcParams.update(bundles.neurips2024())
+plt.rcParams.update(figsizes.neurips2024(nrows=1, ncols=2))
 plt.rcParams.update({"text.latex.preamble": r"\usepackage{amsmath}\usepackage{times}"})
 fig, axes = plt.subplots(1, 2)
 metrics = ["eval/episode_reward", "eval/episode_cost"]
@@ -334,4 +164,4 @@ fig.legend(
     handlelength=1.5,
 )
 
-fig.savefig("tune-lambda-cartpole-4.pdf")
+fig.savefig("tune-lambda-cartpole.pdf")

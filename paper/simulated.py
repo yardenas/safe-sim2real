@@ -41,15 +41,6 @@ def config_to_category(config):
         return "simple"
 
 
-task_to_best_tightening = {
-    "SafeQuadrupedRun": 5,
-    "SafeCartpoleSwingup": 5,
-    "SafeWalkerWalk": 50,
-    "SafeHumanoidWalk": 25,
-    "RaceCar": 0,
-}
-
-
 def handle_run(run):
     metrics = run.history(
         keys=["eval/episode_reward", "eval/episode_cost", "_step"],
@@ -64,16 +55,9 @@ def handle_run(run):
     metrics = pd.DataFrame(metrics)
     if environment == "rccar":
         environment = "RaceCar"
-    if (
-        "apr04-righten" in config["wandb"]["notes"]
-        or "apr04-tighten" in config["wandb"]["notes"]
-    ):
-        if config["training"]["safety_budget"] != task_to_best_tightening[environment]:
-            return
-        else:
-            category = "tightening"
-    else:
-        category = config_to_category(config)
+    if environment == "go_to_goal":
+        environment = "PointGoal2"
+    category = config_to_category(config)
     seed = config["training"]["seed"]
     return metrics, seed, category, environment
 
@@ -96,7 +80,7 @@ def walk_wandb_runs(project, filters):
 
 filters = {
     "display_name": {
-        "$regex": "apr01-nominal-aga$|apr01-dr-aga$|apr01-ptsd-aga|mar28-simple-aga|apr01-ramu-aga"
+        "$regex": "apr01-nominal-aga$|apr01-dr-aga$|apr01-ptsd-aga|mar28-simple-aga|apr01-ramu-aga|apr11-g2g-ramu|apr11-g2g-ptsd|apr11-g2g-dr|apr11-g2g-nominal|apr11-g2g-simple-aga$"
     }
 }
 data = pd.concat(
@@ -132,11 +116,13 @@ budgets = {
     "SafeHumanoidWalk": 100,
     "SafeQuadrupedRun": 100,
     "SafeWalkerWalk": 100,
+    "PointGoal2": 25,
 }
 
 aggregated_data["normalized_episode_cost"] = aggregated_data.apply(
     lambda row: row["eval/episode_cost"] / budgets[row["environment"]], axis=1
 )
+
 
 # %%
 
@@ -184,13 +170,13 @@ def sci_notation(
 
 def fill_unsafe(ax, x):
     lim = ax.get_xlim()[1]
-    ax.axvspan(x + lim / 100, lim, color="red", alpha=0.1)
+    ax.axvspan(x + lim / 200, lim, color="red", alpha=0.1)
 
 
 theme = bundles.neurips2024()
 so.Plot.config.theme.update(axes_style("white") | theme | {"legend.frameon": False})
 plt.rcParams.update(bundles.neurips2024())
-plt.rcParams.update(figsizes.neurips2024(nrows=1, ncols=5, height_to_width_ratio=1.3))
+plt.rcParams.update(figsizes.neurips2024(nrows=1, ncols=3, height_to_width_ratio=1.4))
 fig = plt.figure()
 marker_styles = ["o", "x", "^", "s", "*"]
 so.Plot(
@@ -199,9 +185,11 @@ so.Plot(
     y="normalized_episode_reward",
     marker="category",
     color="category",
-).facet(col="environment").share(y=True, x=False).add(
-    so.Range(), so.Est(errorbar="se")
-).add(so.Dot(pointsize=3.5, edgewidth=0.1), legend=True).scale(
+).facet(col="environment", wrap=3, order=list(budgets.keys())).share(
+    y=True, x=False
+).add(so.Range(), so.Est(errorbar="se")).add(
+    so.Dot(pointsize=3.5, edgewidth=0.1), legend=True
+).scale(
     color=so.Nominal(
         values=[
             "#5F4690",
@@ -217,11 +205,9 @@ so.Plot(
             "#994E95",
             "#666666",
         ],
-        order=["ptsd", "ramu", "dr", "nominal", "tightening"],
+        order=["ptsd", "ramu", "dr", "nominal"],
     ),
-    marker=so.Nominal(
-        values=marker_styles, order=["ptsd", "ramu", "dr", "nominal", "tightening"]
-    ),
+    marker=so.Nominal(values=marker_styles, order=["ptsd", "ramu", "dr", "nominal"]),
 ).label(
     x=r"$\hat{C}(\pi)$",
     y=r"$\hat{J}(\pi)$",
@@ -231,7 +217,7 @@ axes = fig.get_axes()
 optimum = (
     aggregated_data[aggregated_data["category"] == "simple"]
     .groupby("environment")[["normalized_episode_reward", "normalized_episode_cost"]]
-    .median()
+    .mean()
 )
 
 opts = {
@@ -240,6 +226,7 @@ opts = {
         optimum.loc[k]["normalized_episode_reward"],
     )
     for k in budgets.keys()
+    if k in optimum.index
 }
 scale = lambda x: [y * 1 / 1.1 for y in x]
 for i, (ax, env_name) in enumerate(zip(axes, budgets.keys())):
@@ -253,12 +240,11 @@ for i, (ax, env_name) in enumerate(zip(axes, budgets.keys())):
         linestyle=(0, (1, 1)),
         linewidth=1.25,
     )
-
     xticks = xlims = ax.get_xlim()
     xticks = ax.get_xticks()
     xticks = list(xticks) + [1.0]
-    if i == 0:
-        xticks.remove(2.5)
+    # if i == 0:
+    #     xticks.remove(2.5)
     xticks = sorted(set(xticks))
     xtick_labels = [
         sci_notation(tick, disable_scaling=True, prefix=r"\times")
@@ -322,6 +308,5 @@ fig.legend(
     handletextpad=0.25,
     handlelength=1.0,
 )
-
 
 fig.savefig("simulated.pdf")

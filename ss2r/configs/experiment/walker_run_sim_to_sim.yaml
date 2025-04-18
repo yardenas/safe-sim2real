@@ -15,7 +15,10 @@ training:
 
 environment:
   task_name: SafeWalkerRun
+  task_params:
+    joint_velocity_limit: 22.75
   
 agent:
   cost_robustness:
     cost_penalty: 4.5
+  activation: swish
