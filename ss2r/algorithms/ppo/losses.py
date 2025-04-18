@@ -198,7 +198,7 @@ def make_losses(
             if use_disagreement:
                 disagreement = data.extras["state_extras"]["disagreement"]
                 cumulative_cost += disagreement * disagreement_scale
-            constraint = safety_budget - vsc.mean() / cost_scaling
+            constraint = safety_budget - vsc.mean()
             policy_loss, penalizer_aux, _ = penalizer(
                 policy_loss,
                 constraint,
