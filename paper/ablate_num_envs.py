@@ -57,7 +57,7 @@ def walk_wandb_runs(project, filters):
         yield out
 
 
-filters = {"display_name": {"$regex": "apr16-performance|apr16-performance-quad"}}
+filters = {"display_name": {"$regex": "apr16-performance"}}
 
 data = pd.concat(
     [
@@ -65,87 +65,6 @@ data = pd.concat(
         for summary_files_data in walk_wandb_runs("yardas/ss2r", filters)
     ]
 )
-# %%
-last_steps = data.groupby(["seed", "num_envs"]).tail(1).reset_index()
-aggregated_data = (
-    last_steps.groupby(["num_envs"])[
-        ["eval/episode_reward", "eval/episode_cost", "runtime"]
-    ]
-    .median()
-    .reset_index()
-)
-aggregated_data = aggregated_data[
-    aggregated_data["num_envs"].isin([1, 2, 4, 8, 16, 32, 64, 128])
-]
-# %%
-theme = bundles.neurips2024()
-so.Plot.config.theme.update(axes_style("white") | theme | {"legend.frameon": False})
-plt.rcParams.update(bundles.neurips2024())
-plt.rcParams.update(figsizes.neurips2024(nrows=1, ncols=1))
-plt.rcParams.update({"text.latex.preamble": r"\usepackage{amsmath}\usepackage{times}"})
-fig, axes = plt.subplots(1, 2)
-metrics = ["eval/episode_reward", "eval/episode_cost"]
-y_labels = {
-    metrics[0]: r"$\hat{J}_r(\pi)$",
-    metrics[1]: r"$\hat{C}(\pi)$",
-}
-marker_styles = ["o", "x", "^", "s", "*"]
-for i, ax in enumerate(axes.flatten()):
-    so.Plot(
-        aggregated_data,
-        x="runtime",
-        marker="num_envs",
-        color="num_envs",
-        y=metrics[i],
-    ).add(
-        so.Line(linewidth=1.0, pointsize=2.5, edgewidth=0.1),
-        so.Agg("median"),
-    ).add(so.Band(alpha=0.15), so.Est("median", errorbar="ci"), legend=False).scale(
-        color=so.Nominal(
-            values=[
-                "#5F4690",
-                "#1D6996",
-                "#38A6A5",
-                "#0F8554",
-                "#73AF48",
-                "#EDAD08",
-                "#E17C05",
-                "#CC503E",
-                "#94346E",
-                "#6F4070",
-                "#994E95",
-                "#666666",
-            ],
-        ),
-        marker=so.Nominal(values=marker_styles),
-        # x="log",
-    ).label(
-        x="\# Environments",
-        y=lambda name: y_labels[name],
-    ).theme(axes_style("ticks")).on(ax).plot()
-
-axes = fig.get_axes()
-for i, ax in enumerate(axes):
-    ax.grid(True, linewidth=0.5, c="gainsboro", axis="both", zorder=0)
-    for spine in ax.spines.values():
-        spine.set_linewidth(1.25)
-# ax.annotate(
-#     "$\downarrow$\#Workers",
-#     xy=(1.7e8 * to_comm, 1500),
-#     xytext=(0.1e8 * to_comm, 8700),
-#     arrowprops=dict(facecolor="red", arrowstyle="->", lw=0.8),
-#     color="black",
-# )
-# fig.legend(
-#     regex_to_category.values(),
-#     loc="upper right",
-#     bbox_to_anchor=(1.33, 1.0),
-#     ncol=1,
-#     frameon=False,
-#     columnspacing=0.5,
-#     handletextpad=0.35,
-# )
-fig.savefig("ablate-num-envs.pdf")
 
 # %%
 last_steps = data.groupby(["seed", "num_envs", "environment"]).tail(1).reset_index()
@@ -178,6 +97,12 @@ so.Plot.config.theme.update(axes_style("white") | theme | {"legend.frameon": Fal
 plt.rcParams.update(bundles.neurips2024())
 plt.rcParams.update(figsizes.neurips2024(nrows=1, ncols=3, height_to_width_ratio=0.8))
 fig = plt.figure()
+metrics = ["eval/episode_reward", "eval/episode_cost"]
+marker_styles = ["o", "x", "^", "s", "*"]
+y_labels = {
+    metrics[0]: r"$\hat{J}_r(\pi)$",
+    metrics[1]: r"$\hat{C}(\pi)$",
+}
 y_labels["runtime_normalized"] = "Normalized Runtime"
 so.Plot(
     aggregated_data,
@@ -226,6 +151,14 @@ yticks = list(yticks)
 labels = [f"$\\times${tick:.1f}" for tick in yticks]
 axes[-1].set_yticklabels(labels)
 
+axes[-1].axvline(8, color="black", linewidth=1.0, zorder=1)
+axes[1].axvline(8, color="black", linewidth=1.0, zorder=1)
+axes[-1].annotate(
+    "Good performance",
+    xy=(2, 1.5),
+    xytext=(0.3, 400),
+    ha="center",
+)
 legend = fig.legends.pop(0)
 fig.legend(
     legend.legend_handles,
