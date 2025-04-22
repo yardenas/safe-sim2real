@@ -43,57 +43,6 @@ colors = [
     "#666666",
 ]
 
-theme = bundles.neurips2024()
-so.Plot.config.theme.update(axes_style("white") | theme | {"legend.frameon": False})
-plt.rcParams.update(bundles.neurips2024())
-plt.rcParams.update(figsizes.neurips2024(nrows=1, ncols=1))
-plt.rcParams.update({"text.latex.preamble": r"\usepackage{amsmath}\usepackage{times}"})
-fig = plt.figure()
-marker_styles = ["o", "x", "^", "s", "*"]
-so.Plot(
-    data,
-    x="cumulative_cost",
-    y="cumulative_reward",
-    color="lambda",
-    marker="lambda",
-).add(so.Dot(pointsize=3.5, edgewidth=0.1)).scale(
-    color=so.Nominal(
-        values=colors,
-    ),
-    marker=so.Nominal(values=marker_styles),
-).label(
-    x=r"$\hat{C}(\pi)$",
-    y=r"$\hat{J}(\pi)$",
-).theme(axes_style("ticks")).on(fig).plot()
-axes = fig.get_axes()
-fig.savefig("rccar-sim-to-real-paper.pdf")
-
-# %%
-
-theme = bundles.neurips2024()
-so.Plot.config.theme.update(axes_style("white") | theme | {"legend.frameon": False})
-plt.rcParams.update(bundles.neurips2024())
-plt.rcParams.update(figsizes.neurips2024(nrows=1, ncols=1))
-plt.rcParams.update({"text.latex.preamble": r"\usepackage{amsmath}\usepackage{times}"})
-fig = plt.figure()
-plot_data = data.copy()
-plot_data["cumulative_cost"] = plot_data["cumulative_cost"] + 0.01
-plot_data["cumulative_reward"] = plot_data["cumulative_reward"] + 0.01
-sns.displot(
-    plot_data,
-    x="cumulative_cost",
-    y="cumulative_reward",
-    hue="lambda",
-    log_scale=(True, True),
-    palette={
-        0: colors[5],
-        45: colors[4],
-        55: colors[3],
-        60: colors[2],
-        65: colors[1],
-    },
-)
-
 # %%
 theme = bundles.neurips2024()
 so.Plot.config.theme.update(axes_style("white") | theme | {"legend.frameon": False})
@@ -176,31 +125,6 @@ fig.legend(
 )
 fig.savefig("rccar-sim-to-real-paper-violin.pdf")
 
-# %%
-
-theme = bundles.neurips2024()
-so.Plot.config.theme.update(axes_style("white") | theme | {"legend.frameon": False})
-plt.rcParams.update(bundles.neurips2024())
-plt.rcParams.update(figsizes.neurips2024(nrows=1, ncols=1))
-plt.rcParams.update({"text.latex.preamble": r"\usepackage{amsmath}\usepackage{times}"})
-fig = plt.figure()
-
-sns.catplot(
-    data,
-    x="lambda",
-    y="cumulative_cost",
-    # hue="lambda",
-    # palette={
-    #     0: colors[5],
-    #     45: colors[4],
-    #     55: colors[3],
-    #     60: colors[2],
-    #     65: colors[1],
-    # },
-    # markers=marker_styles,
-    # linestyles=["-", "--", "-", "-"],
-    kind="point",
-)
 
 # %%
 constraint = data.groupby(["lambda", "policy"]).mean()["cumulative_cost"].reset_index()
@@ -279,3 +203,81 @@ ax.set_title("RaceCar")
 
 
 fig.savefig("rccar-lambda-ablation.pdf")
+
+# %%
+theme = bundles.neurips2024()
+so.Plot.config.theme.update(axes_style("white") | theme | {"legend.frameon": False})
+plt.rcParams.update(bundles.neurips2024())
+plt.rcParams.update(figsizes.neurips2024(nrows=1, ncols=2, rel_width=0.1))
+fig, axes = plt.subplots(1, 2)
+metrics = ["cumulative_reward", "cumulative_cost"]
+y_labels = {
+    metrics[0]: r"$\hat{J}(\pi)$",
+    metrics[1]: r"$\hat{C}(\pi)$",
+}
+marker_styles = ["o", "x", "^", "s", "*"]
+for i, ax in enumerate(axes.flatten()):
+    so.Plot(data, x="lambda", y=metrics[i], color="lambda").add(
+        so.Bar(),
+        so.Agg("mean"),
+        legend=True,
+    ).add(
+        so.Range(color="k", linewidth=0.75),
+        so.Est("mean", errorbar="se"),
+        legend=False,
+    ).scale(
+        color=so.Nominal(
+            values=[
+                "#5F4690",
+                "#1D6996",
+                "#38A6A5",
+                "#0F8554",
+                "#73AF48",
+                "#EDAD08",
+                "#E17C05",
+                "#CC503E",
+                "#94346E",
+                "#6F4070",
+                "#994E95",
+                "#666666",
+            ],
+        ),
+        x=so.Nominal(values=[0, 45, 55, 60, 65], order=[0, 45, 55, 60, 65]),
+    ).label(y=lambda name: y_labels[name], x="").theme(axes_style("ticks")).on(
+        ax
+    ).plot()
+
+budget = 15
+
+for i, ax in enumerate(axes):
+    ax.grid(True, linewidth=0.5, c="gainsboro", axis="y", zorder=0)
+    ax.tick_params(axis="x", length=0, labelbottom=False)
+    if i >= 1:
+        ax.axhline(y=budget, color="black", linestyle=(0, (1, 1)), linewidth=1.25)
+        yticks = ax.get_yticks()
+        y_new = budget
+        ax.set_yticks(list(yticks) + [y_new])
+        ytick_labels = [f"{tick:.0f}" for tick in yticks] + ["Budget"]
+        ax.set_yticklabels(ytick_labels)
+legend = fig.legends.pop(0)
+fig.legends = []
+text = {
+    "0": r"$\lambda = 0$",
+    "45": r"$\lambda = 45$",
+    "55": r"$\lambda = 55$",
+    "60": r"$\lambda = 60$",
+    "65": r"$\lambda = 65$",
+}
+fig.legend(
+    legend.legend_handles,
+    [text[t.get_text()] for t in legend.texts],
+    loc="center",
+    bbox_to_anchor=(0.5, 1.05),
+    ncol=6,
+    frameon=False,
+    handletextpad=0.5,
+    columnspacing=0.75,
+    handlelength=1.0,
+)
+
+fig.savefig("rccar-sim-to-real.pdf")
