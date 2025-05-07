@@ -18,7 +18,7 @@ def get_state_path() -> str:
     return log_path
 
 
-env_name = "HumanoidWalk"
+env_name = "Go1JoystickFlatTerrain"
 env = registry.load(env_name)
 env_cfg = registry.get_default_config(env_name)
 eval_env = registry.load(env_name, config=env_cfg)
@@ -27,9 +27,10 @@ eval_env = registry.load(env_name, config=env_cfg)
 def get_train_fn():
     from brax.training.agents.ppo import networks as ppo_networks
     from brax.training.agents.ppo import train as ppo
-    from mujoco_playground.config import dm_control_suite_params
+    from mujoco_playground.config import locomotion_params
 
-    ppo_params = dm_control_suite_params.brax_ppo_config(env_name)
+    ppo_params = locomotion_params.brax_ppo_config(env_name)
+    randomizer = registry.get_domain_randomizer(env_name)
     ppo_training_params = dict(ppo_params)
     network_factory = ppo_networks.make_ppo_networks
     if "network_factory" in ppo_params:
@@ -41,6 +42,7 @@ def get_train_fn():
         ppo.train,
         **dict(ppo_training_params),
         network_factory=network_factory,
+        randomization_fn=randomizer,
     )
     return train_fn
 
