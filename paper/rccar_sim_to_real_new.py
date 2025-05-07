@@ -208,7 +208,7 @@ fig.savefig("rccar-lambda-ablation.pdf")
 theme = bundles.neurips2024()
 so.Plot.config.theme.update(axes_style("white") | theme | {"legend.frameon": False})
 plt.rcParams.update(bundles.neurips2024())
-plt.rcParams.update(figsizes.neurips2024(nrows=1, ncols=2, rel_width=0.1))
+plt.rcParams.update(figsizes.neurips2024(nrows=1, ncols=2, rel_width=0.6))
 fig, axes = plt.subplots(1, 2)
 metrics = ["cumulative_reward", "cumulative_cost"]
 y_labels = {

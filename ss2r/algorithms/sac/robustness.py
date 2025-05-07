@@ -71,13 +71,25 @@ class RAMU(QTransformation):
         key: jax.Array | None = None,
         use_bro: bool = True,
     ):
-        sampled_next_obs = ramu_sample(
-            self.epsilon,
-            self.n_samples,
-            transitions.observation,
-            transitions.next_observation,
-            key,
-        )
+        if isinstance(transitions.observation, dict):
+            sampled_next_obs = {
+                k: ramu_sample(
+                    self.epsilon,
+                    self.n_samples,
+                    transitions.observation[k],
+                    transitions.next_observation[k],
+                    key,
+                )
+                for k in transitions.observation
+            }
+        else:
+            sampled_next_obs = ramu_sample(
+                self.epsilon,
+                self.n_samples,
+                transitions.observation,
+                transitions.next_observation,
+                key,
+            )
         next_action, _ = policy(sampled_next_obs)
         next_q = q_fn(sampled_next_obs, next_action)
         next_v = next_q.mean(axis=-1)
@@ -90,23 +102,14 @@ class RAMU(QTransformation):
 
 
 def ramu_sample(epsilon, n_samples, observation, next_observation, key):
-    if isinstance(observation, dict):
-        in_observation = observation["state"]
-        in_next_observation = next_observation["state"]
-    delta = in_next_observation - in_observation
+    delta = next_observation - observation
     x = jax.random.uniform(
         key,
         (n_samples, *delta.shape),
         minval=-2.0 * epsilon,
         maxval=2.0 * epsilon,
     )
-    out = in_observation + delta * (1.0 + x)
-    if isinstance(observation, dict):
-        out_observation = observation
-        out_observation["state"] = out
-    else:
-        out_observation = out
-    return out_observation
+    return observation + delta * (1.0 + x)
 
 
 def wang(n_samples, wang_eta, next_v, descending=True):

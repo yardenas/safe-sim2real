@@ -172,6 +172,7 @@ theme = bundles.neurips2024()
 so.Plot.config.theme.update(axes_style("white") | theme | {"legend.frameon": False})
 plt.rcParams.update(bundles.neurips2024())
 plt.rcParams.update(figsizes.neurips2024(nrows=1, ncols=3, height_to_width_ratio=1.4))
+plt.rcParams.update({"text.latex.preamble": r"\usepackage{xfrac}\usepackage{times}"})
 fig = plt.figure()
 marker_styles = ["o", "x", "^", "s", "*"]
 so.Plot(
@@ -204,7 +205,7 @@ so.Plot(
     ),
     marker=so.Nominal(values=marker_styles, order=["ptsd", "ramu", "dr", "nominal"]),
 ).label(
-    x=r"$\hat{C}(\pi)$",
+    x=r"$\sfrac{\hat{C}(\pi)}{d}$",
     y=r"$\hat{J}(\pi)$",
     title=lambda x: x.strip("Safe"),
 ).theme(axes_style("ticks")).on(fig).plot()

@@ -153,7 +153,7 @@ for i, (ax, a, val) in enumerate(zip(axes, actions, value_matrices)):
 cbar = fig.colorbar(
     cp, ax=axes.ravel().tolist(), orientation="vertical", fraction=0.02, pad=0.01
 )
-cbar.set_label("Disagreement")
+cbar.set_label("Uncertainty")
 
 vmin, vmax = cp.get_clim()
 vmid = (vmin + vmax) / 2
