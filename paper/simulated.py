@@ -59,6 +59,12 @@ def handle_run(run):
         environment = "PointGoal2"
     category = config_to_category(config)
     seed = config["training"]["seed"]
+    if environment == "PointGoal2" and category == "ptsd":
+        if config["agent"]["cost_robustness"]["cost_penalty"] != 0.175:
+            return
+    if environment == "PointGoal2" and category == "ramu":
+        if "may7" not in run.config["wandb"]["notes"]:
+            return
     return metrics, seed, category, environment
 
 
@@ -74,7 +80,7 @@ def walk_wandb_runs(project, filters):
 
 filters = {
     "display_name": {
-        "$regex": "apr01-nominal-aga$|apr01-dr-aga$|apr01-ptsd-aga|mar28-simple-aga|apr01-ramu-aga|apr11-g2g-ramu|apr11-g2g-ptsd|apr11-g2g-dr|apr11-g2g-nominal|apr11-g2g-simple-aga$"
+        "$regex": "apr01-nominal-aga$|apr01-dr-aga$|apr01-ptsd-aga|mar28-simple-aga|apr01-ramu-aga|may7-g2g-ramu|apr11-g2g-dr|apr11-g2g-nominal|apr11-g2g-simple-aga$|0.175.*apr16-g2g-tune$"
     }
 }
 
