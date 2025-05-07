@@ -91,16 +91,22 @@ class RAMU(QTransformation):
 
 def ramu_sample(epsilon, n_samples, observation, next_observation, key):
     if isinstance(observation, dict):
-        observation = observation["state"]
-        next_observation = next_observation["state"]
-    delta = next_observation - observation
+        in_observation = observation["state"]
+        in_next_observation = next_observation["state"]
+    delta = in_next_observation - in_observation
     x = jax.random.uniform(
         key,
         (n_samples, *delta.shape),
         minval=-2.0 * epsilon,
         maxval=2.0 * epsilon,
     )
-    return observation + delta * (1.0 + x)
+    out = in_observation + delta * (1.0 + x)
+    if isinstance(observation, dict):
+        out_observation = observation
+        out_observation["state"] = out
+    else:
+        out_observation = out
+    return out_observation
 
 
 def wang(n_samples, wang_eta, next_v, descending=True):
