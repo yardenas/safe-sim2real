@@ -58,7 +58,7 @@ def report(logger, step, num_steps, metrics):
     step.count = num_steps
 
 
-@hydra.main(version_base=None, config_path="ss2r/configs", config_name="train_brax")
+@hydra.main(version_base=None, config_path="../ss2r/configs", config_name="train_brax")
 def main(cfg):
     _LOG.info(
         f"Setting up experiment with the following configuration: "

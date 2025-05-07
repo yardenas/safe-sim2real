@@ -1,7 +1,6 @@
-from typing import Any, Callable, Tuple, TypeAlias
+from typing import Any, Callable, Optional, Tuple, TypeAlias
 
 import flax
-import jax
 import jax.numpy as jnp
 import optax
 from brax import envs
@@ -18,7 +17,7 @@ _PMAP_AXIS_NAME = "i"
 class TrainingState:
     """Contains training state for the learner."""
 
-    optimizer_state: optax.OptState
+    optimizer_state: tuple[optax.OptState, optax.OptState, Optional[optax.OptState]]
     params: ppo_losses.SafePPONetworkParams
     normalizer_params: running_statistics.RunningStatisticsState
     penalizer_params: Params
@@ -35,23 +34,6 @@ TrainingStep: TypeAlias = Callable[
     Tuple[Tuple[TrainingState, envs.State, types.PRNGKey], Metrics],
 ]
 
-TrainingStepFactory: TypeAlias = Callable[
-    [
-        Callable[[Any], jax.Array],
-        optax.GradientTransformation,
-        envs.Env,
-        int,
-        int,
-        Callable[[Any], types.Policy],
-        int,
-        int,
-        int,
-        int,
-        bool,
-        bool,
-    ],
-    TrainingStep,
-]
-
+TrainingStepFactory: Any
 
 InferenceParams: TypeAlias = Tuple[running_statistics.NestedMeanStd, Params]
