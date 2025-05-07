@@ -9,24 +9,40 @@ from brax.training.acme import running_statistics
 from brax.training.types import PRNGKey
 
 from ss2r.algorithms.ppo import _PMAP_AXIS_NAME, Metrics, TrainingState
+from ss2r.algorithms.ppo import losses as ppo_losses
 
 
 def update_fn(
-    loss_fn,
+    policy_loss_fn,
+    value_loss_fn,
+    cost_value_loss_fn,
     optimizer,
+    value_optimizer,
+    cost_value_optimizer,
     env,
     unroll_length,
     num_minibatches,
     make_policy,
+    penalizer,
     num_updates_per_batch,
     batch_size,
     num_envs,
     env_step_per_training_step,
     safe,
-    use_ptsd,
+    use_saute,
+    use_disagreement,
 ):
-    gradient_update_fn = gradients.gradient_update_fn(
-        loss_fn, optimizer, pmap_axis_name=_PMAP_AXIS_NAME, has_aux=True
+    policy_gradient_update_fn = gradients.gradient_update_fn(
+        policy_loss_fn, optimizer, pmap_axis_name=_PMAP_AXIS_NAME, has_aux=True
+    )
+    value_gradient_update_fn = gradients.gradient_update_fn(
+        value_loss_fn, value_optimizer, pmap_axis_name=_PMAP_AXIS_NAME, has_aux=True
+    )
+    cost_value_gradient_update_fn = gradients.gradient_update_fn(
+        cost_value_loss_fn,
+        cost_value_optimizer,
+        pmap_axis_name=_PMAP_AXIS_NAME,
+        has_aux=True,
     )
 
     def minibatch_step(
@@ -35,15 +51,56 @@ def update_fn(
         normalizer_params: running_statistics.RunningStatisticsState,
     ):
         optimizer_state, params, penalizer_params, key = carry
+        (
+            policy_optimizer_state,
+            value_optimizer_state,
+            cost_value_optimizer_state,
+        ) = optimizer_state
         key, key_loss = jax.random.split(key)
-        (_, aux), params, optimizer_state = gradient_update_fn(
-            params,
+        (_, aux), policy_params, policy_optimizer_state = policy_gradient_update_fn(
+            params.policy,
+            params.value,
+            params.cost_value,
             normalizer_params,
             data,
+            penalizer,
+            penalizer_params,
             key_loss,
-            optimizer_state=optimizer_state,
+            optimizer_state=policy_optimizer_state,
         )
-        penalizer_params = aux.pop("penalizer_params", None)
+        (_, value_aux), value_params, value_optimizer_state = value_gradient_update_fn(
+            params.value,
+            normalizer_params,
+            data,
+            optimizer_state=value_optimizer_state,
+        )
+        aux |= value_aux
+        if safe and penalizer is not None:
+            (
+                (_, cost_value_aux),
+                cost_value_params,
+                cost_value_optimizer_state,
+            ) = cost_value_gradient_update_fn(
+                params.cost_value,
+                normalizer_params,
+                data,
+                optimizer_state=cost_value_optimizer_state,
+            )
+            penalizer_aux, penalizer_params = penalizer.update(
+                aux["normalized_constraint_estimate"], penalizer_params
+            )
+            aux |= penalizer_aux
+            aux |= cost_value_aux
+        else:
+            cost_value_params = params.cost_value
+        optimizer_state = (
+            policy_optimizer_state,
+            value_optimizer_state,
+            cost_value_optimizer_state,
+        )
+        params = ppo_losses.SafePPONetworkParams(
+            policy_params, value_params, cost_value_params
+        )  # type: ignore
         return (optimizer_state, params, penalizer_params, key), aux
 
     def sgd_step(
@@ -85,7 +142,9 @@ def update_fn(
         extra_fields = ("truncation",)
         if safe:
             extra_fields += ("cost", "cumulative_cost")  # type: ignore
-        if use_ptsd:
+        if use_saute:
+            extra_fields += ("saute_reward", "saute_state")  # type: ignore
+        if use_disagreement:
             extra_fields += ("disagreement",)  # type: ignore
 
         def f(carry, unused_t):
@@ -108,8 +167,6 @@ def update_fn(
             (),
             length=batch_size * num_minibatches // num_envs,
         )
-        assert data.observation.shape[1] == 1
-        data = jax.tree_util.tree_map(lambda x: x.squeeze(1), data)
         # Have leading dimensions (batch_size * num_minibatches, unroll_length)
         data = jax.tree_util.tree_map(lambda x: jnp.swapaxes(x, 1, 2), data)
         data = jax.tree_util.tree_map(
@@ -135,7 +192,6 @@ def update_fn(
             (),
             length=num_updates_per_batch,
         )
-
         new_training_state = TrainingState(
             optimizer_state=optimizer_state,
             params=params,
@@ -143,6 +199,10 @@ def update_fn(
             penalizer_params=penalizer_params,
             env_steps=training_state.env_steps + env_step_per_training_step,
         )  # type: ignore
+        if use_disagreement:
+            aux["disagreement"] = jnp.mean(data.extras["state_extras"]["disagreement"])
+        if use_saute:
+            aux["saute_state"] = jnp.mean(data.extras["state_extras"]["saute_state"])
         return (new_training_state, state, new_key), aux
 
     return training_step

@@ -35,12 +35,7 @@ from etils import epath
 from orbax import checkpoint as ocp
 
 from ss2r.algorithms.penalizers import Penalizer
-from ss2r.algorithms.ppo import (
-    _PMAP_AXIS_NAME,
-    Metrics,
-    TrainingState,
-    TrainingStepFactory,
-)
+from ss2r.algorithms.ppo import _PMAP_AXIS_NAME, Metrics, TrainingState
 from ss2r.algorithms.ppo import losses as ppo_losses
 from ss2r.algorithms.ppo import networks as ppo_networks
 from ss2r.algorithms.ppo import training_step as ppo_training_step
@@ -66,7 +61,7 @@ def train(
     environment: Union[envs_v1.Env, envs.Env],
     num_timesteps: int,
     episode_length: int,
-    update_step_factory: TrainingStepFactory = ppo_training_step.update_fn,
+    update_step_factory=ppo_training_step.update_fn,
     action_repeat: int = 1,
     num_envs: int = 1,
     max_devices_per_host: Optional[int] = None,
@@ -103,15 +98,18 @@ def train(
     penalizer: Penalizer | None = None,
     penalizer_params: Params | None = None,
     safe: bool = False,
-    use_ptsd: bool = False,
-    ptsd_lambda: float = 0.0,
+    use_saute: bool = False,
+    use_disagreement: bool = False,
+    disagreement_scale: float = 0.0,
+    normalize_budget: bool = True,
 ):
     assert batch_size * num_minibatches % num_envs == 0
-    if not safe:
+    if not safe or use_saute:
         penalizer = None
         penalizer_params = None
     original_safety_budget = safety_budget
-    safety_budget = (safety_budget / episode_length) / (1.0 - safety_discounting)
+    if normalize_budget:
+        safety_budget = (safety_budget / episode_length) / (1.0 - safety_discounting)
     xt = time.time()
     process_count = jax.process_count()
     process_id = jax.process_index()
@@ -173,14 +171,23 @@ def train(
         obs_shape, env.action_size, preprocess_observations_fn=normalize
     )
     make_policy = ppo_networks.make_inference_fn(ppo_network)
-    optimizer = optax.adam(learning_rate=learning_rate)
+    policy_optimizer = optax.adam(learning_rate=learning_rate)
+    value_optimizer = optax.adam(learning_rate=learning_rate)
+    cost_value_optimizer = optax.adam(learning_rate=learning_rate)
     if max_grad_norm is None:
-        optimizer = optax.chain(
+        policy_optimizer = optax.chain(
             optax.clip_by_global_norm(max_grad_norm),
             optax.adam(learning_rate=learning_rate),
         )
-    loss_fn = functools.partial(
-        ppo_losses.compute_ppo_loss,
+        value_optimizer = optax.chain(
+            optax.clip_by_global_norm(max_grad_norm),
+            optax.adam(learning_rate=learning_rate),
+        )
+        cost_value_optimizer = optax.chain(
+            optax.clip_by_global_norm(max_grad_norm),
+            optax.adam(learning_rate=learning_rate),
+        )
+    policy_loss, value_loss, cost_value_loss = ppo_losses.make_losses(
         ppo_network=ppo_network,
         entropy_cost=entropy_cost,
         discounting=discounting,
@@ -191,25 +198,30 @@ def train(
         safety_gae_lambda=safety_gae_lambda,
         clipping_epsilon=clipping_epsilon,
         normalize_advantage=normalize_advantage,
-        penalizer=penalizer,
-        penalizer_params=penalizer_params,
         safety_budget=safety_budget,
-        use_ptsd=use_ptsd,
-        ptsd_lambda=ptsd_lambda,
+        use_saute=use_saute,
+        use_disagreement=use_disagreement,
+        disagreement_scale=disagreement_scale,
     )
     training_step = update_step_factory(
-        loss_fn,
-        optimizer,
+        policy_loss,
+        value_loss,
+        cost_value_loss,
+        policy_optimizer,
+        value_optimizer,
+        cost_value_optimizer,
         env,
         unroll_length,
         num_minibatches,
         make_policy,
+        penalizer,
         num_updates_per_batch,
         batch_size,
         num_envs,
         env_step_per_training_step,
         safe,
-        use_ptsd,
+        use_saute,
+        use_disagreement,
     )
 
     def training_epoch(
@@ -266,9 +278,14 @@ def train(
     obs_shape = jax.tree_util.tree_map(
         lambda x: specs.Array(x.shape[-1:], jnp.dtype("float32")), env_state.obs
     )
+    policy_optimizer_state = policy_optimizer.init(init_params.policy)
+    value_optimizer_state = value_optimizer.init(init_params.value)
+    cost_value_optimizer_state = cost_value_optimizer.init(init_params.cost_value)
     training_state = TrainingState(  # pytype: disable=wrong-arg-types  # jax-ndarray
-        optimizer_state=optimizer.init(
-            init_params
+        optimizer_state=(
+            policy_optimizer_state,
+            value_optimizer_state,
+            cost_value_optimizer_state,
         ),  # pytype: disable=wrong-arg-types  # numpy-scalars
         params=init_params,
         normalizer_params=running_statistics.init_state(obs_shape),

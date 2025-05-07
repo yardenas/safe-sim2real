@@ -67,9 +67,11 @@ class PTSD(Wrapper):
         return nstate
 
     def _tile(self, tree):
-        return jax.tree_map(
-            lambda x: jnp.tile(x, (self.num_perturbed_envs,) + (1,) * x.ndim), tree
-        )
+        def tile(x):
+            x = jnp.asarray(x)
+            return jnp.tile(x, (self.num_perturbed_envs,) + (1,) * x.ndim)
+
+        return jax.tree_map(tile, tree)
 
 
 class StatePropagation(Wrapper):

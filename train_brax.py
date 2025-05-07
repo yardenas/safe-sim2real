@@ -17,6 +17,7 @@ from ss2r.algorithms.penalizers import (
     Lagrangian,
     LagrangianParams,
 )
+from ss2r.algorithms.ppo.wrappers import Saute
 from ss2r.algorithms.sac import robustness as rb
 from ss2r.algorithms.sac.wrappers import PTSD, ModelDisagreement
 from ss2r.common.logging import TrainingLogger
@@ -41,13 +42,13 @@ def get_penalizer(cfg):
         penalizer_state = CRPOParams(cfg.agent.penalizer.burnin)
     elif cfg.agent.penalizer.name == "ppo_lagrangian":
         penalizer = Lagrangian(cfg.agent.penalizer.multiplier_lr)
-        init_lagrange_multiplier = jax.numpy.log(
-            jax.numpy.exp(cfg.agent.penalizer.initial_lagrange_multiplier) - 1.0
-        )
+        init_lagrange_multiplier = cfg.agent.penalizer.initial_lagrange_multiplier
         penalizer_state = LagrangianParams(
             init_lagrange_multiplier,
             penalizer.optimizer.init(init_lagrange_multiplier),
         )
+    elif cfg.agent.penalizer.name == "saute":
+        return None, None
     else:
         raise ValueError(f"Unknown penalizer {cfg.agent.penalizer.name}")
     return penalizer, penalizer_state
@@ -91,7 +92,7 @@ def get_reward_robustness(cfg):
 
 def get_wrap_env_fn(cfg):
     if "propagation" not in cfg.agent:
-        return lambda env: env
+        out = lambda env: env, lambda env: env
     elif cfg.agent.propagation.name == "ts1":
 
         def fn(env):
@@ -109,9 +110,39 @@ def get_wrap_env_fn(cfg):
             env = ModelDisagreement(env)
             return env
 
-        return fn
+        out = fn, lambda env: env
     else:
         raise ValueError("Propagation method not provided.")
+    if "penalizer" in cfg.agent and cfg.agent.penalizer.name == "saute":
+
+        def saute_train(env):
+            env = out[0](env)
+            env = Saute(
+                env,
+                cfg.training.episode_length,
+                cfg.agent.safety_discounting,
+                cfg.training.safety_budget,
+                cfg.agent.penalizer.penalty,
+                cfg.agent.penalizer.terminate,
+                cfg.agent.penalizer.lambda_,
+            )
+            return env
+
+        def saute_eval(env):
+            env = out[1](env)
+            env = Saute(
+                env,
+                cfg.training.episode_length,
+                cfg.agent.safety_discounting,
+                cfg.training.safety_budget,
+                0.0,
+                False,
+                0.0,
+            )
+            return env
+
+        out = saute_train, saute_eval
+    return out
 
 
 def get_train_fn(cfg):
@@ -190,8 +221,6 @@ def get_train_fn(cfg):
                 "eval_domain_randomization",
                 "render",
                 "store_policy",
-                "safe",
-                "safety_budget",
             ]
         }
         policy_hidden_layer_sizes = agent_cfg.pop("policy_hidden_layer_sizes")
@@ -201,6 +230,7 @@ def get_train_fn(cfg):
         policy_obs_key = (
             "privileged_state" if cfg.training.policy_privileged else "state"
         )
+        cost_robustness = get_cost_robustness(cfg)
         del training_cfg["value_privileged"]
         del training_cfg["policy_privileged"]
         del agent_cfg["name"]
@@ -230,12 +260,18 @@ def get_train_fn(cfg):
             penalizer=penalizer,
             penalizer_params=penalizer_params,
         )
-        cost_robustness = get_cost_robustness(cfg)
-        # TODO (yarden): that's a hack for now. Need to think of a
+        # FIXME (yarden): that's a hack for now. Need to think of a
         # better way to implement this.
-        if isinstance(cost_robustness, rb.UCBCost):
+        if "penalizer" in cfg.agent and cfg.agent.penalizer.name == "saute":
             train_fn = functools.partial(
-                train_fn, use_ptsd=True, ptsd_lambda=cost_robustness.lambda_
+                train_fn,
+                use_saute=cfg.training.safe,
+            )
+        if "propagation" in cfg.agent and cfg.agent.propagation.name == "ts1":
+            train_fn = functools.partial(
+                train_fn,
+                use_disagreement=True,
+                disagreement_scale=cost_robustness.lambda_,
             )
     else:
         raise ValueError(f"Unknown agent name: {cfg.agent.name}")
@@ -261,8 +297,10 @@ def main(cfg):
     )
     logger = TrainingLogger(cfg)
     train_fn = get_train_fn(cfg)
-    train_env_wrap_fn = get_wrap_env_fn(cfg)
-    train_env, eval_env = benchmark_suites.make(cfg, train_env_wrap_fn)
+    train_env_wrap_fn, eval_env_wrap_fn = get_wrap_env_fn(cfg)
+    train_env, eval_env = benchmark_suites.make(
+        cfg, train_env_wrap_fn, eval_env_wrap_fn
+    )
     steps = Counter()
     with jax.disable_jit(not cfg.jit):
         make_policy, params, _ = train_fn(
