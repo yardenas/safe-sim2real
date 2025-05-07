@@ -11,7 +11,7 @@ from ss2r.common.pytree import pytrees_unstack
 
 # %%
 
-with open("./data/trajectory.pkl", "rb") as f:
+with open("../data/trajectory_collection.pkl", "rb") as f:
     trajectory = pickle.load(f)
 
 
@@ -44,11 +44,15 @@ def split_trajectories(trajectory):
     return trajectories
 
 
-flattened_trajectories = split_trajectories(trajectory)
+flattened_trajectories = trajectory
+# flattened_trajectories = split_trajectories(trajectory)
 
-for trajectory in flattened_trajectories:
+for i, trajectory in enumerate(flattened_trajectories):
+    if i not in [7]:
+        continue
+    print(i)
     ep_trajectory = pytrees_unstack(trajectory)
-    video = env.render(ep_trajectory)
+    video = env.render(ep_trajectory, camera="track")
     ep_disagreement = np.array(trajectory.info["disagreement"])
     frames = np.asarray(video)
     disagreement_values = np.asarray(ep_disagreement)

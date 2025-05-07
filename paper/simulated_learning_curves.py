@@ -91,21 +91,6 @@ budgets = {
     "SafeWalkerWalk": 100,
     "PointGoal2": 25,
 }
-
-reference_values = (
-    data[data["category"] == "simple"]
-    .set_index("environment")["eval/episode_reward"]
-    .to_dict()
-)
-# Normalizing the eval/episode_reward for each row based on the corresponding "simple" value
-data["normalized_episode_reward"] = data.apply(
-    lambda row: row["eval/episode_reward"] / reference_values[row["environment"]],
-    axis=1,
-)
-
-data["normalized_episode_cost"] = data.apply(
-    lambda row: row["eval/episode_cost"] / budgets[row["environment"]], axis=1
-)
 # %%
 
 
@@ -114,105 +99,6 @@ y_labels = {
     metrics[0]: r"$\hat{J}_r$",
     metrics[1]: r"$\hat{J}_c$",
 }
-
-
-def create_env_plot(env_names, share_y=True, share_x=True):
-    theme = bundles.neurips2024()
-    so.Plot.config.theme.update(axes_style("white") | theme | {"legend.frameon": False})
-    plt.rcParams.update(bundles.neurips2024())
-    plt.rcParams.update(figsizes.neurips2024(nrows=2, ncols=len(env_names)))
-    fig = plt.figure()
-    marker_styles = ["o", "x", "^", "s", "*"]
-    plot_data = data[data["environment"].isin(env_names)]
-    so.Plot(plot_data, x="step", color="category", marker="category").pair(
-        y=metrics
-    ).facet(col="environment", order=env_names).share(x=share_x, y=share_y).add(
-        so.Line(linewidth=1.0, pointsize=2.5, edgewidth=0.1),
-        so.Agg("median"),
-    ).add(
-        so.Band(alpha=0.15), so.Est("median", errorbar=("ci", 68)), legend=False
-    ).scale(
-        color=so.Nominal(
-            values=[
-                "#5F4690",
-                "#1D6996",
-                "#38A6A5",
-                "#0F8554",
-                "#73AF48",
-                "#EDAD08",
-                "#E17C05",
-                "#CC503E",
-                "#94346E",
-                "#6F4070",
-                "#994E95",
-                "#666666",
-            ],
-            order=["ptsd", "ramu", "dr", "nominal"],
-        ),
-        marker=so.Nominal(values=marker_styles),
-    ).label(
-        x="",
-        y=lambda name: y_labels[name],
-        title=lambda x: x.strip("Safe"),
-    ).theme(axes_style("ticks")).on(fig).plot()
-    for ax in fig.get_axes():
-        ax.grid(True, linewidth=0.5, c="gainsboro", axis="both", zorder=0)
-    legend = fig.legends.pop(0)
-    text = {
-        "ramu": "\sf RAMU",
-        "ptsd": "\sf PTSD",
-        "dr": "\sf Domain Randomization",
-        "nominal": "\sf Nominal",
-    }
-    handles = []
-    for handle, marker in zip(legend.legend_handles, marker_styles):
-        handle.set_marker(marker)
-        handle.set_linewidth(0)
-        handle.set_markersize(3.5)
-        handles.append(handle)
-    fig.legend(
-        handles,
-        [text[t.get_text()] for t in legend.texts],
-        loc="center",
-        bbox_to_anchor=(0.5, 1.05),
-        ncol=6,
-        frameon=False,
-        handletextpad=0.25,
-        handlelength=1.0,
-    )
-    return fig
-
-
-fig = create_env_plot(["PointGoal2"])
-fig.savefig("simulated-curves-safety-gym.pdf")
-rwrl_envs = [
-    "SafeCartpoleSwingup",
-    "SafeHumanoidWalk",
-    "SafeQuadrupedRun",
-    "SafeWalkerWalk",
-]
-fig = create_env_plot(rwrl_envs, share_x=False, share_y=False)
-
-count = 0
-for ax in fig.get_axes():
-    ax.grid(True, linewidth=0.5, c="gainsboro", axis="both", zorder=0)
-    if ax.get_subplotspec().is_last_row():
-        budget = budgets[rwrl_envs[count]]
-        ax.axhline(
-            y=budgets[rwrl_envs[count]],
-            color="black",
-            linestyle=(0, (1, 1)),
-            linewidth=1.25,
-        )
-        yticks = ax.get_yticks()
-        y_new = budget
-        ax.set_yticks(list(yticks) + [y_new])
-        ytick_labels = [f"${tick:.0f}$" for tick in yticks] + ["Budget"]
-        ax.set_yticklabels(ytick_labels)
-        count += 1
-
-fig.savefig("simulated-curves-rwrl.pdf")
-# %%
 env_names = data.environment.unique()
 n_envs = len(env_names)
 n_metrics = len(metrics)

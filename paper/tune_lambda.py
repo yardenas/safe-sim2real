@@ -119,8 +119,8 @@ def text(s):
 
 axes = fig.get_axes()
 for i, ax in enumerate(axes):
+    ax.axvline(0.6, color="black", linewidth=1.0, zorder=100)
     ax.grid(True, linewidth=0.5, c="gainsboro", zorder=0)
-    ax.axvline(0.6, color="black", linewidth=1.0, zorder=1)
     if i == 1:
         ax.axhline(y=100, color="black", linestyle=(0, (1, 1)), linewidth=1.25)
         yticks = ax.get_yticks()
@@ -136,15 +136,15 @@ for i, ax in enumerate(axes):
         ax.annotate(
             "Good performance",
             xy=(0.6, 675),
-            xytext=(0.3, 400),
+            xytext=(0.3, 411),
             arrowprops=arrowprops,
             ha="center",
         )
     else:
         ax.annotate(
-            "Constraint satisfied",
-            xy=(0.6, 25),
-            xytext=(0.75, 200),
+            "Constraint\nsatisfied",
+            xy=(0.60, 25),
+            xytext=(0.76, 206),
             arrowprops=arrowprops,
             ha="center",
         )

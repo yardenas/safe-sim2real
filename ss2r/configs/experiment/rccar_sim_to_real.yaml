@@ -19,7 +19,7 @@ training:
   episode_length: 250
   train_domain_randomization: true
   eval_domain_randomization: true
-  safety_budget: 5.
+  safety_budget: 15.
 
 agent:
   grad_updates_per_step: 64
