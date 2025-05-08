@@ -1,7 +1,5 @@
 # safe-sim2real
-Certainly! Here's the full Markdown code for the README file:
 
-````markdown
 # PTSD: Provably Safe Transfer via Domain Randomization 🛡️🤖
 
 **Bridging the Sim-to-Real Gap in Safety-Critical Reinforcement Learning**
@@ -73,8 +71,3 @@ If you find **PTSD** useful in your work, please consider citing:
 * **Project Webpage**: [https://yourpage.github.io/ptsd](https://yourpage.github.io/ptsd)
 * **Paper**: \[arXiv/CoRL link here]
 * **Contact**: For support or feedback, please open an issue or reach out via the webpage.
-
-```
-
-Let me know if you’d like to adapt it for a specific platform like GitHub Pages or include badges (e.g. build status, license).
-```
