@@ -2,11 +2,6 @@
 
 # PTSD: Provably Safe Transfer via Domain Randomization 🛡️🤖
 
-**Bridging the Sim-to-Real Gap in Safety-Critical Reinforcement Learning**
-
-Deploying reinforcement learning (RL) in the real world—particularly in safety-critical domains—remains a daunting challenge due to the inherent risks of unsafe exploration. While **domain randomization** has shown promise in transferring policies from simulation to reality, it lacks formal safety guarantees.
-
-**PTSD** (Provably Safe Transfer via Domain Randomization) introduces a **theoretically grounded** approach that ensures **constraint satisfaction** even in the presence of **model mismatch** and **domain shift**, relying *only* on domain randomization. Our method maintains the **simplicity and scalability** of existing sim-to-real paradigms while providing provable safety during real-world deployment.
 ---
 ## Requirements 🛠
 
