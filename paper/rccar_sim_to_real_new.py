@@ -201,6 +201,22 @@ ax.annotate(
 ax.set_ylim(-1, 42)
 ax.set_title("RaceCar")
 
+ax.annotate(
+    "Constraint \nin simulation",
+    xy=(0.025, 12),
+    xytext=(0.01, 1.05),
+    arrowprops=dict(
+        arrowstyle="-|>",
+        color="#1D6996",
+        linewidth=0.75,
+        connectionstyle="arc3,rad=0.2",
+    ),
+    bbox=dict(pad=-2, facecolor="none", edgecolor="none"),
+    fontsize=base_font_size,
+    va="center",
+    color="#1D6996",
+)
+
 
 fig.savefig("rccar-lambda-ablation.pdf")
 
