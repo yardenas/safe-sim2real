@@ -143,3 +143,88 @@ add_arrow(ax, 0, budget, y_0, y_0 / budget)
 ax.set_ylim(0.3, 800)
 ax.set_title("Unitree Go1")
 fig.savefig("go1-lambda-ablation.pdf")
+
+# %%
+
+tmp_constraint = constraint[constraint["lambda"].isin([0, 0.075])]
+simulation_constraint = pd.DataFrame(
+    {
+        "trial_id": [0] * 5,
+        "lambda": ["Simulation"] * 5,
+        "cumulative_cost": [13.05, 20.20, 11.38, 9.56, 8.6],
+    }
+)
+tmp_constraint = pd.concat([tmp_constraint, simulation_constraint])
+theme = bundles.neurips2024()
+so.Plot.config.theme.update(axes_style("white") | theme | {"legend.frameon": False})
+plt.rcParams.update(bundles.neurips2024())
+plt.rcParams.update(figsizes.neurips2024(nrows=1, ncols=1, rel_width=0.5))
+fig = plt.figure()
+metrics = ["cumulative_cost"]
+y_labels = {
+    metrics[0]: r"$\hat{C}(\pi)$",
+}
+marker_styles = ["o", "x", "^", "s", "*"]
+so.Plot(tmp_constraint, x="lambda", y=metrics[0], color="lambda").add(
+    so.Bar(),
+    so.Agg("mean"),
+    legend=True,
+).add(
+    so.Range(color="k", linewidth=0.75),
+    so.Est("mean", errorbar="se"),
+    legend=False,
+).scale(
+    color=so.Nominal(
+        values=[
+            "#5F4690",
+            "#1D6996",
+            "#38A6A5",
+            "#0F8554",
+            "#73AF48",
+            "#EDAD08",
+            "#E17C05",
+            "#CC503E",
+            "#94346E",
+            "#6F4070",
+            "#994E95",
+            "#666666",
+        ],
+        order=[0.075, "Simulation", 0.0],
+    ),
+    x=so.Nominal(values=[0.075, "Simulation", 0.0], order=[0.075, "Simulation", 0.0]),
+).label(y=lambda name: y_labels[name], x="").theme(axes_style("ticks")).on(fig).plot()
+
+budget = 20
+axes = fig.get_axes()
+for i, ax in enumerate(axes):
+    ax.grid(True, linewidth=0.5, c="gainsboro", axis="y", zorder=0)
+    ax.tick_params(axis="x", length=0, labelbottom=False)
+    ax.axhline(y=budget, color="black", linestyle=(0, (1, 1)), linewidth=1.25)
+    yticks = ax.get_yticks()
+    y_new = budget
+    ax.set_yticks(list(yticks) + [y_new])
+    ytick_labels = [f"{tick:.0f}" for tick in yticks] + ["Budget"]
+    ax.set_yticklabels(ytick_labels)
+    ax.set_ylim(0, 360)
+legend = fig.legends.pop(0)
+fig.legends = []
+text = {
+    "0.0": "{{\sf Domain Randomization}} (real)",
+    "0.075": "{{\sf PTSD}} (real)",
+    "Simulation": "{{\sf Domain Randomization}} (simulated)",
+}
+hatches = ["", "//", "\\", "*", "o"]
+for i, bar in enumerate(ax.patches):
+    hatch_pattern = hatches[i]
+    bar.set_hatch(hatch_pattern)
+fig.legend(
+    legend.legend_handles,
+    [text[t.get_text()] for t in legend.texts],
+    loc="center",
+    bbox_to_anchor=(0.5, 1.05),
+    ncol=6,
+    frameon=False,
+    handletextpad=0.5,
+    handlelength=1.0,
+)
+fig.savefig("go1-safety.pdf")

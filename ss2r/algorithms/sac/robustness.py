@@ -162,13 +162,25 @@ class RAMUReward(QTransformation):
         key: jax.Array | None = None,
         use_bro: bool = True,
     ):
-        sampled_next_obs = ramu_sample(
-            self.epsilon,
-            self.n_samples,
-            transitions.observation,
-            transitions.next_observation,
-            key,
-        )
+        if isinstance(transitions.observation, dict):
+            sampled_next_obs = {
+                k: ramu_sample(
+                    self.epsilon,
+                    self.n_samples,
+                    transitions.observation[k],
+                    transitions.next_observation[k],
+                    key,
+                )
+                for k in transitions.observation
+            }
+        else:
+            sampled_next_obs = ramu_sample(
+                self.epsilon,
+                self.n_samples,
+                transitions.observation,
+                transitions.next_observation,
+                key,
+            )
         next_action, next_log_prob = policy(sampled_next_obs)
         next_q = q_fn(sampled_next_obs, next_action)
         if use_bro:
