@@ -132,7 +132,7 @@ so.Plot(
         ],
     ),
     marker=so.Nominal(values=marker_styles),
-).label(x="\# parameterizations $n$", title=lambda name: y_labels[name], y="").theme(
+).label(x="Ensemble Size $n$", title=lambda name: y_labels[name], y="").theme(
     axes_style("ticks")
 ).on(fig).plot()
 
@@ -154,10 +154,23 @@ axes[-1].set_yticklabels(labels)
 axes[-1].axvline(8, color="black", linewidth=1.0, zorder=1)
 axes[1].axvline(8, color="black", linewidth=1.0, zorder=1)
 axes[-1].annotate(
-    "Good performance",
-    xy=(2, 1.5),
-    xytext=(0.3, 400),
+    "Good\nruntime",
+    xy=(7.7, 1.05),
+    xytext=(2, 2.3),
     ha="center",
+    arrowprops=dict(
+        arrowstyle="-|>", color="black", linewidth=1.25, connectionstyle="arc3,rad=-0.2"
+    ),
+)
+axes[1].annotate(
+    "Constraint\nsatisfied",
+    xy=(8.3, 105),
+    xytext=(50, 130),
+    ha="center",
+    arrowprops=dict(
+        arrowstyle="-|>", color="black", linewidth=1.25, connectionstyle="arc3,rad=0.3"
+    ),
+    bbox=dict(pad=-2, facecolor="none", edgecolor="none"),
 )
 legend = fig.legends.pop(0)
 fig.legend(
