@@ -29,7 +29,7 @@ def _get_obs(state):
         return state.obs["state"]
 
 
-class PTSD(Wrapper):
+class SPiDR(Wrapper):
     def __init__(self, env, randomzation_fn, num_perturbed_envs):
         super().__init__(env)
         if hasattr(env, "sys"):

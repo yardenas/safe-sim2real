@@ -19,7 +19,7 @@ from ss2r.algorithms.penalizers import (
 )
 from ss2r.algorithms.ppo.wrappers import Saute
 from ss2r.algorithms.sac import robustness as rb
-from ss2r.algorithms.sac.wrappers import PTSD, ModelDisagreement
+from ss2r.algorithms.sac.wrappers import ModelDisagreement, SPiDR
 from ss2r.common.logging import TrainingLogger
 
 _LOG = logging.getLogger(__name__)
@@ -97,7 +97,7 @@ def get_wrap_env_fn(cfg):
 
         def fn(env):
             key = jax.random.PRNGKey(cfg.training.seed)
-            env = PTSD(
+            env = SPiDR(
                 env,
                 benchmark_suites.prepare_randomization_fn(
                     key,

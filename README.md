@@ -44,18 +44,11 @@ python train_brax.py +experiment=go1_sim_to_real
 If you find our repository useful in your work, please consider citing:
 
 ```bibtex
-@inproceedings{your2025ptsd,
-  title={PTSD: Provably Safe Transfer via Domain Randomization},
-  author={Your Name and Collaborators},
-  booktitle={Conference on Robot Learning (CoRL)},
-  year={2025},
-  url={https://openreview.net/forum?id=XXXX}
-}
 ``` -->
 
 <!-- ## Learn More 🔍
 
-* **Project Webpage**: [https://yourpage.github.io/ptsd](https://yourpage.github.io/ptsd)
-* **Paper**: \[arXiv/CoRL link here]
-* **Contact**: For support or feedback, please open an issue or reach out via the webpage. -->
+* **Project Webpage**: 
+* **Paper**:
+* **Contact**: 
 

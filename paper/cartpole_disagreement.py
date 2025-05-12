@@ -14,7 +14,7 @@ from seaborn import axes_style
 from tueplots import bundles, figsizes
 
 from ss2r import benchmark_suites
-from ss2r.algorithms.sac.wrappers import PTSD, ModelDisagreement
+from ss2r.algorithms.sac.wrappers import ModelDisagreement, SPiDR
 
 
 # %%
@@ -42,7 +42,7 @@ cfg = make_config()
 def make_env():
     env = registry.load("CartpoleSwingup")
     key = jax.random.PRNGKey(cfg.training.seed)
-    env = PTSD(
+    env = SPiDR(
         env,
         benchmark_suites.prepare_randomization_fn(
             key,

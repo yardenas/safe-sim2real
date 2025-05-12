@@ -11,7 +11,7 @@ from hydra import compose, initialize
 
 import ss2r.algorithms.sac.networks as sac_networks
 from ss2r import benchmark_suites
-from ss2r.algorithms.sac.wrappers import PTSD, ModelDisagreement
+from ss2r.algorithms.sac.wrappers import ModelDisagreement, SPiDR
 from ss2r.rl.utils import rollout
 
 # %%
@@ -52,7 +52,7 @@ cfg = make_config()
 
 def wrap_env(env):
     key = jax.random.PRNGKey(cfg.training.seed)
-    env = PTSD(
+    env = SPiDR(
         env,
         benchmark_suites.prepare_randomization_fn(
             key,
