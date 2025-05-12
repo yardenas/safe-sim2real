@@ -1,8 +1,7 @@
-# safe-sim2real
+# Safe Sim2Real
+This repository contains the code used for the paper SPiDR: A Simple Approach for Zero-Shot Safety in
+Sim-to-Real Transfer.
 
-# PTSD: Provably Safe Transfer via Domain Randomization 🛡️🤖
-
----
 ## Requirements 🛠
 
 - **Python** ≥ 3.10
