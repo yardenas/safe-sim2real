@@ -100,8 +100,8 @@ fig = plt.figure()
 metrics = ["eval/episode_reward", "eval/episode_cost"]
 marker_styles = ["o", "x", "^", "s", "*"]
 y_labels = {
-    metrics[0]: r"$\hat{J}_r(\pi)$",
-    metrics[1]: r"$\hat{C}(\pi)$",
+    metrics[0]: r"$\hat{J}(\tilde{\pi})$",
+    metrics[1]: r"$\hat{C}(\tilde{\pi})$",
 }
 y_labels["runtime_normalized"] = "Normalized Runtime"
 so.Plot(

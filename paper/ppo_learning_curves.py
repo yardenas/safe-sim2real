@@ -71,8 +71,8 @@ data = data[data["lambda"].isin([0.0, 0.01, 1.0, 0.001])]
 # %%
 metrics = ["eval/episode_reward", "eval/episode_cost"]
 y_labels = {
-    metrics[0]: r"$\hat{J}_r$",
-    metrics[1]: r"$\hat{J}_c$",
+    metrics[0]: r"$\hat{J}(\tilde{\pi})$",
+    metrics[1]: r"$\hat{C}(\tilde{\pi})$",
 }
 theme = bundles.neurips2024()
 so.Plot.config.theme.update(axes_style("white") | theme | {"legend.frameon": False})

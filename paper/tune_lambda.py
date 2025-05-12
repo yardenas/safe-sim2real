@@ -76,8 +76,8 @@ metrics = ["eval/episode_reward", "eval/episode_cost"]
 set_size = r"\lvert\Xi\rvert"
 marker_styles = ["o", "x", "^", "s", "*"]
 y_labels = {
-    metrics[0]: r"$\hat{J}_r(\pi)$",
-    metrics[1]: r"$\hat{C}(\pi)$",
+    metrics[0]: r"$\hat{J}(\tilde{\pi})$",
+    metrics[1]: r"$\hat{C}(\tilde{\pi})$",
 }
 for i, ax in enumerate(axes.flatten()):
     so.Plot(

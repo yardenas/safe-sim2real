@@ -63,8 +63,8 @@ plt.rcParams.update(figsizes.jmlr2001(nrows=1, ncols=2, rel_width=0.5))
 fig, axes = plt.subplots(1, 2)
 metrics = ["reward", "cost"]
 y_labels = {
-    metrics[0]: r"$\hat{J}(\pi)$",
-    metrics[1]: r"$\hat{C}(\pi)$",
+    metrics[0]: r"$\hat{J}(\tilde{\pi})$",
+    metrics[1]: r"$\hat{C}(\tilde{\pi})$",
 }
 marker_styles = ["o", "x", "^", "s", "*"]
 for i, ax in enumerate(axes.flatten()):

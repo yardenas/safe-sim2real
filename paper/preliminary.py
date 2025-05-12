@@ -132,9 +132,9 @@ so.Plot(
         order=["ucb_cost", "neutral"],
     ),
     marker=so.Nominal(values=marker_styles, order=["ucb_cost", "neutral"]),
-).label(x=r"$\hat{C}(\pi)$", y=r"$\hat{J}(\pi)$", title=lambda x: titles[x]).theme(
-    axes_style("ticks")
-).on(fig).plot()
+).label(
+    x=r"$\hat{C}(\tilde{\pi})$", y=r"$\hat{J}(\tilde{\pi})$", title=lambda x: titles[x]
+).theme(axes_style("ticks")).on(fig).plot()
 axes = fig.get_axes()
 optimum = [(79, 988), (28, 12172), (3, 177)]
 safe = [100, 100, 8]

@@ -90,6 +90,7 @@ data = pd.concat(
     ]
 )
 # %%
+
 budgets = {
     "RaceCar": 5,
     "SafeCartpoleSwingup": 100,
@@ -98,13 +99,11 @@ budgets = {
     "SafeWalkerWalk": 100,
     "PointGoal2": 25,
 }
-# %%
-
 
 metrics = ["eval/episode_reward", "eval/episode_cost"]
 y_labels = {
-    metrics[0]: r"$\hat{J}_r$",
-    metrics[1]: r"$\hat{J}_c$",
+    metrics[0]: r"$\hat{J}(\tilde{\pi})$",
+    metrics[1]: r"$\hat{C}(\tilde{\pi})$",
 }
 env_names = data.environment.unique()
 n_envs = len(env_names)
@@ -144,7 +143,7 @@ colors = [
 ]
 text = {
     "ramu": "\sf RAMU",
-    "ptsd": "\sf PTSD",
+    "ptsd": "\\textsf{{\\textbf{{SPiDR}}}}",
     "dr": "\sf Domain Randomization",
     "nominal": "\sf Nominal",
 }

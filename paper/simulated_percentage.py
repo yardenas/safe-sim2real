@@ -108,7 +108,7 @@ env_name_to_display = {
 
 text = {
     "ramu": "\sf RAMU",
-    "ptsd": "\sf PTSD",
+    "ptsd": "\\textsf{{\\textbf{{SPiDR}}}}",
     "dr": "\sf Domain Randomization",
     "nominal": "\sf Nominal",
     "tightening": "\sf Tightening",
@@ -150,9 +150,9 @@ so.Plot(
         order=["ptsd", "ramu", "dr", "nominal"],
     ),
     x=so.Nominal(order=["ptsd", "ramu", "dr", "nominal"]),
-).label(x="", y=r"$\hat{J}(\pi)$", title=lambda x: env_name_to_display[x]).theme(
-    axes_style("ticks")
-).on(fig).plot()
+).label(
+    x="", y=r"$\hat{J}(\tilde{\pi})$", title=lambda x: env_name_to_display[x]
+).theme(axes_style("ticks")).on(fig).plot()
 axes = fig.get_axes()
 for ax in axes:
     ax.grid(True, linewidth=0.5, c="gainsboro", zorder=0)

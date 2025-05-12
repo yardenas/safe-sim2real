@@ -211,8 +211,8 @@ so.Plot(
     ),
     marker=so.Nominal(values=marker_styles, order=["ptsd", "ramu", "dr", "nominal"]),
 ).label(
-    x=r"$\sfrac{\hat{C}(\pi)}{d}$",
-    y=r"$\hat{J}(\pi)$",
+    x=r"$\sfrac{\hat{C}(\tilde{\pi})}{d}$",
+    y=r"$\hat{J}(\tilde{\pi})$",
     title=lambda x: x.strip("Safe"),
 ).theme(axes_style("ticks")).on(fig).plot()
 axes = fig.get_axes()
@@ -286,7 +286,7 @@ legend = fig.legends.pop(0)
 
 text = {
     "ramu": "\sf RAMU",
-    "ptsd": "\sf PTSD",
+    "ptsd": "\\textsf{{\\textbf{{SPiDR}}}}",
     "dr": "\sf Domain Randomization",
     "nominal": "\sf Nominal",
     "tightening": "\sf Tightening",
@@ -304,7 +304,7 @@ fig.legend(
     handles + optimum_handle,
     [text[t.get_text()] for t in legend.texts] + optimum_label,
     loc="center",
-    bbox_to_anchor=(0.5, 1.05),
+    bbox_to_anchor=(0.5, 1.025),
     ncol=6,
     frameon=False,
     handletextpad=0.25,

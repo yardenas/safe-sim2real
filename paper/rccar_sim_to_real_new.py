@@ -2,9 +2,7 @@
 import warnings
 
 import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
-import seaborn as sns
 import seaborn.objects as so
 from seaborn import axes_style
 from tueplots import bundles, figsizes, fontsizes
@@ -22,9 +20,6 @@ def load_evaluation(data_path):
 
 
 data = load_evaluation("rccar_experiment.csv")
-# data = data.groupby(["lambda", "policy"]).mean().reset_index()
-# data = data.drop(columns=["policy"])
-# data = data.groupby(["lambda"]).median().reset_index()
 
 
 # %%
@@ -43,88 +38,6 @@ colors = [
     "#666666",
 ]
 
-# %%
-theme = bundles.neurips2024()
-so.Plot.config.theme.update(axes_style("white") | theme | {"legend.frameon": False})
-plt.rcParams.update(bundles.neurips2024())
-plt.rcParams.update(figsizes.neurips2024(nrows=1, ncols=1, rel_width=0.5))
-plt.rcParams.update({"text.latex.preamble": r"\usepackage{amsmath}\usepackage{times}"})
-fig, axes = plt.subplots(nrows=2, ncols=1, sharex=True)
-
-# for ax in axes:
-#     ax.grid(True, linewidth=0.5, c="gainsboro")
-data["cumulative_cost"] = data["cumulative_cost"] + 0.01
-plot = sns.violinplot(
-    data,
-    x="lambda",
-    y="cumulative_reward",
-    hue="lambda",
-    palette={
-        0: colors[0],
-        45: colors[1],
-        55: colors[2],
-        60: colors[3],
-        65: colors[4],
-    },
-    cut=0,
-    inner=None,
-    legend=False,
-    ax=axes[0],
-)
-sns.swarmplot(
-    data=data,
-    x="lambda",
-    y="cumulative_reward",
-    color="k",
-    size=1.5,
-    ax=axes[0],
-    alpha=0.7,
-)
-plot = sns.violinplot(
-    data,
-    x="lambda",
-    y="cumulative_cost",
-    hue="lambda",
-    palette={
-        0: colors[0],
-        45: colors[1],
-        55: colors[2],
-        60: colors[3],
-        65: colors[4],
-    },
-    cut=0,
-    inner=None,
-    ax=axes[1],
-    legend=False,
-    log_scale=(False, True),
-)
-sns.swarmplot(
-    data=data,
-    x="lambda",
-    y="cumulative_cost",
-    color="k",
-    size=1.5,
-    ax=axes[1],
-    alpha=0.7,
-)
-
-axes[0].set_ylabel(r"$\hat{J}(\pi)$")
-axes[0].set_xlabel(r"$\lambda$")
-axes[1].set_ylabel(r"$\hat{C}(\pi)$")
-axes[1].set_xlabel(r"$\lambda$")
-handles, labels = axes[0].get_legend_handles_labels()
-fig.legend(
-    handles,
-    labels,
-    loc="center",
-    bbox_to_anchor=(0.5, 1.05),
-    ncol=6,
-    frameon=False,
-    handletextpad=0.25,
-    handlelength=1.0,
-)
-fig.savefig("rccar-sim-to-real-paper-violin.pdf")
-
 
 # %%
 constraint = data.groupby(["lambda", "policy"]).mean()["cumulative_cost"].reset_index()
@@ -141,14 +54,14 @@ fig = plt.figure()
 marker_styles = ["o", "x", "^", "s", "*"]
 so.Plot(constraint, x="lambda", y="cumulative_cost").add(
     so.Line(linewidth=1.0, pointsize=3.5, edgewidth=0.5, marker="x", color="#5F4690"),
-    so.Agg("median"),
+    so.Agg("mean"),
 ).add(
     so.Band(alpha=0.15, color="#5F4690"),
-    so.Est("median", errorbar=("ci", 68)),
+    so.Est("mean", errorbar="se"),
     legend=False,
 ).label(
     x="$\lambda$",
-    y=r"$\hat{C}_{p^\star}(\pi)$",
+    y=r"$\hat{C}(\tilde{\pi})$",
 ).theme(axes_style("ticks")).on(fig).plot()
 
 ax = fig.get_axes()[0]
@@ -169,49 +82,27 @@ xtick_labels[1] = f"{xticks[1]:.0f}\n No Pessimism"
 ax.set_xticklabels(xtick_labels)
 lambdas = constraint["lambda"]
 costs = constraint["cumulative_cost"]
-y_0 = np.median(costs[lambdas == 0])
-y_01 = np.median(costs[lambdas == 0.1])
-reduction_factor = y_01 / y_0
-x_0 = 0.0
-x_01 = 0.1
-limits = ax.get_xlim()
-ax.axhline(
-    y=y_0,
-    xmin=(x_0 - limits[0]) / limits[1],
-    xmax=1.0,
-    color="black",
-    alpha=0.4,
-    linewidth=1.25,
-    linestyle="dashed",
-)
 
 base_font_size = fontsizes.neurips2024()["font.size"]
 
 
-cost = r"\hat{C}_{p^\star}(\pi)"
+cost = r"$\hat{C}(\tilde{\pi})$"
 
-ax.annotate(
-    f"${cost} =\; ${y_0:.2f}",
-    xy=(20, y_0),
-    xytext=(20, y_0 + 4.5),
-    fontsize=base_font_size,
-    va="center",
-)
 
 ax.set_ylim(-1, 42)
 ax.set_title("RaceCar")
 
 ax.annotate(
     "Constraint \nin simulation",
-    xy=(0.025, 12),
-    xytext=(0.01, 1.05),
+    xy=(30, 13),
+    xytext=(0.01, 5.05),
     arrowprops=dict(
         arrowstyle="-|>",
         color="#1D6996",
         linewidth=0.75,
         connectionstyle="arc3,rad=0.2",
     ),
-    bbox=dict(pad=-2, facecolor="none", edgecolor="none"),
+    bbox=dict(pad=-10, facecolor="none", edgecolor="none"),
     fontsize=base_font_size,
     va="center",
     color="#1D6996",
@@ -228,8 +119,8 @@ plt.rcParams.update(figsizes.neurips2024(nrows=1, ncols=2, rel_width=0.6))
 fig, axes = plt.subplots(1, 2)
 metrics = ["cumulative_reward", "cumulative_cost"]
 y_labels = {
-    metrics[0]: r"$\hat{J}(\pi)$",
-    metrics[1]: r"$\hat{C}(\pi)$",
+    metrics[0]: r"$\hat{J}(\tilde{\pi})$",
+    metrics[1]: r"$\hat{C}(\tilde{\pi})$",
 }
 marker_styles = ["o", "x", "^", "s", "*"]
 for i, ax in enumerate(axes.flatten()):

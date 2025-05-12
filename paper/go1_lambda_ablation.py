@@ -16,7 +16,7 @@ warnings.filterwarnings("ignore")
 
 def load_evaluation(data_path):
     data = pd.read_csv(data_path)
-    data = data.fillna(20)
+    data = data.fillna(0)
     return data
 
 
@@ -38,14 +38,14 @@ fig = plt.figure()
 marker_styles = ["o", "x", "^", "s", "*"]
 so.Plot(constraint, x="lambda", y="cumulative_cost").add(
     so.Line(linewidth=1.0, pointsize=3.5, edgewidth=0.5, marker="x", color="#5F4690"),
-    so.Agg("median"),
+    so.Agg("mean"),
 ).add(
     so.Band(alpha=0.15, color="#5F4690"),
-    so.Est("median", errorbar=("ci", 68)),
+    so.Est("mean", errorbar="se"),
     legend=False,
-).scale(y="log").label(
+).scale(y="symlog").label(
     x="$\lambda$",
-    y=r"$\hat{C}_{p^\star}(\pi)$",
+    y=r"$\hat{C}(\tilde{\pi})$",
 ).theme(axes_style("ticks")).on(fig).plot()
 
 ax = fig.get_axes()[0]
@@ -59,21 +59,19 @@ yticks = ax.get_yticks()
 ax.set_yticks(list(yticks) + [budget])
 ytick_labels = [f"{tick:.0f}" for tick in yticks] + ["Budget"]
 ax.set_yticklabels(ytick_labels)
-ax.set_ylim(1, 450)
+ax.set_ylim(1, 320)
 ax.set_xticks([0.0, 0.025, 0.05, 0.075, 0.1])
 xticks = ax.get_xticks()
 xtick_labels = [tick for tick in xticks]
 xtick_labels[0] = f"{xticks[0]}\n No Pessimism"
-# ax.yaxis.set_minor_locator(plt.NullLocator())
+ax.yaxis.set_minor_locator(plt.NullLocator())
 ax.tick_params(axis="y", which="minor", width=0.5, length=2)
 ax.set_xticklabels(xtick_labels)
-lambdas = constraint["lambda"]
-costs = constraint["cumulative_cost"]
-y_0 = np.median(costs[lambdas == 0])
-y_01 = np.median(costs[lambdas == 0.1])
+y_0 = np.mean(constraint["cumulative_cost"][constraint["lambda"] == 0.0])
+y_01 = np.mean(constraint["cumulative_cost"][constraint["lambda"] == 0.075])
 reduction_factor = y_01 / y_0
 x_0 = 0.0
-x_01 = 0.1
+x_01 = 0.075
 limits = ax.get_xlim()
 ax.axhline(
     y=y_0,
@@ -84,7 +82,6 @@ ax.axhline(
     linewidth=1.25,
     linestyle="dashed",
 )
-
 base_font_size = fontsizes.neurips2024()["font.size"]
 
 
@@ -109,22 +106,9 @@ def add_arrow(ax, x, min_val, max_val, times):
     )
 
 
-cost = r"\hat{C}_{p^\star}(\pi)"
-
-ax.annotate(
-    f"${cost} =\; ${y_0:.2f}",
-    xy=(0.05, y_0),
-    xytext=(0.025, y_0 + 200),
-    fontsize=base_font_size,
-    va="center",
-)
-for i, lambda_val in enumerate([0.075]):
-    cost = np.median(costs[lambdas == lambda_val])
-    add_arrow(ax, lambda_val, cost, y_0, y_0 / cost)
 add_arrow(ax, 0, budget, y_0, y_0 / budget)
+add_arrow(ax, 0.075, 2.2, y_0, y_0 / y_01)
 
-
-ax.set_ylim(0.3, 800)
 ax.set_title("Unitree Go1")
 fig.savefig("go1-lambda-ablation.pdf")
 
@@ -146,7 +130,7 @@ plt.rcParams.update(figsizes.neurips2024(nrows=1, ncols=1, rel_width=0.5))
 fig = plt.figure()
 metrics = ["cumulative_cost"]
 y_labels = {
-    metrics[0]: r"$\hat{C}(\pi)$",
+    metrics[0]: r"$\hat{C}(\tilde{\pi})$",
 }
 marker_styles = ["o", "x", "^", "s", "*"]
 so.Plot(tmp_constraint, x="lambda", y=metrics[0], color="lambda").add(
@@ -194,7 +178,7 @@ legend = fig.legends.pop(0)
 fig.legends = []
 text = {
     "0.0": "{{\sf Domain Randomization}} (real)",
-    "0.075": "{{\sf PTSD}} (real)",
+    "0.075": "{{\\textsf{{\\textbf{{SPiDR}}}}}} (real)",
     "Simulation": "{{\sf Domain Randomization}} (simulated)",
 }
 hatches = ["", "//", "\\", "*", "o"]

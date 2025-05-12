@@ -180,8 +180,8 @@ ax.axvline(
 
 ax.grid(True, linewidth=0.5, c="gainsboro", zorder=0)
 # Labels and formatting
-ax.set_xlabel(r"$\hat{C}(\pi)$")
-ax.set_ylabel(r"$\hat{J}(\pi)$")
+ax.set_xlabel(r"$\hat{C}(\tilde{\pi})$")
+ax.set_ylabel(r"$\hat{J}(\tilde{\pi})$")
 ax.set_title("Pareto Front with Constraint")
 
 for spine in ax.spines.values():
