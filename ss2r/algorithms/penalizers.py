@@ -33,7 +33,7 @@ class CRPO:
         constraint: jax.Array,
         params: CRPOParams,
         *,
-        rest: Any,
+        rest: Any = None,
     ) -> tuple[jax.Array, dict[str, Any], CRPOParams]:
         active = jnp.greater(constraint + self.eta, 0.0) | jnp.greater(params.burnin, 0)
         if rest is not None:
