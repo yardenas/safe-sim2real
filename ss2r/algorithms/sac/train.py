@@ -614,6 +614,16 @@ def train(
         budget=episodic_safety_budget,
         num_episodes=num_eval_episodes,
     )
+    train_evaluator = ConstraintsEvaluator(
+        env,
+        functools.partial(make_policy, deterministic=deterministic_eval),
+        num_eval_envs=num_eval_envs,
+        episode_length=episode_length,
+        action_repeat=action_repeat,
+        key=eval_key,
+        budget=episodic_safety_budget,
+        num_episodes=num_eval_episodes,
+    )
 
     # Run initial eval
     metrics = {}
@@ -622,6 +632,12 @@ def train(
             (training_state.normalizer_params, training_state.policy_params),
             training_metrics={},
         )
+        train_metrics = train_evaluator.run_evaluation(
+            (training_state.normalizer_params, training_state.policy_params),
+            training_metrics={},
+            prefix="train",
+        )
+        metrics.update(train_metrics)
         logging.info(metrics)
         progress_fn(0, metrics)
 
@@ -670,6 +686,12 @@ def train(
             (training_state.normalizer_params, training_state.policy_params),
             training_metrics,
         )
+        train_metrics = train_evaluator.run_evaluation(
+            (training_state.normalizer_params, training_state.policy_params),
+            training_metrics,
+            prefix="train",
+        )
+        metrics.update(train_metrics)
         logging.info(metrics)
         progress_fn(current_step, metrics)
 
