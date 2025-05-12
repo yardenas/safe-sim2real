@@ -1,6 +1,5 @@
 # Safe Sim2Real
-This repository contains the code used for the paper SPiDR: A Simple Approach for Zero-Shot Safety in
-Sim-to-Real Transfer.
+A collection of algorithms and experiment tools for safe sim to real transfer in robotics.
 
 ## Requirements 🛠
 
