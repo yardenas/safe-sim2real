@@ -35,7 +35,7 @@ Our code uses [Hydra](https://hydra.cc/) to configure experiments. Each experime
 python train_brax.py +experiment=go1_sim_to_real
 ```
 ## Docs 📖
-* The `.onnx` files for the policies can be found in `ss2r/docs/policies`. 
+* Policies (in `onnx` format) used for the Unitree Go1 experiments can be found in `ss2r/docs/policies`.
 * In `ss2r/docs/videos` you can find videos of 5 trials for each policy, marked by its policy id.
 
 
