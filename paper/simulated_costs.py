@@ -89,8 +89,9 @@ data = pd.concat(
         for summary_files_data in walk_wandb_runs("yardas/ss2r", filters)
     ]
 )
-# %%
 
+
+# %%
 budgets = {
     "RaceCar": 5,
     "SafeCartpoleSwingup": 100,
@@ -99,8 +100,6 @@ budgets = {
     "SafeWalkerWalk": 100,
     "PointGoal2": 25,
 }
-
-# %%
 theme = bundles.neurips2024()
 so.Plot.config.theme.update(axes_style("white") | theme | {"legend.frameon": False})
 plt.rcParams.update(bundles.neurips2024())
@@ -120,8 +119,8 @@ so.Plot(
     y=False, x=False
 ).add(
     so.Line(linewidth=1.0, pointsize=2.5, edgewidth=0.1),
-    so.Agg("median"),
-).add(so.Band(alpha=0.15), so.Est("median", errorbar=("ci", 68)), legend=False).scale(
+    so.Agg("mean"),
+).add(so.Band(alpha=0.15), so.Est("mean", errorbar="se"), legend=False).scale(
     color=so.Nominal(
         values=[
             "#5F4690",

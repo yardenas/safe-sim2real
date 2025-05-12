@@ -159,11 +159,9 @@ for idx, env in enumerate(env_names):
             so.Plot(env_data, x="step", y=metric, color="category", marker="category")
             .add(
                 so.Line(linewidth=1.0, pointsize=2.5, edgewidth=0.1),
-                so.Agg("median"),
+                so.Agg("mean"),
             )
-            .add(
-                so.Band(alpha=0.15), so.Est("median", errorbar=("ci", 68)), legend=False
-            )
+            .add(so.Band(alpha=0.15), so.Est("mean", errorbar="se"), legend=False)
             .scale(
                 color=so.Nominal(values=colors, order=color_order),
                 marker=so.Nominal(values=marker_styles),

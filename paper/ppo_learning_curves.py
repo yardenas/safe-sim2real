@@ -110,10 +110,8 @@ for i, ax in enumerate(axes.flatten()):
         y=metrics[i],
     ).add(
         so.Line(linewidth=1.0, pointsize=2.5, edgewidth=0.1),
-        so.Agg("median"),
-    ).add(
-        so.Band(alpha=0.15), so.Est("median", errorbar=("ci", 68)), legend=False
-    ).scale(
+        so.Agg("mean"),
+    ).add(so.Band(alpha=0.15), so.Est("mean", errorbar="se"), legend=False).scale(
         color=so.Nominal(
             values=colors,
             order=[1.0, 0.01, 0.001, 0.0],

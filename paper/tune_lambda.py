@@ -88,8 +88,8 @@ for i, ax in enumerate(axes.flatten()):
         y=metrics[i],
     ).add(
         so.Line(linewidth=1.0, pointsize=2.5, edgewidth=0.1),
-        so.Agg("median"),
-    ).add(so.Band(alpha=0.15), so.Est("median", errorbar="ci"), legend=False).scale(
+        so.Agg("mean"),
+    ).add(so.Band(alpha=0.15), so.Est("mean", errorbar="se"), legend=False).scale(
         color=so.Nominal(
             values=[
                 "#5F4690",
@@ -143,7 +143,7 @@ for i, ax in enumerate(axes):
     else:
         ax.annotate(
             "Constraint\nsatisfied",
-            xy=(0.60, 25),
+            xy=(0.60, 35),
             xytext=(0.76, 206),
             arrowprops=arrowprops,
             ha="center",
