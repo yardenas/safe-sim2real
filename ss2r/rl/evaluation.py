@@ -92,7 +92,6 @@ class ConstraintsEvaluator(Evaluator):
         policy_params: PolicyParams,
         training_metrics: Metrics,
         aggregate_episodes: bool = True,
-        prefix: str = "eval",
     ) -> Metrics:
         """Run one epoch of evaluation."""
         self._key, unroll_key = jax.random.split(self._key)
@@ -112,18 +111,18 @@ class ConstraintsEvaluator(Evaluator):
             suffix = "_std" if fn == np.std else ""
             metrics.update(
                 {
-                    f"{prefix}/episode_{name}{suffix}": (
+                    f"eval/episode_{name}{suffix}": (
                         fn(value) if aggregate_episodes else value  # type: ignore
                     )
                     for name, value in eval_metrics.episode_metrics.items()
                 }
             )
-        metrics[f"{prefix}/avg_episode_length"] = np.mean(eval_metrics.episode_steps)
-        metrics[f"{prefix}/epoch_eval_time"] = epoch_eval_time
-        metrics[f"{prefix}/sps"] = self._steps_per_unroll / epoch_eval_time
+        metrics["eval/avg_episode_length"] = np.mean(eval_metrics.episode_steps)
+        metrics["eval/epoch_eval_time"] = epoch_eval_time
+        metrics["eval/sps"] = self._steps_per_unroll / epoch_eval_time
         self._eval_walltime = self._eval_walltime + epoch_eval_time
         metrics = {
-            f"{prefix}/walltime": self._eval_walltime,
+            "eval/walltime": self._eval_walltime,
             **training_metrics,
             **metrics,
         }
