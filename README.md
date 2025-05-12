@@ -30,13 +30,14 @@ poetry shell
 
 ## Usage 🧪
 
-Our extensively uses [Hydra](https://hydra.cc/) to configure experiments. Each experiment is defined as a `yaml` file in `ss2r/configs/experiments`. For example, to train a Unitree Go1 policy with a constraint on joint limit:
+Our code uses [Hydra](https://hydra.cc/) to configure experiments. Each experiment is defined as a `yaml` file in `ss2r/configs/experiments`. For example, to train a Unitree Go1 policy with a constraint on joint limit:
 
 ```bash
 python train_brax.py +experiment=go1_sim_to_real
 ```
 ## Docs 📖
-The `.onnx` files for the policies can be found in `ss2r/docs/policies`. In `ss2r/docs/videos` you can find videos of 5 trials for each policy, marked by its policy id.
+* The `.onnx` files for the policies can be found in `ss2r/docs/policies`. 
+* In `ss2r/docs/videos` you can find videos of 5 trials for each policy, marked by its policy id.
 
 
 <!-- ## Citation 🔗
