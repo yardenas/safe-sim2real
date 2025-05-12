@@ -36,6 +36,8 @@ Our extensively uses [Hydra](https://hydra.cc/) to configure experiments. Each e
 ```bash
 python train_brax.py +experiment=go1_sim_to_real
 ```
+## Docs 📖
+The `.onnx` files for the policies can be found in `ss2r/docs/policies`. In `ss2r/docs/videos` you can find videos of 5 trials for each policy, marked by its policy id.
 
 
 <!-- ## Citation 🔗
