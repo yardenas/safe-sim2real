@@ -1,6 +1,10 @@
 # Safe Sim2Real
 A collection of algorithms and experiment tools for safe sim to real transfer in robotics.
 
+## Docs 📖
+* Policies (in `onnx` format) used for the Unitree Go1 experiments can be found in `ss2r/docs/policies`.
+* In `ss2r/docs/videos` you can find videos of 5 trials for each policy, marked by its policy id.
+
 ## Requirements 🛠
 
 - Python ≥ 3.10
@@ -34,9 +38,6 @@ Our code uses [Hydra](https://hydra.cc/) to configure experiments. Each experime
 ```bash
 python train_brax.py +experiment=go1_sim_to_real
 ```
-## Docs 📖
-* Policies (in `onnx` format) used for the Unitree Go1 experiments can be found in `ss2r/docs/policies`.
-* In `ss2r/docs/videos` you can find videos of 5 trials for each policy, marked by its policy id.
 
 
 <!-- ## Citation 🔗
