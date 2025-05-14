@@ -2,7 +2,7 @@
 name = "ss2r"
 version = "0.1.0"
 description = ""
-authors = ["Yarden <yarden.as@inf.ethz.ch>"]
+authors = ["Anon <anon.as@inf.ethz.ch>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]

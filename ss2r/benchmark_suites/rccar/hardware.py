@@ -68,7 +68,7 @@ class HardwareDynamics:
     def __init__(self, controller) -> None:
         self.controller = controller
 
-    # FIXME (yarden): make sure that this really conforms to the actual state
+    # FIXME (anon): make sure that this really conforms to the actual state
     def step(self, x: jax.Array, u: jax.Array, params: Any) -> tuple[jax.Array, dict]:
         scaled_action = np.array(u).copy()
         self.controller.control_mode()

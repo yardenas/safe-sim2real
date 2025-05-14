@@ -260,7 +260,7 @@ def get_train_fn(cfg):
             penalizer=penalizer,
             penalizer_params=penalizer_params,
         )
-        # FIXME (yarden): that's a hack for now. Need to think of a
+        # FIXME (anon): that's a hack for now. Need to think of a
         # better way to implement this.
         if "penalizer" in cfg.agent and cfg.agent.penalizer.name == "saute":
             train_fn = functools.partial(

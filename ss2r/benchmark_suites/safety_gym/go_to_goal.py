@@ -185,7 +185,7 @@ def build_arena(
         lidar.add_lidar_rings(spec)
 
 
-# TODO (yarden): should not depend on mujoco playground eventually
+# TODO (anon): should not depend on mujoco playground eventually
 class GoToGoal(mjx_env.MjxEnv):
     def __init__(self, *, visualize_lidar: bool = False, seed: int = 0):
         self.spec = {
@@ -480,7 +480,7 @@ def _sample_layout(
             xy, _ = draw_until_valid(
                 key, object_spec.keepout, all_placements, all_keepouts
             )
-            # TODO (yarden): technically should quit if not valid sampling.
+            # TODO (anon): technically should quit if not valid sampling.
             all_placements = all_placements.at[flat_idx, :].set(xy)
             all_keepouts = all_keepouts.at[flat_idx].set(object_spec.keepout)
             layout[name].append((flat_idx, xy))

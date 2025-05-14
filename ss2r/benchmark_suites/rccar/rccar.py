@@ -228,7 +228,7 @@ class RCCar(Env):
         )
         reward -= jnp.linalg.norm(action) * self.control_penalty_scale
         cost = cost_fn(dynamics_state[..., :2], self.obstacles)
-        # FIXME (yarden): this is great for sim, but what about real?
+        # FIXME (anon): this is great for sim, but what about real?
         # One way: don't override the state in that case, but let it collide in reality, just compute costs here.
         # Another way: let it collide in reality, detect real collisions, and measure the energy loss
         if not isinstance(self.dynamics_model, HardwareDynamics):

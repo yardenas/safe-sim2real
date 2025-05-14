@@ -86,7 +86,7 @@ class StatePropagation(Wrapper):
         self.num_envs = None
 
     def reset(self, rng: jax.Array) -> State:
-        # TODO (yarden): this code is not jax compatible.
+        # TODO (anon): this code is not jax compatible.
         if self.num_envs is None:
             self.num_envs = rng.shape[0]
         # No need to randomize the initial state. Otherwise, even without
