@@ -92,7 +92,7 @@ text = {
     "0.0": "{{\sf Domain Randomization}} (real)",
     "Simulation": "{{\sf Domain Randomization}} (simulation)",
 }
-hatches = ["", "//", "\\", "*", "o"]
+hatches = ["", "", "\\\\", "*", "o"]
 for i, bar in enumerate(ax.patches):
     hatch_pattern = hatches[i]
     bar.set_hatch(hatch_pattern)

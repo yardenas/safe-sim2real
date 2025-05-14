@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn.objects as so
 import wandb
+from matplotlib.patches import Rectangle
 from seaborn import axes_style
 from tueplots import bundles, figsizes
 
@@ -170,8 +171,20 @@ def sci_notation(
 
 
 def fill_unsafe(ax, x):
-    lim = ax.get_xlim()[1]
-    ax.axvspan(x + lim / 200, lim, color="red", alpha=0.1)
+    xlim = ax.get_xlim()
+    ylim = ax.get_ylim()
+    # ax.axvspan(x + lim / 200, lim, color="red", alpha=0.1)
+    unsafe_patch = Rectangle(
+        (x, ylim[0]),  # Bottom-left corner (start from x)
+        xlim[1] - x,  # Width from x to end of x-axis
+        ylim[1] - ylim[0],  # Full height of the plot
+        color="red",
+        alpha=0.1,
+        hatch="\\\\",
+        zorder=0,  # Draw below other plot elements
+    )
+
+    ax.add_patch(unsafe_patch)
 
 
 theme = bundles.neurips2024()
@@ -234,6 +247,7 @@ scale = lambda x: [y * 1 / 1.1 for y in x]
 for i, (ax, env_name) in enumerate(zip(axes, budgets.keys())):
     ax.grid(True, linewidth=0.5, c="gainsboro", zorder=0)
     draw_optimum(ax, *opts[env_name])
+    ax.set_ylim(-0.05, 1.075)
     fill_unsafe(ax, 1.0)
     ax.axvline(
         x=1.0,
@@ -257,29 +271,10 @@ for i, (ax, env_name) in enumerate(zip(axes, budgets.keys())):
     ax.set_xticks(xticks)
     ax.set_xticklabels(xtick_labels)
     ax.set_xlim(xlims)
-    ax.set_ylim(-0.05, 1.075)
 
-axes[0].annotate(
+axes[-1].annotate(
     "Unsafe",
-    xy=(10, 0.75),
-    va="center",
-)
-axes[0].annotate(
-    "",
-    xy=(24, 0.67),
-    xytext=(16, 0.71),
-    arrowprops=dict(
-        arrowstyle="-|>", color="black", linewidth=0.75, connectionstyle="arc3,rad=0.2"
-    ),
-    va="center",
-)
-axes[0].annotate(
-    "",
-    xy=(21, 0.58),
-    xytext=(16, 0.7),
-    arrowprops=dict(
-        arrowstyle="-|>", color="black", linewidth=0.75, connectionstyle="arc3,rad=0.2"
-    ),
+    xy=(2.2, 0.07),
     va="center",
 )
 legend = fig.legends.pop(0)

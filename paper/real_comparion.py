@@ -205,6 +205,10 @@ for i, ax in enumerate(axes):
         ax.set_yticklabels(ytick_labels)
         ax.set_title("Unitree Go1")
     ax.set_axisbelow(True)
+    hatches = ["", "", "\\\\", "*", "o"]
+    for i, bar in enumerate(ax.patches):
+        hatch_pattern = hatches[i]
+        bar.set_hatch(hatch_pattern)
 
 bbox0 = axes[0].get_position()
 bbox1 = axes[1].get_position()
@@ -226,10 +230,6 @@ text = {
     "dr": "{{\sf Domain Randomization}} (real)",
     "Simulation": "{{\sf Domain Randomization}} (simulation)",
 }
-hatches = ["", "//", "\\", "*", "o"]
-for i, bar in enumerate(ax.patches):
-    hatch_pattern = hatches[i]
-    bar.set_hatch(hatch_pattern)
 fig.legend(
     legend.legend_handles,
     [text[t.get_text()] for t in legend.texts],
