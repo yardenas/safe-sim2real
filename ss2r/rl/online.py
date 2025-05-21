@@ -1,4 +1,3 @@
-import atexit
 import functools
 import os
 import re
@@ -22,11 +21,6 @@ class OnlineEpisodeOrchestrator:
         translate_policy_to_binary_fn,
         num_steps,
         address="tcp://localhost:5555",
-        open_reverse_tunnel=False,
-        ssh_server=None,
-        local_zmq_port=5559,
-        remote_tunnel_port=5555,
-        ssh_timeout=60,
     ):
         """Orchestrator for requesting episodes over ZMQ, with optional SSH reverse tunnel.
 
@@ -51,35 +45,6 @@ class OnlineEpisodeOrchestrator:
         self._translate_policy_to_binary_fn = translate_policy_to_binary_fn
         self.num_steps = num_steps
         self._address = address
-        self._tunnel_pid = None
-        if open_reverse_tunnel:
-            if ssh_server is None:
-                raise ValueError(
-                    "ssh_server must be provided if open_reverse_tunnel=True"
-                )
-            # Launch the tunnel
-            self._tunnel_pid = openssh_reverse_tunnel(
-                rport=remote_tunnel_port,
-                lport=local_zmq_port,
-                server=ssh_server,
-                localip="127.0.0.1",
-                timeout=ssh_timeout,
-            )
-            print(
-                f"[ZMQ Tunnel] Reverse SSH tunnel started with PID {self._tunnel_pid}"
-            )
-
-            def _cleanup_tunnel():
-                if self._tunnel_pid:
-                    try:
-                        print(
-                            f"[ZMQ Tunnel] Cleaning up SSH tunnel PID {self._tunnel_pid}"
-                        )
-                        os.kill(self._tunnel_pid, 15)  # send SIGTERM
-                    except Exception as e:
-                        print(f"[ZMQ Tunnel] Failed to clean up tunnel: {e}")
-
-            atexit.register(_cleanup_tunnel)
 
     def request_data(
         self,
