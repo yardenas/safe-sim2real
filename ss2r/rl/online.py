@@ -73,11 +73,10 @@ class OnlineEpisodeOrchestrator:
         return env_state, transitions
 
     def _send_request(self, make_policy_fn, policy_params):
-        print("Requesting more data...")
-        # policy_bytes = self._translate_policy_to_binary_fn(
-        #     make_policy_fn, policy_params
-        # )
-        policy_bytes = pickle.dumps(policy_params)
+        print("Requesting data...")
+        policy_bytes = self._translate_policy_to_binary_fn(
+            make_policy_fn, policy_params
+        )
         with zmq.Context() as ctx:
             with ctx.socket(zmq.REQ) as socket:
                 socket.connect(self._address)
