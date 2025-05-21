@@ -73,18 +73,20 @@ class OnlineEpisodeOrchestrator:
         return env_state, transitions
 
     def _send_request(self, make_policy_fn, policy_params):
-        print("Requesting data...")
         policy_bytes = self._translate_policy_to_binary_fn(
             make_policy_fn, policy_params
         )
         with zmq.Context() as ctx:
             with ctx.socket(zmq.REQ) as socket:
                 socket.connect(self._address)
-                # Send data
-                socket.send(pickle.dumps((policy_bytes, self.num_steps)))
-                # Receive response
-                response = pickle.loads(socket.recv())
-                return response
+                while True:
+                    print("Requesting data...")
+                    # Send data
+                    socket.send(pickle.dumps((policy_bytes, self.num_steps)))
+                    # Receive response
+                    success, transitions = pickle.loads(socket.recv())
+                    if success:
+                        return transitions
 
 
 _password_pat = re.compile(rb"pass(word|phrase)", re.IGNORECASE)

@@ -28,7 +28,7 @@ from omegaconf import OmegaConf
 from tensorflow.keras import layers  # type: ignore
 
 import ss2r.algorithms.sac.networks as sac_networks
-from ss2r.common import go1_sac_to_onnx
+from ss2r.algorithms.sac import go1_sac_to_onnx
 
 # %%
 parser = argparse.ArgumentParser(description="Convert Flax model to ONNX")

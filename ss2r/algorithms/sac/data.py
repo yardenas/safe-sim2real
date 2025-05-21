@@ -15,7 +15,7 @@ from ss2r.algorithms.sac import (
     UnrollFn,
     float16,
 )
-from ss2r.common.go1_sac_to_onnx import convert_policy_to_onnx
+from ss2r.algorithms.sac.go1_sac_to_onnx import convert_policy_to_onnx
 from ss2r.rl.online import OnlineEpisodeOrchestrator
 
 
