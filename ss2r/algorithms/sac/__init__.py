@@ -1,5 +1,5 @@
 import functools
-from typing import Any, Callable, Tuple, TypeAlias
+from typing import Any, Callable, Protocol, Sequence, Tuple, TypeAlias
 
 import jax
 import jax.numpy as jnp
@@ -37,3 +37,16 @@ CollectDataFn = Callable[
         ReplayBufferState,
     ],
 ]
+
+
+class UnrollFn(Protocol):
+    def __call__(
+        self,
+        env: envs.Env,
+        env_state: envs.State,
+        policy: Policy,
+        key: PRNGKey,
+        *,
+        extra_fields: Sequence[str],
+    ) -> Tuple[envs.State, Transition]:
+        ...

@@ -103,7 +103,6 @@ def _init_training_state(
     key_policy, key_qr, key_qc = jax.random.split(key, 3)
     log_alpha = jnp.asarray(0.0, dtype=jnp.float32)
     alpha_optimizer_state = alpha_optimizer.init(log_alpha)
-
     policy_params = sac_network.policy_network.init(key_policy)
     policy_optimizer_state = policy_optimizer.init(policy_params)
     qr_params = sac_network.qr_network.init(key_qr)
