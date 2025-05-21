@@ -74,53 +74,6 @@ class SPiDR(Wrapper):
         return jax.tree_map(tile, tree)
 
 
-class StatePropagation(Wrapper):
-    """
-    Wrapper for adding action and observation delays in Brax envs, using JAX.
-    This wrapper assumes that the environment is wrapped before with a VmapWrapper or DomainRandomizationVmapWrapper
-    """
-
-    def __init__(self, env, propagation_fn=ts1):
-        super().__init__(env)
-        self.propagation_fn = propagation_fn
-        self.num_envs = None
-
-    def reset(self, rng: jax.Array) -> State:
-        # TODO (yarden): this code is not jax compatible.
-        if self.num_envs is None:
-            self.num_envs = rng.shape[0]
-        # No need to randomize the initial state. Otherwise, even without
-        # domain randomization, the initial states will be different, having
-        # a non-zero disagreement.
-        rng = jnp.tile(rng[:1], (self.num_envs, 1))
-        state = self.env.reset(rng)
-        propagation_rng = jax.random.split(rng[0])[1]
-        n_key, key = jax.random.split(propagation_rng)
-        state.info["state_propagation"] = {}
-        state.info["state_propagation"]["rng"] = jax.random.split(n_key, self.num_envs)
-        orig_next_obs = _get_obs(state)
-        state = self.propagation_fn(state, key)
-        state.info["state_propagation"]["next_obs"] = orig_next_obs
-        return state
-
-    def step(self, state: State, action: jax.Array) -> State:
-        # The order here matters, the tree_map changes the dimensions of
-        # the propgattion_rng
-        propagation_rng = state.info["state_propagation"]["rng"]
-        tile = lambda tree: jax.tree_map(
-            lambda x: jnp.tile(x, (self.num_envs,) + (1,) * x.ndim), tree
-        )
-        state, action = tile(state), tile(action)
-        nstate = self.env.step(state, action)
-        n_key, key = jax.random.split(propagation_rng)
-        orig_next_obs = _get_obs(nstate)
-        nstate.info["state_propagation"]["rng"] = jax.random.split(n_key, self.num_envs)
-        nstate.info["state_propagation"]["next_obs"] = nstate.obs
-        nstate = self.propagation_fn(nstate, key)
-        nstate.info["state_propagation"]["next_obs"] = orig_next_obs
-        return nstate
-
-
 class ModelDisagreement(Wrapper):
     def __init__(self, env):
         super().__init__(env)
