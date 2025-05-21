@@ -19,6 +19,7 @@ from ss2r.algorithms.penalizers import (
 )
 from ss2r.algorithms.ppo.wrappers import Saute
 from ss2r.algorithms.sac import robustness as rb
+from ss2r.algorithms.sac.data import get_collection_fn
 from ss2r.algorithms.sac.wrappers import ModelDisagreement, SPiDR
 from ss2r.common.logging import TrainingLogger
 
@@ -178,6 +179,8 @@ def get_train_fn(cfg):
             del agent_cfg["penalizer"]
         if "propagation" in agent_cfg:
             del agent_cfg["propagation"]
+        if "data_collection" in agent_cfg:
+            del agent_cfg["data_collection"]
         value_obs_key = "privileged_state" if cfg.training.value_privileged else "state"
         policy_obs_key = (
             "privileged_state" if cfg.training.policy_privileged else "state"
@@ -193,6 +196,9 @@ def get_train_fn(cfg):
         penalizer, penalizer_params = get_penalizer(cfg)
         cost_robustness = get_cost_robustness(cfg)
         reward_robustness = get_reward_robustness(cfg)
+        # TODO (yarden): refactor all of these things to be algo dependent.
+        # Create algos in their init
+        data_collection = get_collection_fn(cfg)
         train_fn = functools.partial(
             sac.train,
             **agent_cfg,
@@ -203,6 +209,7 @@ def get_train_fn(cfg):
             reward_robustness=reward_robustness,
             penalizer=penalizer,
             penalizer_params=penalizer_params,
+            get_experience_fn=data_collection,
         )
     elif cfg.agent.name == "ppo":
         import jax.nn as jnn

@@ -3,6 +3,7 @@ defaults:
   - reward_robustness: null
   - penalizer: crpo
   - propagation: null
+  - data_collection: step
 
 name: sac
 learning_rate: 3e-4
