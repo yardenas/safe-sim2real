@@ -1,3 +1,4 @@
+import functools
 from typing import Sequence, Tuple
 
 import jax
@@ -8,6 +9,17 @@ from brax.training.replay_buffers import ReplayBuffer
 from brax.training.types import Policy, PRNGKey
 
 from ss2r.algorithms.sac import CollectDataFn, ReplayBufferState, UnrollFn, float16
+
+
+def get_collection_fn(cfg):
+    if cfg.agent.data_collection.name == "step":
+        return collect_single_step
+    elif cfg.agent.data_collection.name == "episodic":
+        return make_collection_fn(
+            functools.partial(acting.generate_unroll, cfg.training.episode_length)
+        )
+    else:
+        raise ValueError(f"Unknown data collection {cfg.agent.data_collection.name}")
 
 
 def make_collection_fn(unroll_fn: UnrollFn) -> CollectDataFn:
