@@ -119,6 +119,7 @@ class MaxRetryExceeded(Exception):
     pass
 
 
+# FIXME (yarden): this actually does not happen here, but on the server host.
 # Adapted from https://github.com/zeromq/pyzmq/blob/a37d49db40f1836e3f72297b136b87f0b05ab2e2/zmq/ssh/tunnel.py#L206
 def openssh_reverse_tunnel(
     rport, lport, server, localip="127.0.0.1", keyfile=None, password=None, timeout=60

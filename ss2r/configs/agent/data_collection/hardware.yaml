@@ -1,0 +1,7 @@
+name: hardware
+address: "tcp://localhost:5555"
+open_reverse_tunnel: false
+ssh_server: null
+local_zmq_port: 5559
+remote_tunnel_port: 5555
+ssh_timeout: 60
