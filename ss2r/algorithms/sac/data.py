@@ -6,9 +6,15 @@ from brax import envs
 from brax.training import acting
 from brax.training.acme import running_statistics
 from brax.training.replay_buffers import ReplayBuffer
-from brax.training.types import Policy, PRNGKey
+from brax.training.types import Params, PRNGKey
 
-from ss2r.algorithms.sac import CollectDataFn, ReplayBufferState, UnrollFn, float16
+from ss2r.algorithms.sac import (
+    CollectDataFn,
+    MakePolicyFn,
+    ReplayBufferState,
+    UnrollFn,
+    float16,
+)
 
 
 def get_collection_fn(cfg):
@@ -22,10 +28,38 @@ def get_collection_fn(cfg):
         raise ValueError(f"Unknown data collection {cfg.agent.data_collection.name}")
 
 
+def actor_step(
+    env,
+    env_state,
+    make_policy_fn,
+    policy_params,
+    key,
+    extra_fields,
+):
+    policy = make_policy_fn(policy_params)
+    return acting.actor_step(env, env_state, policy, key, extra_fields)
+
+
+def generate_unroll(
+    env,
+    env_state,
+    make_policy_fn,
+    policy_params,
+    key,
+    unroll_length,
+    extra_fields,
+):
+    policy = make_policy_fn(policy_params)
+    return acting.generate_unroll(
+        env, env_state, policy, key, unroll_length, extra_fields
+    )
+
+
 def make_collection_fn(unroll_fn: UnrollFn) -> CollectDataFn:
     def collect_data(
         env: envs.Env,
-        policy: Policy,
+        make_policy_fn: MakePolicyFn,
+        params: Params,
         normalizer_params: running_statistics.RunningStatisticsState,
         replay_buffer: ReplayBuffer,
         env_state: envs.State,
@@ -38,7 +72,12 @@ def make_collection_fn(unroll_fn: UnrollFn) -> CollectDataFn:
         ReplayBufferState,
     ]:
         env_state, transitions = unroll_fn(
-            env, env_state, policy, key, extra_fields=extra_fields
+            env,
+            env_state,
+            make_policy_fn,
+            (normalizer_params, params),
+            key,
+            extra_fields=extra_fields,
         )
         if transitions.observation.ndim == 3:
             transitions = jax.tree.map(
@@ -53,4 +92,4 @@ def make_collection_fn(unroll_fn: UnrollFn) -> CollectDataFn:
     return collect_data
 
 
-collect_single_step = make_collection_fn(acting.actor_step)
+collect_single_step = make_collection_fn(actor_step)

@@ -7,7 +7,7 @@ from brax import envs
 from brax.training import types
 from brax.training.acme import running_statistics
 from brax.training.replay_buffers import ReplayBuffer
-from brax.training.types import Params, Policy, PRNGKey
+from brax.training.types import Params, Policy, PolicyParams, PRNGKey
 
 Metrics: TypeAlias = types.Metrics
 Transition: TypeAlias = types.Transition
@@ -20,10 +20,16 @@ float16 = functools.partial(make_float, t=jnp.float16)
 float32 = functools.partial(make_float, t=jnp.float32)
 
 
+class MakePolicyFn(Protocol):
+    def __call__(self, policy_params: PolicyParams) -> Policy:
+        ...
+
+
 CollectDataFn = Callable[
     [
         envs.Env,
-        Policy,
+        MakePolicyFn,
+        Params,
         running_statistics.RunningStatisticsState,
         ReplayBuffer,
         envs.State,
@@ -44,7 +50,8 @@ class UnrollFn(Protocol):
         self,
         env: envs.Env,
         env_state: envs.State,
-        policy: Policy,
+        make_policy_fn: MakePolicyFn,
+        policy_params: PolicyParams,
         key: PRNGKey,
         *,
         extra_fields: Sequence[str],

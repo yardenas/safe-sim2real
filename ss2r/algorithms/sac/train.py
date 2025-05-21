@@ -421,9 +421,8 @@ def train(
         experience_key, training_key = jax.random.split(key)
         normalizer_params, env_state, buffer_state = get_experience_fn(
             env,
-            make_policy(
-                (training_state.normalizer_params, training_state.policy_params)
-            ),
+            make_policy,
+            training_state.policy_params,
             training_state.normalizer_params,
             replay_buffer,
             env_state,
@@ -486,9 +485,8 @@ def train(
             key, new_key = jax.random.split(key)
             new_normalizer_params, env_state, buffer_state = get_experience_fn(
                 env,
-                make_policy(
-                    (training_state.normalizer_params, training_state.policy_params)
-                ),
+                make_policy,
+                training_state.policy_params,
                 training_state.normalizer_params,
                 replay_buffer,
                 env_state,
