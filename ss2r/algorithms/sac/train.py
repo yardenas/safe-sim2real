@@ -19,7 +19,7 @@ See: https://arxiv.org/pdf/1812.05905.pdf
 
 import functools
 import time
-from typing import Any, Callable, Mapping, Optional, Tuple, TypeAlias, Union
+from typing import Any, Callable, Mapping, Optional, Tuple
 
 import flax
 import jax
@@ -28,27 +28,25 @@ import optax
 from absl import logging
 from brax import envs
 from brax.io import model
-from brax.training import acting, replay_buffers, types
+from brax.training import replay_buffers
 from brax.training.acme import running_statistics, specs
 from brax.training.types import Params, PRNGKey
-from brax.v1 import envs as envs_v1
 
 import ss2r.algorithms.sac.losses as sac_losses
 import ss2r.algorithms.sac.networks as sac_networks
 from ss2r.algorithms.penalizers import Penalizer
-from ss2r.algorithms.sac import gradients
+from ss2r.algorithms.sac import (
+    CollectDataFn,
+    Metrics,
+    ReplayBufferState,
+    Transition,
+    float16,
+    float32,
+    gradients,
+)
+from ss2r.algorithms.sac.data import collect_single_step
 from ss2r.algorithms.sac.robustness import QTransformation, SACBase, SACCost, UCBCost
 from ss2r.rl.evaluation import ConstraintsEvaluator
-
-Metrics: TypeAlias = types.Metrics
-Transition: TypeAlias = types.Transition
-InferenceParams: TypeAlias = Tuple[running_statistics.NestedMeanStd, Params]
-
-ReplayBufferState: TypeAlias = Any
-
-make_float = lambda x, t: jax.tree.map(lambda y: y.astype(t), x)
-float16 = functools.partial(make_float, t=jnp.float16)
-float32 = functools.partial(make_float, t=jnp.float32)
 
 
 @flax.struct.dataclass
@@ -145,7 +143,7 @@ def _init_training_state(
 
 
 def train(
-    environment: Union[envs_v1.Env, envs.Env],
+    environment: envs.Env,
     num_timesteps,
     episode_length: int,
     action_repeat: int = 1,
@@ -153,6 +151,7 @@ def train(
     num_eval_envs: int = 128,
     num_eval_episodes: int = 10,
     wrap_env_fn: Optional[Callable[[Any], Any]] = None,
+    get_experience_fn: CollectDataFn = collect_single_step,
     learning_rate: float = 1e-4,
     critic_learning_rate: float = 1e-4,
     cost_critic_learning_rate: float = 1e-4,
@@ -300,6 +299,11 @@ def train(
             actor_loss, policy_optimizer, pmap_axis_name=None, has_aux=True
         )
     )
+    extra_fields = ("truncation",)
+    if safe:
+        extra_fields += ("cost",)  # type: ignore
+    if isinstance(cost_robustness, UCBCost):
+        extra_fields += ("disagreement",)  # type: ignore
 
     def sgd_step(
         carry: Tuple[TrainingState, PRNGKey], transitions: Transition
@@ -408,35 +412,6 @@ def train(
         )  # type: ignore
         return (new_training_state, key), metrics
 
-    def get_experience(
-        normalizer_params: running_statistics.RunningStatisticsState,
-        policy_params: Params,
-        env_state: Union[envs.State, envs_v1.State],
-        buffer_state: ReplayBufferState,
-        key: PRNGKey,
-    ) -> Tuple[
-        running_statistics.RunningStatisticsState,
-        Union[envs.State, envs_v1.State],
-        ReplayBufferState,
-    ]:
-        policy = make_policy((normalizer_params, policy_params))
-        extra_fields = ("truncation",)
-        if safe:
-            extra_fields += ("cost",)  # type: ignore
-        if isinstance(cost_robustness, UCBCost):
-            extra_fields += ("disagreement",)  # type: ignore
-        # TODO (yarden): if I ever need to sample states based on value functions
-        # one way to code it is to add a function to the StatePropagation wrapper
-        # that receives a function that takes states and returns their corresponding value functions
-        env_state, transitions = acting.actor_step(
-            env, env_state, policy, key, extra_fields=extra_fields
-        )
-        normalizer_params = running_statistics.update(
-            normalizer_params, transitions.observation
-        )
-        buffer_state = replay_buffer.insert(buffer_state, float16(transitions))
-        return normalizer_params, env_state, buffer_state
-
     def run_experience_step(
         training_state: TrainingState,
         env_state: envs.State,
@@ -445,12 +420,17 @@ def train(
     ) -> Tuple[TrainingState, envs.State, ReplayBufferState, PRNGKey]:
         """Runs the non-jittable experience collection step."""
         experience_key, training_key = jax.random.split(key)
-        normalizer_params, env_state, buffer_state = get_experience(
+        normalizer_params, env_state, buffer_state = get_experience_fn(
+            env,
+            make_policy(
+                (training_state.normalizer_params, training_state.policy_params)
+            ),
             training_state.normalizer_params,
-            training_state.policy_params,
+            replay_buffer,
             env_state,
             buffer_state,
             experience_key,
+            extra_fields,
         )
         training_state = training_state.replace(  # type: ignore
             normalizer_params=normalizer_params,
@@ -505,12 +485,17 @@ def train(
             del unused
             training_state, env_state, buffer_state, key = carry
             key, new_key = jax.random.split(key)
-            new_normalizer_params, env_state, buffer_state = get_experience(
+            new_normalizer_params, env_state, buffer_state = get_experience_fn(
+                env,
+                make_policy(
+                    (training_state.normalizer_params, training_state.policy_params)
+                ),
                 training_state.normalizer_params,
-                training_state.policy_params,
+                replay_buffer,
                 env_state,
                 buffer_state,
                 key,
+                extra_fields,
             )
             new_training_state = training_state.replace(
                 normalizer_params=new_normalizer_params,
