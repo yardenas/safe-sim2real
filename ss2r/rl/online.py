@@ -1,4 +1,5 @@
 import atexit
+import functools
 import os
 import re
 from getpass import getpass
@@ -9,6 +10,7 @@ import pexpect
 import zmq
 from brax import envs
 from brax.training.types import PolicyParams, PRNGKey
+from jax.experimental import io_callback
 
 from ss2r.algorithms.sac import MakePolicyFn, Transition
 
@@ -21,10 +23,8 @@ class OnlineEpisodeOrchestrator:
         address="tcp://localhost:5555",
         open_reverse_tunnel=False,
         ssh_server=None,
-        local_zmq_port=5555,
+        local_zmq_port=5559,
         remote_tunnel_port=5555,
-        ssh_keyfile=None,
-        ssh_password=None,
         ssh_timeout=60,
     ):
         """Orchestrator for requesting episodes over ZMQ, with optional SSH reverse tunnel.
@@ -62,8 +62,6 @@ class OnlineEpisodeOrchestrator:
                 lport=local_zmq_port,
                 server=ssh_server,
                 localip="127.0.0.1",
-                keyfile=ssh_keyfile,
-                password=ssh_password,
                 timeout=ssh_timeout,
             )
             print(
@@ -82,6 +80,7 @@ class OnlineEpisodeOrchestrator:
 
             atexit.register(_cleanup_tunnel)
 
+    @functools.partial(io_callback, ordered=True)
     def request_data(
         self,
         env: envs.Env,

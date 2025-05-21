@@ -15,6 +15,7 @@ from ss2r.algorithms.sac import (
     UnrollFn,
     float16,
 )
+from ss2r.rl.online import OnlineEpisodeOrchestrator
 
 
 def get_collection_fn(cfg):
@@ -24,6 +25,19 @@ def get_collection_fn(cfg):
         return make_collection_fn(
             functools.partial(acting.generate_unroll, cfg.training.episode_length)
         )
+    elif cfg.agent.data_collection.name == "hardware":
+        data_collection_cfg = cfg.agent.data_collection
+        orchestrator = OnlineEpisodeOrchestrator(
+            lambda x: x,
+            cfg.training.episode_length,
+            data_collection_cfg.address,
+            data_collection_cfg.open_reverse_tunnel,
+            data_collection_cfg.ssh_server,
+            data_collection_cfg.local_zmq_port,
+            data_collection_cfg.remote_tunnel_port,
+            data_collection_cfg.ssh_timeout,
+        )
+        return make_collection_fn(orchestrator.request_data)
     else:
         raise ValueError(f"Unknown data collection {cfg.agent.data_collection.name}")
 
