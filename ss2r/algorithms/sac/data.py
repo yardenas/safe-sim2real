@@ -93,7 +93,7 @@ def make_collection_fn(unroll_fn: UnrollFn) -> CollectDataFn:
             key,
             extra_fields=extra_fields,
         )
-        if transitions.observation.ndim == 3:
+        if transitions.reward.ndim == 2:
             transitions = jax.tree.map(
                 lambda x: x.reshape(-1, *x.shape[2:]), transitions
             )

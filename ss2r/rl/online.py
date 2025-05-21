@@ -9,6 +9,7 @@ import cloudpickle as pickle
 import pexpect
 import zmq
 from brax import envs
+from brax.training import acting
 from brax.training.types import PolicyParams, PRNGKey
 from jax.experimental import io_callback
 
@@ -80,7 +81,6 @@ class OnlineEpisodeOrchestrator:
 
             atexit.register(_cleanup_tunnel)
 
-    @functools.partial(io_callback, ordered=True)
     def request_data(
         self,
         env: envs.Env,
@@ -91,13 +91,28 @@ class OnlineEpisodeOrchestrator:
         *,
         extra_fields: Sequence[str],
     ) -> Tuple[envs.State, Transition]:
-        policy_bytes = self._translate_policy_to_binary_fn(
-            make_policy_fn, policy_params
+        dummy_transitions = acting.generate_unroll(
+            env,
+            env_state,
+            make_policy_fn(policy_params),
+            key,
+            self.num_steps,
+            extra_fields,
+        )[1]
+        transitions = io_callback(
+            functools.partial(self._send_request, make_policy_fn),
+            dummy_transitions,
+            policy_params,
+            ordered=True,
         )
-        transitions = self._send_request(policy_bytes)
         return env_state, transitions
 
-    def _send_request(self, policy_bytes: bytes):
+    def _send_request(self, make_policy_fn, policy_params):
+        print("Requesting more data...")
+        # policy_bytes = self._translate_policy_to_binary_fn(
+        #     make_policy_fn, policy_params
+        # )
+        policy_bytes = pickle.dumps(policy_params)
         with zmq.Context() as ctx:
             with ctx.socket(zmq.REQ) as socket:
                 socket.connect(self._address)
