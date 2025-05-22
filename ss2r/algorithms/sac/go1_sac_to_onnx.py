@@ -117,12 +117,7 @@ def transfer_weights(jax_params, tf_model):
             print(f"Unhandled layer type in {layer_name}: {type(tf_layer)}")
 
 
-def convert_policy_to_onnx(
-    params,
-    cfg,
-    act_size,
-    obs_size,
-):
+def convert_policy_to_onnx(params, cfg, act_size, obs_size):
     """
     Converts a JAX policy to ONNX format using a TensorFlow intermediate model.
 
