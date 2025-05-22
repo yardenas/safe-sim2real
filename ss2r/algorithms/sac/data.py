@@ -114,4 +114,4 @@ collect_single_step = make_collection_fn(actor_step)
 def make_go1_policy(make_policy_fn, params, cfg):
     del make_policy_fn
     proto_model = convert_policy_to_onnx(params, cfg, 12, 48)
-    return proto_model
+    return proto_model.SerializeToString()
