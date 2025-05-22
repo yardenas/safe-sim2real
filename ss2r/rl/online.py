@@ -5,6 +5,7 @@ from getpass import getpass
 from typing import Sequence, Tuple
 
 import cloudpickle as pickle
+import jax
 import pexpect
 import zmq
 from brax import envs
@@ -64,12 +65,15 @@ class OnlineEpisodeOrchestrator:
             self.num_steps,
             extra_fields,
         )[1]
+        dummy_transitions = jax.tree.map(lambda x: x.squeeze(1), dummy_transitions)
         transitions = io_callback(
             functools.partial(self._send_request, make_policy_fn),
             dummy_transitions,
             policy_params,
             ordered=True,
         )
+        state_extras = {x: transitions.extras["state_extras"][x] for x in extra_fields}
+        transitions.extras["state_extras"] = state_extras
         return env_state, transitions
 
     def _send_request(self, make_policy_fn, policy_params):
