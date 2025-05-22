@@ -69,26 +69,6 @@ class TrainingState:
     penalizer_params: Params
 
 
-def _scan(f, init, xs, length=None, reverse=False, unroll=1, *, use_lax=True):
-    if use_lax:
-        return jax.lax.scan(f, init, xs, length=length, reverse=reverse, unroll=unroll)
-    else:
-        xs_flat, xs_tree = jax.tree_flatten(xs)
-        carry = init
-        ys = []
-        maybe_reversed = reversed if reverse else lambda x: x
-        for i in maybe_reversed(range(length)):
-            xs_slice = [
-                jax._src.lax.loops._index_array(i, jax._src.core.get_aval(x), x)
-                for x in xs_flat
-            ]
-            carry, y = f(carry, jax.tree_unflatten(xs_tree, xs_slice))
-        ys.append(y)
-        stack = lambda *ys: jax.numpy.stack(ys)
-        stacked_y = jax.tree_map(stack, *maybe_reversed(ys))
-        return carry, stacked_y
-
-
 def _init_training_state(
     key: PRNGKey,
     obs_size: int,
@@ -421,9 +401,8 @@ def train(
         experience_key, training_key = jax.random.split(key)
         normalizer_params, env_state, buffer_state = get_experience_fn(
             env,
-            make_policy(
-                (training_state.normalizer_params, training_state.policy_params)
-            ),
+            make_policy,
+            training_state.policy_params,
             training_state.normalizer_params,
             replay_buffer,
             env_state,
@@ -486,9 +465,8 @@ def train(
             key, new_key = jax.random.split(key)
             new_normalizer_params, env_state, buffer_state = get_experience_fn(
                 env,
-                make_policy(
-                    (training_state.normalizer_params, training_state.policy_params)
-                ),
+                make_policy,
+                training_state.policy_params,
                 training_state.normalizer_params,
                 replay_buffer,
                 env_state,
@@ -502,7 +480,7 @@ def train(
             )
             return (new_training_state, env_state, buffer_state, new_key), ()
 
-        return _scan(
+        return jax.lax.scan(
             f,
             (training_state, env_state, buffer_state, key),
             (),
@@ -521,7 +499,7 @@ def train(
             ts, es, bs, metrics = training_step(ts, es, bs, k)
             return (ts, es, bs, new_key), metrics
 
-        (training_state, env_state, buffer_state, key), metrics = _scan(
+        (training_state, env_state, buffer_state, key), metrics = jax.lax.scan(
             f,
             (training_state, env_state, buffer_state, key),
             (),

@@ -1,0 +1,10 @@
+# @package _global_
+defaults:
+  - go1_joystick
+  - override /agent/data_collection: hardware
+  - _self_
+
+training:
+  num_envs: 1
+  num_eval_envs: 1
+  safe: true
