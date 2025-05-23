@@ -10,8 +10,6 @@ from omegaconf import OmegaConf
 
 from ss2r import benchmark_suites
 from ss2r.algorithms import ppo, sac
-from ss2r.algorithms.ppo.wrappers import Saute
-from ss2r.algorithms.sac.wrappers import ModelDisagreement, SPiDR
 from ss2r.common.logging import TrainingLogger
 
 _LOG = logging.getLogger(__name__)
@@ -42,61 +40,6 @@ def get_wandb_checkpoint(run_id):
     artifact = api.artifact(f"ss2r/checkpoint:{run_id}")
     download_dir = artifact.download(f"{get_state_path()}/{run_id}")
     return download_dir
-
-
-def get_wrap_env_fn(cfg):
-    if "propagation" not in cfg.agent:
-        out = lambda env: env, lambda env: env
-    elif cfg.agent.propagation.name == "ts1":
-
-        def fn(env):
-            key = jax.random.PRNGKey(cfg.training.seed)
-            env = SPiDR(
-                env,
-                benchmark_suites.prepare_randomization_fn(
-                    key,
-                    cfg.agent.propagation.num_envs,
-                    cfg.environment.train_params,
-                    cfg.environment.task_name,
-                ),
-                cfg.agent.propagation.num_envs,
-            )
-            env = ModelDisagreement(env)
-            return env
-
-        out = fn, lambda env: env
-    else:
-        raise ValueError("Propagation method not provided.")
-    if "penalizer" in cfg.agent and cfg.agent.penalizer.name == "saute":
-
-        def saute_train(env):
-            env = out[0](env)
-            env = Saute(
-                env,
-                cfg.training.episode_length,
-                cfg.agent.safety_discounting,
-                cfg.training.safety_budget,
-                cfg.agent.penalizer.penalty,
-                cfg.agent.penalizer.terminate,
-                cfg.agent.penalizer.lambda_,
-            )
-            return env
-
-        def saute_eval(env):
-            env = out[1](env)
-            env = Saute(
-                env,
-                cfg.training.episode_length,
-                cfg.agent.safety_discounting,
-                cfg.training.safety_budget,
-                0.0,
-                False,
-                0.0,
-            )
-            return env
-
-        out = saute_train, saute_eval
-    return out
 
 
 def get_train_fn(cfg):
@@ -140,7 +83,7 @@ def main(cfg):
     )
     logger = TrainingLogger(cfg)
     train_fn = get_train_fn(cfg)
-    train_env_wrap_fn, eval_env_wrap_fn = get_wrap_env_fn(cfg)
+    train_env_wrap_fn, eval_env_wrap_fn = benchmark_suites.get_wrap_env_fn(cfg)
     train_env, eval_env = benchmark_suites.make(
         cfg, train_env_wrap_fn, eval_env_wrap_fn
     )

@@ -3,6 +3,7 @@ import functools
 import jax
 from brax import envs
 
+from ss2r.algorithms.ppo.wrappers import Saute
 from ss2r.benchmark_suites import brax, mujoco_playground, safety_gym, wrappers
 from ss2r.benchmark_suites.brax.ant import ant
 from ss2r.benchmark_suites.brax.cartpole import cartpole
@@ -18,7 +19,64 @@ from ss2r.benchmark_suites.utils import get_domain_name, get_task_config
 from ss2r.benchmark_suites.wrappers import (
     ActionObservationDelayWrapper,
     FrameActionStack,
+    ModelDisagreement,
+    SPiDR,
 )
+
+
+def get_wrap_env_fn(cfg):
+    if "propagation" not in cfg.agent:
+        out = lambda env: env, lambda env: env
+    elif cfg.agent.propagation.name == "ts1":
+
+        def fn(env):
+            key = jax.random.PRNGKey(cfg.training.seed)
+            env = SPiDR(
+                env,
+                prepare_randomization_fn(
+                    key,
+                    cfg.agent.propagation.num_envs,
+                    cfg.environment.train_params,
+                    cfg.environment.task_name,
+                ),
+                cfg.agent.propagation.num_envs,
+            )
+            env = ModelDisagreement(env)
+            return env
+
+        out = fn, lambda env: env
+    else:
+        raise ValueError("Propagation method not provided.")
+    if "penalizer" in cfg.agent and cfg.agent.penalizer.name == "saute":
+
+        def saute_train(env):
+            env = out[0](env)
+            env = Saute(
+                env,
+                cfg.training.episode_length,
+                cfg.agent.safety_discounting,
+                cfg.training.safety_budget,
+                cfg.agent.penalizer.penalty,
+                cfg.agent.penalizer.terminate,
+                cfg.agent.penalizer.lambda_,
+            )
+            return env
+
+        def saute_eval(env):
+            env = out[1](env)
+            env = Saute(
+                env,
+                cfg.training.episode_length,
+                cfg.agent.safety_discounting,
+                cfg.training.safety_budget,
+                0.0,
+                False,
+                0.0,
+            )
+            return env
+
+        out = saute_train, saute_eval
+    return out
 
 
 def make(cfg, train_wrap_env_fn=lambda env: env, eval_wrap_env_fn=lambda env: env):
