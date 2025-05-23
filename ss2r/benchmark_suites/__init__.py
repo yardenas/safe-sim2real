@@ -54,12 +54,10 @@ def get_wrap_env_fn(cfg):
             env = out[0](env)
             env = Saute(
                 env,
-                cfg.training.episode_length,
                 cfg.agent.safety_discounting,
                 cfg.training.safety_budget,
                 cfg.agent.penalizer.penalty,
                 cfg.agent.penalizer.terminate,
-                cfg.agent.penalizer.lambda_,
             )
             return env
 
@@ -67,12 +65,10 @@ def get_wrap_env_fn(cfg):
             env = out[1](env)
             env = Saute(
                 env,
-                cfg.training.episode_length,
                 cfg.agent.safety_discounting,
                 cfg.training.safety_budget,
                 0.0,
                 False,
-                0.0,
             )
             return env
 
