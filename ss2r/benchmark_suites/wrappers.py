@@ -1,4 +1,4 @@
-from typing import Callable, Optional, Tuple
+from typing import Callable, Mapping, Optional, Tuple
 
 import jax
 from brax.base import System
@@ -322,3 +322,81 @@ def wrap(
         )
     env = brax_training.AutoResetWrapper(env)
     return env
+
+
+def _get_obs(state):
+    if isinstance(state.obs, jax.Array):
+        return state.obs
+    else:
+        assert isinstance(state.obs, Mapping)
+        return state.obs["state"]
+
+
+class SPiDR(Wrapper):
+    def __init__(self, env, randomzation_fn, num_perturbed_envs, lambda_, alpha):
+        super().__init__(env)
+        if hasattr(env, "sys"):
+            self.perturbed_env = DomainRandomizationVmapWrapper(
+                env, randomzation_fn, augment_state=False
+            )
+        elif hasattr(env, "mjx_model"):
+            self.perturbed_env = BraxDomainRandomizationVmapWrapper(
+                env, randomzation_fn, augment_state=False
+            )
+        else:
+            raise ValueError("Should be either mujoco playground or brax env")
+        self.num_perturbed_envs = num_perturbed_envs
+        self.lambda_ = lambda_
+        self.alpha = alpha
+
+    def reset(self, rng: jax.Array) -> State:
+        # No need to randomize the initial state. Otherwise, even without
+        # domain randomization, the initial states will be different, having
+        # a non-zero disagreement.
+        state = self.env.reset(rng)
+        cost = jp.zeros_like(state.reward)
+        state.info["state_propagation"] = {}
+        state.info["state_propagation"]["next_obs"] = self._tile(_get_obs(state))
+        state.info["state_propagation"]["cost"] = self._tile(cost)
+        disagreement = self._compute_disagreement(
+            state.info["state_propagation"]["next_obs"]
+        )
+        state.info["disagreement"] = disagreement
+        state.metrics["disagreement"] = disagreement
+        return state
+
+    def step(self, state: State, action: jax.Array) -> State:
+        nstate = self.env.step(state, action)
+        v_state, v_action = self._tile(state), self._tile(action)
+        perturbed_nstate = self.perturbed_env.step(v_state, v_action)
+        next_obs = _get_obs(perturbed_nstate)
+        disagreement = self._compute_disagreement(next_obs)
+        nstate.info["state_propagation"]["next_obs"] = next_obs
+        nstate.info["state_propagation"]["cost"] = perturbed_nstate.info.get(
+            "cost", jp.zeros_like(perturbed_nstate.reward)
+        )
+        nstate.info["disagreement"] = disagreement
+        nstate.metrics["disagreement"] = disagreement
+        return nstate
+
+    def _compute_disagreement(self, next_obs: jax.Array) -> jax.Array:
+        variance = jp.nanvar(next_obs, axis=0).mean(-1)
+        variance = jp.where(jp.isnan(variance), 0.0, variance)
+        return jp.clip(variance, a_max=1000.0) * self.lambda_ + self.alpha
+
+    def _tile(self, tree):
+        def tile(x):
+            x = jp.asarray(x)
+            return jp.tile(x, (self.num_perturbed_envs,) + (1,) * x.ndim)
+
+        return jax.tree_map(tile, tree)
+
+
+class BraxDomainRandomizationVmapWrapper(DomainRandomizationVmapBase):
+    def _init_randomization(self, randomization_fn):
+        return randomization_fn(self.mjx_model)
+
+    def _env_fn(self, model):
+        env = self.env
+        env.unwrapped._mjx_model = model
+        return env

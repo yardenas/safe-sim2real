@@ -27,25 +27,26 @@ import jax.numpy as jnp
 import optax
 from absl import logging
 from brax import envs
-from brax.io import model
 from brax.training import replay_buffers
 from brax.training.acme import running_statistics, specs
+from brax.training.agents.sac import checkpoint
 from brax.training.types import Params, PRNGKey
+from ml_collections import config_dict
 
 import ss2r.algorithms.sac.losses as sac_losses
 import ss2r.algorithms.sac.networks as sac_networks
 from ss2r.algorithms.penalizers import Penalizer
-from ss2r.algorithms.sac import (
+from ss2r.algorithms.sac import gradients
+from ss2r.algorithms.sac.data import collect_single_step
+from ss2r.algorithms.sac.robustness import QTransformation, SACBase, SACCost, UCBCost
+from ss2r.algorithms.sac.types import (
     CollectDataFn,
     Metrics,
     ReplayBufferState,
     Transition,
     float16,
     float32,
-    gradients,
 )
-from ss2r.algorithms.sac.data import collect_single_step
-from ss2r.algorithms.sac.robustness import QTransformation, SACBase, SACCost, UCBCost
 from ss2r.rl.evaluation import ConstraintsEvaluator
 
 
@@ -69,26 +70,6 @@ class TrainingState:
     penalizer_params: Params
 
 
-def _scan(f, init, xs, length=None, reverse=False, unroll=1, *, use_lax=True):
-    if use_lax:
-        return jax.lax.scan(f, init, xs, length=length, reverse=reverse, unroll=unroll)
-    else:
-        xs_flat, xs_tree = jax.tree_flatten(xs)
-        carry = init
-        ys = []
-        maybe_reversed = reversed if reverse else lambda x: x
-        for i in maybe_reversed(range(length)):
-            xs_slice = [
-                jax._src.lax.loops._index_array(i, jax._src.core.get_aval(x), x)
-                for x in xs_flat
-            ]
-            carry, y = f(carry, jax.tree_unflatten(xs_tree, xs_slice))
-        ys.append(y)
-        stack = lambda *ys: jax.numpy.stack(ys)
-        stacked_y = jax.tree_map(stack, *maybe_reversed(ys))
-        return carry, stacked_y
-
-
 def _init_training_state(
     key: PRNGKey,
     obs_size: int,
@@ -103,7 +84,6 @@ def _init_training_state(
     key_policy, key_qr, key_qc = jax.random.split(key, 3)
     log_alpha = jnp.asarray(0.0, dtype=jnp.float32)
     alpha_optimizer_state = alpha_optimizer.init(log_alpha)
-
     policy_params = sac_network.policy_network.init(key_policy)
     policy_optimizer_state = policy_optimizer.init(policy_params)
     qr_params = sac_network.qr_network.init(key_qr)
@@ -176,6 +156,7 @@ def train(
     ] = sac_networks.make_sac_networks,
     progress_fn: Callable[[int, Metrics], None] = lambda *args: None,
     checkpoint_logdir: Optional[str] = None,
+    restore_checkpoint_path: Optional[str] = None,
     eval_env: Optional[envs.Env] = None,
     safe: bool = False,
     safety_budget: float = float("inf"),
@@ -422,9 +403,8 @@ def train(
         experience_key, training_key = jax.random.split(key)
         normalizer_params, env_state, buffer_state = get_experience_fn(
             env,
-            make_policy(
-                (training_state.normalizer_params, training_state.policy_params)
-            ),
+            make_policy,
+            training_state.policy_params,
             training_state.normalizer_params,
             replay_buffer,
             env_state,
@@ -487,9 +467,8 @@ def train(
             key, new_key = jax.random.split(key)
             new_normalizer_params, env_state, buffer_state = get_experience_fn(
                 env,
-                make_policy(
-                    (training_state.normalizer_params, training_state.policy_params)
-                ),
+                make_policy,
+                training_state.policy_params,
                 training_state.normalizer_params,
                 replay_buffer,
                 env_state,
@@ -503,7 +482,7 @@ def train(
             )
             return (new_training_state, env_state, buffer_state, new_key), ()
 
-        return _scan(
+        return jax.lax.scan(
             f,
             (training_state, env_state, buffer_state, key),
             (),
@@ -522,7 +501,7 @@ def train(
             ts, es, bs, metrics = training_step(ts, es, bs, k)
             return (ts, es, bs, new_key), metrics
 
-        (training_state, env_state, buffer_state, key), metrics = _scan(
+        (training_state, env_state, buffer_state, key), metrics = jax.lax.scan(
             f,
             (training_state, env_state, buffer_state, key),
             (),
@@ -576,7 +555,16 @@ def train(
         penalizer_params=penalizer_params,
     )
     del global_key
-
+    if restore_checkpoint_path is not None:
+        params = checkpoint.load(restore_checkpoint_path)
+        penalizer_params = type(training_state.penalizer_params)(**params[2])
+        training_state = training_state.replace(  # type: ignore
+            normalizer_params=params[0],
+            policy_params=params[1],
+            penalizer_params=penalizer_params,
+            qr_params=params[3],
+            qc_params=params[4],
+        )
     local_key, rb_key, env_key, eval_key = jax.random.split(local_key, 4)
 
     # Env init
@@ -662,9 +650,12 @@ def train(
             params = (
                 training_state.normalizer_params,
                 training_state.policy_params,
+                training_state.penalizer_params,
+                training_state.qr_params,
+                training_state.qc_params,
             )
-            path = f"{checkpoint_logdir}_sac_{current_step}.pkl"
-            model.save_params(path, params)
+            dummy_ckpt_config = config_dict.ConfigDict()
+            checkpoint.save(checkpoint_logdir, current_step, params, dummy_ckpt_config)
 
         # Run evals.
         metrics = evaluator.run_evaluation(
@@ -682,6 +673,12 @@ def train(
 
     total_steps = current_step
     assert total_steps >= num_timesteps
-    params = (training_state.normalizer_params, training_state.policy_params)
+    params = (
+        training_state.normalizer_params,
+        training_state.policy_params,
+        training_state.penalizer_params,
+        training_state.qr_params,
+        training_state.qc_params,
+    )
     logging.info("total steps: %s", total_steps)
     return make_policy, params, metrics

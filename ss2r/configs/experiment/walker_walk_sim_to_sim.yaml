@@ -3,7 +3,7 @@ defaults:
   - mujoco_playground_dm_control
   - override /environment: walker
   - override /agent/cost_robustness: ucb_cost
-  - override /agent/propagation: ts1
+  - override /agent/propagation: spidr
   - _self_
 
 training:
@@ -14,6 +14,6 @@ training:
   safety_budget: 100.
 
 agent:
-  cost_robustness:
-    cost_penalty: 4.5
+  propagation:
+    lambda_: 4.5
   
