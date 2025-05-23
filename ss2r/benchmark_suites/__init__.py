@@ -19,7 +19,6 @@ from ss2r.benchmark_suites.utils import get_domain_name, get_task_config
 from ss2r.benchmark_suites.wrappers import (
     ActionObservationDelayWrapper,
     FrameActionStack,
-    ModelDisagreement,
     SPiDR,
 )
 
@@ -27,7 +26,7 @@ from ss2r.benchmark_suites.wrappers import (
 def get_wrap_env_fn(cfg):
     if "propagation" not in cfg.agent:
         out = lambda env: env, lambda env: env
-    elif cfg.agent.propagation.name == "ts1":
+    elif cfg.agent.propagation.name == "spidr":
 
         def fn(env):
             key = jax.random.PRNGKey(cfg.training.seed)
@@ -40,8 +39,9 @@ def get_wrap_env_fn(cfg):
                     cfg.environment.task_name,
                 ),
                 cfg.agent.propagation.num_envs,
+                cfg.agent.propagation.lambda_,
+                cfg.agent.propagation.alpha,
             )
-            env = ModelDisagreement(env)
             return env
 
         out = fn, lambda env: env

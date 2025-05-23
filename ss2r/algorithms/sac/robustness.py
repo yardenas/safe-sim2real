@@ -22,10 +22,6 @@ class QTransformation(Protocol):
 
 
 class UCBCost(QTransformation):
-    def __init__(self, lambda_: float, alpha: float) -> None:
-        self.lambda_ = lambda_
-        self.alpha = alpha
-
     def __call__(
         self,
         transitions: Transition,
@@ -40,10 +36,8 @@ class UCBCost(QTransformation):
         next_action, _ = policy(transitions.next_observation)
         next_q = q_fn(transitions.next_observation, next_action)
         next_v = next_q.mean(axis=-1)
-        std = transitions.extras["state_extras"]["disagreement"]
-        cost = (
-            transitions.extras["state_extras"]["cost"] + self.lambda_ * std + self.alpha
-        )
+        disagreement = transitions.extras["state_extras"]["disagreement"]
+        cost = transitions.extras["state_extras"]["cost"] + disagreement
         target_q = jax.lax.stop_gradient(
             cost * scale + transitions.discount * gamma * next_v
         )
@@ -196,9 +190,6 @@ class RAMUReward(QTransformation):
 
 
 class LCBReward(QTransformation):
-    def __init__(self, lambda_: float) -> None:
-        self.lambda_ = lambda_
-
     def __call__(
         self,
         transitions: Transition,
@@ -217,8 +208,8 @@ class LCBReward(QTransformation):
         else:
             next_v = next_q.min(axis=-1)
         next_v -= alpha * next_log_prob
-        std = transitions.extras["state_extras"]["disagreement"]
-        reward = transitions.reward - self.lambda_ * std
+        disagreement = transitions.extras["state_extras"]["disagreement"]
+        reward = transitions.reward - disagreement
         target_q = jax.lax.stop_gradient(
             reward * scale + transitions.discount * gamma * next_v
         )
@@ -258,9 +249,7 @@ def get_cost_robustness(cfg):
         del cfg.agent.cost_robustness.name
         robustness = RAMU(**cfg.agent.cost_robustness)
     elif cfg.agent.cost_robustness.name == "ucb_cost":
-        robustness = UCBCost(
-            cfg.agent.cost_robustness.cost_penalty, cfg.agent.cost_robustness.alpha
-        )
+        robustness = UCBCost()
     else:
         raise ValueError("Unknown robustness")
     return robustness
@@ -277,7 +266,7 @@ def get_reward_robustness(cfg):
         del cfg.agent.reward_robustness.name
         robustness = RAMUReward(**cfg.agent.reward_robustness)
     elif cfg.agent.reward_robustness.name == "lcb_reward":
-        robustness = LCBReward(cfg.agent.reward_robustness.reward_penalty)
+        robustness = LCBReward()
     else:
         raise ValueError("Unknown robustness")
     return robustness

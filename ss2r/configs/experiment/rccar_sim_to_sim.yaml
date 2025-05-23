@@ -2,7 +2,7 @@
 defaults:
   - override /environment: rccar
   - override /agent/cost_robustness: ucb_cost
-  - override /agent/propagation: ts1
+  - override /agent/propagation: spidr
   - override /agent/penalizer: lagrangian
   - _self_
 
@@ -31,5 +31,5 @@ agent:
     lagrange_multiplier: 0.1
     penalty_multiplier: 0.001
     penalty_multiplier_factor: 1e-4
-  cost_robustness:
-    cost_penalty: 50.
+  propagation:
+    lambda_: 50.

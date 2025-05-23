@@ -4,7 +4,7 @@ defaults:
   - override /environment: quadruped
   - override /agent/penalizer: lagrangian
   - override /agent/cost_robustness: ucb_cost
-  - override /agent/propagation: ts1
+  - override /agent/propagation: spidr
   - _self_
 
 
@@ -18,5 +18,5 @@ training:
 agent:
   activation: swish
   reset_on_eval: false
-  cost_robustness: 
-    cost_penalty: 5e-4
+  propagation: 
+    lambda_: 5e-4

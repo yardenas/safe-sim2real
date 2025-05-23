@@ -24,9 +24,7 @@ class TrackOnlineCosts(Wrapper):
 
 
 class Saute(Wrapper):
-    def __init__(
-        self, env, episode_length, discounting, budget, penalty, terminate, lambda_
-    ):
+    def __init__(self, env, discounting, budget, penalty, terminate):
         super().__init__(env)
         # Assumes that this is the budget for the undiscounted
         # episode.
@@ -34,7 +32,6 @@ class Saute(Wrapper):
         self.discounting = discounting
         self.terminate = terminate
         self.penalty = penalty
-        self.disagreement_scale = lambda_
 
     @property
     def observation_size(self):
@@ -71,7 +68,7 @@ class Saute(Wrapper):
         )
         nstate = self.env.step(state, action)
         cost = nstate.info.get("cost", jnp.zeros_like(nstate.reward))
-        cost += self.disagreement_scale * nstate.info.get("disagreement", 0.0)
+        cost += nstate.info.get("disagreement", 0.0)
         saute_state -= cost / self.budget
         saute_reward = jnp.where(saute_state <= 0.0, -self.penalty, nstate.reward)
         terminate = jnp.where(

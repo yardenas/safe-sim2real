@@ -11,7 +11,6 @@ from brax.training.types import Params
 
 from ss2r.algorithms.penalizers import get_penalizer
 from ss2r.algorithms.ppo import losses as ppo_losses
-from ss2r.algorithms.sac.robustness import get_cost_robustness
 
 _PMAP_AXIS_NAME = "i"
 
@@ -66,8 +65,6 @@ def get_train_fn(cfg, checkpoint_path, checkpoint_restore_path):
     activation = getattr(jnn, agent_cfg.pop("activation"))
     value_obs_key = "privileged_state" if cfg.training.value_privileged else "state"
     policy_obs_key = "privileged_state" if cfg.training.policy_privileged else "state"
-    # FIXME (yarden): this shouldn't be here because it's related to SAC
-    cost_robustness = get_cost_robustness(cfg)
     del training_cfg["value_privileged"]
     del training_cfg["policy_privileged"]
     del agent_cfg["name"]
@@ -103,11 +100,5 @@ def get_train_fn(cfg, checkpoint_path, checkpoint_restore_path):
         train_fn = functools.partial(
             train_fn,
             use_saute=cfg.training.safe,
-        )
-    if "propagation" in cfg.agent and cfg.agent.propagation.name == "ts1":
-        train_fn = functools.partial(
-            train_fn,
-            use_disagreement=True,
-            disagreement_scale=cost_robustness.lambda_,
         )
     return train_fn

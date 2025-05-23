@@ -110,7 +110,6 @@ def make_losses(
     safety_gae_lambda,
     use_saute,
     use_disagreement,
-    disagreement_scale,
 ):
     def compute_policy_loss(
         policy_params,
@@ -167,7 +166,7 @@ def make_losses(
             cost = data.extras["state_extras"]["cost"] * cost_scaling
             if use_disagreement:
                 disagreement = data.extras["state_extras"]["disagreement"]
-                cost += disagreement * disagreement_scale
+                cost += disagreement
             cost_baseline = cost_value_apply(
                 normalizer_params, cost_value_params, data.observation
             )
@@ -197,7 +196,7 @@ def make_losses(
             cumulative_cost = data.extras["state_extras"]["cumulative_cost"]
             if use_disagreement:
                 disagreement = data.extras["state_extras"]["disagreement"]
-                cumulative_cost += disagreement * disagreement_scale
+                cumulative_cost += disagreement
             constraint = safety_budget - vsc.mean()
             policy_loss, penalizer_aux, _ = penalizer(
                 policy_loss,
@@ -241,7 +240,7 @@ def make_losses(
         cost = data.extras["state_extras"]["cost"] * cost_scaling
         if use_disagreement:
             disagreement = data.extras["state_extras"]["disagreement"]
-            cost += disagreement * disagreement_scale
+            cost += disagreement
         cost_baseline = cost_value_apply(normalizer_params, params, data.observation)
         terminal_obs = jax.tree_util.tree_map(lambda x: x[-1], data.next_observation)
         cost_bootstrap = cost_value_apply(normalizer_params, params, terminal_obs)

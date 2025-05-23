@@ -3,7 +3,7 @@ defaults:
   - mujoco_playground_dm_control
   - override /environment: go_to_goal
   - override /agent/cost_robustness: ucb_cost
-  - override /agent/propagation: ts1
+  - override /agent/propagation: spidr
   - override /agent/penalizer: lagrangian
   - _self_
 
@@ -21,7 +21,6 @@ agent:
     lagrange_multiplier: 5.
     penalty_multiplier: 2.
     penalty_multiplier_factor: 0.25
-  cost_robustness:
-    cost_penalty: 0.175
   propagation:
     num_envs: 8
+    lambda_: 0.175

@@ -335,7 +335,7 @@ def _get_obs(state):
 
 
 class SPiDR(Wrapper):
-    def __init__(self, env, randomzation_fn, num_perturbed_envs):
+    def __init__(self, env, randomzation_fn, num_perturbed_envs, lambda_, alpha):
         super().__init__(env)
         if hasattr(env, "sys"):
             self.perturbed_env = DomainRandomizationVmapWrapper(
@@ -348,6 +348,8 @@ class SPiDR(Wrapper):
         else:
             raise ValueError("Should be either mujoco playground or brax env")
         self.num_perturbed_envs = num_perturbed_envs
+        self.lambda_ = lambda_
+        self.alpha = alpha
 
     def reset(self, rng: jax.Array) -> State:
         # No need to randomize the initial state. Otherwise, even without
@@ -358,6 +360,11 @@ class SPiDR(Wrapper):
         state.info["state_propagation"] = {}
         state.info["state_propagation"]["next_obs"] = self._tile(_get_obs(state))
         state.info["state_propagation"]["cost"] = self._tile(cost)
+        disagreement = self._compute_disagreement(
+            state.info["state_propagation"]["next_obs"]
+        )
+        state.info["disagreement"] = disagreement
+        state.metrics["disagreement"] = disagreement
         return state
 
     def step(self, state: State, action: jax.Array) -> State:
@@ -365,11 +372,19 @@ class SPiDR(Wrapper):
         v_state, v_action = self._tile(state), self._tile(action)
         perturbed_nstate = self.perturbed_env.step(v_state, v_action)
         next_obs = _get_obs(perturbed_nstate)
+        disagreement = self._compute_disagreement(next_obs)
         nstate.info["state_propagation"]["next_obs"] = next_obs
         nstate.info["state_propagation"]["cost"] = perturbed_nstate.info.get(
             "cost", jp.zeros_like(perturbed_nstate.reward)
         )
+        nstate.info["disagreement"] = disagreement
+        nstate.metrics["disagreement"] = disagreement
         return nstate
+
+    def _compute_disagreement(self, next_obs: jax.Array) -> jax.Array:
+        variance = jp.nanvar(next_obs, axis=0).mean(-1)
+        variance = jp.where(jp.isnan(variance), 0.0, variance)
+        return jp.clip(variance, a_max=1000.0) * self.lambda_ + self.alpha
 
     def _tile(self, tree):
         def tile(x):
@@ -377,27 +392,3 @@ class SPiDR(Wrapper):
             return jp.tile(x, (self.num_perturbed_envs,) + (1,) * x.ndim)
 
         return jax.tree_map(tile, tree)
-
-
-class ModelDisagreement(Wrapper):
-    def __init__(self, env):
-        super().__init__(env)
-
-    def reset(self, rng: jax.Array) -> State:
-        state = self.env.reset(rng)
-        next_obs = state.info["state_propagation"]["next_obs"]
-        variance = jp.nanvar(next_obs, axis=0).mean(-1)
-        variance = jp.where(jp.isnan(variance), 0.0, variance)
-        state.info["disagreement"] = variance
-        state.metrics["disagreement"] = variance
-        return state
-
-    def step(self, state: State, action: jax.Array) -> State:
-        nstate = self.env.step(state, action)
-        next_obs = state.info["state_propagation"]["next_obs"]
-        variance = jp.nanvar(next_obs, axis=0).mean(-1)
-        variance = jp.where(jp.isnan(variance), 0.0, variance)
-        variance = jp.clip(variance, a_max=1000.0)
-        nstate.info["disagreement"] = variance
-        nstate.metrics["disagreement"] = variance
-        return nstate
