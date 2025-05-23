@@ -27,10 +27,11 @@ import jax.numpy as jnp
 import optax
 from absl import logging
 from brax import envs
-from brax.io import model
 from brax.training import replay_buffers
 from brax.training.acme import running_statistics, specs
+from brax.training.agents.sac import checkpoint
 from brax.training.types import Params, PRNGKey
+from ml_collections import config_dict
 
 import ss2r.algorithms.sac.losses as sac_losses
 import ss2r.algorithms.sac.networks as sac_networks
@@ -155,6 +156,7 @@ def train(
     ] = sac_networks.make_sac_networks,
     progress_fn: Callable[[int, Metrics], None] = lambda *args: None,
     checkpoint_logdir: Optional[str] = None,
+    restore_checkpoint_path: Optional[str] = None,
     eval_env: Optional[envs.Env] = None,
     safe: bool = False,
     safety_budget: float = float("inf"),
@@ -553,7 +555,16 @@ def train(
         penalizer_params=penalizer_params,
     )
     del global_key
-
+    if restore_checkpoint_path is not None:
+        params = checkpoint.load(restore_checkpoint_path)
+        penalizer_params = type(training_state.penalizer_params)(**params[2])
+        training_state = training_state.replace(  # type: ignore
+            normalizer_params=params[0],
+            policy_params=params[1],
+            penalizer_params=penalizer_params,
+            qr_params=params[3],
+            qc_params=params[4],
+        )
     local_key, rb_key, env_key, eval_key = jax.random.split(local_key, 4)
 
     # Env init
@@ -639,9 +650,12 @@ def train(
             params = (
                 training_state.normalizer_params,
                 training_state.policy_params,
+                training_state.penalizer_params,
+                training_state.qr_params,
+                training_state.qc_params,
             )
-            path = f"{checkpoint_logdir}_sac_{current_step}.pkl"
-            model.save_params(path, params)
+            dummy_ckpt_config = config_dict.ConfigDict()
+            checkpoint.save(checkpoint_logdir, current_step, params, dummy_ckpt_config)
 
         # Run evals.
         metrics = evaluator.run_evaluation(
@@ -659,6 +673,12 @@ def train(
 
     total_steps = current_step
     assert total_steps >= num_timesteps
-    params = (training_state.normalizer_params, training_state.policy_params)
+    params = (
+        training_state.normalizer_params,
+        training_state.policy_params,
+        training_state.penalizer_params,
+        training_state.qr_params,
+        training_state.qc_params,
+    )
     logging.info("total steps: %s", total_steps)
     return make_policy, params, metrics

@@ -225,7 +225,7 @@ class WeightAndBiasesWriter:
         if metadata is None:
             metadata = dict(self._handle.config)
         artifact = self._handle.Artifact(name, type, description, metadata)
-        artifact.add_file(path)
+        artifact.add_dir(path)
         self._handle.log_artifact(artifact, aliases=[self._handle.run.id])
 
 

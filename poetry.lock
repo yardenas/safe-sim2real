@@ -97,22 +97,22 @@ files = [
 
 [[package]]
 name = "brax"
-version = "0.12.1"
+version = "0.12.3"
 description = "A differentiable physics engine written in JAX."
 optional = false
-python-versions = "*"
+python-versions = ">=3.10"
 groups = ["main"]
 files = [
-    {file = "brax-0.12.1-py3-none-any.whl", hash = "sha256:fb38e9d4b1efdb0dc4f261f1f405dff4c7bd96becb6fb82d114bdecd0f235af0"},
-    {file = "brax-0.12.1.tar.gz", hash = "sha256:3d3b2a421785d1a12e5f8ebfade6115c66d250614066b4b704f961f96387afb7"},
+    {file = "brax-0.12.3-py3-none-any.whl", hash = "sha256:acf110e9df394c5f5e85709692d8ee6ad6d67aca7379b8f64239bd7799d1ccc2"},
+    {file = "brax-0.12.3.tar.gz", hash = "sha256:8bd1a031379d48f976dab42f303d9de2ccf4a9016159e41d528e40712d12ed47"},
 ]
 
 [package.dependencies]
 absl-py = "*"
-dm_env = "*"
+dm-env = "*"
 etils = "*"
 flask = "*"
-flask_cors = "*"
+flask-cors = "*"
 flax = "*"
 grpcio = "*"
 gym = "*"
@@ -120,16 +120,16 @@ jax = ">=0.4.6"
 jaxlib = ">=0.4.6"
 jaxopt = "*"
 jinja2 = "*"
-ml_collections = "*"
+ml-collections = "*"
 mujoco = "*"
 mujoco-mjx = "*"
 numpy = "*"
 optax = "*"
 orbax-checkpoint = "*"
-Pillow = "*"
+pillow = "*"
 pytinyrenderer = "*"
 scipy = "*"
-tensorboardX = "*"
+tensorboardx = "*"
 trimesh = "*"
 typing-extensions = "*"
 
@@ -4920,4 +4920,4 @@ test = ["big-O", "jaraco.functools", "jaraco.itertools", "jaraco.test", "more-it
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.10,<3.12"
-content-hash = "62e316309a117e9a45f243fe00bb4de6aa5007c769e0e2e8f8a7b13f0bed396c"
+content-hash = "e409cf99aba543628a1c2b8bb3dd698ced57b8457ab827ae318eb5d6e25ef49e"
