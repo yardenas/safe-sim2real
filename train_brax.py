@@ -44,19 +44,19 @@ def get_wandb_checkpoint(run_id):
 
 def get_train_fn(cfg):
     if cfg.training.wandb_id:
-        restore_checkpoint_dir = get_wandb_checkpoint(cfg.training.wandb_id)
+        restore_checkpoint_path = get_wandb_checkpoint(cfg.training.wandb_id)
     else:
-        restore_checkpoint_dir = None
+        restore_checkpoint_path = None
     if cfg.agent.name == "sac":
         train_fn = sac.get_train_fn(
             cfg,
-            restore_checkpoint_dir=restore_checkpoint_dir,
+            restore_checkpoint_path=restore_checkpoint_path,
             checkpoint_path=get_state_path(),
         )
     elif cfg.agent.name == "ppo":
         train_fn = ppo.get_train_fn(
             cfg,
-            restore_checkpoint_dir=restore_checkpoint_dir,
+            restore_checkpoint_path=restore_checkpoint_path,
             checkpoint_path=get_state_path(),
         )
     else:
