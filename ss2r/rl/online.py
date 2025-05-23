@@ -6,10 +6,10 @@ import jax
 import zmq
 from brax import envs
 from brax.training import acting
-from brax.training.types import PolicyParams, PRNGKey
+from brax.training.types import PolicyParams, PRNGKey, Transition
 from jax.experimental import io_callback
 
-from ss2r.algorithms.sac import MakePolicyFn, Transition
+from ss2r.rl.types import MakePolicyFn
 
 
 class OnlineEpisodeOrchestrator:

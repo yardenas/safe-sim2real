@@ -36,17 +36,17 @@ from ml_collections import config_dict
 import ss2r.algorithms.sac.losses as sac_losses
 import ss2r.algorithms.sac.networks as sac_networks
 from ss2r.algorithms.penalizers import Penalizer
-from ss2r.algorithms.sac import (
+from ss2r.algorithms.sac import gradients
+from ss2r.algorithms.sac.data import collect_single_step
+from ss2r.algorithms.sac.robustness import QTransformation, SACBase, SACCost, UCBCost
+from ss2r.algorithms.sac.types import (
     CollectDataFn,
     Metrics,
     ReplayBufferState,
     Transition,
     float16,
     float32,
-    gradients,
 )
-from ss2r.algorithms.sac.data import collect_single_step
-from ss2r.algorithms.sac.robustness import QTransformation, SACBase, SACCost, UCBCost
 from ss2r.rl.evaluation import ConstraintsEvaluator
 
 

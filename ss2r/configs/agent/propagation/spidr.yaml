@@ -1,0 +1,4 @@
+name: spidr
+num_envs: 32
+lambda_: 0.
+alpha: 0.

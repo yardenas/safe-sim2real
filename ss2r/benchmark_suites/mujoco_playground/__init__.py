@@ -16,7 +16,7 @@ from ss2r.rl.utils import rollout
 def _dig(env):
     if env == env.unwrapped:
         raise ValueError("Not wrapped")
-    if isinstance(env, BraxDomainRandomizationVmapWrapper):
+    if isinstance(env, wrappers.BraxDomainRandomizationVmapWrapper):
         return env
     else:
         return _dig(env.env)
@@ -83,19 +83,9 @@ def wrap_for_brax_training(
     elif randomization_fn is None:
         env = brax_training.VmapWrapper(env)  # pytype: disable=wrong-arg-types
     else:
-        env = BraxDomainRandomizationVmapWrapper(
+        env = wrappers.BraxDomainRandomizationVmapWrapper(
             env, randomization_fn, augment_state=augment_state
         )
     env = wrappers.CostEpisodeWrapper(env, episode_length, action_repeat)
     env = mujoco_playground_wrapper.BraxAutoResetWrapper(env)
     return env
-
-
-class BraxDomainRandomizationVmapWrapper(wrappers.DomainRandomizationVmapBase):
-    def _init_randomization(self, randomization_fn):
-        return randomization_fn(self.mjx_model)
-
-    def _env_fn(self, model):
-        env = self.env
-        env.unwrapped._mjx_model = model
-        return env

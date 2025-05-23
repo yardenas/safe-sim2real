@@ -6,8 +6,6 @@ from brax.envs.base import Env, State, Wrapper
 from brax.envs.wrappers import training as brax_training
 from jax import numpy as jp
 
-from ss2r.benchmark_suites.mujoco_playground import BraxDomainRandomizationVmapWrapper
-
 
 class ActionObservationDelayWrapper(Wrapper):
     """Wrapper for adding action and observation delays in Brax envs, using JAX."""
@@ -392,3 +390,13 @@ class SPiDR(Wrapper):
             return jp.tile(x, (self.num_perturbed_envs,) + (1,) * x.ndim)
 
         return jax.tree_map(tile, tree)
+
+
+class BraxDomainRandomizationVmapWrapper(DomainRandomizationVmapBase):
+    def _init_randomization(self, randomization_fn):
+        return randomization_fn(self.mjx_model)
+
+    def _env_fn(self, model):
+        env = self.env
+        env.unwrapped._mjx_model = model
+        return env

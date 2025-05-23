@@ -4,7 +4,7 @@ import jax
 from brax import envs
 
 from ss2r.algorithms.ppo.wrappers import Saute
-from ss2r.benchmark_suites import brax, mujoco_playground, safety_gym, wrappers
+from ss2r.benchmark_suites import brax, mujoco_playground, safety_gym
 from ss2r.benchmark_suites.brax.ant import ant
 from ss2r.benchmark_suites.brax.cartpole import cartpole
 from ss2r.benchmark_suites.brax.humanoid import humanoid
@@ -20,6 +20,7 @@ from ss2r.benchmark_suites.wrappers import (
     ActionObservationDelayWrapper,
     FrameActionStack,
     SPiDR,
+    wrap,
 )
 
 
@@ -130,7 +131,7 @@ def make_rccar_envs(cfg, train_wrap_env_fn, eval_wrap_env_fn):
         if cfg.training.train_domain_randomization
         else None
     )
-    train_env = wrappers.wrap(
+    train_env = wrap(
         train_env,
         episode_length=cfg.training.episode_length,
         action_repeat=cfg.training.action_repeat,
@@ -155,7 +156,7 @@ def make_rccar_envs(cfg, train_wrap_env_fn, eval_wrap_env_fn):
         if cfg.training.eval_domain_randomization
         else None
     )
-    eval_env = wrappers.wrap(
+    eval_env = wrap(
         eval_env,
         episode_length=cfg.training.episode_length,
         action_repeat=cfg.training.action_repeat,
@@ -183,7 +184,7 @@ def make_brax_envs(cfg, train_wrap_env_fn, eval_wrap_env_fn):
         if cfg.training.train_domain_randomization
         else None
     )
-    train_env = wrappers.wrap(
+    train_env = wrap(
         train_env,
         episode_length=cfg.training.episode_length,
         action_repeat=cfg.training.action_repeat,
@@ -193,7 +194,7 @@ def make_brax_envs(cfg, train_wrap_env_fn, eval_wrap_env_fn):
     eval_randomization_fn = prepare_randomization_fn(
         eval_key, cfg.training.num_eval_envs, task_cfg.eval_params, task_cfg.task_name
     )
-    eval_env = wrappers.wrap(
+    eval_env = wrap(
         eval_env,
         episode_length=cfg.training.episode_length,
         action_repeat=cfg.training.action_repeat,
