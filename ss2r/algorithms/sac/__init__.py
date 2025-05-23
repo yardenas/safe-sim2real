@@ -6,7 +6,7 @@ from ss2r.algorithms.sac.data import get_collection_fn
 from ss2r.algorithms.sac.robustness import get_cost_robustness, get_reward_robustness
 
 
-def get_train_fn(cfg, checkpoint_path, checkpoint_restore_path):
+def get_train_fn(cfg, checkpoint_path, restore_checkpoint_path):
     import jax.nn as jnn
 
     import ss2r.algorithms.sac.train as sac
@@ -66,6 +66,6 @@ def get_train_fn(cfg, checkpoint_path, checkpoint_restore_path):
         penalizer=penalizer,
         penalizer_params=penalizer_params,
         get_experience_fn=data_collection,
-        restore_checkpoint_path=checkpoint_restore_path,
+        restore_checkpoint_path=restore_checkpoint_path,
     )
     return train_fn
