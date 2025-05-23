@@ -31,6 +31,7 @@ from brax.training import replay_buffers
 from brax.training.acme import running_statistics, specs
 from brax.training.agents.sac import checkpoint
 from brax.training.types import Params, PRNGKey
+from ml_collections import config_dict
 
 import ss2r.algorithms.sac.losses as sac_losses
 import ss2r.algorithms.sac.networks as sac_networks
@@ -556,10 +557,11 @@ def train(
     del global_key
     if restore_checkpoint_path is not None:
         params = checkpoint.load(restore_checkpoint_path)
+        penalizer_params = type(training_state.penalizer_params)(**params[2])
         training_state = training_state.replace(  # type: ignore
             normalizer_params=params[0],
             policy_params=params[1],
-            penalizer_params=params[2],
+            penalizer_params=penalizer_params,
             qr_params=params[3],
             qc_params=params[4],
         )
@@ -652,13 +654,8 @@ def train(
                 training_state.qr_params,
                 training_state.qc_params,
             )
-            ckpt_config = checkpoint.network_config(
-                observation_size=obs_size,
-                action_size=env.action_size,
-                normalize_observations=normalize_observations,
-                network_factory=network_factory,
-            )
-            checkpoint.save(checkpoint_logdir, current_step, params, ckpt_config)
+            dummy_ckpt_config = config_dict.ConfigDict()
+            checkpoint.save(checkpoint_logdir, current_step, params, dummy_ckpt_config)
 
         # Run evals.
         metrics = evaluator.run_evaluation(

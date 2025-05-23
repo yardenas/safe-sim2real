@@ -1,10 +1,11 @@
 import functools
 import logging
 import os
+from pathlib import Path
 
 import hydra
 import jax
-from brax.io import model
+import wandb
 from omegaconf import OmegaConf
 
 import ss2r.algorithms.sac.networks as sac_networks
@@ -27,8 +28,30 @@ _LOG = logging.getLogger(__name__)
 
 
 def get_state_path() -> str:
-    log_path = os.getcwd()
+    log_path = os.getcwd() + "/cpkt"
     return log_path
+
+
+def locate_last_checkpoint() -> Path | None:
+    ckpt_dir = Path(get_state_path())
+    # Get all directories or files that match the 12-digit pattern
+    checkpoints = [
+        p
+        for p in ckpt_dir.iterdir()
+        if p.is_dir() and p.name.isdigit() and len(p.name) == 12
+    ]
+    if not checkpoints:
+        return None  # No checkpoints found
+    # Sort by step number (converted from the directory name)
+    latest_ckpt = max(checkpoints, key=lambda p: int(p.name))
+    return latest_ckpt
+
+
+def get_wandb_checkpoint(run_id):
+    api = wandb.Api()
+    artifact = api.artifact(f"ss2r/checkpoint:{run_id}")
+    download_dir = artifact.download(f"{get_state_path()}/{run_id}")
+    return download_dir
 
 
 def get_penalizer(cfg):
@@ -147,6 +170,10 @@ def get_wrap_env_fn(cfg):
 
 
 def get_train_fn(cfg):
+    if cfg.training.wandb_id:
+        restore_checkpoint_dir = get_wandb_checkpoint(cfg.training.wandb_id)
+    else:
+        restore_checkpoint_dir = None
     if cfg.agent.name == "sac":
         import jax.nn as jnn
 
@@ -162,9 +189,10 @@ def get_train_fn(cfg):
                 "train_domain_randomization",
                 "eval_domain_randomization",
                 "render",
-                "store_policy",
+                "store_checkpoint",
                 "value_privileged",
                 "policy_privileged",
+                "wandb_id",
             ]
         }
         policy_hidden_layer_sizes = agent_cfg.pop("policy_hidden_layer_sizes")
@@ -204,12 +232,13 @@ def get_train_fn(cfg):
             **agent_cfg,
             **training_cfg,
             network_factory=network_factory,
-            checkpoint_logdir=f"{get_state_path()}/ckpt",
+            checkpoint_logdir=get_state_path(),
             cost_robustness=cost_robustness,
             reward_robustness=reward_robustness,
             penalizer=penalizer,
             penalizer_params=penalizer_params,
             get_experience_fn=data_collection,
+            restore_checkpoint_path=restore_checkpoint_dir,
         )
     elif cfg.agent.name == "ppo":
         import jax.nn as jnn
@@ -227,7 +256,7 @@ def get_train_fn(cfg):
                 "train_domain_randomization",
                 "eval_domain_randomization",
                 "render",
-                "store_policy",
+                "store_checkpoint",
             ]
         }
         policy_hidden_layer_sizes = agent_cfg.pop("policy_hidden_layer_sizes")
@@ -263,7 +292,7 @@ def get_train_fn(cfg):
             **agent_cfg,
             **training_cfg,
             network_factory=network_factory,
-            restore_checkpoint_path=f"{get_state_path()}/ckpt",
+            restore_checkpoint_path=restore_checkpoint_dir,
             penalizer=penalizer,
             penalizer_params=penalizer_params,
         )
@@ -319,17 +348,21 @@ def main(cfg):
             rng = jax.random.split(
                 jax.random.PRNGKey(cfg.training.seed), cfg.training.num_eval_envs
             )
+            if len(params) != 2:
+                policy_params = params[:2]
+            else:
+                policy_params = params
             video = benchmark_suites.render_fns[cfg.environment.task_name](
                 eval_env,
-                make_policy(params, deterministic=True),
+                make_policy(policy_params, deterministic=True),
                 cfg.training.episode_length,
                 rng,
             )
             logger.log_video(video, steps.count, "eval/video")
-        if cfg.training.store_policy:
-            path = get_state_path() + "/policy.pkl"
-            model.save_params(get_state_path() + "/policy.pkl", params)
-            logger.log_artifact(path, "model", "policy")
+        if cfg.training.store_checkpoint:
+            artifacts = locate_last_checkpoint()
+            if artifacts:
+                logger.log_artifact(artifacts, "model", "checkpoint")
     _LOG.info("Done training.")
 
 

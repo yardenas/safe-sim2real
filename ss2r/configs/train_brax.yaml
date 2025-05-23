@@ -48,4 +48,5 @@ training:
   policy_privileged: false
   train_domain_randomization: true
   eval_domain_randomization: true
-  store_policy: true
+  store_checkpoint: true
+  wandb_id: null
