@@ -1,3 +1,4 @@
+import functools
 from typing import Any, Callable, Optional, Tuple, TypeAlias
 
 import flax
@@ -8,7 +9,9 @@ from brax.training import types
 from brax.training.acme import running_statistics
 from brax.training.types import Params
 
+from ss2r.algorithms.penalizers import get_penalizer
 from ss2r.algorithms.ppo import losses as ppo_losses
+from ss2r.algorithms.sac.robustness import get_cost_robustness
 
 _PMAP_AXIS_NAME = "i"
 
@@ -37,3 +40,74 @@ TrainingStep: TypeAlias = Callable[
 TrainingStepFactory: Any
 
 InferenceParams: TypeAlias = Tuple[running_statistics.NestedMeanStd, Params]
+
+
+def get_train_fn(cfg, checkpoint_path, checkpoint_restore_path):
+    import jax.nn as jnn
+
+    from ss2r.algorithms.ppo import networks as ppo_networks
+    from ss2r.algorithms.ppo import train as ppo
+
+    agent_cfg = dict(cfg.agent)
+    training_cfg = {
+        k: v
+        for k, v in cfg.training.items()
+        if k
+        not in [
+            "render_episodes",
+            "train_domain_randomization",
+            "eval_domain_randomization",
+            "render",
+            "store_checkpoint",
+        ]
+    }
+    policy_hidden_layer_sizes = agent_cfg.pop("policy_hidden_layer_sizes")
+    value_hidden_layer_sizes = agent_cfg.pop("value_hidden_layer_sizes")
+    activation = getattr(jnn, agent_cfg.pop("activation"))
+    value_obs_key = "privileged_state" if cfg.training.value_privileged else "state"
+    policy_obs_key = "privileged_state" if cfg.training.policy_privileged else "state"
+    # FIXME (yarden): this shouldn't be here because it's related to SAC
+    cost_robustness = get_cost_robustness(cfg)
+    del training_cfg["value_privileged"]
+    del training_cfg["policy_privileged"]
+    del agent_cfg["name"]
+    if "cost_robustness" in agent_cfg:
+        del agent_cfg["cost_robustness"]
+    if "reward_robustness" in agent_cfg:
+        del agent_cfg["reward_robustness"]
+    if "penalizer" in agent_cfg:
+        del agent_cfg["penalizer"]
+    if "propagation" in agent_cfg:
+        del agent_cfg["propagation"]
+    network_factory = functools.partial(
+        ppo_networks.make_ppo_networks,
+        policy_hidden_layer_sizes=policy_hidden_layer_sizes,
+        value_hidden_layer_sizes=value_hidden_layer_sizes,
+        activation=activation,
+        value_obs_key=value_obs_key,
+        policy_obs_key=policy_obs_key,
+    )
+    penalizer, penalizer_params = get_penalizer(cfg)
+    train_fn = functools.partial(
+        ppo.train,
+        **agent_cfg,
+        **training_cfg,
+        network_factory=network_factory,
+        restore_checkpoint_path=checkpoint_restore_path,
+        penalizer=penalizer,
+        penalizer_params=penalizer_params,
+    )
+    # FIXME (yarden): that's a hack for now. Need to think of a
+    # better way to implement this.
+    if "penalizer" in cfg.agent and cfg.agent.penalizer.name == "saute":
+        train_fn = functools.partial(
+            train_fn,
+            use_saute=cfg.training.safe,
+        )
+    if "propagation" in cfg.agent and cfg.agent.propagation.name == "ts1":
+        train_fn = functools.partial(
+            train_fn,
+            use_disagreement=True,
+            disagreement_scale=cost_robustness.lambda_,
+        )
+    return train_fn
