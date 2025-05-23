@@ -245,3 +245,39 @@ class SACCost(QTransformation):
             cost * scale + transitions.discount * gamma * next_v
         )
         return target_q
+
+
+def get_cost_robustness(cfg):
+    if (
+        "cost_robustness" not in cfg.agent
+        or cfg.agent.cost_robustness is None
+        or cfg.agent.cost_robustness.name == "neutral"
+    ):
+        return SACCost()
+    if cfg.agent.cost_robustness.name == "ramu":
+        del cfg.agent.cost_robustness.name
+        robustness = RAMU(**cfg.agent.cost_robustness)
+    elif cfg.agent.cost_robustness.name == "ucb_cost":
+        robustness = UCBCost(
+            cfg.agent.cost_robustness.cost_penalty, cfg.agent.cost_robustness.alpha
+        )
+    else:
+        raise ValueError("Unknown robustness")
+    return robustness
+
+
+def get_reward_robustness(cfg):
+    if (
+        "reward_robustness" not in cfg.agent
+        or cfg.agent.reward_robustness is None
+        or cfg.agent.reward_robustness.name == "neutral"
+    ):
+        return SACBase()
+    if cfg.agent.reward_robustness.name == "ramu":
+        del cfg.agent.reward_robustness.name
+        robustness = RAMUReward(**cfg.agent.reward_robustness)
+    elif cfg.agent.reward_robustness.name == "lcb_reward":
+        robustness = LCBReward(cfg.agent.reward_robustness.reward_penalty)
+    else:
+        raise ValueError("Unknown robustness")
+    return robustness

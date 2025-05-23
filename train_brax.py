@@ -14,8 +14,8 @@ from ss2r.algorithms.penalizers import (
     get_penalizer,
 )
 from ss2r.algorithms.ppo.wrappers import Saute
-from ss2r.algorithms.sac import robustness as rb
 from ss2r.algorithms.sac.data import get_collection_fn
+from ss2r.algorithms.sac.robustness import get_cost_robustness, get_reward_robustness
 from ss2r.algorithms.sac.wrappers import ModelDisagreement, SPiDR
 from ss2r.common.logging import TrainingLogger
 
@@ -47,42 +47,6 @@ def get_wandb_checkpoint(run_id):
     artifact = api.artifact(f"ss2r/checkpoint:{run_id}")
     download_dir = artifact.download(f"{get_state_path()}/{run_id}")
     return download_dir
-
-
-def get_cost_robustness(cfg):
-    if (
-        "cost_robustness" not in cfg.agent
-        or cfg.agent.cost_robustness is None
-        or cfg.agent.cost_robustness.name == "neutral"
-    ):
-        return rb.SACCost()
-    if cfg.agent.cost_robustness.name == "ramu":
-        del cfg.agent.cost_robustness.name
-        robustness = rb.RAMU(**cfg.agent.cost_robustness)
-    elif cfg.agent.cost_robustness.name == "ucb_cost":
-        robustness = rb.UCBCost(
-            cfg.agent.cost_robustness.cost_penalty, cfg.agent.cost_robustness.alpha
-        )
-    else:
-        raise ValueError("Unknown robustness")
-    return robustness
-
-
-def get_reward_robustness(cfg):
-    if (
-        "reward_robustness" not in cfg.agent
-        or cfg.agent.reward_robustness is None
-        or cfg.agent.reward_robustness.name == "neutral"
-    ):
-        return rb.SACBase()
-    if cfg.agent.reward_robustness.name == "ramu":
-        del cfg.agent.reward_robustness.name
-        robustness = rb.RAMUReward(**cfg.agent.reward_robustness)
-    elif cfg.agent.reward_robustness.name == "lcb_reward":
-        robustness = rb.LCBReward(cfg.agent.reward_robustness.reward_penalty)
-    else:
-        raise ValueError("Unknown robustness")
-    return robustness
 
 
 def get_wrap_env_fn(cfg):
