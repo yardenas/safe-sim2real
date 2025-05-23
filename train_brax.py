@@ -11,12 +11,7 @@ from omegaconf import OmegaConf
 import ss2r.algorithms.sac.networks as sac_networks
 from ss2r import benchmark_suites
 from ss2r.algorithms.penalizers import (
-    CRPO,
-    AugmentedLagrangian,
-    AugmentedLagrangianParams,
-    CRPOParams,
-    Lagrangian,
-    LagrangianParams,
+    get_penalizer,
 )
 from ss2r.algorithms.ppo.wrappers import Saute
 from ss2r.algorithms.sac import robustness as rb
@@ -52,30 +47,6 @@ def get_wandb_checkpoint(run_id):
     artifact = api.artifact(f"ss2r/checkpoint:{run_id}")
     download_dir = artifact.download(f"{get_state_path()}/{run_id}")
     return download_dir
-
-
-def get_penalizer(cfg):
-    if cfg.agent.penalizer.name == "lagrangian":
-        penalizer = AugmentedLagrangian(cfg.agent.penalizer.penalty_multiplier_factor)
-        penalizer_state = AugmentedLagrangianParams(
-            cfg.agent.penalizer.lagrange_multiplier,
-            cfg.agent.penalizer.penalty_multiplier,
-        )
-    elif cfg.agent.penalizer.name == "crpo":
-        penalizer = CRPO(cfg.agent.penalizer.eta)
-        penalizer_state = CRPOParams(cfg.agent.penalizer.burnin)
-    elif cfg.agent.penalizer.name == "ppo_lagrangian":
-        penalizer = Lagrangian(cfg.agent.penalizer.multiplier_lr)
-        init_lagrange_multiplier = cfg.agent.penalizer.initial_lagrange_multiplier
-        penalizer_state = LagrangianParams(
-            init_lagrange_multiplier,
-            penalizer.optimizer.init(init_lagrange_multiplier),
-        )
-    elif cfg.agent.penalizer.name == "saute":
-        return None, None
-    else:
-        raise ValueError(f"Unknown penalizer {cfg.agent.penalizer.name}")
-    return penalizer, penalizer_state
 
 
 def get_cost_robustness(cfg):
