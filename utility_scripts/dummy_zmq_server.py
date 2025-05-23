@@ -4,8 +4,7 @@ import cloudpickle as pickle
 import jax
 import numpy as np
 import zmq
-
-from ss2r.algorithms.sac import Transition
+from brax.training.types import Transition
 
 
 def dummy_server(address="tcp://*:5555", delay=0.1):
