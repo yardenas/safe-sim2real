@@ -2,7 +2,7 @@
 defaults:
   - mujoco_playground_dm_control
   - override /environment: cartpole_swingup
-  - override /agent/propagation: ts1
+  - override /agent/propagation: spidr
   - override /agent/cost_robustness: ucb_cost
   - _self_
 
@@ -17,5 +17,5 @@ training:
 
 agent:
   activation: swish
-  cost_robustness:
-    cost_penalty: 5e4
+  propagation:
+    lambda_: 5e4

@@ -152,3 +152,27 @@ def update_lagrange_multiplier(
 ) -> jax.Array:
     new_multiplier = jnp.maximum(lagrange_multiplier - learning_rate * constraint, 0.0)
     return new_multiplier
+
+
+def get_penalizer(cfg):
+    if cfg.agent.penalizer.name == "lagrangian":
+        penalizer = AugmentedLagrangian(cfg.agent.penalizer.penalty_multiplier_factor)
+        penalizer_state = AugmentedLagrangianParams(
+            cfg.agent.penalizer.lagrange_multiplier,
+            cfg.agent.penalizer.penalty_multiplier,
+        )
+    elif cfg.agent.penalizer.name == "crpo":
+        penalizer = CRPO(cfg.agent.penalizer.eta)
+        penalizer_state = CRPOParams(cfg.agent.penalizer.burnin)
+    elif cfg.agent.penalizer.name == "ppo_lagrangian":
+        penalizer = Lagrangian(cfg.agent.penalizer.multiplier_lr)
+        init_lagrange_multiplier = cfg.agent.penalizer.initial_lagrange_multiplier
+        penalizer_state = LagrangianParams(
+            init_lagrange_multiplier,
+            penalizer.optimizer.init(init_lagrange_multiplier),
+        )
+    elif cfg.agent.penalizer.name == "saute":
+        return None, None
+    else:
+        raise ValueError(f"Unknown penalizer {cfg.agent.penalizer.name}")
+    return penalizer, penalizer_state

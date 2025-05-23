@@ -8,15 +8,10 @@ from brax.training.acme import running_statistics
 from brax.training.replay_buffers import ReplayBuffer
 from brax.training.types import Params, PRNGKey
 
-from ss2r.algorithms.sac import (
-    CollectDataFn,
-    MakePolicyFn,
-    ReplayBufferState,
-    UnrollFn,
-    float16,
-)
 from ss2r.algorithms.sac.go1_sac_to_onnx import convert_policy_to_onnx
+from ss2r.algorithms.sac.types import CollectDataFn, ReplayBufferState, float16
 from ss2r.rl.online import OnlineEpisodeOrchestrator
+from ss2r.rl.types import MakePolicyFn, UnrollFn
 
 
 def get_collection_fn(cfg):

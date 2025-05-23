@@ -3,7 +3,7 @@ import jax.numpy as jnp
 import numpy as np
 from PIL import Image, ImageDraw
 
-from ss2r.benchmark_suites.mujoco_playground import BraxDomainRandomizationVmapWrapper
+from ss2r.benchmark_suites.wrappers import BraxDomainRandomizationVmapWrapper
 from ss2r.common.pytree import pytrees_unstack
 from ss2r.rl.utils import rollout
 

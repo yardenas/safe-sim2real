@@ -1,19 +1,15 @@
 import functools
-import os
-import re
-from getpass import getpass
 from typing import Sequence, Tuple
 
 import cloudpickle as pickle
 import jax
-import pexpect
 import zmq
 from brax import envs
 from brax.training import acting
-from brax.training.types import PolicyParams, PRNGKey
+from brax.training.types import PolicyParams, PRNGKey, Transition
 from jax.experimental import io_callback
 
-from ss2r.algorithms.sac import MakePolicyFn, Transition
+from ss2r.rl.types import MakePolicyFn
 
 
 class OnlineEpisodeOrchestrator:
@@ -91,83 +87,3 @@ class OnlineEpisodeOrchestrator:
                     success, transitions = pickle.loads(socket.recv())
                     if success:
                         return transitions
-
-
-_password_pat = re.compile(rb"pass(word|phrase)", re.IGNORECASE)
-
-
-class SSHException(Exception):  # type: ignore
-    pass
-
-
-class MaxRetryExceeded(Exception):
-    pass
-
-
-# FIXME (yarden): this actually does not happen here, but on the server host.
-# Adapted from https://github.com/zeromq/pyzmq/blob/a37d49db40f1836e3f72297b136b87f0b05ab2e2/zmq/ssh/tunnel.py#L206
-def openssh_reverse_tunnel(
-    rport, lport, server, localip="127.0.0.1", keyfile=None, password=None, timeout=60
-):
-    """Create a reverse ssh tunnel using command-line ssh that connects port `rport`
-    on the *remote* server to `localhost:lport` on this machine.
-
-    Equivalent to: ssh -R rport:localhost:lport user@server
-
-    Parameters
-    ----------
-    rport : int
-        Port on the remote machine that will forward to this machine.
-    lport : int
-        Local port on this machine to receive forwarded connections.
-    server : str
-        SSH target, e.g. 'user@hostname[:port]'.
-    localip : str
-        Local IP to use for forwarding (default: 127.0.0.1).
-    keyfile : str
-        Path to private key (optional).
-    password : str
-        Password for SSH login (if no key).
-    timeout : int
-        Seconds to keep the tunnel open.
-    """
-    ssh = "ssh "
-    if keyfile:
-        ssh += "-i " + keyfile
-
-    if ":" in server:
-        server, port = server.split(":")
-        ssh += f" -p {port}"
-    cmd = f"{ssh} -f -S none -R {rport}:{localip}:{lport} {server} sleep {timeout}"
-    # pop SSH_ASKPASS from env
-    env = os.environ.copy()
-    env.pop("SSH_ASKPASS", None)
-
-    ssh_newkey = "Are you sure you want to continue connecting"
-    tunnel = pexpect.spawn(cmd, env=env)
-    failed = False
-    MAX_RETRY = 10
-    for _ in range(MAX_RETRY):
-        try:
-            i = tunnel.expect([ssh_newkey, _password_pat], timeout=0.1)
-            if i == 0:
-                raise SSHException("The authenticity of the host can't be established.")
-        except pexpect.TIMEOUT:
-            continue
-        except pexpect.EOF:
-            if tunnel.exitstatus:
-                print(tunnel.exitstatus)
-                print(tunnel.before)
-                print(tunnel.after)
-                raise RuntimeError(f"tunnel '{cmd}' failed to start")
-            else:
-                return tunnel.pid
-        else:
-            if failed:
-                print("Password rejected, try again")
-                password = None
-            if password is None:
-                password = getpass(f"{server}'s password: ")
-            tunnel.sendline(password)
-            failed = True
-    raise MaxRetryExceeded(f"Failed after {MAX_RETRY} attempts")

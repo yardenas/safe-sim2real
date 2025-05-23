@@ -3,7 +3,8 @@ import functools
 import jax
 from brax import envs
 
-from ss2r.benchmark_suites import brax, mujoco_playground, safety_gym, wrappers
+from ss2r.algorithms.ppo.wrappers import Saute
+from ss2r.benchmark_suites import brax, mujoco_playground, safety_gym
 from ss2r.benchmark_suites.brax.ant import ant
 from ss2r.benchmark_suites.brax.cartpole import cartpole
 from ss2r.benchmark_suites.brax.humanoid import humanoid
@@ -18,7 +19,61 @@ from ss2r.benchmark_suites.utils import get_domain_name, get_task_config
 from ss2r.benchmark_suites.wrappers import (
     ActionObservationDelayWrapper,
     FrameActionStack,
+    SPiDR,
+    wrap,
 )
+
+
+def get_wrap_env_fn(cfg):
+    if "propagation" not in cfg.agent:
+        out = lambda env: env, lambda env: env
+    elif cfg.agent.propagation.name == "spidr":
+
+        def fn(env):
+            key = jax.random.PRNGKey(cfg.training.seed)
+            env = SPiDR(
+                env,
+                prepare_randomization_fn(
+                    key,
+                    cfg.agent.propagation.num_envs,
+                    cfg.environment.train_params,
+                    cfg.environment.task_name,
+                ),
+                cfg.agent.propagation.num_envs,
+                cfg.agent.propagation.lambda_,
+                cfg.agent.propagation.alpha,
+            )
+            return env
+
+        out = fn, lambda env: env
+    else:
+        raise ValueError("Propagation method not provided.")
+    if "penalizer" in cfg.agent and cfg.agent.penalizer.name == "saute":
+
+        def saute_train(env):
+            env = out[0](env)
+            env = Saute(
+                env,
+                cfg.agent.safety_discounting,
+                cfg.training.safety_budget,
+                cfg.agent.penalizer.penalty,
+                cfg.agent.penalizer.terminate,
+            )
+            return env
+
+        def saute_eval(env):
+            env = out[1](env)
+            env = Saute(
+                env,
+                cfg.agent.safety_discounting,
+                cfg.training.safety_budget,
+                0.0,
+                False,
+            )
+            return env
+
+        out = saute_train, saute_eval
+    return out
 
 
 def make(cfg, train_wrap_env_fn=lambda env: env, eval_wrap_env_fn=lambda env: env):
@@ -72,7 +127,7 @@ def make_rccar_envs(cfg, train_wrap_env_fn, eval_wrap_env_fn):
         if cfg.training.train_domain_randomization
         else None
     )
-    train_env = wrappers.wrap(
+    train_env = wrap(
         train_env,
         episode_length=cfg.training.episode_length,
         action_repeat=cfg.training.action_repeat,
@@ -97,7 +152,7 @@ def make_rccar_envs(cfg, train_wrap_env_fn, eval_wrap_env_fn):
         if cfg.training.eval_domain_randomization
         else None
     )
-    eval_env = wrappers.wrap(
+    eval_env = wrap(
         eval_env,
         episode_length=cfg.training.episode_length,
         action_repeat=cfg.training.action_repeat,
@@ -125,7 +180,7 @@ def make_brax_envs(cfg, train_wrap_env_fn, eval_wrap_env_fn):
         if cfg.training.train_domain_randomization
         else None
     )
-    train_env = wrappers.wrap(
+    train_env = wrap(
         train_env,
         episode_length=cfg.training.episode_length,
         action_repeat=cfg.training.action_repeat,
@@ -135,7 +190,7 @@ def make_brax_envs(cfg, train_wrap_env_fn, eval_wrap_env_fn):
     eval_randomization_fn = prepare_randomization_fn(
         eval_key, cfg.training.num_eval_envs, task_cfg.eval_params, task_cfg.task_name
     )
-    eval_env = wrappers.wrap(
+    eval_env = wrap(
         eval_env,
         episode_length=cfg.training.episode_length,
         action_repeat=cfg.training.action_repeat,
