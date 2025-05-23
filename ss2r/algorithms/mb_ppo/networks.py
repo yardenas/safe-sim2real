@@ -14,7 +14,7 @@
 
 """PPO networks."""
 
-from typing import Sequence, Tuple, Callable
+from typing import Sequence, Tuple, Callable, Dict, Any
 
 import flax
 from brax.training import distribution, networks, types
@@ -23,9 +23,10 @@ from flax import linen
 import jax
 import jax.nn as jnn
 import jax.numpy as jnp
+from jaxtyping import PyTree
+import optax
 from brax.training.networks import MLP
 from brax.training.networks import FeedForwardNetwork
-from brax.training.networks import Initializer
 from brax.training.networks import ActivationFn
 from brax.training.networks import _get_obs_state_size
 
@@ -36,34 +37,33 @@ class MBPPONetworks:
     policy_network: networks.FeedForwardNetwork
     value_network: networks.FeedForwardNetwork
     cost_value_network: networks.FeedForwardNetwork
-    model_network: networks.FeedForwardNetwork 
     parametric_action_distribution: distribution.ParametricDistribution
 
 
 class BroNet(linen.Module):
-    layer_sizes: Sequence[int]
+    hidden_dims: Sequence[int]
     activation: Callable
     kernel_init: Callable = jax.nn.initializers.lecun_uniform()
 
     @linen.compact
     def __call__(self, x):
-        assert all(size == self.layer_sizes[0] for size in self.layer_sizes[:-1])
-        x = linen.Dense(features=self.layer_sizes[0], kernel_init=self.kernel_init)(x)
+        assert all(size == self.hidden_dims[0] for size in self.hidden_dims[:-1])
+        x = linen.Dense(features=self.hidden_dims[0], kernel_init=self.kernel_init)(x)
         x = linen.LayerNorm()(x)
         x = self.activation(x)
-        for _ in range(len(self.layer_sizes) - 1):
+        for _ in range(len(self.hidden_dims) - 1):
             residual = x
-            x = linen.Dense(features=self.layer_sizes[0], kernel_init=self.kernel_init)(
+            x = linen.Dense(features=self.hidden_dims[0], kernel_init=self.kernel_init)(
                 x
             )
             x = linen.LayerNorm()(x)
             x = self.activation(x)
-            x = linen.Dense(features=self.layer_sizes[0], kernel_init=self.kernel_init)(
+            x = linen.Dense(features=self.hidden_dims[0], kernel_init=self.kernel_init)(
                 x
             )
             x = linen.LayerNorm()(x)
             x += residual
-        x = linen.Dense(self.layer_sizes[-1], kernel_init=self.kernel_init)(x)
+        x = linen.Dense(self.hidden_dims[-1], kernel_init=self.kernel_init)(x)
         return x
 
 
@@ -95,7 +95,7 @@ def make_value_network(
   )
 
 
-def make_world_networks(
+def make_world_model_ensemble(
     obs_size: types.ObservationSize,
     action_size: int,
     preprocess_observations_fn: types.PreprocessObservationFn = types.identity_observation_preprocessor,
@@ -120,7 +120,7 @@ def make_world_networks(
             net = BroNet if use_bro else MLP
             for _ in range(self.n_ensemble):
                 m = net(  # type: ignore
-                    layer_sizes=list(hidden_layer_sizes) + [obs_size],
+                    hidden_dims=list(hidden_layer_sizes) + [obs_size],
                     activation=activation,
                     kernel_init=jax.nn.initializers.lecun_uniform(),
                 )(hidden)
@@ -213,21 +213,10 @@ def make_ppo_networks(
         obs_key=value_obs_key,
         use_bro=use_bro,
     )
-    model_network = make_world_networks(
-        observation_size,
-        action_size,
-        preprocess_observations_fn=preprocess_observations_fn,
-        hidden_layer_sizes=value_hidden_layer_sizes,
-        activation=activation,
-        n_ensemble=n_ensemble,
-        obs_key=value_obs_key,
-        use_bro=use_bro,
-    )
 
     return MBPPONetworks(
         policy_network=policy_network,
         value_network=value_network,
         cost_value_network=cost_value_network,
-        model_network=model_network,
         parametric_action_distribution=parametric_action_distribution,
     )  # type: ignore
