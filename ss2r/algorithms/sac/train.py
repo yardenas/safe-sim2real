@@ -653,6 +653,7 @@ def train(
                 training_state.penalizer_params,
                 training_state.qr_params,
                 training_state.qc_params,
+                buffer_state,
             )
             dummy_ckpt_config = config_dict.ConfigDict()
             checkpoint.save(checkpoint_logdir, current_step, params, dummy_ckpt_config)
