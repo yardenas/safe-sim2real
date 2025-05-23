@@ -29,3 +29,4 @@ activation: swish
 use_bro: true
 normalize_budget: true
 reset_on_eval: true
+store_buffer: false

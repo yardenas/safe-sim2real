@@ -167,6 +167,7 @@ def train(
     use_bro: bool = True,
     normalize_budget: bool = True,
     reset_on_eval: bool = True,
+    store_buffer: bool = False,
 ):
     if min_replay_size >= num_timesteps:
         raise ValueError(
@@ -555,6 +556,8 @@ def train(
         penalizer_params=penalizer_params,
     )
     del global_key
+    local_key, rb_key, env_key, eval_key = jax.random.split(local_key, 4)
+    buffer_state = replay_buffer.init(rb_key)
     if restore_checkpoint_path is not None:
         params = checkpoint.load(restore_checkpoint_path)
         penalizer_params = type(training_state.penalizer_params)(**params[2])
@@ -565,7 +568,8 @@ def train(
             qr_params=params[3],
             qc_params=params[4],
         )
-    local_key, rb_key, env_key, eval_key = jax.random.split(local_key, 4)
+        if len(params) == 6:
+            buffer_state = params[5]
 
     # Env init
     env_keys = jax.random.split(env_key, num_envs)
@@ -573,7 +577,6 @@ def train(
     env_state = reset_fn(env_keys)
 
     # Replay buffer init
-    buffer_state = replay_buffer.init(rb_key)
 
     if not eval_env:
         eval_env = environment
@@ -655,6 +658,8 @@ def train(
                 training_state.qc_params,
                 buffer_state,
             )
+            if store_buffer:
+                params += (buffer_state,)
             dummy_ckpt_config = config_dict.ConfigDict()
             checkpoint.save(checkpoint_logdir, current_step, params, dummy_ckpt_config)
 
@@ -681,5 +686,7 @@ def train(
         training_state.qr_params,
         training_state.qc_params,
     )
+    if store_buffer:
+        params += (buffer_state,)
     logging.info("total steps: %s", total_steps)
     return make_policy, params, metrics
