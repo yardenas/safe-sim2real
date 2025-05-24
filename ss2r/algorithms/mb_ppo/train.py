@@ -545,11 +545,24 @@ def train(
                 obs,
             )
             
-            # Compute reward and cost
-            reward = -jnp.sum(jnp.square(obs - pred_next_obs), axis=-1)  # Negative distance
-            cost = jnp.zeros_like(reward)
-            
-            # Create extras - fix the shapes
+            # Approximate reward and cost as 
+            value_next = ppo_network.value_network.apply(
+                training_state.normalizer_params,
+                training_state.ppo_state.value_params,
+                pred_next_obs,
+            )
+
+            cost_value_next = ppo_network.cost_value_network.apply(
+                training_state.normalizer_params,
+                training_state.ppo_state.cost_value_params,
+                pred_next_obs,
+            )
+
+            # Calculate reward and cost
+            reward = value_next - value
+            cost = cost_value_next - cost_value 
+
+             # Create extras - fix the shapes
             extras = {
                 "state_extras": {
                     "truncation": jnp.zeros_like(reward),
