@@ -249,15 +249,46 @@ def train(
         extras=extras,
     )
     dummy_transition = float16(dummy_transition)
-    if use_rae:
-        replay_cls = RAEReplayBuffer
-    else:
-        replay_cls = replay_buffers.UniformSamplingQueue
-    replay_buffer = replay_cls(
-        max_replay_size=max_replay_size,
-        dummy_data_sample=dummy_transition,
-        sample_batch_size=batch_size * grad_updates_per_step,
+    global_key, local_key = jax.random.split(rng)
+    training_state = _init_training_state(
+        key=global_key,
+        obs_size=obs_size,
+        sac_network=sac_network,
+        alpha_optimizer=alpha_optimizer,
+        policy_optimizer=policy_optimizer,
+        qr_optimizer=qr_optimizer,
+        qc_optimizer=qc_optimizer,
+        penalizer_params=penalizer_params,
     )
+    del global_key
+    local_key, rb_key, env_key, eval_key = jax.random.split(local_key, 4)
+    if restore_checkpoint_path is not None:
+        params = checkpoint.load(restore_checkpoint_path)
+        penalizer_params = type(training_state.penalizer_params)(**params[2])
+        training_state = training_state.replace(  # type: ignore
+            normalizer_params=params[0],
+            policy_params=params[1],
+            penalizer_params=penalizer_params,
+            qr_params=params[3],
+            qc_params=params[4],
+        )
+        if len(params) >= 6 and use_rae:
+            logging.info("Restoring replay buffer state")
+            buffer_state = params[5]
+            buffer_state = replay_buffers.ReplayBufferState(**buffer_state)
+            replay_buffer = RAEReplayBuffer(
+                max_replay_size=max_replay_size,
+                dummy_data_sample=dummy_transition,
+                sample_batch_size=batch_size * grad_updates_per_step,
+                offline_data_state=buffer_state,
+            )
+    if not restore_checkpoint_path or not use_rae:
+        replay_buffer = replay_buffers.UniformSamplingQueue(
+            max_replay_size=max_replay_size,
+            dummy_data_sample=dummy_transition,
+            sample_batch_size=batch_size * grad_updates_per_step,
+        )
+    buffer_state = replay_buffer.init(rb_key)
     alpha_loss, critic_loss, actor_loss = sac_losses.make_losses(
         sac_network=sac_network,
         reward_scaling=reward_scaling,
@@ -531,7 +562,6 @@ def train(
         )
         metrics = jax.tree_util.tree_map(jnp.mean, metrics)
         jax.tree_util.tree_map(lambda x: x.block_until_ready(), metrics)
-
         epoch_training_time = time.time() - t
         training_walltime += epoch_training_time
         sps = (
@@ -549,38 +579,7 @@ def train(
             metrics,
         )  # pytype: disable=bad-return-type  # py311-upgrade
 
-    global_key, local_key = jax.random.split(rng)
     # Training state init
-    training_state = _init_training_state(
-        key=global_key,
-        obs_size=obs_size,
-        sac_network=sac_network,
-        alpha_optimizer=alpha_optimizer,
-        policy_optimizer=policy_optimizer,
-        qr_optimizer=qr_optimizer,
-        qc_optimizer=qc_optimizer,
-        penalizer_params=penalizer_params,
-    )
-    del global_key
-    local_key, rb_key, env_key, eval_key = jax.random.split(local_key, 4)
-    if restore_checkpoint_path is not None:
-        params = checkpoint.load(restore_checkpoint_path)
-        penalizer_params = type(training_state.penalizer_params)(**params[2])
-        training_state = training_state.replace(  # type: ignore
-            normalizer_params=params[0],
-            policy_params=params[1],
-            penalizer_params=penalizer_params,
-            qr_params=params[3],
-            qc_params=params[4],
-        )
-        if len(params) == 6:
-            logging.info("Restoring replay buffer state")
-            buffer_state = params[5]
-            if use_rae:
-                replay_buffer.offline_data_state = buffer_state
-                buffer_state = replay_buffer.init(rb_key)
-    else:
-        buffer_state = replay_buffer.init(rb_key)
     # Env init
     env_keys = jax.random.split(env_key, num_envs)
     reset_fn = jax.jit(env.reset)
