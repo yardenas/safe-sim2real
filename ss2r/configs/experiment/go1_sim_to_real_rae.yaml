@@ -1,0 +1,14 @@
+# @package _global_
+defaults:
+  - go1_joystick
+  - _self_
+
+training:
+  train_domain_randomization: false
+  eval_domain_randomization: false
+  safe: false
+  wandb_id: 9a3kb4n0
+
+agent:
+  use_rae: true
+  max_replay_size: 20000
