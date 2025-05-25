@@ -299,6 +299,7 @@ randomization_fns = {
     "humanoid": humanoid.domain_randomization,
     "humanoid_safe": humanoid.domain_randomization,
     "Go1JoystickFlatTerrain": go1_joystick.domain_randomization,
+    "Go1JoystickRoughTerrain": go1_joystick.domain_randomization,
     "SafeJointGo1JoystickFlatTerrain": go1_joystick.domain_randomization,
     "SafeFlipGo1JoystickFlatTerrain": go1_joystick.domain_randomization,
     "SafeJointTorqueGo1JoystickFlatTerrain": go1_joystick.domain_randomization,
@@ -334,6 +335,9 @@ render_fns = {
     "ant_safe": functools.partial(brax.render, camera="track"),
     "rccar": rccar.render,
     "Go1JoystickFlatTerrain": functools.partial(
+        mujoco_playground.render, camera="track"
+    ),
+    "Go1JoystickRoughTerrain": functools.partial(
         mujoco_playground.render, camera="track"
     ),
     "SafeJointGo1JoystickFlatTerrain": functools.partial(

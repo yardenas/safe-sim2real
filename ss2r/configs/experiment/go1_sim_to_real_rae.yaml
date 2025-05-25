@@ -8,7 +8,13 @@ training:
   eval_domain_randomization: false
   safe: false
   wandb_id: 9a3kb4n0
+  num_envs: 32
+  num_timesteps: 100000
+
+environment:
+  task_name: Go1JoystickRoughTerrain
 
 agent:
   use_rae: true
   max_replay_size: 20000
+  grad_updates_per_step: 32
