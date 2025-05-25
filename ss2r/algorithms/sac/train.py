@@ -38,6 +38,7 @@ import ss2r.algorithms.sac.networks as sac_networks
 from ss2r.algorithms.penalizers import Penalizer
 from ss2r.algorithms.sac import gradients
 from ss2r.algorithms.sac.data import collect_single_step
+from ss2r.algorithms.sac.rae import RAEReplayBuffer
 from ss2r.algorithms.sac.robustness import QTransformation, SACBase, SACCost, UCBCost
 from ss2r.algorithms.sac.types import (
     CollectDataFn,
@@ -168,6 +169,7 @@ def train(
     normalize_budget: bool = True,
     reset_on_eval: bool = True,
     store_buffer: bool = False,
+    use_rae: bool = False,
 ):
     if min_replay_size >= num_timesteps:
         raise ValueError(
@@ -247,7 +249,11 @@ def train(
         extras=extras,
     )
     dummy_transition = float16(dummy_transition)
-    replay_buffer = replay_buffers.UniformSamplingQueue(
+    if use_rae:
+        replay_cls = RAEReplayBuffer
+    else:
+        replay_cls = replay_buffers.UniformSamplingQueue
+    replay_buffer = replay_cls(
         max_replay_size=max_replay_size,
         dummy_data_sample=dummy_transition,
         sample_batch_size=batch_size * grad_updates_per_step,
@@ -557,7 +563,6 @@ def train(
     )
     del global_key
     local_key, rb_key, env_key, eval_key = jax.random.split(local_key, 4)
-    buffer_state = replay_buffer.init(rb_key)
     if restore_checkpoint_path is not None:
         params = checkpoint.load(restore_checkpoint_path)
         penalizer_params = type(training_state.penalizer_params)(**params[2])
@@ -569,8 +574,13 @@ def train(
             qc_params=params[4],
         )
         if len(params) == 6:
+            logging.info("Restoring replay buffer state")
             buffer_state = params[5]
-
+            if use_rae:
+                replay_buffer.offline_data_state = buffer_state
+                buffer_state = replay_buffer.init(rb_key)
+    else:
+        buffer_state = replay_buffer.init(rb_key)
     # Env init
     env_keys = jax.random.split(env_key, num_envs)
     reset_fn = jax.jit(env.reset)

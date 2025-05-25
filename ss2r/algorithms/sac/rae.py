@@ -3,6 +3,7 @@ from typing import Generic, Tuple, TypeVar
 import flax
 import jax
 import jax.numpy as jnp
+from absl import logging
 from brax.training.replay_buffers import (
     ReplayBuffer,
     ReplayBufferState,
@@ -20,17 +21,18 @@ class RAEReplayBufferState:
 
 
 class RAEReplayBuffer(ReplayBuffer[RAEReplayBufferState, Sample], Generic[Sample]):
+    """Users must set offline_data_state to load offline data from disk."""
+
     def __init__(
         self,
         max_replay_size: int,
         dummy_data_sample: Sample,
         sample_batch_size: int,
-        offline_data_state: ReplayBufferState,
     ):
         self.sample_batch_size = sample_batch_size
         self.online_sample_size = sample_batch_size // 2
         self.offline_sample_size = sample_batch_size - self.online_sample_size
-        self.offline_data_state = offline_data_state
+        self.offline_data_state = None
         self.online_buffer = UniformSamplingQueue(
             max_replay_size, dummy_data_sample, self.online_sample_size
         )
@@ -40,8 +42,11 @@ class RAEReplayBuffer(ReplayBuffer[RAEReplayBufferState, Sample], Generic[Sample
 
     def init(self, key: jax.Array) -> RAEReplayBufferState:
         """Initialize both buffers and load offline data from disk."""
-        key_online, _, key_next = jax.random.split(key, 3)
+        key_online, key_offline, key_next = jax.random.split(key, 3)
         online_state = self.online_buffer.init(key_online)
+        if self.offline_data_state is None:
+            logging.warn("No offline data found, initializing from online data.")
+            self.offline_data_state = self.offline_buffer.init(key_offline)
         return RAEReplayBufferState(
             online_state=online_state,  # type: ignore
             offline_state=self.offline_data_state,  # type: ignore
@@ -53,6 +58,8 @@ class RAEReplayBuffer(ReplayBuffer[RAEReplayBufferState, Sample], Generic[Sample
     ) -> RAEReplayBufferState:
         """Insert new online samples."""
         new_online_state = self.online_buffer.insert(state.online_state, samples)
+        if self.offline_data_state is not None:
+            self.offline_buffer.insert(state.offline_state, samples)
         return state.replace(online_state=new_online_state)  # type: ignore
 
     def sample(
