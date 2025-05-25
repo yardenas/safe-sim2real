@@ -46,10 +46,12 @@ class RAEReplayBuffer(ReplayBuffer[RAEReplayBufferState, Sample], Generic[Sample
         online_state = self.online_buffer.init(key_online)
         if self.offline_data_state is None:
             logging.warn("No offline data found, initializing from online data.")
-            self.offline_data_state = self.offline_buffer.init(key_offline)
+            offline_data_state = self.offline_buffer.init(key_offline)
+        else:
+            offline_data_state = self.offline_data_state
         return RAEReplayBufferState(
             online_state=online_state,  # type: ignore
-            offline_state=self.offline_data_state,  # type: ignore
+            offline_state=offline_data_state,  # type: ignore
             key=key_next,
         )
 
@@ -59,8 +61,13 @@ class RAEReplayBuffer(ReplayBuffer[RAEReplayBufferState, Sample], Generic[Sample
         """Insert new online samples."""
         new_online_state = self.online_buffer.insert(state.online_state, samples)
         if self.offline_data_state is not None:
-            self.offline_buffer.insert(state.offline_state, samples)
-        return state.replace(online_state=new_online_state)  # type: ignore
+            new_offline_state = self.offline_buffer.insert(state.offline_state, samples)
+        else:
+            new_offline_state = state.offline_state
+        return state.replace(  # type: ignore
+            online_state=new_online_state,
+            offline_state=new_offline_state,
+        )
 
     def sample(
         self, state: RAEReplayBufferState
