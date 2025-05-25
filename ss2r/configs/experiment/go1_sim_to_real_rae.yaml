@@ -5,15 +5,35 @@ defaults:
   - _self_
 
 training:
-  train_domain_randomization: false
-  eval_domain_randomization: false
+  train_domain_randomization: true
+  eval_domain_randomization: true
   safe: false
   wandb_id: 9a3kb4n0
   num_envs: 32
   num_timesteps: 100000
 
 environment:
-  task_name: Go1JoystickRoughTerrain
+  train_params:
+    floor_friction: [0.1, 0.1]
+    scale_friction: [1., 1.]
+    scale_armature: [1., 1.]
+    jitter_mass: [0., 0.]
+    scale_link_mass: [1., 1.]
+    add_torso_mass: [0., 0.]
+    jitter_qpos0: [0., 0.]
+    Kd: [0.0, 0.0]
+    Kp: [0.0, 0.0]
+
+  eval_params:
+    floor_friction: [0.1, 0.1]
+    scale_friction: [1., 1.]
+    scale_armature: [1., 1.]
+    jitter_mass: [0., 0.]
+    scale_link_mass: [1., 1.]
+    add_torso_mass: [0., 0.]
+    jitter_qpos0: [0., 0.]
+    Kd: [0.0, 0.0]
+    Kp: [0.0, 0.0]
 
 agent:
   use_rae: true
