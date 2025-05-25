@@ -397,6 +397,7 @@ def train(
 
     # Create functions for the training loop
 
+    @jax.jit
     def run_experience_step(
         training_state: TrainingState,
         env_state: envs.State,
@@ -713,6 +714,7 @@ def train(
         metrics = jax.tree_map(jnp.mean, metrics)
         return training_state, metrics
 
+    @jax.jit
     def prefill_replay_buffer(
         training_state: TrainingState,
         env_state: envs.State,
@@ -759,6 +761,7 @@ def train(
             length=num_prefill_actor_steps,
         )[0]
 
+    @jax.jit
     def training_epoch(
         training_state: TrainingState,
         env_state: envs.State,

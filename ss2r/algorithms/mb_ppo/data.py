@@ -12,6 +12,8 @@ from ss2r.algorithms.sac.types import CollectDataFn, ReplayBufferState, float16
 from ss2r.rl.types import MakePolicyFn
 
 
+# JIT compile the actor step function
+@jax.jit
 def ppo_actor_step(
     env,
     env_state,
@@ -36,6 +38,9 @@ def ppo_actor_step(
 
 def make_ppo_collection_fn(unroll_fn) -> CollectDataFn:
     """Creates a collection function for PPO policies."""
+    
+    # JIT compile the collection function
+    @jax.jit
     def collect_data(
         env: envs.Env,
         make_policy_fn: MakePolicyFn, # This is the policy template
