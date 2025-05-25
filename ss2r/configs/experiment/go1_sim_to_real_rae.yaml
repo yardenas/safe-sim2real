@@ -16,5 +16,6 @@ environment:
 
 agent:
   use_rae: true
+  min_replay_size: 1000
   max_replay_size: 20000
-  grad_updates_per_step: 32
+  grad_updates_per_step: 32 # set to 0 for no fine-tuning as baseline
