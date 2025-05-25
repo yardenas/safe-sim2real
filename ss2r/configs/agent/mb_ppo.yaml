@@ -1,33 +1,26 @@
 name: mb_ppo
 
-# PPO policy parameters
-policy_hidden_layer_sizes: [32, 32, 32, 32]
-value_hidden_layer_sizes: [256, 256, 256, 256, 256]
-lr: 3e-4
-critic_lr: 3e-4
-cost_critic_lr: 3e-4
-entropy_cost: 1e-4
-discounting: 0.99
-safety_discounting: 0.99
+max_devices_per_host: null
+learning_rate: 0.0001
+entropy_cost: 0.0001
+discounting: 0.9
+safety_discounting: 0.9
+unroll_length: 10
+batch_size: 32
 num_minibatches: 16
 num_updates_per_batch: 2
-clipping_epsilon: 0.2
+normalize_observations: false
+reward_scaling: 1.0
+cost_scaling: 1.0
+clipping_epsilon: 0.3
 gae_lambda: 0.95
 safety_gae_lambda: 0.95
-
-# Model-based parameters
-hidden_layer_sizes: [256, 256]  # Model network architecture
-activation: silu  # Activation function
-n_ensemble: 5     # Number of ensemble models
-learn_std: false  # Use deterministic models (not probabilistic)
-use_bro: true     # Use BRO network architecture
-model_learning_rate: 3e-4  # Learning rate for world model
-model_batch_size: 256      # Batch size for model updates
-num_model_updates_per_step: 4  # Number of model updates per step
-model_rollout_length: 5    # Length of synthetic rollouts
-model_rollouts_per_step: 100  # Number of synthetic rollouts per step
-normalize_observations: true  # Whether to normalize observations
-
-# Replay buffer parameters
-min_replay_size: 10000  # Minimum replay buffer size before training
-max_replay_size: 100000  # Maximum replay buffer size
+deterministic_eval: true
+normalize_advantage: true
+model_hidden_layer_sizes: [64, 64, 64, 64]
+policy_hidden_layer_sizes: [32, 32, 32, 32]
+value_hidden_layer_sizes: [256, 256, 256, 256, 256]
+activation: swish
+max_grad_norm: 1.0
+normalize_budget: true
+learn_std: false

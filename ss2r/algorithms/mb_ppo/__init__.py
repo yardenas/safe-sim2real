@@ -1,9 +1,50 @@
 import functools
-import jax.nn as jnn
-from ss2r.algorithms.mb_ppo import train as mb_ppo
-from ss2r.algorithms.penalizers import get_penalizer
+from typing import Any, Callable, Optional, Tuple, TypeAlias
 
-def get_train_fn(cfg, checkpoint_path=None, restore_checkpoint_path=None):
+import flax
+import jax.numpy as jnp
+import optax
+from brax import envs
+from brax.training import types
+from brax.training.acme import running_statistics
+from brax.training.types import Params
+
+from ss2r.algorithms.penalizers import get_penalizer
+from ss2r.algorithms.mb_ppo import losses as mb_ppo_losses
+
+_PMAP_AXIS_NAME = "i"
+
+
+@flax.struct.dataclass
+class TrainingState:
+    """Contains training state for the learner."""
+    optimizer_state: tuple[optax.OptState, optax.OptState, optax.OptState, Optional[optax.OptState]]
+    params: mb_ppo_losses.MBPPOParams
+    normalizer_params: running_statistics.RunningStatisticsState
+    env_steps: jnp.ndarray
+
+
+Metrics: TypeAlias = types.Metrics
+
+
+TrainingStep: TypeAlias = Callable[
+    [
+        Tuple[TrainingState, envs.State, types.PRNGKey, int],
+    ],
+    Tuple[Tuple[TrainingState, envs.State, types.PRNGKey], Metrics],
+]
+
+TrainingStepFactory: Any
+
+InferenceParams: TypeAlias = Tuple[running_statistics.NestedMeanStd, Params]
+
+
+def get_train_fn(cfg, checkpoint_path, checkpoint_restore_path):
+    import jax.nn as jnn
+
+    from ss2r.algorithms.mb_ppo import networks as mb_ppo_networks
+    from ss2r.algorithms.mb_ppo import train as mb_ppo
+
     agent_cfg = dict(cfg.agent)
     training_cfg = {
         k: v
@@ -15,66 +56,37 @@ def get_train_fn(cfg, checkpoint_path=None, restore_checkpoint_path=None):
             "eval_domain_randomization",
             "render",
             "store_checkpoint",
-            "value_privileged",
-            "policy_privileged",
-            "wandb_id",
-            "safe"
         ]
     }
-    
-    # Extract relevant configuration parameters
+    model_hidden_layer_sizes = agent_cfg.pop("model_hidden_layer_sizes")
     policy_hidden_layer_sizes = agent_cfg.pop("policy_hidden_layer_sizes")
     value_hidden_layer_sizes = agent_cfg.pop("value_hidden_layer_sizes")
-    hidden_layer_sizes = agent_cfg.pop("hidden_layer_sizes", (256, 256))
-    activation = getattr(jnn, agent_cfg.pop("activation", "relu"))
-    
-    # Remove the 'name' field to prevent it from being passed to train()
+    activation = getattr(jnn, agent_cfg.pop("activation"))
+    learn_std = agent_cfg.pop("learn_std", False)
+    value_obs_key = "privileged_state" if cfg.training.value_privileged else "state"
+    policy_obs_key = "privileged_state" if cfg.training.policy_privileged else "state"
+    del training_cfg["value_privileged"]
+    del training_cfg["policy_privileged"]
     del agent_cfg["name"]
-    
-    # Handle privileged observations
-    value_obs_key = "privileged_state" if cfg.training.get('value_privileged', False) else "state"
-    policy_obs_key = "privileged_state" if cfg.training.get('policy_privileged', False) else "state"
-    
-    # Delete unnecessary fields
-    if "value_privileged" in training_cfg:
-        del training_cfg["value_privileged"]
-    if "policy_privileged" in training_cfg:
-        del training_cfg["policy_privileged"]
-    
-    # Get penalizer if configured
-    penalizer, penalizer_params = None, None
-    if "penalizer" in agent_cfg:
-        penalizer, penalizer_params = get_penalizer(cfg)
-        del agent_cfg["penalizer"]
-    
-    # Handle other configurations that should be removed
-    if "propagation" in agent_cfg:
-        del agent_cfg["propagation"]
-    if "cost_robustness" in agent_cfg:
-        del agent_cfg["cost_robustness"]
-    if "reward_robustness" in agent_cfg:
-        del agent_cfg["reward_robustness"]
-    if "data_collection" in agent_cfg:
-        del agent_cfg["data_collection"]
-    
-    # Rename learning rate parameters to match our API
-    if "lr" in agent_cfg:
-        agent_cfg["learning_rate"] = agent_cfg.pop("lr")
-    if "critic_lr" in agent_cfg:
-        agent_cfg["critic_learning_rate"] = agent_cfg.pop("critic_lr")
-    if "cost_critic_lr" in agent_cfg:
-        agent_cfg["cost_critic_learning_rate"] = agent_cfg.pop("cost_critic_lr")
-    
-    # Create train function
+
+
+    network_factory = functools.partial(
+        mb_ppo_networks.make_mb_ppo_networks,
+        model_hidden_layer_sizes=model_hidden_layer_sizes,
+        policy_hidden_layer_sizes=policy_hidden_layer_sizes,
+        value_hidden_layer_sizes=value_hidden_layer_sizes,
+        activation=activation,
+        learn_std=learn_std,
+        value_obs_key=value_obs_key,
+        policy_obs_key=policy_obs_key,
+    )
+
     train_fn = functools.partial(
         mb_ppo.train,
         **agent_cfg,
         **training_cfg,
-        policy_hidden_layer_sizes=policy_hidden_layer_sizes,
-        value_hidden_layer_sizes=value_hidden_layer_sizes,
-        hidden_layer_sizes=hidden_layer_sizes,
-        penalizer=penalizer,
-        penalizer_params=penalizer_params,
+        network_factory=network_factory,
+        restore_checkpoint_path=checkpoint_restore_path,
     )
-    
+
     return train_fn
