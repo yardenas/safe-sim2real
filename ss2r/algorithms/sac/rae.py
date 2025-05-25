@@ -55,7 +55,7 @@ class RAEReplayBuffer(ReplayBuffer[RAEReplayBufferState, Sample], Generic[Sample
             key=key_next,
         )
 
-    def insert(
+    def insert_internal(
         self, state: RAEReplayBufferState, samples: Sample
     ) -> RAEReplayBufferState:
         """Insert new online samples."""
@@ -69,7 +69,7 @@ class RAEReplayBuffer(ReplayBuffer[RAEReplayBufferState, Sample], Generic[Sample
             offline_state=new_offline_state,
         )
 
-    def sample(
+    def sample_internal(
         self, state: RAEReplayBufferState
     ) -> Tuple[RAEReplayBufferState, Sample]:
         """Sample from both buffers and return merged batch."""
@@ -91,3 +91,8 @@ class RAEReplayBuffer(ReplayBuffer[RAEReplayBufferState, Sample], Generic[Sample
             key=new_key,
         )
         return new_state, combined_samples
+
+    def size(self, state: RAEReplayBufferState) -> int:
+        return self.online_buffer.size(state.online_state) + self.offline_buffer.size(
+            state.offline_state
+        )

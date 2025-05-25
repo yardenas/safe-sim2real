@@ -666,7 +666,6 @@ def train(
                 training_state.penalizer_params,
                 training_state.qr_params,
                 training_state.qc_params,
-                buffer_state,
             )
             if store_buffer:
                 params += (buffer_state,)
