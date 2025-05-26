@@ -20,8 +20,6 @@ class RAEReplayBufferState:
 
 
 class RAEReplayBuffer(ReplayBuffer[RAEReplayBufferState, Sample], Generic[Sample]):
-    """Users must set offline_data_state to load offline data from disk."""
-
     def __init__(
         self,
         max_replay_size: int,
