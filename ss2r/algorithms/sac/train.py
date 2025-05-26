@@ -190,6 +190,7 @@ def train(
     if get_experience_fn != collect_single_step:
         # Using episodic or hardware (which is episodic)
         env_steps_per_actor_step *= episode_length
+        grad_updates_per_step *= episode_length
     # equals to ceil(min_replay_size / env_steps_per_actor_step)
     num_prefill_actor_steps = -(-min_replay_size // num_envs)
     num_prefill_env_steps = num_prefill_actor_steps * env_steps_per_actor_step
