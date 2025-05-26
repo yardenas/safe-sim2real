@@ -41,6 +41,7 @@ from ss2r.algorithms.mb_ppo import training_step as mb_ppo_training_step
 from ss2r.algorithms.mb_ppo import model_train_step as mb_model_training_step
 from ss2r.algorithms.ppo.wrappers import TrackOnlineCosts
 from ss2r.rl.evaluation import ConstraintsEvaluator
+from ss2r.algorithms.mb_ppo import model_env
 
 
 def _unpmap(v):
@@ -89,12 +90,13 @@ def train(
     deterministic_eval: bool = False,
     network_factory: types.NetworkFactory[
         mb_ppo_networks.MBPPONetworks
-    ] = mb_ppo_networks.make_networks,
+    ] = mb_ppo_networks.make_mb_ppo_networks,
     progress_fn: Callable[[int, Metrics], None] = lambda *args: None,
     normalize_advantage: bool = True,
     eval_env: Optional[envs.Env] = None,
     policy_params_fn: Callable[..., None] = lambda *args: None,
     restore_checkpoint_path: Optional[str] = None,
+    checkpoint_path: Optional[str] = None,  # Add this parameter
     safety_budget: float = float("inf"),
     safe: bool = False,
     normalize_budget: bool = True,
@@ -199,6 +201,17 @@ def train(
         normalize_advantage=normalize_advantage,
         safety_budget=safety_budget,
     )
+    # Create the model-based planning environment
+    def create_planning_env(model_params, normalizer_params):
+        return model_env.create_model_env(
+            env=env,
+            model_network=ppo_network.model_network,
+            model_params=model_params,
+            normalizer_params=normalizer_params,
+            ensemble_selection="mean",  # or "random" or "pessimistic"
+            safety_budget=safety_budget,
+        )
+
     training_step = update_step_factory(
         policy_loss,
         value_loss,
@@ -206,7 +219,7 @@ def train(
         policy_optimizer,
         value_optimizer,
         cost_value_optimizer,
-        planning_env,
+        create_planning_env,  # Pass the factory function
         unroll_length,
         num_minibatches,
         make_policy,

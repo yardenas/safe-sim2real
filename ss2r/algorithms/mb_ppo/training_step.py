@@ -19,7 +19,7 @@ def update_fn(
     optimizer,
     value_optimizer,
     cost_value_optimizer,
-    planning_env,
+    planning_env_factory,  # Changed from planning_env to planning_env_factory
     unroll_length,
     num_minibatches,
     make_policy,
@@ -47,7 +47,7 @@ def update_fn(
         data: types.Transition,
         normalizer_params: running_statistics.RunningStatisticsState,
     ):
-        optimizer_state, params, penalizer_params, key = carry
+        optimizer_state, params, key = carry
         (
             model_optimizer_state,
             policy_optimizer_state,
@@ -90,7 +90,7 @@ def update_fn(
         params = mb_ppo_losses.MBPPOParams(
             params.model, policy_params, value_params, cost_value_params
         )  # type: ignore
-        return (optimizer_state, params, penalizer_params, key), aux
+        return (optimizer_state, params, key), aux
 
     def sgd_step(
         carry,
@@ -98,7 +98,7 @@ def update_fn(
         data: types.Transition,
         normalizer_params: running_statistics.RunningStatisticsState,
     ):
-        optimizer_state, params, penalizer_params, key = carry
+        optimizer_state, params, key = carry
         key, key_perm, key_grad = jax.random.split(key, 3)
 
         def convert_data(x: jnp.ndarray):
@@ -107,19 +107,25 @@ def update_fn(
             return x
 
         shuffled_data = jax.tree_util.tree_map(convert_data, data)
-        (optimizer_state, params, penalizer_params, _), aux = jax.lax.scan(
+        (optimizer_state, params, _), aux = jax.lax.scan(
             functools.partial(minibatch_step, normalizer_params=normalizer_params),
-            (optimizer_state, params, penalizer_params, key_grad),
+            (optimizer_state, params, key_grad),
             shuffled_data,
             length=num_minibatches,
         )
-        return (optimizer_state, params, penalizer_params, key), aux
+        return (optimizer_state, params, key), aux
 
     def training_step(
         carry: Tuple[TrainingState, envs.State, PRNGKey], unused_t
     ) -> Tuple[Tuple[TrainingState, envs.State, PRNGKey], Metrics]:
         training_state, state, key = carry
         key_sgd, key_generate_unroll, new_key = jax.random.split(key, 3)
+
+        # Create planning environment with current model parameters
+        planning_env = planning_env_factory(
+            training_state.params.model,
+            training_state.normalizer_params
+        )
 
         policy = make_policy(
             (
@@ -160,12 +166,11 @@ def update_fn(
         assert data.discount.shape[1:] == (unroll_length,)
 
 
-        (optimizer_state, params, penalizer_params, _), aux = jax.lax.scan(
+        (optimizer_state, params, _), aux = jax.lax.scan(
             functools.partial(sgd_step, data=data, normalizer_params=training_state.normalizer_params),
             (
                 training_state.optimizer_state,
                 training_state.params,
-                training_state.penalizer_params,
                 key_sgd,
             ),
             (),
@@ -175,7 +180,6 @@ def update_fn(
             optimizer_state=optimizer_state,
             params=params,
             normalizer_params=training_state.normalizer_params,
-            penalizer_params=penalizer_params,
             env_steps=training_state.env_steps + env_step_per_training_step,
         )  # type: ignore
         

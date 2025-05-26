@@ -112,7 +112,7 @@ def make_losses(
         target_outputs: jax.Array,
         learn_std: bool
     ) -> jax.Array:
-        target_expanded = jnp.expand_dims(target_outputs, axis=1)
+        target_expanded = jnp.expand_dims(target_outputs, axis=2)
         target_expanded = jnp.broadcast_to(target_expanded, predicted_outputs.shape)
         nll = jax.vmap(jax.vmap(_nll, in_axes=(0, 0, 0, None)), in_axes=(0, 0, 0, None))(
             predicted_outputs, predicted_stds, target_expanded, learn_std
@@ -127,19 +127,57 @@ def make_losses(
         key,
         learn_std,
     ):
-        model_apply = ppo_network.model.apply
-        pred, std = model_apply(
+        model_apply = ppo_network.model_network.apply
+        (next_obs_pred, reward_pred, cost_pred), (next_obs_std, reward_std, cost_std) = model_apply(
             normalizer_params,
             model_params,
-            key,
             data.observation,
             data.action
         )
-        neg_log_prob = _neg_log_posterior(pred, std, data.next_observation, learn_std)
-        target_expanded = jnp.expand_dims(data.next_observation, axis=1)
-        target_expanded = jnp.broadcast_to(target_expanded, pred.shape)
-        mse = jnp.mean(jnp.square(pred - target_expanded))
-        return neg_log_prob, mse 
+        
+        current_reward_target = data.reward
+        if current_reward_target.ndim == 2: 
+            current_reward_target = jnp.expand_dims(current_reward_target, axis=-1) 
+
+        next_obs_loss = _neg_log_posterior(next_obs_pred, next_obs_std, data.next_observation, learn_std)
+        reward_loss = _neg_log_posterior(reward_pred, reward_std, current_reward_target, learn_std)
+        
+        cost_loss = 0.0
+        cost_target_for_loss_and_mse = None
+        if "state_extras" in data.extras and "cost" in data.extras["state_extras"]:
+            cost_target_for_loss_and_mse = data.extras["state_extras"]["cost"]
+            if cost_target_for_loss_and_mse.ndim == 2: 
+                cost_target_for_loss_and_mse = jnp.expand_dims(cost_target_for_loss_and_mse, axis=-1) 
+            cost_loss = _neg_log_posterior(cost_pred, cost_std, cost_target_for_loss_and_mse, learn_std)
+        
+        total_loss = next_obs_loss + reward_loss + cost_loss
+        
+        # Compute MSE for monitoring
+        mse_target_expanded_obs = jnp.expand_dims(data.next_observation, axis=2) 
+        mse_target_expanded_obs = jnp.broadcast_to(mse_target_expanded_obs, next_obs_pred.shape)
+        obs_mse = jnp.mean(jnp.square(next_obs_pred - mse_target_expanded_obs))
+
+        mse_target_expanded_reward = jnp.expand_dims(current_reward_target, axis=2) 
+        mse_target_expanded_reward = jnp.broadcast_to(mse_target_expanded_reward, reward_pred.shape)
+        reward_mse = jnp.mean(jnp.square(reward_pred - mse_target_expanded_reward))
+        
+        cost_mse = 0.0
+        if cost_target_for_loss_and_mse is not None:
+            mse_target_expanded_cost = jnp.expand_dims(cost_target_for_loss_and_mse, axis=2) 
+            mse_target_expanded_cost = jnp.broadcast_to(mse_target_expanded_cost, cost_pred.shape)
+            cost_mse = jnp.mean(jnp.square(cost_pred - mse_target_expanded_cost))
+
+        aux = {
+            "model_loss": total_loss,
+            "obs_mse": obs_mse,
+            "reward_mse": reward_mse,
+            "cost_mse": cost_mse,
+            "next_obs_loss": next_obs_loss,
+            "reward_loss": reward_loss,
+            "cost_loss": cost_loss,
+        }
+        
+        return total_loss, aux
     
     def compute_policy_loss(
         policy_params,
@@ -154,7 +192,7 @@ def make_losses(
         data = jax.tree_util.tree_map(lambda x: jnp.swapaxes(x, 0, 1), data)
         policy_logits = policy_apply(normalizer_params, policy_params, data.observation)
         baseline = value_apply(normalizer_params, value_params, data.observation)
-        terminal_obs = jax.tree_util.treecost_v_loss_map(lambda x: x[-1], data.next_observation)
+        terminal_obs = jax.tree_util.tree_map(lambda x: x[-1], data.next_observation)
         bootstrap_value = value_apply(normalizer_params, value_params, terminal_obs)
         rewards = data.reward * reward_scaling
         truncation = data.extras["state_extras"]["truncation"]

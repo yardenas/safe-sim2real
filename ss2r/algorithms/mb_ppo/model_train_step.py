@@ -14,7 +14,7 @@ from ss2r.algorithms.mb_ppo import losses as mb_ppo_losses
 
 def update_fn(
     model_loss_fn,
-    model_optimizer,
+    model_optimizer, 
     env,
     unroll_length,
     num_minibatches,
@@ -38,7 +38,7 @@ def update_fn(
         data: types.Transition,
         normalizer_params: running_statistics.RunningStatisticsState,
     ):
-        optimizer_state, params, penalizer_params, key = carry
+        optimizer_state, params, key = carry
         (
             model_optimizer_state,
             policy_optimizer_state,
@@ -66,7 +66,7 @@ def update_fn(
         params = mb_ppo_losses.MBPPOParams(
             model_params, params.policy, params.value, params.cost_value
         )  # type: ignore
-        return (optimizer_state, params, penalizer_params, key), aux
+        return (optimizer_state, params, key), aux
 
     def sgd_step(
         carry,
@@ -74,7 +74,7 @@ def update_fn(
         data: types.Transition,
         normalizer_params: running_statistics.RunningStatisticsState,
     ):
-        optimizer_state, params, penalizer_params, key = carry
+        optimizer_state, params, key = carry
         key, key_perm, key_grad = jax.random.split(key, 3)
 
         def convert_data(x: jnp.ndarray):
@@ -83,13 +83,13 @@ def update_fn(
             return x
 
         shuffled_data = jax.tree_util.tree_map(convert_data, data)
-        (optimizer_state, params, penalizer_params, _), aux = jax.lax.scan(
+        (optimizer_state, params, _), aux = jax.lax.scan(
             functools.partial(minibatch_step, normalizer_params=normalizer_params),
-            (optimizer_state, params, penalizer_params, key_grad),
+            (optimizer_state, params, key_grad),
             shuffled_data,
             length=num_minibatches,
         )
-        return (optimizer_state, params, penalizer_params, key), aux
+        return (optimizer_state, params, key), aux
 
     def training_step(
         carry: Tuple[TrainingState, envs.State, PRNGKey], unused_t
@@ -104,7 +104,7 @@ def update_fn(
                 training_state.params.value,
             )
         )
-        extra_fields = ("truncation",)
+        extra_fields = ("truncation", "cost") 
 
         def f(carry, unused_t):
             current_state, current_key = carry
@@ -140,12 +140,11 @@ def update_fn(
             pmap_axis_name=_PMAP_AXIS_NAME,
         )
 
-        (optimizer_state, params, penalizer_params, _), aux = jax.lax.scan(
+        (optimizer_state, params, _), aux = jax.lax.scan(
             functools.partial(sgd_step, data=data, normalizer_params=normalizer_params),
             (
                 training_state.optimizer_state,
                 training_state.params,
-                training_state.penalizer_params,
                 key_sgd,
             ),
             (),
@@ -155,7 +154,6 @@ def update_fn(
             optimizer_state=optimizer_state,
             params=params,
             normalizer_params=normalizer_params,
-            penalizer_params=penalizer_params,
             env_steps=training_state.env_steps + env_step_per_training_step,
         )  # type: ignore
         

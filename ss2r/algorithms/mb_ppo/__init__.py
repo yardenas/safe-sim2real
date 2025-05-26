@@ -39,7 +39,7 @@ TrainingStepFactory: Any
 InferenceParams: TypeAlias = Tuple[running_statistics.NestedMeanStd, Params]
 
 
-def get_train_fn(cfg, checkpoint_path, checkpoint_restore_path):
+def get_train_fn(cfg, checkpoint_path, restore_checkpoint_path):
     import jax.nn as jnn
 
     from ss2r.algorithms.mb_ppo import networks as mb_ppo_networks
@@ -56,6 +56,7 @@ def get_train_fn(cfg, checkpoint_path, checkpoint_restore_path):
             "eval_domain_randomization",
             "render",
             "store_checkpoint",
+            "wandb_id",  # Add this to the exclusion list
         ]
     }
     model_hidden_layer_sizes = agent_cfg.pop("model_hidden_layer_sizes")
@@ -68,6 +69,14 @@ def get_train_fn(cfg, checkpoint_path, checkpoint_restore_path):
     del training_cfg["value_privileged"]
     del training_cfg["policy_privileged"]
     del agent_cfg["name"]
+    if "cost_robustness" in agent_cfg:
+        del agent_cfg["cost_robustness"]
+    if "reward_robustness" in agent_cfg:
+        del agent_cfg["reward_robustness"]
+    if "penalizer" in agent_cfg:
+        del agent_cfg["penalizer"]
+    if "propagation" in agent_cfg:
+        del agent_cfg["propagation"]
 
 
     network_factory = functools.partial(
@@ -86,7 +95,8 @@ def get_train_fn(cfg, checkpoint_path, checkpoint_restore_path):
         **agent_cfg,
         **training_cfg,
         network_factory=network_factory,
-        restore_checkpoint_path=checkpoint_restore_path,
+        restore_checkpoint_path=restore_checkpoint_path,
+        checkpoint_path=checkpoint_path,  # Add checkpoint_path parameter
     )
 
     return train_fn
