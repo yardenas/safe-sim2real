@@ -2,6 +2,7 @@
 defaults:
   - go1_joystick
   - override /agent/penalizer: lagrangian
+  - override /agent/data_collection: episodic
   - _self_
 
 training:
@@ -14,7 +15,7 @@ training:
 
 environment:
   train_params:
-    floor_friction: [0.1, 0.1]
+    floor_friction: [0.15, 0.15]
     scale_friction: [1., 1.]
     scale_armature: [1., 1.]
     jitter_mass: [0., 0.]
@@ -25,7 +26,7 @@ environment:
     Kp: [0.0, 0.0]
 
   eval_params:
-    floor_friction: [0.1, 0.1]
+    floor_friction: [0.15, 0.15]
     scale_friction: [1., 1.]
     scale_armature: [1., 1.]
     jitter_mass: [0., 0.]
