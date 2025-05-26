@@ -187,13 +187,15 @@ def train(
         max_replay_size = num_timesteps
     # The number of environment steps executed for every `actor_step()` call.
     env_steps_per_actor_step = action_repeat * num_envs
-    if get_experience_fn != collect_single_step:
-        # Using episodic or hardware (which is episodic)
-        env_steps_per_actor_step *= episode_length
-        grad_updates_per_step *= episode_length
+    env_steps_per_experience_call = env_steps_per_actor_step
     # equals to ceil(min_replay_size / env_steps_per_actor_step)
     num_prefill_actor_steps = -(-min_replay_size // num_envs)
-    num_prefill_env_steps = num_prefill_actor_steps * env_steps_per_actor_step
+    if get_experience_fn != collect_single_step:
+        # Using episodic or hardware (which is episodic)
+        grad_updates_per_step *= episode_length
+        env_steps_per_experience_call *= episode_length
+        num_prefill_actor_steps //= episode_length
+    num_prefill_env_steps = num_prefill_actor_steps * env_steps_per_experience_call
     assert num_timesteps - num_prefill_env_steps >= 0
     num_evals_after_init = max(num_evals - 1, 1)
     # The number of run_one_sac_epoch calls per run_sac_training.
@@ -202,7 +204,7 @@ def train(
     #      (num_evals_after_init * env_steps_per_actor_step))
     num_training_steps_per_epoch = -(
         -(num_timesteps - num_prefill_env_steps)
-        // (num_evals_after_init * env_steps_per_actor_step)
+        // (num_evals_after_init * env_steps_per_experience_call)
     )
     env = environment
     if wrap_env_fn is not None:
@@ -456,7 +458,7 @@ def train(
         )
         training_state = training_state.replace(  # type: ignore
             normalizer_params=normalizer_params,
-            env_steps=training_state.env_steps + env_steps_per_actor_step,
+            env_steps=training_state.env_steps + env_steps_per_experience_call,
         )
         return training_state, env_state, buffer_state, training_key
 
@@ -521,7 +523,7 @@ def train(
             )
             new_training_state = training_state.replace(
                 normalizer_params=new_normalizer_params,
-                env_steps=training_state.env_steps + env_steps_per_actor_step,
+                env_steps=training_state.env_steps + env_steps_per_experience_call,
             )
             return (new_training_state, env_state, buffer_state, new_key), ()
 
@@ -570,7 +572,7 @@ def train(
         epoch_training_time = time.time() - t
         training_walltime += epoch_training_time
         sps = (
-            env_steps_per_actor_step * num_training_steps_per_epoch
+            env_steps_per_experience_call * num_training_steps_per_epoch
         ) / epoch_training_time
         metrics = {
             "training/sps": sps,
