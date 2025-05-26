@@ -189,13 +189,13 @@ def train(
     env_steps_per_actor_step = action_repeat * num_envs
     env_steps_per_experience_call = env_steps_per_actor_step
     # equals to ceil(min_replay_size / env_steps_per_actor_step)
-    num_prefill_actor_steps = -(-min_replay_size // num_envs)
+    num_prefill_experience_call = -(-min_replay_size // num_envs)
     if get_experience_fn != collect_single_step:
         # Using episodic or hardware (which is episodic)
         grad_updates_per_step *= episode_length
         env_steps_per_experience_call *= episode_length
-        num_prefill_actor_steps //= episode_length
-    num_prefill_env_steps = num_prefill_actor_steps * env_steps_per_experience_call
+        num_prefill_experience_call //= episode_length
+    num_prefill_env_steps = num_prefill_experience_call * env_steps_per_experience_call
     assert num_timesteps - num_prefill_env_steps >= 0
     num_evals_after_init = max(num_evals - 1, 1)
     # The number of run_one_sac_epoch calls per run_sac_training.
@@ -531,7 +531,7 @@ def train(
             f,
             (training_state, env_state, buffer_state, key),
             (),
-            length=num_prefill_actor_steps,
+            length=num_prefill_experience_call,
         )[0]
 
     def training_epoch(
