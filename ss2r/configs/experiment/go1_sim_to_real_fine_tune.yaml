@@ -12,7 +12,7 @@ training:
 
 environment:
   train_params:
-    floor_friction: [0.1, 0.1]
+    floor_friction: [0.2, 0.2]
     scale_friction: [1., 1.]
     scale_armature: [1., 1.]
     jitter_mass: [0., 0.]
@@ -23,7 +23,7 @@ environment:
     Kp: [0.0, 0.0]
 
   eval_params:
-    floor_friction: [0.1, 0.1]
+    floor_friction: [0.2, 0.2]
     scale_friction: [1., 1.]
     scale_armature: [1., 1.]
     jitter_mass: [0., 0.]
