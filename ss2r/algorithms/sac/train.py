@@ -187,6 +187,9 @@ def train(
         max_replay_size = num_timesteps
     # The number of environment steps executed for every `actor_step()` call.
     env_steps_per_actor_step = action_repeat * num_envs
+    if get_experience_fn != collect_single_step:
+        # Using episodic or hardware (which is episodic)
+        env_steps_per_actor_step *= episode_length
     # equals to ceil(min_replay_size / env_steps_per_actor_step)
     num_prefill_actor_steps = -(-min_replay_size // num_envs)
     num_prefill_env_steps = num_prefill_actor_steps * env_steps_per_actor_step
@@ -456,6 +459,7 @@ def train(
         )
         return training_state, env_state, buffer_state, training_key
 
+    # TODO (yarden): remove the jit, change to another name
     @jax.jit
     def training_step_jitted(
         training_state: TrainingState,
