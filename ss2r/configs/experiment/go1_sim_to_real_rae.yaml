@@ -38,6 +38,6 @@ environment:
 
 agent:
   use_rae: true
-  min_replay_size: 8192
+  min_replay_size: 100000
   max_replay_size: 4194304
-  grad_updates_per_step: 1000
+  grad_updates_per_step: 250
