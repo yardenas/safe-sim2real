@@ -36,9 +36,9 @@ training:
   safe: true
   safety_budget: 25
   seed: 0
-  num_evals: 15
+  num_evals: 30
   episode_length: 1000
-  num_envs: 1 # 2048
+  num_envs: 2048
   num_eval_envs: 128
   num_eval_episodes: 10
   action_repeat: 1

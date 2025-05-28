@@ -197,8 +197,9 @@ def make_losses(
         rewards = data.reward * reward_scaling
         truncation = data.extras["state_extras"]["truncation"]
         termination = (1 - data.discount) * (1 - truncation)
+        raw_action = data.extras["policy_extras"]["raw_action"]
         target_log_probs = parametric_action_distribution.log_prob(
-            policy_logits, data.extras["policy_extras"]["raw_action"]
+            policy_logits, raw_action  # Use fixed shape
         )
         behavior_log_probs = data.extras["policy_extras"]["log_prob"]
         _, advantages = compute_gae(

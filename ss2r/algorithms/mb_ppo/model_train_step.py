@@ -10,19 +10,14 @@ from brax.training.types import PRNGKey
 
 from ss2r.algorithms.mb_ppo import _PMAP_AXIS_NAME, Metrics, TrainingState
 from ss2r.algorithms.mb_ppo import losses as mb_ppo_losses
-
+from ss2r.algorithms.sac.types import ReplayBufferState, float32
 
 def update_fn(
     model_loss_fn,
     model_optimizer, 
-    env,
-    unroll_length,
+    replay_buffer,
     num_minibatches,
-    make_policy,
     num_updates_per_batch,
-    batch_size,
-    num_envs,
-    env_step_per_training_step,
     learn_std,
 ):
 
@@ -77,9 +72,30 @@ def update_fn(
         optimizer_state, params, key = carry
         key, key_perm, key_grad = jax.random.split(key, 3)
 
-        def convert_data(x: jnp.ndarray):
+        def convert_data(x):
+            # Skip reshaping for non-array elements or null elements
+            if not hasattr(x, "shape"):
+                return x
+                
+            # Permute the data first
             x = jax.random.permutation(key_perm, x)
-            x = jnp.reshape(x, (num_minibatches, -1) + x.shape[1:])
+            
+            # Get the total number of samples
+            total_samples = x.shape[0]
+            
+            # If we have fewer samples than minibatches, we need to adjust our approach
+            if total_samples < num_minibatches:
+                # Option 1: Repeat the data to fill minibatches
+                repeat_factor = (num_minibatches + total_samples - 1) // total_samples  # Ceiling division
+                x = jnp.repeat(x, repeat_factor, axis=0)[:num_minibatches]
+                # Reshape to (num_minibatches, 1) + rest of dimensions
+                return jnp.reshape(x, (num_minibatches, 1) + x.shape[1:])
+            
+            # Calculate how many samples should go into each minibatch
+            samples_per_minibatch = total_samples // num_minibatches
+            
+            # Now reshape with the calculated dimensions
+            x = jnp.reshape(x, (num_minibatches, samples_per_minibatch) + x.shape[1:])
             return x
 
         shuffled_data = jax.tree_util.tree_map(convert_data, data)
@@ -92,56 +108,22 @@ def update_fn(
         return (optimizer_state, params, key), aux
 
     def training_step(
-        carry: Tuple[TrainingState, envs.State, PRNGKey], unused_t
+        carry: Tuple[TrainingState, ReplayBufferState, PRNGKey], unused_t
     ) -> Tuple[Tuple[TrainingState, envs.State, PRNGKey], Metrics]:
-        training_state, state, key = carry
-        key_sgd, key_generate_unroll, new_key = jax.random.split(key, 3)
+        training_state, buffer_state, training_key = carry
+        key_sgd, new_key = jax.random.split(training_key, 2)
 
-        policy = make_policy(
-            (
-                training_state.normalizer_params,
-                training_state.params.policy,
-                training_state.params.value,
-            )
-        )
-        extra_fields = ("truncation", "cost") 
-
-        def f(carry, unused_t):
-            current_state, current_key = carry
-            current_key, next_key = jax.random.split(current_key)
-            generate_unroll = lambda state: acting.generate_unroll(
-                env,
-                state,
-                policy,
-                current_key,
-                unroll_length,
-                extra_fields=extra_fields,
-            )
-            next_state, data = generate_unroll(current_state)
-            return (next_state, next_key), data
-
-        (state, _), data = jax.lax.scan(
-            f,
-            (state, key_generate_unroll),
-            (),
-            length=batch_size * num_minibatches // num_envs,
-        )
-        # Have leading dimensions (batch_size * num_minibatches, unroll_length)
-        data = jax.tree_util.tree_map(lambda x: jnp.swapaxes(x, 1, 2), data)
-        data = jax.tree_util.tree_map(
-            lambda x: jnp.reshape(x, (-1,) + x.shape[2:]), data
-        )
-        assert data.discount.shape[1:] == (unroll_length,)
-
-        # Update normalization params and normalize observations.
-        normalizer_params = running_statistics.update(
-            training_state.normalizer_params,
-            data.observation,
-            pmap_axis_name=_PMAP_AXIS_NAME,
+        buffer_state, transitions = replay_buffer.sample(buffer_state)
+        transitions = float32(transitions)
+        # Change the front dimension of transitions so 'update_step' is called
+        # grad_updates_per_step times by the scan.
+        transitions = jax.tree_util.tree_map(
+            lambda x: jnp.reshape(x, (num_updates_per_batch, -1) + x.shape[1:]),
+            transitions,
         )
 
         (optimizer_state, params, _), aux = jax.lax.scan(
-            functools.partial(sgd_step, data=data, normalizer_params=normalizer_params),
+            functools.partial(sgd_step, data=transitions, normalizer_params=training_state.normalizer_params),
             (
                 training_state.optimizer_state,
                 training_state.params,
@@ -153,10 +135,10 @@ def update_fn(
         new_training_state = TrainingState(
             optimizer_state=optimizer_state,
             params=params,
-            normalizer_params=normalizer_params,
-            env_steps=training_state.env_steps + env_step_per_training_step,
+            normalizer_params=training_state.normalizer_params,
+            env_steps=training_state.env_steps,
         )  # type: ignore
         
-        return (new_training_state, state, new_key), aux
+        return (new_training_state, buffer_state, new_key), aux
 
     return training_step

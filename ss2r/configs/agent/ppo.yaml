@@ -1,7 +1,7 @@
 defaults:
   - cost_robustness: null
   - reward_robustness: null
-  - penalizer: saute
+  - penalizer: crpo
   - propagation: null
 
 name: ppo
