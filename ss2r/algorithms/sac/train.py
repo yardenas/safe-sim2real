@@ -193,7 +193,6 @@ def train(
     num_prefill_experience_call = -(-min_replay_size // num_envs)
     if get_experience_fn != collect_single_step:
         # Using episodic or hardware (which is episodic)
-        grad_updates_per_step *= episode_length
         env_steps_per_experience_call *= episode_length
         num_prefill_experience_call = -(-num_prefill_experience_call // episode_length)
     num_prefill_env_steps = num_prefill_experience_call * env_steps_per_experience_call
