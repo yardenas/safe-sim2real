@@ -5,7 +5,7 @@ from brax import envs
 from brax.training import gradients
 from brax.training.types import PRNGKey
 
-from ss2r.algorithms.mb_ppo import _PMAP_AXIS_NAME, Metrics, TrainingState
+from ss2r.algorithms.mb_ppo import Metrics, TrainingState
 from ss2r.algorithms.mb_ppo import losses as mb_ppo_losses
 from ss2r.algorithms.sac.types import ReplayBufferState, float32
 
@@ -19,7 +19,7 @@ def update_fn(
     model_update_fn = gradients.gradient_update_fn(
         model_loss_fn,
         model_optimizer,
-        pmap_axis_name=_PMAP_AXIS_NAME,
+        pmap_axis_name=None,
         has_aux=True,
     )
 
@@ -49,7 +49,7 @@ def update_fn(
             ),
             normalizer_params=training_state.normalizer_params,
             env_steps=training_state.env_steps,
-        )
+        )  # type: ignore
         return (new_training_state, buffer_state, new_key), aux
 
     return training_step

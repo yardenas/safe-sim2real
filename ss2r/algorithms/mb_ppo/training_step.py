@@ -8,7 +8,7 @@ from brax.training import acting, gradients, types
 from brax.training.acme import running_statistics
 from brax.training.types import PRNGKey
 
-from ss2r.algorithms.mb_ppo import _PMAP_AXIS_NAME, Metrics, TrainingState
+from ss2r.algorithms.mb_ppo import Metrics, TrainingState
 from ss2r.algorithms.mb_ppo import losses as mb_ppo_losses
 from ss2r.algorithms.sac.types import ReplayBufferState
 
@@ -26,19 +26,18 @@ def update_fn(
     num_minibatches,
     make_policy,
     num_updates_per_batch,
-    batch_size,
     safe,
 ):
     policy_gradient_update_fn = gradients.gradient_update_fn(
-        policy_loss_fn, optimizer, pmap_axis_name=_PMAP_AXIS_NAME, has_aux=True
+        policy_loss_fn, optimizer, pmap_axis_name=None, has_aux=True
     )
     value_gradient_update_fn = gradients.gradient_update_fn(
-        value_loss_fn, value_optimizer, pmap_axis_name=_PMAP_AXIS_NAME, has_aux=True
+        value_loss_fn, value_optimizer, pmap_axis_name=None, has_aux=True
     )
     cost_value_gradient_update_fn = gradients.gradient_update_fn(
         cost_value_loss_fn,
         cost_value_optimizer,
-        pmap_axis_name=_PMAP_AXIS_NAME,
+        pmap_axis_name=None,
         has_aux=True,
     )
 

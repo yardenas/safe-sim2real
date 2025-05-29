@@ -51,7 +51,6 @@ class ModelBasedEnv(envs.Env):
             random_indices = jax.random.randint(
                 key_ensemble_selection, (batch_size,), 0, ensemble_size
             )
-
             next_obs = jax.vmap(lambda arr, idx: arr[idx])(
                 next_obs_pred, random_indices
             )

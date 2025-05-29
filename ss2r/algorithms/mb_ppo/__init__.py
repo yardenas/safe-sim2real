@@ -12,8 +12,6 @@ from brax.training.types import Params
 from ss2r.algorithms.mb_ppo import losses as mb_ppo_losses
 from ss2r.algorithms.sac.data import get_collection_fn
 
-_PMAP_AXIS_NAME = "i"
-
 
 @flax.struct.dataclass
 class TrainingState:
