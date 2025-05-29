@@ -18,9 +18,23 @@ def get_collection_fn(cfg):
     if cfg.agent.data_collection.name == "step":
         return collect_single_step
     elif cfg.agent.data_collection.name == "episodic":
-        return make_collection_fn(
-            functools.partial(acting.generate_unroll, cfg.training.episode_length)
+        fn = (
+            lambda env,
+            env_state,
+            make_policy_fn,
+            policy_params,
+            key,
+            extra_fields: generate_unroll(
+                env,
+                env_state,
+                make_policy_fn,
+                policy_params,
+                key,
+                cfg.training.episode_length,
+                extra_fields,
+            )
         )
+        return make_collection_fn(fn)
     elif cfg.agent.data_collection.name == "hardware":
         data_collection_cfg = cfg.agent.data_collection
         if "Go1" in cfg.environment.task_name:
