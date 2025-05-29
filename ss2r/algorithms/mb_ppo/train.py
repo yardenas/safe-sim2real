@@ -92,7 +92,8 @@ def train(
     num_envs: int = 1,
     num_eval_envs: int = 128,
     num_eval_episodes: int = 10,
-    learning_rate: float = 1e-4,
+    actor_critic_learning_rate: float = 1e-4,
+    model_learning_rate: float = 1e-4,
     entropy_cost: float = 1e-4,
     discounting: float = 0.9,
     safety_discounting: float = 0.9,
@@ -178,26 +179,26 @@ def train(
         obs_size, action_size, preprocess_observations_fn=normalize_fn
     )
     make_policy = mb_ppo_networks.make_inference_fn(ppo_network)
-    model_optimizer = optax.adam(learning_rate=learning_rate)
-    policy_optimizer = optax.adam(learning_rate=learning_rate)
-    value_optimizer = optax.adam(learning_rate=learning_rate)
-    cost_value_optimizer = optax.adam(learning_rate=learning_rate)
+    model_optimizer = optax.adam(learning_rate=model_learning_rate)
+    policy_optimizer = optax.adam(learning_rate=actor_critic_learning_rate)
+    value_optimizer = optax.adam(learning_rate=actor_critic_learning_rate)
+    cost_value_optimizer = optax.adam(learning_rate=actor_critic_learning_rate)
     if max_grad_norm is None:
         model_optimizer = optax.chain(
             optax.clip_by_global_norm(max_grad_norm),
-            optax.adam(learning_rate=learning_rate),
+            optax.adam(learning_rate=model_learning_rate),
         )
         policy_optimizer = optax.chain(
             optax.clip_by_global_norm(max_grad_norm),
-            optax.adam(learning_rate=learning_rate),
+            optax.adam(learning_rate=actor_critic_learning_rate),
         )
         value_optimizer = optax.chain(
             optax.clip_by_global_norm(max_grad_norm),
-            optax.adam(learning_rate=learning_rate),
+            optax.adam(learning_rate=actor_critic_learning_rate),
         )
         cost_value_optimizer = optax.chain(
             optax.clip_by_global_norm(max_grad_norm),
-            optax.adam(learning_rate=learning_rate),
+            optax.adam(learning_rate=actor_critic_learning_rate),
         )
 
     # Create replay buffer

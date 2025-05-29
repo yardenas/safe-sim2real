@@ -19,6 +19,7 @@ agent:
   num_minibatches: 32
   num_updates_per_batch: 4
   discounting: 0.995
-  learning_rate: 0.0001
+  actor_critic_learning_rate: 0.0001
+  model_learning_rate: 3e-4
   entropy_cost: 0.025
   batch_size: 1024
