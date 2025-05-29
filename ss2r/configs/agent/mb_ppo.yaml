@@ -3,7 +3,6 @@ defaults:
 
 name: mb_ppo
 
-max_devices_per_host: null
 learning_rate: 0.0001
 entropy_cost: 0.0001
 discounting: 0.9
@@ -19,6 +18,7 @@ reward_scaling: 1.0
 cost_scaling: 1.0
 clipping_epsilon: 0.3
 gae_lambda: 0.95
+# Remove this parameter later
 safety_gae_lambda: 0.95
 deterministic_eval: true
 normalize_advantage: true

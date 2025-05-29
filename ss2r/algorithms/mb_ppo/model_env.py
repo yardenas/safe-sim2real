@@ -58,17 +58,17 @@ class ModelBasedEnv(envs.Env):
             cost = jax.vmap(lambda arr, idx: arr[idx])(cost_pred, random_indices)
         elif self.ensemble_selection == "mean":
             # Use ensemble mean
-            next_obs = jnp.mean(next_obs_pred, axis=1)
-            reward = jnp.mean(reward_pred, axis=1)
-            cost = jnp.mean(cost_pred, axis=1)
+            next_obs = jnp.mean(next_obs_pred, axis=0)
+            reward = jnp.mean(reward_pred, axis=0)
+            cost = jnp.mean(cost_pred, axis=0)
         elif self.ensemble_selection == "pessimistic":
-            next_obs = jnp.mean(next_obs_pred, axis=1)
-            reward = jnp.min(reward_pred, axis=1)
-            cost = jnp.max(cost_pred, axis=1)
+            next_obs = jnp.mean(next_obs_pred, axis=0)
+            reward = jnp.min(reward_pred, axis=0)
+            cost = jnp.max(cost_pred, axis=0)
         else:
             raise ValueError(f"Unknown ensemble selection: {self.ensemble_selection}")
         done = jnp.zeros_like(reward, dtype=jnp.float32)
-        prev_cumulative_cost = state.info.get("cumulative_cost", jnp.zeros_like(cost))
+        prev_cumulative_cost = state.info["cumulative_cost"]
         accumulated_cost_for_transition = prev_cumulative_cost + cost
         if self.safety_budget < float("inf"):
             done = jnp.where(
@@ -81,21 +81,15 @@ class ModelBasedEnv(envs.Env):
             jnp.zeros_like(accumulated_cost_for_transition),
             accumulated_cost_for_transition,
         )
-        model_extras = {
-            "cost": cost,
-            "cumulative_cost": accumulated_cost_for_transition,
-            "truncation": jnp.zeros_like(done, dtype=jnp.float32),
-        }
-        new_info = {**state.info, **model_extras}
-        new_state = base.State(
-            pipeline_state=state.pipeline_state,
+        state.info["cumulative_cost"] = accumulated_cost_for_transition
+        state.info["cost"] = cost
+        state = state.replace(
             obs=next_obs,
             reward=reward,
             done=done,
-            metrics=state.metrics,
-            info=new_info,
+            info=state.info,
         )
-        return new_state
+        return state
 
     def observation_size(self) -> int:
         """Return the size of the observation space."""

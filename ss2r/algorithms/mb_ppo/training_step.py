@@ -10,7 +10,7 @@ from brax.training.types import PRNGKey
 
 from ss2r.algorithms.mb_ppo import Metrics, TrainingState
 from ss2r.algorithms.mb_ppo import losses as mb_ppo_losses
-from ss2r.algorithms.sac.types import ReplayBufferState
+from ss2r.algorithms.sac.types import ReplayBufferState, float32
 
 
 def update_fn(
@@ -23,6 +23,7 @@ def update_fn(
     planning_env_factory,  # Changed from planning_env to planning_env_factory
     replay_buffer,
     unroll_length,
+    batch_size,
     num_minibatches,
     make_policy,
     num_updates_per_batch,
@@ -53,7 +54,6 @@ def update_fn(
             value_optimizer_state,
             cost_value_optimizer_state,
         ) = optimizer_state
-
         key, key_loss = jax.random.split(key)
         (_, aux), policy_params, policy_optimizer_state = policy_gradient_update_fn(
             params.policy,
@@ -63,7 +63,6 @@ def update_fn(
             key_loss,
             optimizer_state=policy_optimizer_state,
         )
-
         (_, value_aux), value_params, value_optimizer_state = value_gradient_update_fn(
             params.value,
             normalizer_params,
@@ -71,19 +70,20 @@ def update_fn(
             optimizer_state=value_optimizer_state,
         )
         aux |= value_aux
-
-        (
-            (_, cost_value_aux),
-            cost_value_params,
-            cost_value_optimizer_state,
-        ) = cost_value_gradient_update_fn(
-            params.cost_value,
-            normalizer_params,
-            data,
-            optimizer_state=cost_value_optimizer_state,
-        )
-        aux |= cost_value_aux
-
+        if safe:
+            (
+                (_, cost_value_aux),
+                cost_value_params,
+                cost_value_optimizer_state,
+            ) = cost_value_gradient_update_fn(
+                params.cost_value,
+                normalizer_params,
+                data,
+                optimizer_state=cost_value_optimizer_state,
+            )
+            aux |= cost_value_aux
+        else:
+            cost_value_params = params.cost_value
         optimizer_state = (
             model_optimizer_state,
             policy_optimizer_state,
@@ -91,7 +91,7 @@ def update_fn(
             cost_value_optimizer_state,
         )
         params = mb_ppo_losses.MBPPOParams(
-            params.model, policy_params, value_params, cost_value_params
+            policy_params, value_params, cost_value_params, params.model
         )  # type: ignore
         return (optimizer_state, params, key), aux
 
@@ -122,13 +122,12 @@ def update_fn(
         carry: Tuple[TrainingState, ReplayBufferState, PRNGKey], unused_t
     ) -> Tuple[Tuple[TrainingState, ReplayBufferState, PRNGKey], Metrics]:
         training_state, buffer_state, key = carry
-        key_sgd, key_generate_unroll, new_key = jax.random.split(key, 3)
+        key_sgd, key_generate_unroll, cost_key, new_key = jax.random.split(key, 4)
 
         # Create planning environment with current model parameters
         planning_env = planning_env_factory(
             training_state.params.model, training_state.normalizer_params
         )
-
         policy = make_policy(
             (
                 training_state.normalizer_params,
@@ -140,43 +139,53 @@ def update_fn(
         if safe:
             extra_fields += ("cost", "cumulative_cost")  # type: ignore
 
-        # Sample initial states from the replay buffer
-        buffer_state, transitions = replay_buffer.sample(buffer_state)
-        initial_states = envs.State(
-            pipeline_state=None,
-            obs=transitions.observation,
-            reward=transitions.reward,
-            done=transitions.discount,
-            info={},
-        )
-
         # Function to generate unrolls from each initial state
-        def generate_unroll_fn(state):
-            return acting.generate_unroll(
+        def f(carry, unused_t):
+            # Sample initial states from the replay buffer
+            buffer_state, current_key = carry
+            buffer_state, transitions = replay_buffer.sample(buffer_state)
+            transitions = float32(transitions)
+            # FIXME (manu): make sure that minval and maxval are correct
+            cumulative_cost = jax.random.uniform(
+                cost_key, (transitions.reward.shape[0],), minval=0.0, maxval=1.0
+            )
+            state = envs.State(
+                pipeline_state=None,
+                obs=transitions.observation,
+                reward=transitions.reward,
+                done=transitions.discount,
+                info={
+                    "cumulative_cost": cumulative_cost,  # type: ignore
+                    "truncation": transitions.extras["state_extras"]["truncation"],
+                    "cost": transitions.extras["state_extras"].get(
+                        "cost", jnp.zeros_like(cumulative_cost)
+                    ),
+                },
+            )
+            current_key, next_key = jax.random.split(current_key)
+            generate_unroll = lambda state: acting.generate_unroll(
                 planning_env,
                 state,
                 policy,
-                key_generate_unroll,
+                current_key,
                 unroll_length,
                 extra_fields=extra_fields,
             )
+            _, data = generate_unroll(state)
+            return (buffer_state, next_key), data
 
-        # Generate all unrolls in parallel
-        _, data = jax.vmap(generate_unroll_fn)(initial_states)
-
-        # Print shapes of key data structures before reshape
-        print(
-            f"Data dimensions: {data.observation.shape}, {data.action.shape}, {data.reward.shape}, {data.discount.shape}, {data.extras['state_extras']['truncation'].shape}"
+        (buffer_state, _), data = jax.lax.scan(
+            f,
+            (buffer_state, key_generate_unroll),
+            (),
+            length=num_minibatches,
         )
-        # Reshape reward, discount and truncation to get rid of trailing dimension
-        data = jax.tree_util.tree_map(lambda x: jnp.swapaxes(x, 0, 1), data)
-
-        print(
-            f"Data dimensions: {data.observation.shape}, {data.action.shape}, {data.reward.shape}, {data.discount.shape}, {data.extras['state_extras']['truncation'].shape}"
+        # Have leading dimensions (batch_size * num_minibatches, unroll_length)
+        data = jax.tree_util.tree_map(lambda x: jnp.swapaxes(x, 1, 2), data)
+        data = jax.tree_util.tree_map(
+            lambda x: jnp.reshape(x, (-1,) + x.shape[2:]), data
         )
-
         assert data.discount.shape[1:] == (unroll_length,)
-
         (optimizer_state, params, _), aux = jax.lax.scan(
             functools.partial(
                 sgd_step, data=data, normalizer_params=training_state.normalizer_params

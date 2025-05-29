@@ -21,8 +21,9 @@ import jax.numpy as jnp
 import optax
 from absl import logging
 from brax import envs
+from brax.envs.wrappers.training import VmapWrapper
 from brax.training import replay_buffers, types
-from brax.training.acme import running_statistics
+from brax.training.acme import running_statistics, specs
 from brax.training.agents.sac import checkpoint
 from brax.training.types import PRNGKey, Transition
 from etils import epath
@@ -59,6 +60,13 @@ def _init_training_state(
     policy_optimizer_state = policy_optimizer.init(init_params.policy)
     value_optimizer_state = value_optimizer.init(init_params.value)
     cost_value_optimizer_state = cost_value_optimizer.init(init_params.cost_value)
+    if isinstance(obs_size, Mapping):
+        obs_shape = {
+            k: specs.Array(v, jnp.dtype("float32")) for k, v in obs_size.items()
+        }
+    else:
+        obs_shape = specs.Array((obs_size,), jnp.dtype("float32"))
+    normalizer_params = running_statistics.init_state(obs_shape)
     training_state = TrainingState(  # pytype: disable=wrong-arg-types  # jax-ndarray
         optimizer_state=(
             model_optimizer_state,
@@ -67,7 +75,7 @@ def _init_training_state(
             cost_value_optimizer_state,
         ),  # pytype: disable=wrong-arg-types  # numpy-scalars
         params=init_params,
-        normalizer_params=running_statistics.init_state(obs_size),
+        normalizer_params=normalizer_params,
         env_steps=0,
     )  # type: ignore
     return training_state, init_params
@@ -96,7 +104,6 @@ def train(
     model_updates_per_step: int = 1000,
     ppo_updates_per_step: int = 1,
     num_evals: int = 1,
-    num_experience_steps_per_epoch: int = 10,
     min_replay_size: int = 0,
     max_replay_size: int = 1000000,
     normalize_observations: bool = False,
@@ -255,6 +262,7 @@ def train(
             observation_size=obs_size,
             action_size=action_size,
         )
+        planning_env = VmapWrapper(planning_env)
         return planning_env
 
     # Creating the PPO update step
@@ -268,6 +276,7 @@ def train(
         create_planning_env,  # Pass the factory function
         replay_buffer,
         unroll_length,
+        batch_size,
         num_minibatches,
         make_policy,
         num_updates_per_batch,
@@ -324,7 +333,7 @@ def train(
             new_normalizer_params, env_state, buffer_state = get_experience_fn(
                 env,
                 make_policy,
-                training_state.policy_params,
+                training_state.params.policy,
                 training_state.normalizer_params,
                 replay_buffer,
                 env_state,
@@ -497,10 +506,10 @@ def train(
             # Save current policy.
             params = (
                 training_state.normalizer_params,
-                training_state.params.model,
                 training_state.params.policy,
                 training_state.params.value,
                 training_state.params.cost_value,
+                training_state.params.model,
             )
             if store_buffer:
                 params += (buffer_state,)  # type: ignore
@@ -509,7 +518,7 @@ def train(
 
         # Run evals.
         metrics = evaluator.run_evaluation(
-            (training_state.normalizer_params, training_state.policy_params),
+            (training_state.normalizer_params, training_state.params.policy),
             training_metrics,
         )
         logging.info(metrics)
@@ -519,10 +528,10 @@ def train(
     assert total_steps >= num_timesteps
     params = (
         training_state.normalizer_params,
-        training_state.params.model,
         training_state.params.policy,
         training_state.params.value,
         training_state.params.cost_value,
+        training_state.params.model,
     )
     if store_buffer:
         params += (buffer_state,)  # type: ignore

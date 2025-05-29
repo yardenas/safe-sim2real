@@ -8,10 +8,10 @@ from brax.training.types import Params
 class MBPPOParams:
     """Contains training state for the learner."""
 
-    model: Params
     policy: Params
     value: Params
     cost_value: Params
+    model: Params
 
 
 def compute_gae(

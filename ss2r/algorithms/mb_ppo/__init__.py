@@ -89,7 +89,7 @@ def get_train_fn(cfg, checkpoint_path, restore_checkpoint_path):
         **training_cfg,
         network_factory=network_factory,
         restore_checkpoint_path=restore_checkpoint_path,
-        checkpoint_path=checkpoint_path,  # Add checkpoint_path parameter
+        checkpoint_logdir=checkpoint_path,
         get_experience_fn=data_collection,
     )
 
