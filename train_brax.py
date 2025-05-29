@@ -59,8 +59,9 @@ def get_train_fn(cfg):
             restore_checkpoint_path=restore_checkpoint_path,
             checkpoint_path=get_state_path(),
         )
-    elif cfg.agent.name == "mb_ppo":  # Add this section
+    elif cfg.agent.name == "mb_ppo":
         from ss2r.algorithms import mb_ppo
+
         train_fn = mb_ppo.get_train_fn(
             cfg,
             restore_checkpoint_path=restore_checkpoint_path,
