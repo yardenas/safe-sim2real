@@ -9,20 +9,19 @@ from brax.training import types
 from brax.training.acme import running_statistics
 from brax.training.types import Params
 
-from ss2r.algorithms.penalizers import get_penalizer
-from ss2r.algorithms.ppo import losses as ppo_losses
-
-_PMAP_AXIS_NAME = "i"
+from ss2r.algorithms.mb_ppo import losses as mb_ppo_losses
+from ss2r.algorithms.sac.data import get_collection_fn
 
 
 @flax.struct.dataclass
 class TrainingState:
     """Contains training state for the learner."""
 
-    optimizer_state: tuple[optax.OptState, optax.OptState, Optional[optax.OptState]]
-    params: ppo_losses.SafePPONetworkParams
+    optimizer_state: tuple[
+        optax.OptState, optax.OptState, optax.OptState, Optional[optax.OptState]
+    ]
+    params: mb_ppo_losses.MBPPOParams
     normalizer_params: running_statistics.RunningStatisticsState
-    penalizer_params: Params
     env_steps: jnp.ndarray
 
 
@@ -44,8 +43,8 @@ InferenceParams: TypeAlias = Tuple[running_statistics.NestedMeanStd, Params]
 def get_train_fn(cfg, checkpoint_path, restore_checkpoint_path):
     import jax.nn as jnn
 
-    from ss2r.algorithms.ppo import networks as ppo_networks
-    from ss2r.algorithms.ppo import train as ppo
+    from ss2r.algorithms.mb_ppo import networks as mb_ppo_networks
+    from ss2r.algorithms.mb_ppo import train as mb_ppo
 
     agent_cfg = dict(cfg.agent)
     training_cfg = {
@@ -61,45 +60,37 @@ def get_train_fn(cfg, checkpoint_path, restore_checkpoint_path):
             "wandb_id",  # Add this to the exclusion list
         ]
     }
+    model_hidden_layer_sizes = agent_cfg.pop("model_hidden_layer_sizes")
     policy_hidden_layer_sizes = agent_cfg.pop("policy_hidden_layer_sizes")
     value_hidden_layer_sizes = agent_cfg.pop("value_hidden_layer_sizes")
     activation = getattr(jnn, agent_cfg.pop("activation"))
+    learn_std = agent_cfg.pop("learn_std", False)
     value_obs_key = "privileged_state" if cfg.training.value_privileged else "state"
     policy_obs_key = "privileged_state" if cfg.training.policy_privileged else "state"
     del training_cfg["value_privileged"]
     del training_cfg["policy_privileged"]
     del agent_cfg["name"]
-    if "cost_robustness" in agent_cfg:
-        del agent_cfg["cost_robustness"]
-    if "reward_robustness" in agent_cfg:
-        del agent_cfg["reward_robustness"]
-    if "penalizer" in agent_cfg:
-        del agent_cfg["penalizer"]
-    if "propagation" in agent_cfg:
-        del agent_cfg["propagation"]
+    if "data_collection" in agent_cfg:
+        del agent_cfg["data_collection"]
     network_factory = functools.partial(
-        ppo_networks.make_ppo_networks,
+        mb_ppo_networks.make_mb_ppo_networks,
+        model_hidden_layer_sizes=model_hidden_layer_sizes,
         policy_hidden_layer_sizes=policy_hidden_layer_sizes,
         value_hidden_layer_sizes=value_hidden_layer_sizes,
         activation=activation,
+        learn_std=learn_std,
         value_obs_key=value_obs_key,
         policy_obs_key=policy_obs_key,
     )
-    penalizer, penalizer_params = get_penalizer(cfg)
+    data_collection = get_collection_fn(cfg)
     train_fn = functools.partial(
-        ppo.train,
+        mb_ppo.train,
         **agent_cfg,
         **training_cfg,
         network_factory=network_factory,
         restore_checkpoint_path=restore_checkpoint_path,
-        penalizer=penalizer,
-        penalizer_params=penalizer_params,
+        checkpoint_logdir=checkpoint_path,
+        get_experience_fn=data_collection,
     )
-    # FIXME (yarden): that's a hack for now. Need to think of a
-    # better way to implement this.
-    if "penalizer" in cfg.agent and cfg.agent.penalizer.name == "saute":
-        train_fn = functools.partial(
-            train_fn,
-            use_saute=cfg.training.safe,
-        )
+
     return train_fn
