@@ -176,7 +176,7 @@ def make_mb_ppo_networks(
     preprocess_observations_fn: types.PreprocessObservationFn = types.identity_observation_preprocessor,
     policy_hidden_layer_sizes: Sequence[int] = (32,) * 4,
     value_hidden_layer_sizes: Sequence[int] = (256,) * 5,
-    model_hidden_layer_sizes: Sequence[int] = (256,) * 5,
+    model_hidden_layer_sizes: Sequence[int] = (512,) * 2,
     n_ensemble: int = 5,
     model_use_bro: bool = True,
     activation: networks.ActivationFn = linen.swish,
