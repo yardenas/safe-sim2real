@@ -14,15 +14,14 @@
 
 """ModelBasedPPO networks."""
 
-from typing import Sequence, Tuple, Callable
- 
+from typing import Callable, Sequence, Tuple
+
+import flax
 import jax
 import jax.numpy as jnp
-import flax
-from flax import linen
 from brax.training import distribution, networks, types
 from brax.training.types import PRNGKey
-
+from flax import linen
 
 
 @flax.struct.dataclass
@@ -32,6 +31,7 @@ class MBPPONetworks:
     value_network: networks.FeedForwardNetwork
     cost_value_network: networks.FeedForwardNetwork
     parametric_action_distribution: distribution.ParametricDistribution
+
 
 class BroNet(linen.Module):
     hidden_dims: Sequence[int]
@@ -46,10 +46,14 @@ class BroNet(linen.Module):
         x = self.activation(x)
         for _ in range(len(self.hidden_dims) - 1):
             residual = x
-            x = linen.Dense(features=self.hidden_dims[0], kernel_init=self.kernel_init)(x)
+            x = linen.Dense(features=self.hidden_dims[0], kernel_init=self.kernel_init)(
+                x
+            )
             x = linen.LayerNorm()(x)
             x = self.activation(x)
-            x = linen.Dense(features=self.hidden_dims[0], kernel_init=self.kernel_init)(x)
+            x = linen.Dense(features=self.hidden_dims[0], kernel_init=self.kernel_init)(
+                x
+            )
             x = linen.LayerNorm()(x)
             x += residual
         x = linen.Dense(self.hidden_dims[-1], kernel_init=self.kernel_init)(x)
@@ -86,6 +90,7 @@ def make_inference_fn(ppo_networks: MBPPONetworks):
 
     return make_policy
 
+
 def make_world_model_ensemble(
     obs_size: int,
     action_size: int,
@@ -105,6 +110,7 @@ def make_world_model_ensemble(
 
     class MModule(linen.Module):
         """M Module."""
+
         n_ensemble: int
         obs_size: int
 
@@ -115,7 +121,7 @@ def make_world_model_ensemble(
             net = BroNet if use_bro else networks.MLP
             single_output_dim = obs_size + 2  # +2 for reward and cost
             if learn_std:
-                single_output_dim *= 2  
+                single_output_dim *= 2
             output_dim = single_output_dim
             hidden_dims = list(hidden_layer_sizes) + [output_dim]
             for _ in range(self.n_ensemble):
@@ -125,84 +131,42 @@ def make_world_model_ensemble(
                     kernel_init=jax.nn.initializers.lecun_uniform(),
                 )(hidden)
                 res.append(m)
-            ensemble_output = jnp.concatenate(res, axis=-1)
+            ensemble_output = jnp.stack(res, 0)
             return ensemble_output
-        
+
     model = MModule(n_ensemble=n_ensemble, obs_size=obs_size)
 
-    @jax.jit
     def apply(processor_params, params, obs, actions):
-        obs_is_2d = (obs.ndim == 2) # True if obs is (batch, features)
-
         obs_processed = preprocess_observations_fn(obs, processor_params)
         raw_output = model.apply(params, obs_processed, actions)
+        # Std devs also need to match the shape (B, E, feature_dim)
+        if not learn_std:
+            obs, reward, cost = (
+                raw_output[..., :obs_size],
+                raw_output[..., obs_size],
+                raw_output[..., obs_size + 1],
+            )
+            obs_std = jnp.ones_like(obs) * 1e-3
+            reward_std = jnp.ones_like(reward) * 1e-3
+            cost_std = jnp.ones_like(cost) * 1e-3
+        else:
+            means, stds = jnp.split(raw_output, 2, axis=-1)
+            obs, reward, cost = (
+                means[..., :obs_size],
+                means[..., obs_size],
+                means[..., obs_size + 1],
+            )
+            obs_std, reward_std, cost_std = (
+                stds[..., :obs_size],
+                stds[..., obs_size],
+                stds[..., obs_size + 1],
+            )
+        return (obs, reward, cost), (obs_std, reward_std, cost_std)
 
-        batch_size = obs.shape[0]
-        single_output_dim_model = obs_size + 2
-
-        if obs_is_2d:
-            # Input obs was (batch_size, obs_feature_dim)
-            # raw_output is (batch_size, n_ensemble * single_output_dim_model_effective)
-            if learn_std:
-                # Reshape to (batch_size, n_ensemble, single_output_dim_model * 2)
-                reshaped = raw_output.reshape(batch_size, n_ensemble, single_output_dim_model * 2)
-                pred_mean_flat = reshaped[:, :, :single_output_dim_model]    # (B, E, single_output_dim_model)
-                pred_std_flat = reshaped[:, :, single_output_dim_model:]     # (B, E, single_output_dim_model)
-
-                next_obs_mean = pred_mean_flat[:, :, :obs_size]
-                reward_mean = pred_mean_flat[:, :, obs_size:obs_size+1]
-                cost_mean = pred_mean_flat[:, :, obs_size+1:obs_size+2]
-
-                next_obs_std = pred_std_flat[:, :, :obs_size]
-                reward_std = pred_std_flat[:, :, obs_size:obs_size+1]
-                cost_std = pred_std_flat[:, :, obs_size+1:obs_size+2]
-                return (next_obs_mean, reward_mean, cost_mean), (next_obs_std, reward_std, cost_std)
-            else:
-                # Reshape to (batch_size, n_ensemble, single_output_dim_model)
-                pred_flat = raw_output.reshape(batch_size, n_ensemble, single_output_dim_model)
-                next_obs_pred = pred_flat[:, :, :obs_size]
-                reward_pred = pred_flat[:, :, obs_size:obs_size+1]
-                cost_pred = pred_flat[:, :, obs_size+1:obs_size+2]
-
-                # Std devs also need to match the shape (B, E, feature_dim)
-                next_obs_std = jnp.ones_like(next_obs_pred) * 1e-3
-                reward_std = jnp.ones_like(reward_pred) * 1e-3
-                cost_std = jnp.ones_like(cost_pred) * 1e-3
-                return (next_obs_pred, reward_pred, cost_pred), (next_obs_std, reward_std, cost_std)
-        else: # obs is 3D (batch_size, unroll_length, obs_feature_dim)
-            unroll_length = obs.shape[1]
-            # raw_output is (batch_size, unroll_length, n_ensemble * single_output_dim_model_effective)
-            if learn_std:
-                # Reshape to (batch_size, unroll_length, n_ensemble, single_output_dim_model * 2)
-                reshaped = raw_output.reshape(batch_size, unroll_length, n_ensemble, single_output_dim_model * 2)
-                pred_mean_flat = reshaped[:, :, :, :single_output_dim_model] # (B, T, E, single_output_dim_model)
-                pred_std_flat = reshaped[:, :, :, single_output_dim_model:]  # (B, T, E, single_output_dim_model)
-
-                next_obs_mean = pred_mean_flat[:, :, :, :obs_size]
-                reward_mean = pred_mean_flat[:, :, :, obs_size:obs_size+1]
-                cost_mean = pred_mean_flat[:, :, :, obs_size+1:obs_size+2]
-
-                next_obs_std = pred_std_flat[:, :, :, :obs_size]
-                reward_std = pred_std_flat[:, :, :, obs_size:obs_size+1]
-                cost_std = pred_std_flat[:, :, :, obs_size+1:obs_size+2]
-                return (next_obs_mean, reward_mean, cost_mean), (next_obs_std, reward_std, cost_std)
-            else:
-                # Reshape to (batch_size, unroll_length, n_ensemble, single_output_dim_model)
-                pred_flat = raw_output.reshape(batch_size, unroll_length, n_ensemble, single_output_dim_model)
-                next_obs_pred = pred_flat[:, :, :, :obs_size]
-                reward_pred = pred_flat[:, :, :, obs_size:obs_size+1]
-                cost_pred = pred_flat[:, :, :, obs_size+1:obs_size+2]
-
-                next_obs_std = jnp.ones_like(next_obs_pred) * 1e-3
-                reward_std = jnp.ones_like(reward_pred) * 1e-3
-                cost_std = jnp.ones_like(cost_pred) * 1e-3
-                return (next_obs_pred, reward_pred, cost_pred), (next_obs_std, reward_std, cost_std)
-
-    dummy_obs = jnp.zeros((1, 1, obs_size)) 
-    dummy_action = jnp.zeros((1, 1, action_size)) 
+    dummy_obs = jnp.zeros((1, obs_size))
+    dummy_action = jnp.zeros((1, action_size))
     return networks.FeedForwardNetwork(
-        init=lambda key: model.init(key, dummy_obs, dummy_action), 
-        apply=apply
+        init=lambda key: model.init(key, dummy_obs, dummy_action), apply=apply
     )
 
 
@@ -221,12 +185,14 @@ def make_mb_ppo_networks(
     learn_std: bool = False,
 ) -> MBPPONetworks:
     """Make PPO networks with preprocessor."""
-    
+
     # Convert observation_size to integer if it's a shape tuple
     if isinstance(observation_size, (tuple, list)):
-        observation_size = observation_size[0] if len(observation_size) == 1 else sum(observation_size)
+        observation_size = (
+            observation_size[0] if len(observation_size) == 1 else sum(observation_size)
+        )
     observation_size = int(observation_size)
-    
+
     parametric_action_distribution = distribution.NormalTanhDistribution(
         event_size=action_size
     )

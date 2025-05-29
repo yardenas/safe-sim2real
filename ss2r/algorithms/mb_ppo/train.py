@@ -23,27 +23,25 @@ from typing import Callable, Optional, Tuple, Union
 
 import jax
 import jax.numpy as jnp
-import numpy as np
 import optax
 from absl import logging
 from brax import envs
-from brax.training import pmap, types, replay_buffers
+from brax.training import pmap, replay_buffers, types
 from brax.training.acme import running_statistics, specs
 from brax.training.types import PRNGKey, Transition
 from brax.v1 import envs as envs_v1
 from etils import epath
 from orbax import checkpoint as ocp
 
-from ss2r.algorithms.mb_ppo import _PMAP_AXIS_NAME, Metrics, TrainingState
+from ss2r.algorithms.mb_ppo import _PMAP_AXIS_NAME, Metrics, TrainingState, model_env
 from ss2r.algorithms.mb_ppo import losses as mb_ppo_losses
+from ss2r.algorithms.mb_ppo import model_train_step as mb_model_training_step
 from ss2r.algorithms.mb_ppo import networks as mb_ppo_networks
 from ss2r.algorithms.mb_ppo import training_step as mb_ppo_training_step
-from ss2r.algorithms.mb_ppo import model_train_step as mb_model_training_step
 from ss2r.algorithms.ppo.wrappers import TrackOnlineCosts
-from ss2r.algorithms.sac.types import ReplayBufferState, CollectDataFn, float16
 from ss2r.algorithms.sac.data import collect_single_step
+from ss2r.algorithms.sac.types import CollectDataFn, ReplayBufferState, float16
 from ss2r.rl.evaluation import ConstraintsEvaluator
-from ss2r.algorithms.mb_ppo import model_env
 
 
 def _unpmap(v):
@@ -81,6 +79,8 @@ def train(
     batch_size: int = 32,
     num_minibatches: int = 16,
     num_updates_per_batch: int = 2,
+    model_updates_per_step: int = 1000,
+    ppo_updates_per_step: int = 1,
     num_evals: int = 1,
     num_resets_per_eval: int = 0,
     num_experience_steps_per_epoch: int = 10,
@@ -113,7 +113,6 @@ def train(
         raise ValueError(
             "No training will happen because min_replay_size >= num_timesteps"
         )
-
     # Safety budget
     original_safety_budget = safety_budget
     if normalize_budget:
@@ -143,14 +142,6 @@ def train(
     num_prefill_actor_steps = -(-min_replay_size // num_envs)
 
     num_evals_after_init = max(num_evals - 1, 1)
-    num_training_steps_per_epoch = np.ceil(
-        num_timesteps
-        / (
-            num_evals_after_init
-            * env_steps_per_actor_step
-            * max(num_resets_per_eval, 1)
-        )
-    ).astype(int)
 
     # Random nuber generator keys
     key = jax.random.PRNGKey(seed)
@@ -178,7 +169,6 @@ def train(
     normalize = lambda x, y: x
     if normalize_observations:
         normalize = running_statistics.normalize
-
     # Create the model based PPO networks and optimizers
     ppo_network = network_factory(
         obs_shape, action_size, preprocess_observations_fn=normalize
@@ -212,19 +202,17 @@ def train(
     dummy_obs = sample_obs  # Use actual obs sample instead of zeros
     dummy_action = jnp.zeros((action_size,))
 
-    # Debug the exact fields actually being used in data collection
+    extras = {
+        "state_extras": {
+            "truncation": jnp.zeros(()),
+        },
+        "policy_extras": {
+            "log_prob": jnp.zeros(()),
+            "raw_action": jnp.zeros((action_size,)),
+        },
+    }
     if safe:
-        # For safe environments, the following fields should be included
-        extras = {
-            "truncation": jnp.zeros(()),
-            "cost": jnp.zeros(()),
-            "cumulative_cost": jnp.zeros(()),
-            "episode_cost": jnp.zeros(()),  # This additional field might be needed
-        }
-    else:
-        extras = {
-            "truncation": jnp.zeros(()),
-        }
+        extras["state_extras"]["cost"] = jnp.zeros(())  # type: ignore
 
     # Create properly structured dummy transition
     dummy_transition = Transition(
@@ -239,15 +227,19 @@ def train(
 
     # Print detailed debug info
     logging.info("Replay buffer initialization:")
-    logging.info(f"- Observation shape: {jax.tree_util.tree_map(lambda x: x.shape if hasattr(x, 'shape') else None, dummy_obs)}")
+    logging.info(
+        f"- Observation shape: {jax.tree_util.tree_map(lambda x: x.shape if hasattr(x, 'shape') else None, dummy_obs)}"
+    )
     logging.info(f"- Extras fields: {list(extras.keys())}")
-    logging.info(f"- Complete dummy transition structure: {jax.tree_util.tree_map(lambda x: x.shape if hasattr(x, 'shape') else None, dummy_transition)}")
+    logging.info(
+        f"- Complete dummy transition structure: {jax.tree_util.tree_map(lambda x: x.shape if hasattr(x, 'shape') else None, dummy_transition)}"
+    )
 
     replay_buffer = replay_buffers.UniformSamplingQueue(
         max_replay_size=max_replay_size,
         dummy_data_sample=dummy_transition,
         # Ensure we sample enough transitions to divide evenly into minibatches
-        sample_batch_size=batch_size * num_minibatches,  # This matches the minibatch structure
+        sample_batch_size=batch_size,
     )
 
     # Make losses
@@ -267,15 +259,15 @@ def train(
 
     # Create the model-based planning environment
     def create_planning_env(model_params, normalizer_params):
-        """Create a planning environment with correct batch size for model-based rollouts."""            
+        """Create a planning environment with correct batch size for model-based rollouts."""
         planning_env = model_env.create_model_env(
             model_network=ppo_network.model_network,
             model_params=model_params,
             normalizer_params=normalizer_params,
             ensemble_selection="mean",
             safety_budget=safety_budget,
-        observation_size=obs_shape,
-        action_size=action_size,
+            observation_size=obs_shape,
+            action_size=action_size,
         )
         return planning_env
 
@@ -302,8 +294,6 @@ def train(
         model_loss,
         model_optimizer,
         replay_buffer,
-        num_minibatches,
-        num_updates_per_batch,
         learn_std=learn_std,
     )
 
@@ -319,7 +309,6 @@ def train(
     ) -> Tuple[TrainingState, envs.State, ReplayBufferState, PRNGKey]:
         """Runs the non-jittable experience collection step."""
         experience_key, training_key = jax.random.split(key)
-    
         normalizer_params, env_state, buffer_state = get_experience_fn(
             env,
             make_policy,
@@ -336,86 +325,81 @@ def train(
             env_steps=training_state.env_steps + env_steps_per_actor_step,
         )
         return training_state, env_state, buffer_state, training_key
-    
+
+    # FIXME (manuel): check how the prefill steps are implemented in SAC
     def prefill_replay_buffer(
         training_state: TrainingState,
         env_state: envs.State,
         buffer_state: ReplayBufferState,
         key: PRNGKey,
-    ) -> Tuple[TrainingState, envs.State, ReplayBufferState, PRNGKey]:
-
+    ) -> Tuple[TrainingState, envs.State, ReplayBufferState]:
         def experience_step_fn(carry, _):
             ts, es, bs, k = carry
             k, next_k = jax.random.split(k)
             ts, es, bs, _ = run_experience_step(ts, es, bs, k)
             return (ts, es, bs, next_k), None
-        
+
         experience_carry = (training_state, env_state, buffer_state, key)
 
         (training_state, env_state, buffer_state, _), _ = jax.lax.scan(
             experience_step_fn,
             experience_carry,
-            (),  
+            (),
             length=num_experience_steps_per_epoch,
         )
-        return (training_state, env_state, buffer_state, key), ()
+        return training_state, env_state, buffer_state
 
     # Training epoch
     def training_epoch(
-        training_state: TrainingState, env_state: envs.State, buffer_state:ReplayBufferState, key: PRNGKey
-    ) -> Tuple[TrainingState, envs.State, ReplayBufferState, Metrics, Metrics]:
+        training_state: TrainingState,
+        env_state: envs.State,
+        buffer_state: ReplayBufferState,
+        key: PRNGKey,
+    ) -> Tuple[TrainingState, envs.State, ReplayBufferState, Metrics]:
         # Run experience collection (later online)
-
-        def experience_step_fn(carry, _):
-            ts, es, bs, k = carry
-            k, next_k = jax.random.split(k)
-            ts, es, bs, _ = run_experience_step(ts, es, bs, k)
-            return (ts, es, bs, next_k), None
-        
-        experience_carry = (training_state, env_state, buffer_state, key)
-
-        (training_state, env_state, buffer_state, _), _ = jax.lax.scan(
-            experience_step_fn,
-            experience_carry,
-            (),  
-            length=num_experience_steps_per_epoch,
+        experience_key, model_key, actor_critic_key = jax.random.split(key, 3)
+        training_state, env_state, buffer_state, training_key = run_experience_step(
+            training_state, env_state, buffer_state, experience_key
         )
-
         # Learn model from sampled transitions
-        (training_state, buffer_state, _), loss_metrics = jax.lax.scan(
+        (training_state, buffer_state, _), model_loss_metrics = jax.lax.scan(
             model_training_step,
             (training_state, buffer_state, key),
             (),
-            length=num_training_steps_per_epoch,
+            length=model_updates_per_step,
         )
-        model_loss_metrics = jax.tree_util.tree_map(jnp.mean, loss_metrics)
-
-        # Learn model with ppo on leaned model (planning MDP)
-        (training_state, _, _), loss_metrics = jax.lax.scan(
+        # Learn model with ppo on learned model (planning MDP)
+        (training_state, _, _), ppo_loss_metrics = jax.lax.scan(
             training_step,
-            (training_state, buffer_state, key),
+            (training_state, buffer_state, actor_critic_key),
             (),
-            length=num_training_steps_per_epoch,
+            length=ppo_updates_per_step,
         )
-        loss_metrics = jax.tree_util.tree_map(jnp.mean, loss_metrics)
-        return training_state, env_state, buffer_state, loss_metrics, model_loss_metrics
+        loss_metrics = model_loss_metrics | ppo_loss_metrics
+        return training_state, env_state, buffer_state, loss_metrics
 
     training_epoch = jax.pmap(training_epoch, axis_name=_PMAP_AXIS_NAME)
 
     # Note that this is NOT a pure jittable method.
     def training_epoch_with_timing(
-        training_state: TrainingState, env_state: envs.State, buffer_state:ReplayBufferState, key: PRNGKey
-    ) -> Tuple[TrainingState, envs.State, ReplayBufferState, Metrics, Metrics]:
+        training_state: TrainingState,
+        env_state: envs.State,
+        buffer_state: ReplayBufferState,
+        key: PRNGKey,
+    ) -> Tuple[TrainingState, envs.State, ReplayBufferState, Metrics]:
         nonlocal training_walltime  # type: ignore
         t = time.time()
         training_state, env_state = _strip_weak_type((training_state, env_state))
         result = training_epoch(training_state, env_state, buffer_state, key)
-        training_state, env_state, buffer_state, metrics, model_metrics = _strip_weak_type(result)
+        (
+            training_state,
+            env_state,
+            buffer_state,
+            metrics,
+        ) = _strip_weak_type(result)
 
         metrics = jax.tree_util.tree_map(jnp.mean, metrics)
-        model_metrics = jax.tree_util.tree_map(jnp.mean, model_metrics)
         jax.tree_util.tree_map(lambda x: x.block_until_ready(), metrics)
-        jax.tree_util.tree_map(lambda x: x.block_until_ready(), model_metrics)
 
         epoch_training_time = time.time() - t
         training_walltime += epoch_training_time
@@ -428,14 +412,12 @@ def train(
             "training/sps": sps,
             "training/walltime": training_walltime,
             **{f"training/{name}": value for name, value in metrics.items()},
-            **{f"model/{name}": value for name, value in model_metrics.items()},
         }
         return (
             training_state,
             env_state,
             buffer_state,
             metrics,
-            model_metrics,
         )  # pytype: disable=bad-return-type  # py311-upgrade
 
     # Initialize model params and training state.
@@ -468,10 +450,13 @@ def train(
     buffer_state = replay_buffer.init(rb_key)
 
     # Prefill replay buffer if needed
+    # FIXME (manuel): check how the prefill steps are implemented in SAC
     if num_prefill_actor_steps > 0:
-        logging.info(f"Prefilling replay buffer with {num_prefill_actor_steps * num_envs} steps...")
+        logging.info(
+            f"Prefilling replay buffer with {num_prefill_actor_steps * num_envs} steps..."
+        )
         prefill_start_time = time.time()
-        training_state, env_state, buffer_state, _ = prefill_replay_buffer(
+        training_state, env_state, buffer_state = prefill_replay_buffer(
             training_state, env_state, buffer_state, local_key
         )
         prefill_time = time.time() - prefill_start_time
@@ -507,7 +492,7 @@ def train(
         training_state, jax.local_devices()[:local_devices_to_use]
     )
     buffer_state = jax.device_put_replicated(
-    buffer_state, jax.local_devices()[:local_devices_to_use]
+        buffer_state, jax.local_devices()[:local_devices_to_use]
     )
 
     evaluator = ConstraintsEvaluator(
@@ -538,7 +523,6 @@ def train(
         progress_fn(0, metrics)
 
     training_metrics: Metrics = {}
-    model_trainig_metrics: Metrics = {}
     training_walltime = 0.0
     current_step = 0
     for it in range(num_evals_after_init):
@@ -548,7 +532,12 @@ def train(
             # optimization
             epoch_key, local_key = jax.random.split(local_key)
             epoch_keys = jax.random.split(epoch_key, local_devices_to_use)
-            (training_state, env_state, buffer_state, training_metrics, model_trainig_metrics) = training_epoch_with_timing(
+            (
+                training_state,
+                env_state,
+                buffer_state,
+                training_metrics,
+            ) = training_epoch_with_timing(
                 training_state, env_state, buffer_state, epoch_keys
             )
             current_step = int(_unpmap(training_state.env_steps))
@@ -572,7 +561,6 @@ def train(
                     )
                 ),
                 training_metrics,
-                model_trainig_metrics,
             )
             logging.info(metrics)
             progress_fn(current_step, metrics)

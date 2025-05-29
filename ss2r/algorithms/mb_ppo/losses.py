@@ -3,9 +3,11 @@ import jax
 import jax.numpy as jnp
 from brax.training.types import Params
 
+
 @flax.struct.dataclass
 class MBPPOParams:
     """Contains training state for the learner."""
+
     model: Params
     policy: Params
     value: Params
@@ -77,45 +79,40 @@ def compute_gae(
 
 
 def make_losses(
-        ppo_network,
-        clipping_epsilon,
-        entropy_cost,
-        reward_scaling,
-        discounting,
-        gae_lambda,
-        normalize_advantage,
-        cost_scaling,
-        safety_budget,
-        safety_discounting,
-        safety_gae_lambda,
-        ):
-    """Create JIT-compiled loss functions for the model."""
-    
-    def _nll(
-        predicted_outputs: jax.Array,
-        predicted_stds: jax.Array,
-        target_outputs: jax.Array,
-        learn_std: bool
-    ) -> jax.Array:
-        if learn_std:
-            log_prob = jax.scipy.stats.norm.logpdf(
-                target_outputs, loc=predicted_outputs, scale=predicted_stds
-            )
-            return -jnp.mean(log_prob)
-        else:
-            loss = jnp.square(target_outputs - predicted_outputs).mean()
-            return loss
-
+    ppo_network,
+    clipping_epsilon,
+    entropy_cost,
+    reward_scaling,
+    discounting,
+    gae_lambda,
+    normalize_advantage,
+    cost_scaling,
+    safety_budget,
+    safety_discounting,
+    safety_gae_lambda,
+):
     def _neg_log_posterior(
         predicted_outputs: jax.Array,
         predicted_stds: jax.Array,
         target_outputs: jax.Array,
-        learn_std: bool
+        learn_std: bool,
     ) -> jax.Array:
-        target_expanded = jnp.expand_dims(target_outputs, axis=2)
-        target_expanded = jnp.broadcast_to(target_expanded, predicted_outputs.shape)
-        nll = jax.vmap(jax.vmap(_nll, in_axes=(0, 0, 0, None)), in_axes=(0, 0, 0, None))(
-            predicted_outputs, predicted_stds, target_expanded, learn_std
+        def _nll(
+            predicted_outputs: jax.Array,
+            predicted_stds: jax.Array,
+            target_outputs: jax.Array,
+        ) -> jax.Array:
+            if learn_std:
+                log_prob = jax.scipy.stats.norm.logpdf(
+                    target_outputs, loc=predicted_outputs, scale=predicted_stds
+                )
+                return -jnp.mean(log_prob)
+            else:
+                loss = jnp.square(target_outputs - predicted_outputs).mean()
+                return loss
+
+        nll = jax.vmap(jax.vmap(_nll))(
+            predicted_outputs, predicted_stds, target_outputs
         )
         neg_log_post = nll.mean()
         return neg_log_post
@@ -128,45 +125,33 @@ def make_losses(
         learn_std,
     ):
         model_apply = ppo_network.model_network.apply
-        (next_obs_pred, reward_pred, cost_pred), (next_obs_std, reward_std, cost_std) = model_apply(
-            normalizer_params,
-            model_params,
-            data.observation,
-            data.action
+        (
+            (next_obs_pred, reward_pred, cost_pred),
+            (next_obs_std, reward_std, cost_std),
+        ) = model_apply(normalizer_params, model_params, data.observation, data.action)
+        reshape = lambda x: jnp.tile(
+            x[None], (next_obs_pred.shape[0],) + (1,) * (x.ndim)
         )
-        
-        current_reward_target = data.reward
-        if current_reward_target.ndim == 2: 
-            current_reward_target = jnp.expand_dims(current_reward_target, axis=-1) 
-
-        next_obs_loss = _neg_log_posterior(next_obs_pred, next_obs_std, data.next_observation, learn_std)
-        reward_loss = _neg_log_posterior(reward_pred, reward_std, current_reward_target, learn_std)
-        
+        next_obs_target = reshape(data.next_observation)
+        next_obs_loss = _neg_log_posterior(
+            next_obs_pred, next_obs_std, next_obs_target, learn_std
+        )
+        current_reward_target = reshape(data.reward)
+        reward_loss = _neg_log_posterior(
+            reward_pred, reward_std, current_reward_target, learn_std
+        )
         cost_loss = 0.0
-        cost_target_for_loss_and_mse = None
+        cost_target = None
         if "state_extras" in data.extras and "cost" in data.extras["state_extras"]:
-            cost_target_for_loss_and_mse = data.extras["state_extras"]["cost"]
-            if cost_target_for_loss_and_mse.ndim == 2: 
-                cost_target_for_loss_and_mse = jnp.expand_dims(cost_target_for_loss_and_mse, axis=-1) 
-            cost_loss = _neg_log_posterior(cost_pred, cost_std, cost_target_for_loss_and_mse, learn_std)
-        
+            cost_target = reshape(data.extras["state_extras"]["cost"])
+            cost_loss = _neg_log_posterior(cost_pred, cost_std, cost_target, learn_std)
         total_loss = next_obs_loss + reward_loss + cost_loss
-        
         # Compute MSE for monitoring
-        mse_target_expanded_obs = jnp.expand_dims(data.next_observation, axis=2) 
-        mse_target_expanded_obs = jnp.broadcast_to(mse_target_expanded_obs, next_obs_pred.shape)
-        obs_mse = jnp.mean(jnp.square(next_obs_pred - mse_target_expanded_obs))
-
-        mse_target_expanded_reward = jnp.expand_dims(current_reward_target, axis=2) 
-        mse_target_expanded_reward = jnp.broadcast_to(mse_target_expanded_reward, reward_pred.shape)
-        reward_mse = jnp.mean(jnp.square(reward_pred - mse_target_expanded_reward))
-        
+        obs_mse = jnp.mean(jnp.square(next_obs_pred - next_obs_target))
+        reward_mse = jnp.mean(jnp.square(reward_pred - current_reward_target))
         cost_mse = 0.0
-        if cost_target_for_loss_and_mse is not None:
-            mse_target_expanded_cost = jnp.expand_dims(cost_target_for_loss_and_mse, axis=2) 
-            mse_target_expanded_cost = jnp.broadcast_to(mse_target_expanded_cost, cost_pred.shape)
-            cost_mse = jnp.mean(jnp.square(cost_pred - mse_target_expanded_cost))
-
+        if cost_target is not None:
+            cost_mse = jnp.mean(jnp.square(cost_pred - cost_target))
         aux = {
             "model_loss": total_loss,
             "obs_mse": obs_mse,
@@ -176,9 +161,8 @@ def make_losses(
             "reward_loss": reward_loss,
             "cost_loss": cost_loss,
         }
-        
         return total_loss, aux
-    
+
     def compute_policy_loss(
         policy_params,
         value_params,
@@ -199,7 +183,8 @@ def make_losses(
         termination = (1 - data.discount) * (1 - truncation)
         raw_action = data.extras["policy_extras"]["raw_action"]
         target_log_probs = parametric_action_distribution.log_prob(
-            policy_logits, raw_action  # Use fixed shape
+            policy_logits,
+            raw_action,  # Use fixed shape
         )
         behavior_log_probs = data.extras["policy_extras"]["log_prob"]
         _, advantages = compute_gae(
@@ -225,7 +210,7 @@ def make_losses(
             "policy_loss": policy_loss,
             "entropy_loss": entropy_loss,
         }
-        
+
         total_loss = policy_loss + entropy_loss
         return total_loss, aux
 
@@ -272,5 +257,10 @@ def make_losses(
         cost_error = vcs - cost_baseline
         cost_v_loss = jnp.mean(cost_error**2) * 0.25
         return cost_v_loss, {"cost_v_loss": cost_v_loss}
-    
-    return compute_model_loss, compute_policy_loss, compute_value_loss, compute_cost_value_loss
+
+    return (
+        compute_model_loss,
+        compute_policy_loss,
+        compute_value_loss,
+        compute_cost_value_loss,
+    )

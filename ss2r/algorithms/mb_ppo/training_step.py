@@ -10,7 +10,7 @@ from brax.training.types import PRNGKey
 
 from ss2r.algorithms.mb_ppo import _PMAP_AXIS_NAME, Metrics, TrainingState
 from ss2r.algorithms.mb_ppo import losses as mb_ppo_losses
-from ss2r.algorithms.sac.types import ReplayBufferState, float32
+from ss2r.algorithms.sac.types import ReplayBufferState
 
 
 def update_fn(
@@ -73,7 +73,11 @@ def update_fn(
         )
         aux |= value_aux
 
-        (_, cost_value_aux), cost_value_params, cost_value_optimizer_state = cost_value_gradient_update_fn(
+        (
+            (_, cost_value_aux),
+            cost_value_params,
+            cost_value_optimizer_state,
+        ) = cost_value_gradient_update_fn(
             params.cost_value,
             normalizer_params,
             data,
@@ -123,8 +127,7 @@ def update_fn(
 
         # Create planning environment with current model parameters
         planning_env = planning_env_factory(
-            training_state.params.model,
-            training_state.normalizer_params
+            training_state.params.model, training_state.normalizer_params
         )
 
         policy = make_policy(
@@ -137,55 +140,48 @@ def update_fn(
         extra_fields = ("truncation",)
         if safe:
             extra_fields += ("cost", "cumulative_cost")  # type: ignore
-        
+
         # Sample initial states from the replay buffer
         buffer_state, transitions = replay_buffer.sample(buffer_state)
-        initial_obs = transitions.observation
+        initial_states = envs.State(
+            pipeline_state=None,
+            obs=transitions.observation,
+            reward=transitions.reward,
+            done=transitions.discount,
+            info={},
+        )
 
-        # Create appropriate number of planning environments for parallel execution
-        num_planning_envs = batch_size * num_minibatches
-
-        # Use just a single key for reset (the environment will handle batching internally)
-        # This is the key change - use a single key instead of a batch of keys
-        initial_states = planning_env.reset(key_generate_unroll)
-
-        # Replace with sampled initial observations - ensure we have enough  
-        initial_obs = initial_obs[:num_planning_envs]  # Limit to exactly what we need
-
-        # log shapes of initial states and observations
-        print(f"Initial states shape: {initial_states.obs.shape}, Initial observations shape: {initial_obs.shape}")
-        assert initial_states.obs.shape[0] == num_planning_envs, "Mismatch in number of planning environments and initial states"
-        
         # Function to generate unrolls from each initial state
-        def generate_unroll_fn(state, key):
+        def generate_unroll_fn(state):
             return acting.generate_unroll(
                 planning_env,
                 state,
                 policy,
-                key,
+                key_generate_unroll,
                 unroll_length,
                 extra_fields=extra_fields,
             )
-         
-        
-        # Replace observations with our sampled ones
-        initial_states = initial_states.replace(obs=initial_obs)
-        
+
         # Generate all unrolls in parallel
-        _, data = generate_unroll_fn(initial_states, key_generate_unroll)
+        _, data = jax.vmap(generate_unroll_fn)(initial_states)
 
         # Print shapes of key data structures before reshape
-        print(f"Data dimensions: {data.observation.shape}, {data.action.shape}, {data.reward.shape}, {data.discount.shape}, {data.extras['state_extras']['truncation'].shape}")
+        print(
+            f"Data dimensions: {data.observation.shape}, {data.action.shape}, {data.reward.shape}, {data.discount.shape}, {data.extras['state_extras']['truncation'].shape}"
+        )
         # Reshape reward, discount and truncation to get rid of trailing dimension
         data = jax.tree_util.tree_map(lambda x: jnp.swapaxes(x, 0, 1), data)
-        
-        print(f"Data dimensions: {data.observation.shape}, {data.action.shape}, {data.reward.shape}, {data.discount.shape}, {data.extras['state_extras']['truncation'].shape}")
+
+        print(
+            f"Data dimensions: {data.observation.shape}, {data.action.shape}, {data.reward.shape}, {data.discount.shape}, {data.extras['state_extras']['truncation'].shape}"
+        )
 
         assert data.discount.shape[1:] == (unroll_length,)
 
-
         (optimizer_state, params, _), aux = jax.lax.scan(
-            functools.partial(sgd_step, data=data, normalizer_params=training_state.normalizer_params),
+            functools.partial(
+                sgd_step, data=data, normalizer_params=training_state.normalizer_params
+            ),
             (
                 training_state.optimizer_state,
                 training_state.params,
@@ -200,7 +196,7 @@ def update_fn(
             normalizer_params=training_state.normalizer_params,
             env_steps=training_state.env_steps,
         )  # type: ignore
-        
+
         return (new_training_state, buffer_state, new_key), aux
 
     return training_step

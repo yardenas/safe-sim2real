@@ -9,9 +9,11 @@ entropy_cost: 0.0001
 discounting: 0.9
 safety_discounting: 0.9
 unroll_length: 10
-batch_size: 32
+batch_size: 1024
 num_minibatches: 64
 num_updates_per_batch: 2
+ppo_updates_per_step: 1
+model_updates_per_step: 1000
 normalize_observations: false
 reward_scaling: 1.0
 cost_scaling: 1.0
