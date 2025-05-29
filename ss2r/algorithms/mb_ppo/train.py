@@ -362,25 +362,43 @@ def train(
         key: PRNGKey,
     ) -> Tuple[TrainingState, envs.State, ReplayBufferState, Metrics]:
         # Run experience collection (later online)
-        experience_key, model_key, actor_critic_key = jax.random.split(key, 3)
-        training_state, env_state, buffer_state, training_key = run_experience_step(
-            training_state, env_state, buffer_state, experience_key
-        )
-        # Learn model from sampled transitions
-        (training_state, buffer_state, _), model_loss_metrics = jax.lax.scan(
-            model_training_step,
-            (training_state, buffer_state, key),
+
+        def f(carry, unused_t):
+            training_state, env_state, buffer_state, key = carry
+            experience_key, model_key, actor_critic_key = jax.random.split(key, 3)
+            training_state, env_state, buffer_state, training_key = run_experience_step(
+                training_state, env_state, buffer_state, experience_key
+            )
+            # Learn model from sampled transitions
+            (training_state, buffer_state, _), model_loss_metrics = jax.lax.scan(
+                model_training_step,
+                (training_state, buffer_state, key),
+                (),
+                length=model_updates_per_step,
+            )
+            # Learn model with ppo on learned model (planning MDP)
+            (training_state, _, _), ppo_loss_metrics = jax.lax.scan(
+                training_step,
+                (training_state, buffer_state, actor_critic_key),
+                (),
+                length=ppo_updates_per_step,
+            )
+            metrics = model_loss_metrics | ppo_loss_metrics
+
+            return (
+                training_state,
+                env_state,
+                buffer_state,
+                training_key,
+            ), metrics
+
+        (training_state, env_state, buffer_state, key), metrics = jax.lax.scan(
+            f,
+            (training_state, env_state, buffer_state, key),
             (),
-            length=model_updates_per_step,
+            length=num_training_steps_per_epoch,
         )
-        # Learn model with ppo on learned model (planning MDP)
-        (training_state, _, _), ppo_loss_metrics = jax.lax.scan(
-            training_step,
-            (training_state, buffer_state, actor_critic_key),
-            (),
-            length=ppo_updates_per_step,
-        )
-        metrics = model_loss_metrics | ppo_loss_metrics
+        metrics = jax.tree_util.tree_map(jnp.mean, metrics)
         return training_state, env_state, buffer_state, metrics
 
     # Note that this is NOT a pure jittable method.
