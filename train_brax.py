@@ -16,7 +16,7 @@ _LOG = logging.getLogger(__name__)
 
 
 def get_state_path() -> str:
-    log_path = os.getcwd() + "/cpkt"
+    log_path = os.getcwd() + "/ckpt"
     return log_path
 
 

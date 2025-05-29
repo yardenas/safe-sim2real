@@ -73,6 +73,7 @@ class NetworkFactory(Protocol[NetworkType]):
         action_size: int,
         preprocess_observations_fn: types.PreprocessObservationFn = types.identity_observation_preprocessor,
         *,
+        n_critics: int = 2,
         safe: bool = False,
         use_bro: bool = True,
     ) -> NetworkType:
@@ -155,6 +156,7 @@ def make_sac_networks(
     value_obs_key: str = "state",
     policy_obs_key: str = "state",
     use_bro: bool = True,
+    n_critics: int = 2,
     *,
     safe: bool = False,
 ) -> SafeSACNetworks:
@@ -178,6 +180,7 @@ def make_sac_networks(
         activation=activation,
         obs_key=value_obs_key,
         use_bro=use_bro,
+        n_critics=n_critics,
     )
     if safe:
         qc_network = make_q_network(

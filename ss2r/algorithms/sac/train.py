@@ -38,6 +38,7 @@ import ss2r.algorithms.sac.networks as sac_networks
 from ss2r.algorithms.penalizers import Penalizer
 from ss2r.algorithms.sac import gradients
 from ss2r.algorithms.sac.data import collect_single_step
+from ss2r.algorithms.sac.rae import RAEReplayBuffer
 from ss2r.algorithms.sac.robustness import QTransformation, SACBase, SACCost, UCBCost
 from ss2r.algorithms.sac.types import (
     CollectDataFn,
@@ -154,6 +155,7 @@ def train(
     network_factory: sac_networks.NetworkFactory[
         sac_networks.SafeSACNetworks
     ] = sac_networks.make_sac_networks,
+    n_critics: int = 2,
     progress_fn: Callable[[int, Metrics], None] = lambda *args: None,
     checkpoint_logdir: Optional[str] = None,
     restore_checkpoint_path: Optional[str] = None,
@@ -168,6 +170,7 @@ def train(
     normalize_budget: bool = True,
     reset_on_eval: bool = True,
     store_buffer: bool = False,
+    use_rae: bool = False,
 ):
     if min_replay_size >= num_timesteps:
         raise ValueError(
@@ -185,9 +188,14 @@ def train(
         max_replay_size = num_timesteps
     # The number of environment steps executed for every `actor_step()` call.
     env_steps_per_actor_step = action_repeat * num_envs
+    env_steps_per_experience_call = env_steps_per_actor_step
     # equals to ceil(min_replay_size / env_steps_per_actor_step)
-    num_prefill_actor_steps = -(-min_replay_size // num_envs)
-    num_prefill_env_steps = num_prefill_actor_steps * env_steps_per_actor_step
+    num_prefill_experience_call = -(-min_replay_size // num_envs)
+    if get_experience_fn != collect_single_step:
+        # Using episodic or hardware (which is episodic)
+        env_steps_per_experience_call *= episode_length
+        num_prefill_experience_call = -(-num_prefill_experience_call // episode_length)
+    num_prefill_env_steps = num_prefill_experience_call * env_steps_per_experience_call
     assert num_timesteps - num_prefill_env_steps >= 0
     num_evals_after_init = max(num_evals - 1, 1)
     # The number of run_one_sac_epoch calls per run_sac_training.
@@ -196,7 +204,7 @@ def train(
     #      (num_evals_after_init * env_steps_per_actor_step))
     num_training_steps_per_epoch = -(
         -(num_timesteps - num_prefill_env_steps)
-        // (num_evals_after_init * env_steps_per_actor_step)
+        // (num_evals_after_init * env_steps_per_experience_call)
     )
     env = environment
     if wrap_env_fn is not None:
@@ -213,6 +221,7 @@ def train(
         preprocess_observations_fn=normalize_fn,
         safe=safe,
         use_bro=use_bro,
+        n_critics=n_critics,
     )
     make_policy = sac_networks.make_inference_fn(sac_network)
     alpha_optimizer = optax.adam(learning_rate=alpha_learning_rate)
@@ -247,11 +256,46 @@ def train(
         extras=extras,
     )
     dummy_transition = float16(dummy_transition)
-    replay_buffer = replay_buffers.UniformSamplingQueue(
-        max_replay_size=max_replay_size,
-        dummy_data_sample=dummy_transition,
-        sample_batch_size=batch_size * grad_updates_per_step,
+    global_key, local_key = jax.random.split(rng)
+    training_state = _init_training_state(
+        key=global_key,
+        obs_size=obs_size,
+        sac_network=sac_network,
+        alpha_optimizer=alpha_optimizer,
+        policy_optimizer=policy_optimizer,
+        qr_optimizer=qr_optimizer,
+        qc_optimizer=qc_optimizer,
+        penalizer_params=penalizer_params,
     )
+    del global_key
+    local_key, rb_key, env_key, eval_key = jax.random.split(local_key, 4)
+    if restore_checkpoint_path is not None:
+        params = checkpoint.load(restore_checkpoint_path)
+        penalizer_params = type(training_state.penalizer_params)(**params[2])
+        training_state = training_state.replace(  # type: ignore
+            normalizer_params=params[0],
+            policy_params=params[1],
+            penalizer_params=penalizer_params,
+            qr_params=params[3],
+            qc_params=params[4],
+        )
+        if len(params) >= 6 and use_rae:
+            logging.info("Restoring replay buffer state")
+            buffer_state = params[5]
+            buffer_state = replay_buffers.ReplayBufferState(**buffer_state)
+            replay_buffer = RAEReplayBuffer(
+                max_replay_size=max_replay_size,
+                dummy_data_sample=dummy_transition,
+                sample_batch_size=batch_size * grad_updates_per_step,
+                offline_data_state=buffer_state,
+            )
+    if not restore_checkpoint_path or not use_rae:
+        replay_buffer = replay_buffers.UniformSamplingQueue(
+            max_replay_size=max_replay_size,
+            dummy_data_sample=dummy_transition,
+            sample_batch_size=batch_size * grad_updates_per_step,
+        )
+    buffer_state = replay_buffer.init(rb_key)
     alpha_loss, critic_loss, actor_loss = sac_losses.make_losses(
         sac_network=sac_network,
         reward_scaling=reward_scaling,
@@ -415,10 +459,11 @@ def train(
         )
         training_state = training_state.replace(  # type: ignore
             normalizer_params=normalizer_params,
-            env_steps=training_state.env_steps + env_steps_per_actor_step,
+            env_steps=training_state.env_steps + env_steps_per_experience_call,
         )
         return training_state, env_state, buffer_state, training_key
 
+    # TODO (yarden): remove the jit, change to another name
     @jax.jit
     def training_step_jitted(
         training_state: TrainingState,
@@ -479,7 +524,7 @@ def train(
             )
             new_training_state = training_state.replace(
                 normalizer_params=new_normalizer_params,
-                env_steps=training_state.env_steps + env_steps_per_actor_step,
+                env_steps=training_state.env_steps + env_steps_per_experience_call,
             )
             return (new_training_state, env_state, buffer_state, new_key), ()
 
@@ -487,7 +532,7 @@ def train(
             f,
             (training_state, env_state, buffer_state, key),
             (),
-            length=num_prefill_actor_steps,
+            length=num_prefill_experience_call,
         )[0]
 
     def training_epoch(
@@ -525,11 +570,10 @@ def train(
         )
         metrics = jax.tree_util.tree_map(jnp.mean, metrics)
         jax.tree_util.tree_map(lambda x: x.block_until_ready(), metrics)
-
         epoch_training_time = time.time() - t
         training_walltime += epoch_training_time
         sps = (
-            env_steps_per_actor_step * num_training_steps_per_epoch
+            env_steps_per_experience_call * num_training_steps_per_epoch
         ) / epoch_training_time
         metrics = {
             "training/sps": sps,
@@ -543,34 +587,7 @@ def train(
             metrics,
         )  # pytype: disable=bad-return-type  # py311-upgrade
 
-    global_key, local_key = jax.random.split(rng)
     # Training state init
-    training_state = _init_training_state(
-        key=global_key,
-        obs_size=obs_size,
-        sac_network=sac_network,
-        alpha_optimizer=alpha_optimizer,
-        policy_optimizer=policy_optimizer,
-        qr_optimizer=qr_optimizer,
-        qc_optimizer=qc_optimizer,
-        penalizer_params=penalizer_params,
-    )
-    del global_key
-    local_key, rb_key, env_key, eval_key = jax.random.split(local_key, 4)
-    buffer_state = replay_buffer.init(rb_key)
-    if restore_checkpoint_path is not None:
-        params = checkpoint.load(restore_checkpoint_path)
-        penalizer_params = type(training_state.penalizer_params)(**params[2])
-        training_state = training_state.replace(  # type: ignore
-            normalizer_params=params[0],
-            policy_params=params[1],
-            penalizer_params=penalizer_params,
-            qr_params=params[3],
-            qc_params=params[4],
-        )
-        if len(params) == 6:
-            buffer_state = params[5]
-
     # Env init
     env_keys = jax.random.split(env_key, num_envs)
     reset_fn = jax.jit(env.reset)
@@ -590,16 +607,6 @@ def train(
         budget=episodic_safety_budget,
         num_episodes=num_eval_episodes,
     )
-    train_evaluator = ConstraintsEvaluator(
-        env,
-        functools.partial(make_policy, deterministic=deterministic_eval),
-        num_eval_envs=num_envs,
-        episode_length=episode_length,
-        action_repeat=action_repeat,
-        key=eval_key,
-        budget=episodic_safety_budget,
-        num_episodes=num_eval_episodes,
-    )
 
     # Run initial eval
     metrics = {}
@@ -608,12 +615,6 @@ def train(
             (training_state.normalizer_params, training_state.policy_params),
             training_metrics={},
         )
-        train_metrics = train_evaluator.run_evaluation(
-            (training_state.normalizer_params, training_state.policy_params),
-            training_metrics={},
-            prefix="train",
-        )
-        metrics.update(train_metrics)
         logging.info(metrics)
         progress_fn(0, metrics)
 
@@ -656,7 +657,6 @@ def train(
                 training_state.penalizer_params,
                 training_state.qr_params,
                 training_state.qc_params,
-                buffer_state,
             )
             if store_buffer:
                 params += (buffer_state,)
@@ -668,12 +668,6 @@ def train(
             (training_state.normalizer_params, training_state.policy_params),
             training_metrics,
         )
-        train_metrics = train_evaluator.run_evaluation(
-            (training_state.normalizer_params, training_state.policy_params),
-            training_metrics,
-            prefix="train",
-        )
-        metrics.update(train_metrics)
         logging.info(metrics)
         progress_fn(current_step, metrics)
 
