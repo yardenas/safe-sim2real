@@ -19,7 +19,7 @@ See: https://arxiv.org/pdf/1707.06347.pdf
 
 import functools
 import time
-from typing import Callable, Optional, Tuple, Union, Mapping
+from typing import Callable, Optional, Tuple, Union
 
 import jax
 import jax.numpy as jnp
@@ -238,7 +238,7 @@ def train(
     dummy_transition = float16(dummy_transition)
 
     # Print detailed debug info
-    logging.info(f"Replay buffer initialization:")
+    logging.info("Replay buffer initialization:")
     logging.info(f"- Observation shape: {jax.tree_util.tree_map(lambda x: x.shape if hasattr(x, 'shape') else None, dummy_obs)}")
     logging.info(f"- Extras fields: {list(extras.keys())}")
     logging.info(f"- Complete dummy transition structure: {jax.tree_util.tree_map(lambda x: x.shape if hasattr(x, 'shape') else None, dummy_transition)}")
@@ -267,62 +267,17 @@ def train(
 
     # Create the model-based planning environment
     def create_planning_env(model_params, normalizer_params):
-        """Create a planning environment with correct batch size for model-based rollouts."""
-        # Set the planning batch size
-        planning_batch_size = batch_size * num_minibatches
-        
-        # Extract the correct environment name by traversing the wrapper chain
-        current_env = environment
-        while hasattr(current_env, 'env'):
-            current_env = current_env.env
-        
-        # Get the environment name and ensure it's lowercase for Brax compatibility
-        if hasattr(current_env, 'name'):
-            env_name = current_env.name.lower()  # Ensure lowercase for Brax
-        else:
-            env_name = current_env.__class__.__name__.lower()
-        
-        # Check for safe variant if using safe mode
-        from brax import envs as brax_envs
-        available_envs = list(brax_envs._envs.keys())
-        if safe and f"{env_name}_safe" in available_envs:
-            env_name = f"{env_name}_safe"
-        
-        logging.info(f"Creating planning environment with name '{env_name}' and batch size {planning_batch_size}")
-        
-        try:
-            # Create a fresh environment instance with the correct batch size
-            planning_base_env = brax_envs.create(env_name, batch_size=planning_batch_size)
-            planning_base_env = TrackOnlineCosts(planning_base_env)
-            
-            # Wrap with model-based environment
-            planning_env = model_env.create_model_env(
-                env=planning_base_env,
-                model_network=ppo_network.model_network,
-                model_params=model_params,
-                normalizer_params=normalizer_params,
-                ensemble_selection="mean",
-                safety_budget=safety_budget,
-            )
-            
-            return planning_env
-            
-        except KeyError as e:
-            logging.error(f"Failed to create environment '{env_name}'. Available: {available_envs}")
-            # Try using default cartpole as fallback
-            if "cartpole" in available_envs:
-                logging.warning(f"Trying fallback to 'cartpole' environment")
-                planning_base_env = brax_envs.create("cartpole", batch_size=planning_batch_size)
-                planning_base_env = TrackOnlineCosts(planning_base_env)
-                return model_env.create_model_env(
-                    env=planning_base_env,
-                    model_network=ppo_network.model_network,
-                    model_params=model_params,
-                    normalizer_params=normalizer_params,
-                    ensemble_selection="mean",
-                    safety_budget=safety_budget,
-                )
-            raise e
+        """Create a planning environment with correct batch size for model-based rollouts."""            
+        planning_env = model_env.create_model_env(
+            model_network=ppo_network.model_network,
+            model_params=model_params,
+            normalizer_params=normalizer_params,
+            ensemble_selection="mean",
+            safety_budget=safety_budget,
+        observation_size=obs_shape,
+        action_size=action_size,
+        )
+        return planning_env
 
     # Creating the PPO update step
     training_step = update_step_factory(

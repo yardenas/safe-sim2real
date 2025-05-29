@@ -9,8 +9,8 @@ from brax.training import types
 from brax.training.acme import running_statistics
 from brax.training.types import Params
 
-from ss2r.algorithms.penalizers import get_penalizer
 from ss2r.algorithms.mb_ppo import losses as mb_ppo_losses
+from ss2r.algorithms.sac.data import get_collection_fn
 
 _PMAP_AXIS_NAME = "i"
 
@@ -18,7 +18,10 @@ _PMAP_AXIS_NAME = "i"
 @flax.struct.dataclass
 class TrainingState:
     """Contains training state for the learner."""
-    optimizer_state: tuple[optax.OptState, optax.OptState, optax.OptState, Optional[optax.OptState]]
+
+    optimizer_state: tuple[
+        optax.OptState, optax.OptState, optax.OptState, Optional[optax.OptState]
+    ]
     params: mb_ppo_losses.MBPPOParams
     normalizer_params: running_statistics.RunningStatisticsState
     env_steps: jnp.ndarray
@@ -69,16 +72,8 @@ def get_train_fn(cfg, checkpoint_path, restore_checkpoint_path):
     del training_cfg["value_privileged"]
     del training_cfg["policy_privileged"]
     del agent_cfg["name"]
-    if "cost_robustness" in agent_cfg:
-        del agent_cfg["cost_robustness"]
-    if "reward_robustness" in agent_cfg:
-        del agent_cfg["reward_robustness"]
-    if "penalizer" in agent_cfg:
-        del agent_cfg["penalizer"]
-    if "propagation" in agent_cfg:
-        del agent_cfg["propagation"]
-
-
+    if "data_collection" in agent_cfg:
+        del agent_cfg["data_collection"]
     network_factory = functools.partial(
         mb_ppo_networks.make_mb_ppo_networks,
         model_hidden_layer_sizes=model_hidden_layer_sizes,
@@ -89,7 +84,7 @@ def get_train_fn(cfg, checkpoint_path, restore_checkpoint_path):
         value_obs_key=value_obs_key,
         policy_obs_key=policy_obs_key,
     )
-
+    data_collection = get_collection_fn(cfg)
     train_fn = functools.partial(
         mb_ppo.train,
         **agent_cfg,
@@ -97,6 +92,7 @@ def get_train_fn(cfg, checkpoint_path, restore_checkpoint_path):
         network_factory=network_factory,
         restore_checkpoint_path=restore_checkpoint_path,
         checkpoint_path=checkpoint_path,  # Add checkpoint_path parameter
+        get_experience_fn=data_collection,
     )
 
     return train_fn
