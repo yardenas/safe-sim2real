@@ -127,7 +127,7 @@ def test_train_model():
         n_ensemble=1,
         model_hidden_layer_sizes=[512, 512],
         activation=jax.nn.relu,
-        use_bro=True,
+        use_bro=False,
         learn_std=False,
     )
 

@@ -30,7 +30,9 @@ policy_hidden_layer_sizes: [32, 32, 32, 32]
 value_hidden_layer_sizes: [256, 256, 256, 256, 256]
 activation: swish
 max_grad_norm: 1.0
+use_bro: false
+n_ensemble: 5
+learn_std: false
 normalize_budget: true
 reset_on_eval: true
 store_buffer: false
-learn_std: false
