@@ -147,7 +147,7 @@ def update_fn(
             transitions = float32(transitions)
             # FIXME (manu): make sure that minval and maxval are correct
             cumulative_cost = jax.random.uniform(
-                cost_key, (transitions.reward.shape[0],), minval=0.0, maxval=1.0
+                cost_key, (transitions.reward.shape[0],), minval=0.0, maxval=0.2
             )
             state = envs.State(
                 pipeline_state=None,
