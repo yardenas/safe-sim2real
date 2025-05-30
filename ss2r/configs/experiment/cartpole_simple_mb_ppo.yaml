@@ -5,15 +5,15 @@ defaults:
   - _self_
 
 training:
-  num_timesteps: 10000000
+  num_timesteps: 5000000
   safe: false
   train_domain_randomization: false
   eval_domain_randomization: false
   num_eval_episodes: 1
-  num_envs: 128
+  num_envs: 2048
 
 agent:
-  reward_scaling: 10.0
+  reward_scaling: 1.0
   normalize_observations: true
   unroll_length: 10
   num_minibatches: 32
@@ -22,4 +22,3 @@ agent:
   actor_critic_learning_rate: 0.0001
   model_learning_rate: 3e-4
   entropy_cost: 0.025
-  batch_size: 1024

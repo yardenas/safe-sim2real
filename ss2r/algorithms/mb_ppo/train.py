@@ -99,7 +99,7 @@ def train(
     safety_discounting: float = 0.9,
     seed: int = 0,
     unroll_length: int = 10,
-    batch_size: int = 32,
+    batch_size: int = 1024,
     num_minibatches: int = 16,
     num_updates_per_batch: int = 2,
     model_updates_per_step: int = 1000,
@@ -378,7 +378,7 @@ def train(
                 training_state, env_state, buffer_state, experience_key
             )
             # Learn model from sampled transitions
-            (training_state, buffer_state, _), model_loss_metrics = jax.lax.scan(
+            (training_state, _, _), model_loss_metrics = jax.lax.scan(
                 model_training_step,
                 (training_state, buffer_state, model_key),
                 (),

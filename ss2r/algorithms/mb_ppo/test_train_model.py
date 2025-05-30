@@ -143,7 +143,7 @@ def test_train_model():
 
     # Convert synthetic data
     transitions = create_transitions(obs, actions, next_obs, rewards, costs)
-    model_optimizer = optax.adam(learning_rate=3e-4)
+    model_optimizer = optax.adam(learning_rate=1e-3)
     optimizer_state = model_optimizer.init(params)
 
     # Update normalizer params
