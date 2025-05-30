@@ -20,5 +20,5 @@ agent:
   num_updates_per_batch: 4
   discounting: 0.995
   actor_critic_learning_rate: 0.0001
-  model_learning_rate: 3e-4
+  model_learning_rate: 3e-3
   entropy_cost: 0.025
