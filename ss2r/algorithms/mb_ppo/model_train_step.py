@@ -3,7 +3,9 @@ from typing import Tuple
 import jax
 from brax import envs
 from brax.training import gradients
-from brax.training.types import PRNGKey
+from brax.training.types import (
+    PRNGKey,
+)
 
 from ss2r.algorithms.mb_ppo import Metrics, TrainingState
 from ss2r.algorithms.mb_ppo import losses as mb_ppo_losses

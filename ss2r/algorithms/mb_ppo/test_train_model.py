@@ -115,14 +115,19 @@ def test_train_model():
         actions.shape[1] if isinstance(actions, jnp.ndarray) else actions.shape
     )
 
+    normalize_fn = running_statistics.normalize
+    denormalize_fn = running_statistics.denormalize
+
     # Create a dummy model
     ppo_network = mb_ppo_networks.make_mb_ppo_networks(
         observation_size=obs_size,
         action_size=action_size,
+        preprocess_observations_fn=normalize_fn,
+        postprocess_observations_fn=denormalize_fn,
         n_ensemble=1,
         model_hidden_layer_sizes=[512, 512],
         activation=jax.nn.relu,
-        model_use_bro=False,
+        use_bro=True,
         learn_std=False,
     )
 
@@ -149,6 +154,7 @@ def test_train_model():
     # Make loss
     model_loss, *_ = mb_ppo_losses.make_losses(
         ppo_network=ppo_network,
+        preprocess_observations_fn=normalize_fn,
         entropy_cost=1e-4,
         discounting=0.9,
         safety_discounting=0.9,
@@ -158,7 +164,6 @@ def test_train_model():
         safety_gae_lambda=0.95,
         clipping_epsilon=0.3,
         normalize_advantage=True,
-        safety_budget=float("inf"),
     )
 
     # Make gradient function
@@ -232,7 +237,7 @@ def test_train_model():
         return carry, mse_hist
 
     carry, mse_hist = train_model(
-        params, optimizer_state, transitions, normalizer_params, key_sgd, num_epochs=100
+        params, optimizer_state, transitions, normalizer_params, key_sgd, num_epochs=50
     )
 
     plt.plot(mse_hist[0], label="MSE Next Obs")

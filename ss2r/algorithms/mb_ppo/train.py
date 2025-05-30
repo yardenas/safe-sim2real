@@ -125,10 +125,12 @@ def train(
     checkpoint_logdir: Optional[str] = None,
     safety_budget: float = float("inf"),
     safe: bool = False,
+    use_bro: bool = True,
+    n_ensemble: int = 5,
+    learn_std: bool = False,
     normalize_budget: bool = True,
     reset_on_eval: bool = True,
     store_buffer: bool = False,
-    learn_std: bool = False,
 ):
     # Check if environment and buffer params are compatible.
     if min_replay_size >= num_timesteps:
@@ -172,11 +174,18 @@ def train(
     obs_size = env.observation_size
     action_size = env.action_size
     normalize_fn = lambda x, y: x
+    denormalize_fn = lambda x, y: x
     if normalize_observations:
         normalize_fn = running_statistics.normalize
-    # Create the model based PPO networks and optimizers
+        denormalize_fn = running_statistics.denormalize
     ppo_network = network_factory(
-        obs_size, action_size, preprocess_observations_fn=normalize_fn
+        obs_size,
+        action_size,
+        preprocess_observations_fn=normalize_fn,
+        postprocess_observations_fn=denormalize_fn,
+        use_bro=use_bro,
+        n_ensemble=n_ensemble,
+        learn_std=learn_std,
     )
     make_policy = mb_ppo_networks.make_inference_fn(ppo_network)
     model_optimizer = optax.adam(learning_rate=model_learning_rate)
@@ -239,6 +248,7 @@ def train(
     # Make losses
     model_loss, policy_loss, value_loss, cost_value_loss = mb_ppo_losses.make_losses(
         ppo_network=ppo_network,
+        preprocess_observations_fn=normalize_fn,
         entropy_cost=entropy_cost,
         discounting=discounting,
         safety_discounting=safety_discounting,
@@ -248,7 +258,6 @@ def train(
         safety_gae_lambda=safety_gae_lambda,
         clipping_epsilon=clipping_epsilon,
         normalize_advantage=normalize_advantage,
-        safety_budget=safety_budget,
     )
 
     # Create the model-based planning environment
@@ -277,7 +286,6 @@ def train(
         create_planning_env,  # Pass the factory function
         replay_buffer,
         unroll_length,
-        batch_size,
         num_minibatches,
         make_policy,
         num_updates_per_batch,

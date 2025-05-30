@@ -95,6 +95,7 @@ def make_world_model_ensemble(
     obs_size: int,
     action_size: int,
     preprocess_observations_fn: types.PreprocessObservationFn = types.identity_observation_preprocessor,
+    postprocess_observations_fn: types.PreprocessObservationFn = types.identity_observation_preprocessor,
     hidden_layer_sizes: Sequence[int] = (256, 256),
     activation: networks.ActivationFn = linen.relu,
     n_ensemble: int = 5,
@@ -136,31 +137,35 @@ def make_world_model_ensemble(
 
     model = MModule(n_ensemble=n_ensemble, obs_size=obs_size)
 
-    def apply(processor_params, params, obs, actions):
-        obs_processed = preprocess_observations_fn(obs, processor_params)
+    def apply(preprocessor_params, params, obs, actions):
+        obs_processed = preprocess_observations_fn(obs, preprocessor_params)
         raw_output = model.apply(params, obs_processed, actions)
         # Std devs also need to match the shape (B, E, feature_dim)
         if not learn_std:
-            obs, reward, cost = (
+            obs_raw, reward, cost = (
                 raw_output[..., :obs_size],
                 raw_output[..., obs_size],
                 raw_output[..., obs_size + 1],
             )
+            obs = postprocess_observations_fn(obs_raw, preprocessor_params)
             obs_std = jnp.ones_like(obs) * 1e-3
             reward_std = jnp.ones_like(reward) * 1e-3
             cost_std = jnp.ones_like(cost) * 1e-3
         else:
             means, stds = jnp.split(raw_output, 2, axis=-1)
-            obs, reward, cost = (
+            obs_raw, reward, cost = (
                 means[..., :obs_size],
                 means[..., obs_size],
                 means[..., obs_size + 1],
             )
+            obs = postprocess_observations_fn(obs_raw, preprocessor_params)
+
             obs_std, reward_std, cost_std = (
                 stds[..., :obs_size],
                 stds[..., obs_size],
                 stds[..., obs_size + 1],
             )
+            # FIXME: (manu) figure out postprocessing of stds (only take scaling part of postprocessor)
         return (obs, reward, cost), (obs_std, reward_std, cost_std)
 
     dummy_obs = jnp.zeros((1, obs_size))
@@ -174,11 +179,12 @@ def make_mb_ppo_networks(
     observation_size: int,
     action_size: int,
     preprocess_observations_fn: types.PreprocessObservationFn = types.identity_observation_preprocessor,
+    postprocess_observations_fn: types.PreprocessObservationFn = types.identity_observation_preprocessor,
     policy_hidden_layer_sizes: Sequence[int] = (32,) * 4,
     value_hidden_layer_sizes: Sequence[int] = (256,) * 5,
     model_hidden_layer_sizes: Sequence[int] = (512,) * 2,
     n_ensemble: int = 5,
-    model_use_bro: bool = True,
+    use_bro: bool = True,
     activation: networks.ActivationFn = linen.swish,
     policy_obs_key: str = "state",
     value_obs_key: str = "state",
@@ -222,10 +228,11 @@ def make_mb_ppo_networks(
         observation_size,
         action_size,
         preprocess_observations_fn=preprocess_observations_fn,
+        postprocess_observations_fn=postprocess_observations_fn,
         hidden_layer_sizes=model_hidden_layer_sizes,
         activation=activation,
         n_ensemble=n_ensemble,
-        use_bro=model_use_bro,
+        use_bro=use_bro,
         learn_std=learn_std,
     )
 

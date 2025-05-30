@@ -23,7 +23,6 @@ def update_fn(
     planning_env_factory,  # Changed from planning_env to planning_env_factory
     replay_buffer,
     unroll_length,
-    batch_size,
     num_minibatches,
     make_policy,
     num_updates_per_batch,
