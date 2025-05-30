@@ -129,26 +129,29 @@ def make_losses(
             (next_obs_pred, reward_pred, cost_pred),
             (next_obs_std, reward_std, cost_std),
         ) = model_apply(normalizer_params, model_params, data.observation, data.action)
-        reshape = lambda x: jnp.tile(
+        expand = lambda x: jnp.tile(
             x[None], (next_obs_pred.shape[0],) + (1,) * (x.ndim)
         )
-        next_obs_target = reshape(data.next_observation)
+        next_obs_target = expand(data.next_observation)
         next_obs_loss = _neg_log_posterior(
             next_obs_pred, next_obs_std, next_obs_target, learn_std
         )
-        current_reward_target = reshape(data.reward)
+        current_reward_target = expand(data.reward)
         reward_loss = _neg_log_posterior(
             reward_pred, reward_std, current_reward_target, learn_std
         )
         cost_loss = 0.0
         cost_target = None
         if "state_extras" in data.extras and "cost" in data.extras["state_extras"]:
-            cost_target = reshape(data.extras["state_extras"]["cost"])
+            cost_target = expand(data.extras["state_extras"]["cost"])
             cost_loss = _neg_log_posterior(cost_pred, cost_std, cost_target, learn_std)
-        total_loss = next_obs_loss + reward_loss + cost_loss
+        # FIXME: (manu) test zero loss change back!
+        total_loss = next_obs_loss + reward_loss + 0 * cost_loss
         # Compute MSE for monitoring
         obs_mse = jnp.mean(jnp.square(next_obs_pred - next_obs_target))
         reward_mse = jnp.mean(jnp.square(reward_pred - current_reward_target))
+        # FIXME: (manu) for test compte loss with mse only
+        total_loss = obs_mse + reward_mse
         cost_mse = 0.0
         if cost_target is not None:
             cost_mse = jnp.mean(jnp.square(cost_pred - cost_target))

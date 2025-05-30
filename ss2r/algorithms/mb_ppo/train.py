@@ -372,7 +372,7 @@ def train(
             # Learn model from sampled transitions
             (training_state, buffer_state, _), model_loss_metrics = jax.lax.scan(
                 model_training_step,
-                (training_state, buffer_state, key),
+                (training_state, buffer_state, model_key),
                 (),
                 length=model_updates_per_step,
             )

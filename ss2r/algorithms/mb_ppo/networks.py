@@ -34,29 +34,29 @@ class MBPPONetworks:
 
 
 class BroNet(linen.Module):
-    hidden_dims: Sequence[int]
+    layer_sizes: Sequence[int]
     activation: Callable
     kernel_init: Callable = jax.nn.initializers.lecun_uniform()
 
     @linen.compact
     def __call__(self, x):
-        assert all(size == self.hidden_dims[0] for size in self.hidden_dims[:-1])
-        x = linen.Dense(features=self.hidden_dims[0], kernel_init=self.kernel_init)(x)
+        assert all(size == self.layer_sizes[0] for size in self.layer_sizes[:-1])
+        x = linen.Dense(features=self.layer_sizes[0], kernel_init=self.kernel_init)(x)
         x = linen.LayerNorm()(x)
         x = self.activation(x)
-        for _ in range(len(self.hidden_dims) - 1):
+        for _ in range(len(self.layer_sizes) - 1):
             residual = x
-            x = linen.Dense(features=self.hidden_dims[0], kernel_init=self.kernel_init)(
+            x = linen.Dense(features=self.layer_sizes[0], kernel_init=self.kernel_init)(
                 x
             )
             x = linen.LayerNorm()(x)
             x = self.activation(x)
-            x = linen.Dense(features=self.hidden_dims[0], kernel_init=self.kernel_init)(
+            x = linen.Dense(features=self.layer_sizes[0], kernel_init=self.kernel_init)(
                 x
             )
             x = linen.LayerNorm()(x)
             x += residual
-        x = linen.Dense(self.hidden_dims[-1], kernel_init=self.kernel_init)(x)
+        x = linen.Dense(self.layer_sizes[-1], kernel_init=self.kernel_init)(x)
         return x
 
 
@@ -126,7 +126,7 @@ def make_world_model_ensemble(
             hidden_dims = list(hidden_layer_sizes) + [output_dim]
             for _ in range(self.n_ensemble):
                 m = net(
-                    hidden_dims=hidden_dims,
+                    layer_sizes=hidden_dims,
                     activation=activation,
                     kernel_init=jax.nn.initializers.lecun_uniform(),
                 )(hidden)
