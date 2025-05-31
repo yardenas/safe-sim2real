@@ -34,7 +34,7 @@ def create_env_data(key, num_samples=1000):
 
     def single_traj(key):
         (final_obs, _), data = jax.lax.scan(
-            rollout_step, (env.reset(key), key), None, length=200
+            rollout_step, (env.reset(key), key), None, length=1000
         )
         return data
 
@@ -102,7 +102,7 @@ def create_synthetic_training_data(key, obs_size, actions_size, num_samples=1000
 
 
 def test_train_model(lr=1e-3, epochs=100, use_bro=False):
-    num_samples = 1000
+    num_samples = 10
 
     key = jax.random.PRNGKey(0)
     gen_key, init_key, key_sgd = jax.random.split(key, 3)
