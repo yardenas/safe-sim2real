@@ -229,7 +229,7 @@ def test_train_model(lr=1e-3, epochs=100, use_bro=False):
         )
 
     def train_model(
-        params, optimizer_state, transitions, normalizer_params, key_sgd, num_epochs=5
+        params, optimizer_state, transitions, normalizer_params, key_sgd, num_epochs
     ):
         carry = (params, optimizer_state, transitions, normalizer_params, key_sgd)
         carry, mse_hist = jax.lax.scan(epoch_step, carry, None, length=num_epochs)
@@ -253,16 +253,10 @@ def test_train_model(lr=1e-3, epochs=100, use_bro=False):
     plt.legend()
     plt.savefig(f"model_training_mse_lr{lr}.png")
 
-    # print the average reward in carry
-    transitions = carry[2]
-    avg_reward = jnp.mean(transitions.reward)
-    print(f"Average Reward: {avg_reward:.4f}")
-
     def compare_trajectories(
         key, env, normalizer_params, params, num_timesteps=15, num_trajs=5
     ):
         keys = jax.random.split(key, num_trajs)
-        # Reset environment for each trajectory
         initial_states_env = jax.vmap(env.reset)(keys)
         initial_states_model = initial_states_env.obs
 
@@ -281,23 +275,25 @@ def test_train_model(lr=1e-3, epochs=100, use_bro=False):
 
         def rollout_model(carry, action):
             state_model = carry
-            # Model expects batch dimension, so add one
             (
                 (next_state_model, reward_model, cost_model),
                 _,
             ) = ppo_network.model_network.apply(
                 normalizer_params, params, state_model, action
             )
-            # Take mean over ensemble if present
             next_state_model = jnp.mean(next_state_model, axis=0)
             reward_model = jnp.mean(reward_model, axis=0)
             cost_model = jnp.mean(cost_model, axis=0)
             return next_state_model, (next_state_model, reward_model, cost_model)
 
-        # Rollout env for all trajectories
         def single_env_traj(init_state_env, key):
             (final_state, _), (obs_seq, reward_seq, action_seq) = jax.lax.scan(
                 rollout_env, (init_state_env, key), None, length=num_timesteps
+            )
+            obs_seq = jnp.concatenate([init_state_env.obs[None, ...], obs_seq], axis=0)
+            reward_seq = jnp.concatenate([jnp.ones((1,)), reward_seq], axis=0)
+            action_seq = jnp.concatenate(
+                [jnp.zeros((1, env.action_size)), action_seq], axis=0
             )
             return obs_seq, reward_seq, action_seq
 
@@ -305,18 +301,19 @@ def test_train_model(lr=1e-3, epochs=100, use_bro=False):
             initial_states_env, keys
         )
 
-        # Rollout model for all trajectories using the actions taken in the env
         def single_model_traj(init_state_model, actions):
             _, (obs_seq, reward_seq, cost_seq) = jax.lax.scan(
-                rollout_model, init_state_model, actions
+                rollout_model, init_state_model, actions[1:]
             )
+            obs_seq = jnp.concatenate([init_state_model[None, ...], obs_seq], axis=0)
+            reward_seq = jnp.concatenate([jnp.ones((1,)), reward_seq], axis=0)
+            cost_seq = jnp.concatenate([jnp.zeros((1,)), cost_seq], axis=0)
             return obs_seq, reward_seq, cost_seq
 
         obs_model, rewards_model, costs_model = jax.vmap(single_model_traj)(
             initial_states_model, actions_env
         )
 
-        # Convert to numpy for plotting
         obs_env = jnp.array(obs_env)
         obs_model = jnp.array(obs_model)
         rewards_env = jnp.array(rewards_env)
@@ -366,4 +363,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     print(f"Training with learning rate: {args.lr}")
+    print(f"Number of epochs: {args.epochs}")
+    print(f"Using BRO: {args.use_bro}")
     test_train_model(lr=args.lr, epochs=args.epochs, use_bro=args.use_bro)
