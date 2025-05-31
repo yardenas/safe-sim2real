@@ -126,7 +126,7 @@ def test_train_model():
         postprocess_observations_fn=denormalize_fn,
         n_ensemble=1,
         model_hidden_layer_sizes=[512, 512],
-        activation=jax.nn.relu,
+        activation=jax.nn.swish,
         use_bro=False,
         learn_std=False,
     )
