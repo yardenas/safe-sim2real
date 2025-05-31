@@ -101,7 +101,7 @@ def create_synthetic_training_data(key, obs_size, actions_size, num_samples=1000
     return obs, actions, next_obs, reward, cost
 
 
-def test_train_model(lr=1e-3):
+def test_train_model(lr=1e-3, epochs=100, use_bro=False):
     num_samples = 1000
 
     key = jax.random.PRNGKey(0)
@@ -127,7 +127,7 @@ def test_train_model(lr=1e-3):
         n_ensemble=1,
         model_hidden_layer_sizes=[512, 512],
         activation=jax.nn.swish,
-        use_bro=False,
+        use_bro=use_bro,
         learn_std=False,
     )
 
@@ -236,7 +236,12 @@ def test_train_model(lr=1e-3):
         return carry, mse_hist
 
     carry, mse_hist = train_model(
-        params, optimizer_state, transitions, normalizer_params, key_sgd, num_epochs=100
+        params,
+        optimizer_state,
+        transitions,
+        normalizer_params,
+        key_sgd,
+        num_epochs=epochs,
     )
 
     plt.plot(mse_hist[0], label="MSE Next Obs")
@@ -253,88 +258,112 @@ def test_train_model(lr=1e-3):
     avg_reward = jnp.mean(transitions.reward)
     print(f"Average Reward: {avg_reward:.4f}")
 
-    def compare_trajectories(env, normalizer_params, params, num_timesteps=15):
-        states_env = []
-        rewards_env = []
-        states_model = []
-        rewards_model = []
-        current_state_env = env.reset(jax.random.PRNGKey(0))
-        current_state_model = current_state_env.obs
-        for _ in range(num_timesteps):
-            action = jax.random.uniform(
-                jax.random.PRNGKey(0), (env.action_size,), minval=-1.0, maxval=1.0
-            )
-            next_state_env = env.step(current_state_env, action)
-            states_env.append(next_state_env.obs)
-            rewards_env.append(next_state_env.reward)
-            current_state_env = next_state_env
+    def compare_trajectories(
+        key, env, normalizer_params, params, num_timesteps=15, num_trajs=5
+    ):
+        keys = jax.random.split(key, num_trajs)
+        # Reset environment for each trajectory
+        initial_states_env = jax.vmap(env.reset)(keys)
+        initial_states_model = initial_states_env.obs
 
+        def rollout_env(carry, _):
+            state_env, key = carry
+            key, subkey = jax.random.split(key)
+            action = jax.random.uniform(
+                subkey, (env.action_size,), minval=-1.0, maxval=1.0
+            )
+            next_state_env = env.step(state_env, action)
+            return (next_state_env, key), (
+                next_state_env.obs,
+                next_state_env.reward,
+                action,
+            )
+
+        def rollout_model(carry, action):
+            state_model = carry
+            # Model expects batch dimension, so add one
             (
                 (next_state_model, reward_model, cost_model),
                 _,
             ) = ppo_network.model_network.apply(
-                normalizer_params, params, current_state_model, action
+                normalizer_params, params, state_model, action
             )
-            # Calculate mean of ensemble predictions
+            # Take mean over ensemble if present
             next_state_model = jnp.mean(next_state_model, axis=0)
             reward_model = jnp.mean(reward_model, axis=0)
             cost_model = jnp.mean(cost_model, axis=0)
-            states_model.append(next_state_model)
-            rewards_model.append(reward_model)
-            current_state_model = next_state_model
+            return next_state_model, (next_state_model, reward_model, cost_model)
 
-        states_env = jnp.array(states_env)
-        states_model = jnp.array(states_model)
+        # Rollout env for all trajectories
+        def single_env_traj(init_state_env, key):
+            (final_state, _), (obs_seq, reward_seq, action_seq) = jax.lax.scan(
+                rollout_env, (init_state_env, key), None, length=num_timesteps
+            )
+            return obs_seq, reward_seq, action_seq
+
+        obs_env, rewards_env, actions_env = jax.vmap(single_env_traj)(
+            initial_states_env, keys
+        )
+
+        # Rollout model for all trajectories using the actions taken in the env
+        def single_model_traj(init_state_model, actions):
+            _, (obs_seq, reward_seq, cost_seq) = jax.lax.scan(
+                rollout_model, init_state_model, actions
+            )
+            return obs_seq, reward_seq, cost_seq
+
+        obs_model, rewards_model, costs_model = jax.vmap(single_model_traj)(
+            initial_states_model, actions_env
+        )
+
+        # Convert to numpy for plotting
+        obs_env = jnp.array(obs_env)
+        obs_model = jnp.array(obs_model)
         rewards_env = jnp.array(rewards_env)
         rewards_model = jnp.array(rewards_model)
 
-        plt.figure(figsize=(12, 6))
-        plt.subplot(2, 3, 1)
-        plt.plot(states_env[:, 0], label="Env States", color="blue")
-        plt.plot(states_model[:, 0], label="Model States", color="red", linestyle="--")
-        plt.title("State Comparison - State 0")
-        plt.xlabel("Time Step")
-        plt.ylabel("State 0")
-        plt.legend()
-        plt.subplot(2, 3, 2)
-        plt.plot(states_env[:, 1], label="Env States", color="blue")
-        plt.plot(states_model[:, 1], label="Model States", color="red", linestyle="--")
-        plt.title("State Comparison - State 1")
-        plt.xlabel("Time Step")
-        plt.ylabel("Sate 1")
-        plt.legend()
-        plt.subplot(2, 3, 3)
-        plt.plot(states_env[:, 2], label="Env Rewards", color="blue")
-        plt.plot(states_model[:, 2], label="Model Rewards", color="red", linestyle="--")
-        plt.title("State Comparison - State 2")
-        plt.xlabel("Time Step")
-        plt.ylabel("State 2")
-        plt.legend()
-        plt.subplot(2, 3, 4)
-        plt.plot(states_env[:, 3], label="Env Rewards", color="blue")
-        plt.plot(states_model[:, 3], label="Model Rewards", color="red", linestyle="--")
-        plt.title("State Comparison - State 3")
-        plt.xlabel("Time Step")
-        plt.ylabel("State 3")
-        plt.legend()
-        plt.subplot(2, 3, 5)
-        plt.plot(states_env[:, 4], label="Env Rewards", color="blue")
-        plt.plot(states_model[:, 4], label="Model Rewards", color="red", linestyle="--")
-        plt.title("State Comparison - State 4")
-        plt.xlabel("Time Step")
-        plt.ylabel("State 4")
-        plt.legend()
-        plt.subplot(2, 3, 6)
-        plt.plot(rewards_env, label="Env Rewards", color="blue")
-        plt.plot(rewards_model, label="Model Rewards", color="red", linestyle="--")
-        plt.title("Reward Comparison")
-        plt.xlabel("Time Step")
-        plt.ylabel("Reward")
-        plt.legend()
+        plt.figure(figsize=(18, 10))
+        for traj in range(num_trajs):
+            for i in range(min(5, obs_env.shape[2])):  # up to 5 state dims
+                plt.subplot(num_trajs, 6, traj * 6 + i + 1)
+                plt.plot(obs_env[traj, :, i], label="Env", color="blue")
+                plt.plot(
+                    obs_model[traj, :, i], label="Model", color="red", linestyle="--"
+                )
+                plt.title(f"Traj {traj+1} - State {i}")
+                if traj == 0:
+                    plt.legend()
+            plt.subplot(num_trajs, 6, traj * 6 + 6)
+            plt.plot(rewards_env[traj], label="Env", color="blue")
+            plt.plot(rewards_model[traj], label="Model", color="red", linestyle="--")
+            plt.title(f"Traj {traj+1} - Reward")
+            if traj == 0:
+                plt.legend()
+        plt.tight_layout()
         plt.savefig(f"trajectory_comparison{lr}.png")
 
-    compare_trajectories(env, carry[3], carry[0], num_timesteps=15)
+    compare_trajectories(key, env, carry[3], carry[0], num_timesteps=25, num_trajs=5)
 
 
 if __name__ == "__main__":
-    test_train_model(lr=1e-4)
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description="Train and test a model with specified learning rate"
+    )
+    parser.add_argument(
+        "--lr", type=float, default=1e-4, help="Learning rate for model training"
+    )
+    parser.add_argument(
+        "--epochs", type=int, default=100, help="Number of training epochs"
+    )
+    parser.add_argument(
+        "--use_bro",
+        type=bool,
+        default=False,
+        help="Use BRO (Bayesian Robust Optimization) in the model",
+    )
+    args = parser.parse_args()
+
+    print(f"Training with learning rate: {args.lr}")
+    test_train_model(lr=args.lr, epochs=args.epochs, use_bro=args.use_bro)
