@@ -331,10 +331,10 @@ def test_train_model(lr=1e-3):
         plt.xlabel("Time Step")
         plt.ylabel("Reward")
         plt.legend()
-        plt.savefig("trajectory_comparison.png")
+        plt.savefig(f"trajectory_comparison{lr}.png")
 
     compare_trajectories(env, carry[3], carry[0], num_timesteps=15)
 
 
 if __name__ == "__main__":
-    test_train_model(lr=1e-3)
+    test_train_model(lr=1e-4)
