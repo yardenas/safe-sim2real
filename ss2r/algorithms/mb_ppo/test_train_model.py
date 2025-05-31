@@ -101,7 +101,7 @@ def create_synthetic_training_data(key, obs_size, actions_size, num_samples=1000
     return obs, actions, next_obs, reward, cost
 
 
-def test_train_model():
+def test_train_model(lr=1e-3):
     num_samples = 1000
 
     key = jax.random.PRNGKey(0)
@@ -143,7 +143,7 @@ def test_train_model():
 
     # Convert synthetic data
     transitions = create_transitions(obs, actions, next_obs, rewards, costs)
-    model_optimizer = optax.adam(learning_rate=1e-3)
+    model_optimizer = optax.adam(learning_rate=lr)
     optimizer_state = model_optimizer.init(params)
 
     # Update normalizer params
@@ -247,7 +247,7 @@ def test_train_model():
     plt.ylabel("Mean Squared Error")
     plt.title("Model Training MSE")
     plt.legend()
-    plt.savefig("model_training_mse.png")
+    plt.savefig(f"model_training_mse_lr{lr}.png")
 
     # print the average reward in carry
     transitions = carry[2]
@@ -338,4 +338,4 @@ def test_train_model():
 
 
 if __name__ == "__main__":
-    test_train_model()
+    test_train_model(lr=1e-3)
