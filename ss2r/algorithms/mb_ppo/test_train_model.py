@@ -124,10 +124,10 @@ def test_train_model():
         action_size=action_size,
         preprocess_observations_fn=normalize_fn,
         postprocess_observations_fn=denormalize_fn,
-        n_ensemble=1,
+        n_ensemble=5,
         model_hidden_layer_sizes=[512, 512],
         activation=jax.nn.swish,
-        use_bro=False,
+        use_bro=True,
         learn_std=False,
     )
 

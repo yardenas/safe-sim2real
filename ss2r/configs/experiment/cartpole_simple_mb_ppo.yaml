@@ -16,9 +16,7 @@ agent:
   reward_scaling: 1.0
   normalize_observations: true
   unroll_length: 10
-  num_minibatches: 32
-  num_updates_per_batch: 4
+  num_minibatches: 64
+  num_updates_per_batch: 2
   discounting: 0.995
-  actor_critic_learning_rate: 0.0001
-  model_learning_rate: 3e-3
   entropy_cost: 0.025
