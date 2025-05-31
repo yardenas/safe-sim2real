@@ -251,7 +251,7 @@ def test_train_model(lr=1e-3, epochs=100, use_bro=False):
     plt.ylabel("Mean Squared Error")
     plt.title("Model Training MSE")
     plt.legend()
-    plt.savefig(f"model_training_mse_lr{lr}.png")
+    plt.savefig(f"model_training_mse_lr{lr}_useBro{use_bro}.png")
 
     def compare_trajectories(
         key, env, normalizer_params, params, num_timesteps=15, num_trajs=5
@@ -337,7 +337,7 @@ def test_train_model(lr=1e-3, epochs=100, use_bro=False):
             if traj == 0:
                 plt.legend()
         plt.tight_layout()
-        plt.savefig(f"trajectory_comparison{lr}.png")
+        plt.savefig(f"trajectory_comparison_lr{lr}_useBro{use_bro}.png")
 
     compare_trajectories(key, env, carry[3], carry[0], num_timesteps=25, num_trajs=5)
 
