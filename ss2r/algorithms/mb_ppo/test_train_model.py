@@ -154,7 +154,6 @@ def test_train_model(lr=1e-3):
     # Make loss
     model_loss, *_ = mb_ppo_losses.make_losses(
         ppo_network=ppo_network,
-        preprocess_observations_fn=normalize_fn,
         entropy_cost=1e-4,
         discounting=0.9,
         safety_discounting=0.9,
