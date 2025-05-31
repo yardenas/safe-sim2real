@@ -80,7 +80,6 @@ def compute_gae(
 
 def make_losses(
     ppo_network,
-    preprocess_observations_fn,
     clipping_epsilon,
     entropy_cost,
     reward_scaling,
@@ -132,14 +131,10 @@ def make_losses(
             (next_obs_pred, reward_pred, cost_pred),
             (next_obs_std, reward_std, cost_std),
         ) = model_apply(normalizer_params, model_params, data.observation, data.action)
-        next_obs_pred = preprocess_observations_fn(next_obs_pred, normalizer_params)
-        next_obs_target = preprocess_observations_fn(
-            expand(data.next_observation), normalizer_params
-        )
+        next_obs_target = expand(data.next_observation)
         next_obs_loss = _neg_log_posterior(
             next_obs_pred, next_obs_std, next_obs_target, learn_std
         )
-        # FIXME: (manu) no normalization of reward and cost?
         current_reward_target = expand(data.reward)
         reward_loss = _neg_log_posterior(
             reward_pred, reward_std, current_reward_target, learn_std

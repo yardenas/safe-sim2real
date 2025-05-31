@@ -248,7 +248,6 @@ def train(
     # Make losses
     model_loss, policy_loss, value_loss, cost_value_loss = mb_ppo_losses.make_losses(
         ppo_network=ppo_network,
-        preprocess_observations_fn=normalize_fn,
         entropy_cost=entropy_cost,
         discounting=discounting,
         safety_discounting=safety_discounting,

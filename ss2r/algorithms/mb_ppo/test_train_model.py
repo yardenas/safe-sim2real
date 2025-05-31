@@ -124,10 +124,10 @@ def test_train_model():
         action_size=action_size,
         preprocess_observations_fn=normalize_fn,
         postprocess_observations_fn=denormalize_fn,
-        n_ensemble=5,
+        n_ensemble=1,
         model_hidden_layer_sizes=[512, 512],
         activation=jax.nn.swish,
-        use_bro=True,
+        use_bro=False,
         learn_std=False,
     )
 
@@ -237,7 +237,7 @@ def test_train_model():
         return carry, mse_hist
 
     carry, mse_hist = train_model(
-        params, optimizer_state, transitions, normalizer_params, key_sgd, num_epochs=50
+        params, optimizer_state, transitions, normalizer_params, key_sgd, num_epochs=100
     )
 
     plt.plot(mse_hist[0], label="MSE Next Obs")
