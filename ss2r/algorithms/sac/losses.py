@@ -158,7 +158,7 @@ def make_losses(
             qr = jnp.min(qr_action, axis=-1)
         if policy_optimism:
             bonus = qr_action.std(axis=-1) * optimism_scale
-            qr += bonus
+            qr = (qr + bonus) / (1.0 + optimism_scale)
         aux = {}
         actor_loss = -qr.mean()
         exploration_loss = (alpha * log_prob).mean()
