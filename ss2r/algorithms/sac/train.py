@@ -155,6 +155,7 @@ def train(
         sac_networks.SafeSACNetworks
     ] = sac_networks.make_sac_networks,
     n_critics: int = 2,
+    n_heads: int = 1,
     progress_fn: Callable[[int, Metrics], None] = lambda *args: None,
     checkpoint_logdir: Optional[str] = None,
     restore_checkpoint_path: Optional[str] = None,
@@ -221,6 +222,7 @@ def train(
         safe=safe,
         use_bro=use_bro,
         n_critics=n_critics,
+        n_heads=n_heads,
     )
     make_policy = sac_networks.make_inference_fn(sac_network)
     alpha_optimizer = optax.adam(learning_rate=alpha_learning_rate)
