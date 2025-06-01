@@ -32,4 +32,8 @@ reset_on_eval: true
 store_buffer: false
 use_rae: false
 n_critics: 2
-n_heads: 1
+n_heads: 0
+policy_optimism: false
+value_optimism: false
+use_redq: false
+optimism_scale: 0.

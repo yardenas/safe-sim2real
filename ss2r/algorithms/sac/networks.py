@@ -78,18 +78,21 @@ class BroNet(linen.Module):
             )
             x = linen.LayerNorm()(x)
             x += residual
-        # Prediction heads
-        heads = []
-        for _ in range(self.num_heads):
-            h = linen.Dense(features=self.layer_sizes[0], kernel_init=self.kernel_init)(
-                x
-            )
-            h = self.activation(h)
-            h = linen.Dense(
-                features=self.layer_sizes[-1], kernel_init=self.kernel_init
-            )(h)
-            heads.append(h)
-        return jnp.concatenate(heads, axis=-1)
+        if self.num_heads > 0:
+            # Prediction heads
+            heads = []
+            for _ in range(self.num_heads):
+                h = linen.Dense(
+                    features=self.layer_sizes[0], kernel_init=self.kernel_init
+                )(x)
+                h = self.activation(h)
+                h = linen.Dense(
+                    features=self.layer_sizes[-1], kernel_init=self.kernel_init
+                )(h)
+                heads.append(h)
+            return jnp.concatenate(heads, axis=-1)
+        else:
+            return linen.Dense(self.layer_sizes[-1], kernel_init=self.kernel_init)(x)
 
 
 class MLP(linen.Module):
@@ -100,23 +103,28 @@ class MLP(linen.Module):
 
     @linen.compact
     def __call__(self, x):
-        for i, size in enumerate(self.layer_sizes):
+        for i, size in enumerate(self.layer_sizes - 1):
             x = linen.Dense(features=size, kernel_init=self.kernel_init)(x)
-            if i < len(self.layer_sizes) - 1:
-                x = linen.LayerNorm()(x)
-                x = self.activation(x)
-        # Prediction heads
-        heads = []
-        for _ in range(self.num_heads):
-            h = linen.Dense(
+            x = linen.LayerNorm()(x)
+            x = self.activation(x)
+        if self.num_heads > 0:
+            # Prediction heads
+            heads = []
+            for _ in range(self.num_heads):
+                h = linen.Dense(
+                    features=self.layer_sizes[-1], kernel_init=self.kernel_init
+                )(x)
+                h = self.activation(h)
+                h = linen.Dense(
+                    features=self.layer_sizes[-1], kernel_init=self.kernel_init
+                )(h)
+                heads.append(h)
+            return jnp.concatenate(heads, axis=-1)
+        else:
+            x = linen.Dense(
                 features=self.layer_sizes[-1], kernel_init=self.kernel_init
             )(x)
-            h = self.activation(h)
-            h = linen.Dense(
-                features=self.layer_sizes[-1], kernel_init=self.kernel_init
-            )(h)
-            heads.append(h)
-        return jnp.concatenate(heads, axis=-1)
+            return x
 
 
 def _get_obs_state_size(obs_size: types.ObservationSize, obs_key: str) -> int:

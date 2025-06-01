@@ -17,6 +17,9 @@ class QTransformation(Protocol):
         scale: float = 1.0,
         key: jax.Array | None = None,
         use_bro: bool = True,
+        use_optimism: bool = False,
+        use_redq: bool = False,
+        optimism_scale: float = 0.0,
     ):
         ...
 
@@ -32,6 +35,9 @@ class UCBCost(QTransformation):
         scale: float = 1.0,
         key: jax.Array | None = None,
         use_bro: bool = True,
+        use_optimism: bool = False,
+        use_redq: bool = False,
+        optimism_scale: float = 0.0,
     ):
         next_action, _ = policy(transitions.next_observation)
         next_q = q_fn(transitions.next_observation, next_action)
@@ -64,6 +70,9 @@ class RAMU(QTransformation):
         scale: float = 1.0,
         key: jax.Array | None = None,
         use_bro: bool = True,
+        use_optimism: bool = False,
+        use_redq: bool = False,
+        optimism_scale: float = 0.0,
     ):
         if isinstance(transitions.observation, dict):
             sampled_next_obs = {
@@ -125,13 +134,22 @@ class SACBase(QTransformation):
         scale: float = 1.0,
         key: jax.Array | None = None,
         use_bro: bool = True,
+        use_optimism: bool = False,
+        use_redq: bool = False,
+        optimism_scale: float = 0.0,
     ):
         next_action, next_log_prob = policy(transitions.next_observation)
         next_q = q_fn(transitions.next_observation, next_action)
         if use_bro:
             next_v = next_q.mean(axis=-1)
+        elif use_redq:
+            # TODO (yarden): hardcoded 2 should be improved
+            next_v = jax.random.permutation(key, next_q, axis=-1)[..., :2].min(axis=-1)
         else:
             next_v = next_q.min(axis=-1)
+        if use_optimism:
+            bonus = next_q.std(axis=-1) * optimism_scale
+            next_v += bonus
         next_v -= alpha * next_log_prob
         target_q = jax.lax.stop_gradient(
             transitions.reward * scale + transitions.discount * gamma * next_v
@@ -155,6 +173,9 @@ class RAMUReward(QTransformation):
         scale: float = 1.0,
         key: jax.Array | None = None,
         use_bro: bool = True,
+        use_optimism: bool = False,
+        use_redq: bool = False,
+        optimism_scale: float = 0.0,
     ):
         if isinstance(transitions.observation, dict):
             sampled_next_obs = {
@@ -200,6 +221,9 @@ class LCBReward(QTransformation):
         scale: float = 1.0,
         key: jax.Array | None = None,
         use_bro: bool = True,
+        use_optimism: bool = False,
+        use_redq: bool = False,
+        optimism_scale: float = 0.0,
     ):
         next_action, next_log_prob = policy(transitions.next_observation)
         next_q = q_fn(transitions.next_observation, next_action)
@@ -227,6 +251,9 @@ class SACCost(QTransformation):
         scale: float = 1.0,
         key: jax.Array | None = None,
         use_bro: bool = True,
+        use_optimism: bool = False,
+        use_redq: bool = False,
+        optimism_scale: float = 0.0,
     ):
         next_action, _ = policy(transitions.next_observation)
         next_q = q_fn(transitions.next_observation, next_action)

@@ -167,6 +167,10 @@ def train(
     reward_robustness: QTransformation = SACBase(),
     cost_robustness: QTransformation = SACCost(),
     use_bro: bool = True,
+    policy_optimism: bool = False,
+    value_optimism: bool = False,
+    use_redq: bool = False,
+    optimism_scale: float = 0.0,
     normalize_budget: bool = True,
     reset_on_eval: bool = True,
     store_buffer: bool = False,
@@ -306,6 +310,10 @@ def train(
         action_size=action_size,
         init_alpha=init_alpha,
         use_bro=use_bro,
+        policy_optimism=policy_optimism,
+        value_optimism=value_optimism,
+        use_redq=use_redq,
+        optimism_scale=optimism_scale,
     )
     alpha_update = (
         gradients.gradient_update_fn(  # pytype: disable=wrong-arg-types  # jax-ndarray

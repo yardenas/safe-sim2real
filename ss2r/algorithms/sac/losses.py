@@ -39,6 +39,10 @@ def make_losses(
     safety_discounting: float,
     action_size: int,
     use_bro: bool,
+    policy_optimism: bool,
+    value_optimism: bool,
+    use_redq: bool,
+    optimism_scale: float,
     init_alpha: float | None,
 ):
     """Creates the SAC losses."""
@@ -114,6 +118,9 @@ def make_losses(
             scale,
             another_key,
             use_bro,
+            value_optimism,
+            use_redq,
+            optimism_scale,
         )
         q_error = q_old_action - jnp.expand_dims(target_q, -1)
         # Better bootstrapping for truncated episodes.
@@ -145,10 +152,13 @@ def make_losses(
         qr_action = qr_network.apply(
             normalizer_params, qr_params, transitions.observation, action
         )
-        if use_bro:
+        if use_bro or use_redq:
             qr = jnp.mean(qr_action, axis=-1)
         else:
             qr = jnp.min(qr_action, axis=-1)
+        if policy_optimism:
+            bonus = qr_action.std(axis=-1) * optimism_scale
+            qr += bonus
         aux = {}
         actor_loss = -qr.mean()
         exploration_loss = (alpha * log_prob).mean()
