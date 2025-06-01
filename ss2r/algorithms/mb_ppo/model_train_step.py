@@ -36,7 +36,6 @@ def update_fn(
             training_state.params.model,
             training_state.normalizer_params,
             transitions,
-            key_sgd,
             learn_std,
             optimizer_state=training_state.optimizer_state[0],  # type: ignore
         )

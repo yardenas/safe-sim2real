@@ -378,7 +378,7 @@ def train(
             )
             # Learn model from sampled transitions
             (
-                (training_state, buffer_state, model_key),
+                (training_state, buffer_state, _),
                 model_loss_metrics,
             ) = jax.lax.scan(
                 model_training_step,
@@ -388,7 +388,7 @@ def train(
             )
             # Learn model with ppo on learned model (planning MDP)
             (
-                (training_state, buffer_state, actor_critic_key),
+                (training_state, buffer_state, _),
                 ppo_loss_metrics,
             ) = jax.lax.scan(
                 training_step,

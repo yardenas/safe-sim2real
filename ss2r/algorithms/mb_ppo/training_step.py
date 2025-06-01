@@ -161,7 +161,7 @@ def update_fn(
                     ),
                 },
             )
-            current_key, next_key = jax.random.split(current_key)
+            next_key, current_key = jax.random.split(current_key)
             generate_unroll = lambda state: acting.generate_unroll(
                 planning_env,
                 state,

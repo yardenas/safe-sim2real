@@ -120,7 +120,6 @@ def make_losses(
         model_params,
         normalizer_params,
         data,
-        key,
         learn_std,
     ):
         model_apply = ppo_network.model_network.apply

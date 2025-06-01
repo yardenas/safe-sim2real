@@ -101,7 +101,7 @@ def create_synthetic_training_data(key, obs_size, actions_size, num_samples=1000
     return obs, actions, next_obs, reward, cost
 
 
-def test_train_model(lr=1e-3, epochs=100, use_bro=False):
+def test_train_model(lr=1e-3, epochs=100, use_bro=False, num_ensemble=1):
     num_samples = 10
 
     key = jax.random.PRNGKey(0)
@@ -124,7 +124,7 @@ def test_train_model(lr=1e-3, epochs=100, use_bro=False):
         action_size=action_size,
         preprocess_observations_fn=normalize_fn,
         postprocess_observations_fn=denormalize_fn,
-        n_ensemble=1,
+        n_ensemble=num_ensemble,
         model_hidden_layer_sizes=[512, 512],
         activation=jax.nn.swish,
         use_bro=use_bro,
@@ -360,9 +360,21 @@ if __name__ == "__main__":
         default=False,
         help="Use BRO (Bayesian Robust Optimization) in the model",
     )
+    parser.add_argument(
+        "--num_ensemble",
+        type=int,
+        default=1,
+        help="Number of ensemble members for the model",
+    )
     args = parser.parse_args()
 
     print(f"Training with learning rate: {args.lr}")
     print(f"Number of epochs: {args.epochs}")
     print(f"Using BRO: {args.use_bro}")
-    test_train_model(lr=args.lr, epochs=args.epochs, use_bro=args.use_bro)
+    print(f"Number of ensemble members: {args.num_ensemble}")
+    test_train_model(
+        lr=args.lr,
+        epochs=args.epochs,
+        use_bro=args.use_bro,
+        num_ensemble=args.num_ensemble,
+    )

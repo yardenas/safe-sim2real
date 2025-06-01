@@ -23,39 +23,47 @@ def get_wandb_checkpoint(run_id):
     return download_dir
 
 
-def plot(y_true, y_pred, savename):
-    t = np.arange(y_true.shape[0])
-    plt.figure(figsize=(6, 4), dpi=600)
-    plt.plot(t, y_pred, "r", label="prediction", linewidth=1.0)
-    plt.plot(t, y_true, "c", label="ground truth", linewidth=1.0)
-    ax = plt.gca()
-    ax.spines["top"].set_visible(False)
-    ax.spines["right"].set_visible(False)
-    plt.legend()
-    plt.tight_layout()
-    plt.savefig(savename, bbox_inches="tight")
-    plt.show(block=False)
-    plt.close()
-
-
-def plot_observations(obs_true, obs_pred, savename_prefix):
-    """Plot each observation dimension separately."""
+def plot_observations_and_reward(
+    obs_true, obs_pred, rewards_true, rewards_pred, savename_prefix
+):
+    """Plot each observation dimension and the reward in a compact grid."""
     t = np.arange(obs_true.shape[0])
     obs_dim = obs_true.shape[1]
+    total_plots = obs_dim + 1
+    ncols = min(3, total_plots)
+    nrows = int(np.ceil(total_plots / ncols))
 
+    fig, axes = plt.subplots(nrows, ncols, figsize=(5 * ncols, 3 * nrows), dpi=600)
+    axes = np.array(axes).reshape(-1)
+
+    # Plot observations
     for dim in range(obs_dim):
-        plt.figure(figsize=(6, 4), dpi=600)
-        plt.plot(t, obs_pred[:, dim], "r", label=f"prediction dim {dim}", linewidth=1.0)
-        plt.plot(
+        ax = axes[dim]
+        ax.plot(t, obs_pred[:, dim], "r", label=f"prediction dim {dim}", linewidth=1.0)
+        ax.plot(
             t, obs_true[:, dim], "c", label=f"ground truth dim {dim}", linewidth=1.0
         )
-        ax = plt.gca()
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
-        plt.legend()
-        plt.tight_layout()
-        plt.savefig(f"{savename_prefix}_dim{dim}.png", bbox_inches="tight")
-        plt.close()
+        ax.legend()
+        ax.set_title(f"Observation dim {dim}")
+
+    # Plot rewards
+    ax = axes[obs_dim]
+    ax.plot(t, rewards_pred.squeeze(), "r", label="predicted reward", linewidth=1.0)
+    ax.plot(t, rewards_true.squeeze(), "c", label="ground truth reward", linewidth=1.0)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.legend()
+    ax.set_title("Reward")
+
+    # Hide any unused subplots
+    for i in range(total_plots, nrows * ncols):
+        fig.delaxes(axes[i])
+
+    plt.tight_layout()
+    plt.savefig(f"{savename_prefix}_subplots.png", bbox_inches="tight")
+    plt.close()
 
 
 def run_policy(env, policy_fn, steps=15, key=jax.random.PRNGKey(0)):
@@ -144,10 +152,11 @@ def main(run_id):
     pred_rewards, pred_obs = evaluate_model(
         model.step, obs, actions, key, horizon=horizon
     )
-    plot(rewards, pred_rewards, "rewards.png")
-    plot_observations(obs, pred_obs, "observations")
+    plot_observations_and_reward(
+        obs, pred_obs, rewards, pred_rewards, "observations_rewards"
+    )
 
 
 if __name__ == "__main__":
-    run_id = "k7r264l2"  # <-- Replace with your actual run ID
+    run_id = "88vmgdc0"  # <-- Replace with your actual run ID
     main(run_id)
