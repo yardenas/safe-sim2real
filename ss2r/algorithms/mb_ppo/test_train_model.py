@@ -195,7 +195,7 @@ def test_train_model(lr=1e-3, epochs=100, use_bro=False, num_ensemble=1):
 
     def sgd_step(carry, _):
         params, optimizer_state, transitions, key_sgd = carry
-        key_sgd, subkey, sample_key = jax.random.split(key_sgd, 3)
+        key_sgd, sample_key = jax.random.split(key_sgd, 2)
         # Sample a batch of transitions of size 100
         transitions_batch = jax.tree.map(
             lambda x: jax.random.permutation(sample_key, x)[:256], transitions
@@ -204,7 +204,6 @@ def test_train_model(lr=1e-3, epochs=100, use_bro=False, num_ensemble=1):
             params,
             normalizer_params,
             transitions_batch,
-            subkey,
             False,
             optimizer_state=optimizer_state,  # type: ignore
         )
@@ -215,7 +214,7 @@ def test_train_model(lr=1e-3, epochs=100, use_bro=False, num_ensemble=1):
         key_sgd, subkey = jax.random.split(key_sgd)
 
         (params, optimizer_state, transitions, key_sgd), aux_hist = jax.lax.scan(
-            sgd_step, (params, optimizer_state, transitions, key_sgd), None, length=100
+            sgd_step, (params, optimizer_state, transitions, subkey), None, length=100
         )
 
         mse_obs, mse_reward, mse_cost = eval_model_mse(
