@@ -150,6 +150,7 @@ def train(
     min_replay_size: int = 0,
     max_replay_size: Optional[int] = None,
     grad_updates_per_step: int = 1,
+    value_to_policy_update_rate: int = 1,
     deterministic_eval: bool = False,
     network_factory: sac_networks.NetworkFactory[
         sac_networks.SafeSACNetworks
@@ -341,9 +342,9 @@ def train(
         extra_fields += ("disagreement",)  # type: ignore
 
     def sgd_step(
-        carry: Tuple[TrainingState, PRNGKey], transitions: Transition
-    ) -> Tuple[Tuple[TrainingState, PRNGKey], Metrics]:
-        training_state, key = carry
+        carry: Tuple[TrainingState, PRNGKey, int], transitions: Transition
+    ) -> Tuple[Tuple[TrainingState, PRNGKey, int], Metrics]:
+        training_state, key, count = carry
 
         key, key_alpha, key_critic, key_cost_critic, key_actor = jax.random.split(
             key, 5
@@ -390,7 +391,9 @@ def train(
             cost_metrics = {}
             qc_params = None
             qc_optimizer_state = None
-        (actor_loss, aux), policy_params, policy_optimizer_state = actor_update(
+
+        # TODO (yarden): try to make it faster with cond later
+        (actor_loss, aux), new_policy_params, new_policy_optimizer_state = actor_update(
             training_state.policy_params,
             training_state.normalizer_params,
             training_state.qr_params,
@@ -404,7 +407,17 @@ def train(
             optimizer_state=training_state.policy_optimizer_state,
             params=training_state.policy_params,
         )
-        polyak = lambda target, new: jax.tree_util.tree_map(
+        should_update_actor = count % value_to_policy_update_rate == 0
+        update_if_needed = lambda x, y: jnp.where(should_update_actor, x, y)
+        policy_params = jax.tree_map(
+            update_if_needed, new_policy_params, training_state.policy_params
+        )
+        policy_optimizer_state = jax.tree_map(
+            update_if_needed,
+            new_policy_optimizer_state,
+            training_state.policy_optimizer_state,
+        )
+        polyak = lambda target, new: jax.tree_map(
             lambda x, y: x * (1 - tau) + y * tau, target, new
         )
         new_target_qr_params = polyak(training_state.target_qr_params, qr_params)
@@ -445,7 +458,7 @@ def train(
             normalizer_params=training_state.normalizer_params,
             penalizer_params=new_penalizer_params,
         )  # type: ignore
-        return (new_training_state, key), metrics
+        return (new_training_state, key, count + 1), metrics
 
     def run_experience_step(
         training_state: TrainingState,
@@ -488,8 +501,8 @@ def train(
             lambda x: jnp.reshape(x, (grad_updates_per_step, -1) + x.shape[1:]),
             transitions,
         )
-        (training_state, _), metrics = jax.lax.scan(
-            sgd_step, (training_state, training_key), transitions
+        (training_state, *_), metrics = jax.lax.scan(
+            sgd_step, (training_state, training_key, 0), transitions
         )
         metrics["buffer_current_size"] = replay_buffer.size(buffer_state)
         return training_state, buffer_state, metrics
