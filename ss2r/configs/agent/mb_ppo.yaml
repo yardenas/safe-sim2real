@@ -12,7 +12,7 @@ unroll_length: 10
 batch_size: 1024
 num_minibatches: 16
 num_updates_per_batch: 2
-ppo_updates_per_step: 100
+ppo_updates_per_step: 1
 model_updates_per_step: 10000
 min_replay_size: 8192
 max_replay_size: 1048576
