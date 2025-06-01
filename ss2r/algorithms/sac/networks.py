@@ -42,6 +42,7 @@ class NetworkFactory(Protocol[NetworkType]):
         n_heads: int = 1,
         safe: bool = False,
         use_bro: bool = True,
+        use_uvu: bool = False,
     ) -> NetworkType:
         pass
 
@@ -52,6 +53,7 @@ class SafeSACNetworks:
     qr_network: networks.FeedForwardNetwork
     parametric_action_distribution: distribution.ParametricDistribution
     qc_network: networks.FeedForwardNetwork | None
+    uvu_network: networks.FeedForwardNetwork | None
 
 
 class BroNet(linen.Module):
@@ -175,6 +177,7 @@ def make_sac_networks(
     use_bro: bool = True,
     n_critics: int = 2,
     n_heads: int = 1,
+    use_uvu: bool = False,
     *,
     safe: bool = False,
 ) -> SafeSACNetworks:
@@ -219,9 +222,24 @@ def make_sac_networks(
         )
     else:
         qc_network = None
+    if use_uvu:
+        uvu_network = make_q_network(
+            observation_size,
+            action_size,
+            preprocess_observations_fn=preprocess_observations_fn,
+            hidden_layer_sizes=value_hidden_layer_sizes,
+            activation=activation,
+            obs_key=value_obs_key,
+            use_bro=use_bro,
+            n_critics=n_critics,
+            n_heads=n_heads,
+        )
+    else:
+        uvu_network = None
     return SafeSACNetworks(
         policy_network=policy_network,
         qr_network=qr_network,
         qc_network=qc_network,
+        uvu_network=uvu_network,
         parametric_action_distribution=parametric_action_distribution,
     )  # type: ignore

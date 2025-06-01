@@ -59,10 +59,13 @@ class TrainingState:
     policy_params: Params
     qr_optimizer_state: optax.OptState
     qc_optimizer_state: optax.OptState | None
+    uvu_optimizer_state: optax.OptState | None
     qr_params: Params
     qc_params: Params | None
     target_qr_params: Params
     target_qc_params: Params | None
+    u_params: Params | None
+    g_params: Params | None
     gradient_steps: jnp.ndarray
     env_steps: jnp.ndarray
     alpha_optimizer_state: optax.OptState
@@ -79,10 +82,11 @@ def _init_training_state(
     policy_optimizer: optax.GradientTransformation,
     qr_optimizer: optax.GradientTransformation,
     qc_optimizer: optax.GradientTransformation | None,
+    uvu_optimizer: optax.GradientTransformation | None,
     penalizer_params: Params | None,
 ) -> TrainingState:
     """Inits the training state and replicates it over devices."""
-    key_policy, key_qr, key_qc = jax.random.split(key, 3)
+    key_policy, key_qr, key_qc, key_uvu = jax.random.split(key, 4)
     log_alpha = jnp.asarray(0.0, dtype=jnp.float32)
     alpha_optimizer_state = alpha_optimizer.init(log_alpha)
     policy_params = sac_network.policy_network.init(key_policy)
@@ -95,6 +99,16 @@ def _init_training_state(
     else:
         qc_params = None
         qc_optimizer_state = None
+    if sac_network.uvu_network is not None:
+        assert uvu_optimizer is not None
+        u_params = sac_network.uvu_network.init(key_uvu)
+        key_g, _ = jax.random.split(key_uvu)
+        g_params = sac_network.uvu_network.init(key_g)
+        uvu_optimizer_state = uvu_optimizer.init(u_params)
+    else:
+        u_params = None
+        g_params = None
+        uvu_optimizer_state = None
     qr_optimizer_state = qr_optimizer.init(qr_params)
     if isinstance(obs_size, Mapping):
         obs_shape = {
@@ -110,8 +124,11 @@ def _init_training_state(
         qr_params=qr_params,
         target_qr_params=qr_params,
         qc_optimizer_state=qc_optimizer_state,
+        uvu_optimizer_state=uvu_optimizer_state,
         qc_params=qc_params,
         target_qc_params=qc_params,
+        u_params=u_params,
+        g_params=g_params,
         gradient_steps=jnp.zeros(()),
         env_steps=jnp.zeros(()),
         alpha_optimizer_state=alpha_optimizer_state,
@@ -171,6 +188,7 @@ def train(
     policy_optimism: bool = False,
     value_optimism: bool = False,
     use_redq: bool = False,
+    use_uvu: bool = False,
     optimism_scale: float = 0.0,
     normalize_budget: bool = True,
     reset_on_eval: bool = True,
@@ -181,6 +199,10 @@ def train(
         raise ValueError(
             "No training will happen because min_replay_size >= num_timesteps"
         )
+    if use_uvu:
+        assert (
+            policy_optimism and optimism_scale > 0.0 and not value_optimism
+        ), "Check configuration of UVU"
     episodic_safety_budget = safety_budget
     if safety_discounting != 1.0 and normalize_budget:
         safety_budget = (
@@ -228,6 +250,7 @@ def train(
         use_bro=use_bro,
         n_critics=n_critics,
         n_heads=n_heads,
+        use_uvu=use_uvu,
     )
     make_policy = sac_networks.make_inference_fn(sac_network)
     alpha_optimizer = optax.adam(learning_rate=alpha_learning_rate)
@@ -238,6 +261,7 @@ def train(
     policy_optimizer = make_optimizer(learning_rate, 1.0)
     qr_optimizer = make_optimizer(critic_learning_rate, 1.0)
     qc_optimizer = make_optimizer(cost_critic_learning_rate, 1.0) if safe else None
+    uvu_optimizer = make_optimizer(critic_learning_rate, 1.0) if use_uvu else None
     if isinstance(obs_size, Mapping):
         dummy_obs = {k: jnp.zeros(v) for k, v in obs_size.items()}
     else:
@@ -271,6 +295,7 @@ def train(
         policy_optimizer=policy_optimizer,
         qr_optimizer=qr_optimizer,
         qc_optimizer=qc_optimizer,
+        uvu_optimizer=uvu_optimizer,
         penalizer_params=penalizer_params,
     )
     del global_key
@@ -282,8 +307,8 @@ def train(
             normalizer_params=params[0],
             policy_params=params[1],
             penalizer_params=penalizer_params,
-            # qr_params=params[3],
-            # qc_params=params[4],
+            qr_params=params[3],
+            qc_params=params[4],
         )
         if len(params) >= 6 and use_rae:
             logging.info("Restoring replay buffer state")
@@ -302,7 +327,7 @@ def train(
             sample_batch_size=batch_size * grad_updates_per_step,
         )
     buffer_state = replay_buffer.init(rb_key)
-    alpha_loss, critic_loss, actor_loss = sac_losses.make_losses(
+    losses = sac_losses.make_losses(
         sac_network=sac_network,
         reward_scaling=reward_scaling,
         cost_scaling=cost_scaling,
@@ -316,6 +341,10 @@ def train(
         use_redq=use_redq,
         optimism_scale=optimism_scale,
     )
+    if use_uvu:
+        alpha_loss, critic_loss, actor_loss, uvu_loss = losses
+    else:
+        alpha_loss, critic_loss, actor_loss = losses
     alpha_update = (
         gradients.gradient_update_fn(  # pytype: disable=wrong-arg-types  # jax-ndarray
             alpha_loss, alpha_optimizer, pmap_axis_name=None
@@ -329,6 +358,10 @@ def train(
     if safe:
         cost_critic_update = gradients.gradient_update_fn(  # pytype: disable=wrong-arg-types  # jax-ndarray
             critic_loss, qc_optimizer, pmap_axis_name=None
+        )
+    if use_uvu:
+        uvu_update = gradients.gradient_update_fn(  # pytype: disable=wrong-arg-types  # jax-ndarray
+            uvu_loss, policy_optimizer, pmap_axis_name=None
         )
     actor_update = (
         gradients.gradient_update_fn(  # pytype: disable=wrong-arg-types  # jax-ndarray
@@ -391,6 +424,24 @@ def train(
             cost_metrics = {}
             qc_params = None
             qc_optimizer_state = None
+        if use_uvu:
+            uvu_loss, u_params, uvu_optimizer_state = uvu_update(
+                training_state.g_params,
+                training_state.u_params,
+                training_state.policy_params,
+                training_state.normalizer_params,
+                transitions,
+                key_critic,
+                optimizer_state=training_state.uvu_optimizer_state,
+                params=training_state.u_params,
+            )
+            uvu_metrics = {
+                "uvu_loss": uvu_loss,
+            }
+        else:
+            uvu_metrics = {}
+            u_params = None
+            uvu_optimizer_state = None
 
         # TODO (yarden): try to make it faster with cond later
         (actor_loss, aux), new_policy_params, new_policy_optimizer_state = actor_update(
@@ -441,6 +492,7 @@ def train(
             "alpha": jnp.exp(alpha_params),
             **cost_metrics,
             **additional_metrics,
+            **uvu_metrics,
         }
         new_training_state = TrainingState(
             policy_optimizer_state=policy_optimizer_state,
@@ -457,6 +509,9 @@ def train(
             alpha_params=alpha_params,
             normalizer_params=training_state.normalizer_params,
             penalizer_params=new_penalizer_params,
+            u_params=u_params,
+            uvu_optimizer_state=uvu_optimizer_state,
+            g_params=training_state.g_params,
         )  # type: ignore
         return (new_training_state, key, count + 1), metrics
 

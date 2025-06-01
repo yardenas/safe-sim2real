@@ -32,6 +32,7 @@ normalize_budget: true
 reset_on_eval: true
 store_buffer: false
 use_rae: false
+use_uvu: true
 n_critics: 2
 n_heads: 1
 policy_optimism: false
