@@ -455,6 +455,8 @@ def train(
             safety_budget,
             penalizer,
             training_state.penalizer_params,
+            training_state.u_params,
+            training_state.g_params,
             optimizer_state=training_state.policy_optimizer_state,
             params=training_state.policy_params,
         )

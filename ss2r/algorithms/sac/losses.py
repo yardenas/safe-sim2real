@@ -167,7 +167,7 @@ def make_losses(
             g = uvu_network.apply(
                 normalizer_params, g_params, transitions.observation, action
             )
-            bonus = jnp.square(u - g)
+            bonus = jnp.square(u - g).mean(-1)
             qr = (qr + bonus) / (1.0 + optimism_scale)
         aux = {}
         actor_loss = -qr.mean()
