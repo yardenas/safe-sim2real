@@ -103,7 +103,6 @@ def _init_training_state(
     else:
         obs_shape = specs.Array((obs_size,), jnp.dtype("float32"))
     normalizer_params = running_statistics.init_state(obs_shape)
-
     training_state = TrainingState(
         policy_optimizer_state=policy_optimizer_state,
         policy_params=policy_params,
