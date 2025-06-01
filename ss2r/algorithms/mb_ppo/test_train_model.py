@@ -336,7 +336,9 @@ def test_train_model(lr=1e-3, epochs=100, use_bro=False, num_ensemble=1):
             if traj == 0:
                 plt.legend()
         plt.tight_layout()
-        plt.savefig(f"trajectory_comparison_lr{lr}_useBro{use_bro}.png")
+        plt.savefig(
+            f"trajectory_comparison_lr{lr}_useBro{use_bro}_nensemble{num_ensemble}.png"
+        )
 
     compare_trajectories(key, env, carry[3], carry[0], num_timesteps=25, num_trajs=5)
 
