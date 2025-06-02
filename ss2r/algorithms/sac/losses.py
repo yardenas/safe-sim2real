@@ -113,13 +113,11 @@ def make_losses(
             normalizer_params, target_q_params, obs, action
         )
         if uvu_network is not None:
-            u = uvu_network.apply(
+            assert u_params is not None and uvu_network is not None
+            next_state = uvu_network.apply(
                 normalizer_params, u_params, transitions.observation, action
             )
-            g = uvu_network.apply(
-                normalizer_params, g_params, transitions.observation, action
-            )
-            bonus = jnp.mean(jnp.square(u - g), axis=-1) * optimism_scale
+            bonus = next_state.std(-1) * optimism_scale
         target_q = target_q_fn(
             transitions,
             q_fn,
@@ -166,21 +164,19 @@ def make_losses(
         qr_action = qr_network.apply(
             normalizer_params, qr_params, transitions.observation, action
         )
+        aux = {}
         if use_bro or use_redq:
             qr = jnp.mean(qr_action, axis=-1)
         else:
             qr = jnp.min(qr_action, axis=-1)
         if policy_optimism:
             assert u_params is not None and uvu_network is not None
-            u = uvu_network.apply(
+            next_state = uvu_network.apply(
                 normalizer_params, u_params, transitions.observation, action
             )
-            g = uvu_network.apply(
-                normalizer_params, g_params, transitions.observation, action
-            )
-            bonus = jnp.square(u - g).mean(-1) * optimism_scale
+            bonus = next_state.std(-1) * optimism_scale
+            aux["bonus"] = bonus
             qr += bonus
-        aux = {}
         actor_loss = -qr.mean()
         exploration_loss = (alpha * log_prob).mean()
         if qc_params is not None:
@@ -209,14 +205,17 @@ def make_losses(
         key: PRNGKey,
     ):
         assert uvu_network is not None
-        g = uvu_network.apply(
-            normalizer_params, g_params, transitions.observation, transitions.action
-        )
-        u = uvu_network.apply(
+        if isinstance(transitions.next_observation, dict):
+            inputs = transitions.observation["state"]
+            outputs = transitions.next_observation["state"]
+        else:
+            inputs = transitions.observation["state"]
+            outputs = transitions.next_observation["state"]
+        pred = uvu_network.apply(
             normalizer_params, u_params, transitions.observation, transitions.action
         )
-        # TODO (yarden): maybe use discount here.
-        return jnp.mean(jnp.square(g - u))
+        next_obs = inputs + pred
+        return jnp.mean(jnp.square(next_obs - outputs))
 
     out = alpha_loss, critic_loss, actor_loss
     if uvu_network is not None:

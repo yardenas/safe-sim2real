@@ -231,7 +231,7 @@ def make_sac_networks(
             activation=activation,
             obs_key=value_obs_key,
             use_bro=False,
-            n_critics=1,
+            n_critics=5,
             n_heads=1,
         )
     else:
