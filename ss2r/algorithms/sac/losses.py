@@ -177,7 +177,7 @@ def make_losses(
                 normalizer_params, u_params, transitions.observation, action
             )
             bonus = next_state.std(-1)
-            qr = (qr + bonus * optimism_scale)(1.0 + optimism_scale)
+            qr = (qr + bonus * optimism_scale) / (1.0 + optimism_scale)
             aux["bonus"] = bonus
         actor_loss = -qr.mean()
         exploration_loss = (alpha * log_prob).mean()
