@@ -209,8 +209,8 @@ def make_losses(
             inputs = transitions.observation["state"]
             outputs = transitions.next_observation["state"]
         else:
-            inputs = transitions.observation["state"]
-            outputs = transitions.next_observation["state"]
+            inputs = transitions.observation
+            outputs = transitions.next_observation
         pred = uvu_network.apply(
             normalizer_params, u_params, transitions.observation, transitions.action
         )
