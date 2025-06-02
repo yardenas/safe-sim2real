@@ -42,7 +42,6 @@ def make_losses(
     policy_optimism: bool,
     value_optimism: bool,
     use_redq: bool,
-    optimism_scale: float,
     init_alpha: float | None,
 ):
     """Creates the SAC losses."""
@@ -86,6 +85,7 @@ def make_losses(
         safe: bool = False,
         u_params: Params | None = None,
         g_params: Params | None = None,
+        optimism_scale: float = 0,
     ) -> jnp.ndarray:
         action = transitions.action
         q_network = qc_network if safe else qr_network
@@ -117,7 +117,7 @@ def make_losses(
             next_state = uvu_network.apply(
                 normalizer_params, u_params, transitions.observation, action
             )
-            bonus = next_state.std(-1) * optimism_scale
+            bonus = next_state.std(-1)
         target_q = target_q_fn(
             transitions,
             q_fn,
@@ -130,6 +130,7 @@ def make_losses(
             # FIXME (yarden)
             True,
             use_redq,
+            optimism_scale,
             bonus,
         )
         q_error = q_old_action - jnp.expand_dims(target_q, -1)
@@ -152,6 +153,7 @@ def make_losses(
         penalizer_params: Any,
         u_params: Params | None = None,
         g_params: Params | None = None,
+        optimism_scale: float = 0,
     ) -> tuple[jnp.ndarray, dict[str, Any]]:
         dist_params = policy_network.apply(
             normalizer_params, policy_params, transitions.observation
@@ -174,9 +176,9 @@ def make_losses(
             next_state = uvu_network.apply(
                 normalizer_params, u_params, transitions.observation, action
             )
-            bonus = next_state.std(-1) * optimism_scale
+            bonus = next_state.std(-1)
+            qr = (qr + bonus * optimism_scale)(1.0 + optimism_scale)
             aux["bonus"] = bonus
-            qr += bonus
         actor_loss = -qr.mean()
         exploration_loss = (alpha * log_prob).mean()
         if qc_params is not None:

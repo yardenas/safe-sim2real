@@ -260,6 +260,12 @@ def train(
     qr_optimizer = make_optimizer(critic_learning_rate, 1.0)
     qc_optimizer = make_optimizer(cost_critic_learning_rate, 1.0) if safe else None
     uvu_optimizer = make_optimizer(critic_learning_rate, 1.0) if use_uvu else None
+    num_gradient_steps = (
+        num_training_steps_per_epoch * grad_updates_per_step * num_evals_after_init
+    )
+    optimism_scheduler = optax.schedules.linear_schedule(
+        optimism_scale, 0.0, num_gradient_steps, num_gradient_steps // 50
+    )
     if isinstance(obs_size, Mapping):
         dummy_obs = {k: jnp.zeros(v) for k, v in obs_size.items()}
     else:
@@ -337,7 +343,6 @@ def train(
         policy_optimism=policy_optimism,
         value_optimism=value_optimism,
         use_redq=use_redq,
-        optimism_scale=optimism_scale,
     )
     if use_uvu:
         alpha_loss, critic_loss, actor_loss, uvu_loss = losses
@@ -376,10 +381,10 @@ def train(
         carry: Tuple[TrainingState, PRNGKey, int], transitions: Transition
     ) -> Tuple[Tuple[TrainingState, PRNGKey, int], Metrics]:
         training_state, key, count = carry
-
         key, key_alpha, key_critic, key_cost_critic, key_actor = jax.random.split(
             key, 5
         )
+        optimism_scale = optimism_scheduler(training_state.gradient_steps)
         alpha_loss, alpha_params, alpha_optimizer_state = alpha_update(
             training_state.alpha_params,
             training_state.policy_params,
@@ -401,6 +406,7 @@ def train(
             safe,
             training_state.u_params,
             training_state.g_params,
+            optimism_scale,
             optimizer_state=training_state.qr_optimizer_state,
             params=training_state.qr_params,
         )
@@ -458,6 +464,7 @@ def train(
             training_state.penalizer_params,
             training_state.u_params,
             training_state.g_params,
+            optimism_scale,
             optimizer_state=training_state.policy_optimizer_state,
             params=training_state.policy_params,
         )
@@ -495,6 +502,8 @@ def train(
             "actor_loss": actor_loss,
             "alpha_loss": alpha_loss,
             "alpha": jnp.exp(alpha_params),
+            "gradient_steps": training_state.gradient_steps,
+            "optimism_scale": optimism_scale,
             **cost_metrics,
             **additional_metrics,
             **uvu_metrics,
