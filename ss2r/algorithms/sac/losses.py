@@ -176,9 +176,9 @@ def make_losses(
             next_state = uvu_network.apply(
                 normalizer_params, u_params, transitions.observation, action
             )
-            bonus = next_state.std(-1)
-            qr = (qr + bonus * optimism_scale) / (1.0 + optimism_scale)
+            bonus = next_state.std(-1) * optimism_scale
             aux["bonus"] = bonus
+            qr += bonus
         actor_loss = -qr.mean()
         exploration_loss = (alpha * log_prob).mean()
         if qc_params is not None:
