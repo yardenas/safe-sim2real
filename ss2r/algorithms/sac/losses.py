@@ -117,7 +117,9 @@ def make_losses(
             next_state = uvu_network.apply(
                 normalizer_params, u_params, transitions.observation, action
             )
-            bonus = next_state.std(-1).sum(-1)
+            bonus = next_state.std(-1).mean(-1)
+        else:
+            bonus = 0
         target_q = target_q_fn(
             transitions,
             q_fn,
@@ -176,7 +178,7 @@ def make_losses(
             next_state = uvu_network.apply(
                 normalizer_params, u_params, transitions.observation, action
             )
-            bonus = next_state.std(-1).sum(-1) * optimism_scale
+            bonus = next_state.std(-1).mean(-1) * optimism_scale
             aux["bonus"] = bonus
             qr += bonus
         actor_loss = -qr.mean()
