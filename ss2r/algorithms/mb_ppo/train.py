@@ -287,6 +287,7 @@ def train(
         make_policy,
         num_updates_per_batch,
         safe,
+        env,
     )
 
     # Creating the model training step
