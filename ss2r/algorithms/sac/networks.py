@@ -87,6 +87,7 @@ class BroNet(linen.Module):
                 features=self.layer_sizes[-1], kernel_init=self.kernel_init
             )(x)
             heads.append(h)
+        # FIXME: cannot concatenate here if using outputs != 1
         return jnp.concatenate(heads, axis=-1)
 
 
@@ -127,6 +128,7 @@ def make_q_network(
     obs_key: str = "state",
     use_bro: bool = True,
     n_heads: int = 1,
+    head_size: int = 1,
 ) -> networks.FeedForwardNetwork:
     """Creates a value network."""
 
@@ -142,13 +144,16 @@ def make_q_network(
             net = BroNet if use_bro else MLP
             for _ in range(self.n_critics):
                 q = net(  # type: ignore
-                    layer_sizes=list(hidden_layer_sizes) + [1],
+                    layer_sizes=list(hidden_layer_sizes) + [head_size],
                     activation=activation,
                     kernel_init=jax.nn.initializers.lecun_uniform(),
                     num_heads=n_heads,
                 )(hidden)
                 res.append(q)
-            return jnp.concatenate(res, axis=-1)
+            if head_size == 1:
+                return jnp.concatenate(res, axis=-1)
+            else:
+                return jnp.stack(res, axis=-1)
 
     q_module = QModule(n_critics=n_critics)
 
@@ -223,6 +228,10 @@ def make_sac_networks(
     else:
         qc_network = None
     if use_uvu:
+        if isinstance(observation_size, Mapping):
+            head_size = observation_size[policy_obs_key][0]
+        else:
+            head_size = observation_size
         uvu_network = make_q_network(
             observation_size,
             action_size,
@@ -233,6 +242,7 @@ def make_sac_networks(
             use_bro=False,
             n_critics=5,
             n_heads=1,
+            head_size=head_size,
         )
     else:
         uvu_network = None
