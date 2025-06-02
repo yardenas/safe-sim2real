@@ -148,8 +148,7 @@ class SACBase(QTransformation):
         else:
             next_v = next_q.min(axis=-1)
         if use_optimism:
-            bonus = next_q.std(axis=-1) * optimism_scale
-            next_v = (next_v + bonus) / (1.0 + optimism_scale)
+            next_v += optimism_scale
         next_v -= alpha * next_log_prob
         target_q = jax.lax.stop_gradient(
             transitions.reward * scale + transitions.discount * gamma * next_v

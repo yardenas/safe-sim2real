@@ -398,6 +398,8 @@ def train(
             transitions,
             key_critic,
             reward_robustness,
+            training_state.u_params,
+            training_state.g_params,
             optimizer_state=training_state.qr_optimizer_state,
             params=training_state.qr_params,
         )

@@ -84,6 +84,8 @@ def make_losses(
         key: PRNGKey,
         target_q_fn: QTransformation,
         safe: bool = False,
+        u_params: Params | None = None,
+        g_params: Params | None = None,
     ) -> jnp.ndarray:
         action = transitions.action
         q_network = qc_network if safe else qr_network
@@ -110,6 +112,14 @@ def make_losses(
         q_fn = lambda obs, action: q_network.apply(
             normalizer_params, target_q_params, obs, action
         )
+        if uvu_network is not None:
+            u = uvu_network.apply(
+                normalizer_params, u_params, transitions.observation, action
+            )
+            g = uvu_network.apply(
+                normalizer_params, g_params, transitions.observation, action
+            )
+            bonus = jnp.mean(jnp.square(u - g), axis=-1) * optimism_scale
         target_q = target_q_fn(
             transitions,
             q_fn,
@@ -119,9 +129,10 @@ def make_losses(
             scale,
             another_key,
             use_bro,
-            value_optimism,
+            # FIXME (yarden)
+            True,
             use_redq,
-            optimism_scale,
+            bonus,
         )
         q_error = q_old_action - jnp.expand_dims(target_q, -1)
         # Better bootstrapping for truncated episodes.
@@ -168,7 +179,7 @@ def make_losses(
                 normalizer_params, g_params, transitions.observation, action
             )
             bonus = jnp.square(u - g).mean(-1) * optimism_scale
-            qr = (qr + bonus) / (1.0 + optimism_scale)
+            qr += bonus
         aux = {}
         actor_loss = -qr.mean()
         exploration_loss = (alpha * log_prob).mean()
@@ -198,28 +209,14 @@ def make_losses(
         key: PRNGKey,
     ):
         assert uvu_network is not None
-        next_dist_params = policy_network.apply(
-            normalizer_params, policy_params, transitions.next_observation
-        )
-        next_action = parametric_action_distribution.sample_no_postprocessing(
-            next_dist_params, key
-        )
         g = uvu_network.apply(
             normalizer_params, g_params, transitions.observation, transitions.action
         )
-        g_prime = uvu_network.apply(
-            normalizer_params, g_params, transitions.next_observation, next_action
-        )
-        r = g - discounting * g_prime
         u = uvu_network.apply(
             normalizer_params, u_params, transitions.observation, transitions.action
         )
-        u_prime = uvu_network.apply(
-            normalizer_params, u_params, transitions.next_observation, next_action
-        )
-        u_prime = jax.lax.stop_gradient(u_prime)
         # TODO (yarden): maybe use discount here.
-        return jnp.mean(jnp.square(discounting * u_prime + r - u))
+        return jnp.mean(jnp.square(g - u))
 
     out = alpha_loss, critic_loss, actor_loss
     if uvu_network is not None:
