@@ -87,8 +87,10 @@ class BroNet(linen.Module):
                 features=self.layer_sizes[-1], kernel_init=self.kernel_init
             )(x)
             heads.append(h)
-        # FIXME: cannot concatenate here if using outputs != 1
-        return jnp.concatenate(heads, axis=-1)
+        if self.layer_sizes[-1] == 1:
+            return jnp.concatenate(heads, axis=-1)
+        else:
+            return jnp.stack(heads, axis=-1)
 
 
 class MLP(linen.Module):
@@ -110,7 +112,10 @@ class MLP(linen.Module):
                 features=self.layer_sizes[-1], kernel_init=self.kernel_init
             )(x)
             heads.append(h)
-        return jnp.concatenate(heads, axis=-1)
+        if self.layer_sizes[-1] == 1:
+            return jnp.concatenate(heads, axis=-1)
+        else:
+            return jnp.stack(heads, axis=-1)
 
 
 def _get_obs_state_size(obs_size: types.ObservationSize, obs_key: str) -> int:
@@ -150,10 +155,7 @@ def make_q_network(
                     num_heads=n_heads,
                 )(hidden)
                 res.append(q)
-            if head_size == 1:
-                return jnp.concatenate(res, axis=-1)
-            else:
-                return jnp.stack(res, axis=-1)
+            return jnp.concatenate(res, axis=-1)
 
     q_module = QModule(n_critics=n_critics)
 
@@ -240,8 +242,8 @@ def make_sac_networks(
             activation=activation,
             obs_key=value_obs_key,
             use_bro=False,
-            n_critics=5,
-            n_heads=1,
+            n_critics=1,
+            n_heads=10,
             head_size=head_size,
         )
     else:
