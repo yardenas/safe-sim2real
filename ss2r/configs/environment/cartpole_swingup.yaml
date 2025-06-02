@@ -4,6 +4,7 @@ defaults:
 task_name: SafeCartpoleSwingup
 task_params:
   slider_position_bound: 0.25
+  action_cost_scale: 0.
   action_repeat: 1
   ctrl_dt: 0.01
   episode_length: 1000

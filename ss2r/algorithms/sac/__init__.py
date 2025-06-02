@@ -3,7 +3,7 @@ import functools
 import ss2r.algorithms.sac.networks as sac_networks
 from ss2r.algorithms.penalizers import get_penalizer
 from ss2r.algorithms.sac.data import get_collection_fn
-from ss2r.algorithms.sac.robustness import get_cost_robustness, get_reward_robustness
+from ss2r.algorithms.sac.q_transforms import get_cost_robustness, get_reward_robustness
 
 
 def get_train_fn(cfg, checkpoint_path, restore_checkpoint_path):

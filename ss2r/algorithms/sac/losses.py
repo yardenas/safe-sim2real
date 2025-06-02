@@ -26,7 +26,7 @@ from brax.training.types import Params, PRNGKey
 
 from ss2r.algorithms.penalizers import Penalizer
 from ss2r.algorithms.sac.networks import SafeSACNetworks
-from ss2r.algorithms.sac.robustness import QTransformation
+from ss2r.algorithms.sac.q_transforms import QTransformation
 
 Transition: TypeAlias = types.Transition
 

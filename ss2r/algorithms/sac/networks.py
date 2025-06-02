@@ -31,6 +31,21 @@ make_inference_fn = sac_networks.make_inference_fn
 NetworkType = TypeVar("NetworkType", covariant=True)
 
 
+class NetworkFactory(Protocol[NetworkType]):
+    def __call__(
+        self,
+        observation_size: int,
+        action_size: int,
+        preprocess_observations_fn: types.PreprocessObservationFn = types.identity_observation_preprocessor,
+        *,
+        n_critics: int = 2,
+        n_heads: int = 1,
+        safe: bool = False,
+        use_bro: bool = True,
+    ) -> NetworkType:
+        pass
+
+
 @flax.struct.dataclass
 class SafeSACNetworks:
     policy_network: networks.FeedForwardNetwork
@@ -43,6 +58,7 @@ class BroNet(linen.Module):
     layer_sizes: Sequence[int]
     activation: Callable
     kernel_init: Callable = jax.nn.initializers.lecun_uniform()
+    num_heads: int = 1
 
     @linen.compact
     def __call__(self, x):
@@ -62,37 +78,42 @@ class BroNet(linen.Module):
             )
             x = linen.LayerNorm()(x)
             x += residual
-        x = linen.Dense(self.layer_sizes[-1], kernel_init=self.kernel_init)(x)
-        return x
-
-
-class NetworkFactory(Protocol[NetworkType]):
-    def __call__(
-        self,
-        observation_size: int,
-        action_size: int,
-        preprocess_observations_fn: types.PreprocessObservationFn = types.identity_observation_preprocessor,
-        *,
-        n_critics: int = 2,
-        safe: bool = False,
-        use_bro: bool = True,
-    ) -> NetworkType:
-        pass
+        # Prediction heads
+        heads = []
+        for _ in range(self.num_heads):
+            h = linen.Dense(
+                features=self.layer_sizes[-1], kernel_init=self.kernel_init
+            )(x)
+            heads.append(h)
+        if self.layer_sizes[-1] == 1:
+            return jnp.concatenate(heads, axis=-1)
+        else:
+            return jnp.stack(heads, axis=-1)
 
 
 class MLP(linen.Module):
     layer_sizes: Sequence[int]
     activation: Callable
     kernel_init: Callable = jax.nn.initializers.lecun_uniform()
+    num_heads: int = 1
 
     @linen.compact
     def __call__(self, x):
-        for i, size in enumerate(self.layer_sizes):
+        for size in self.layer_sizes[:-1]:
             x = linen.Dense(features=size, kernel_init=self.kernel_init)(x)
-            if i < len(self.layer_sizes) - 1:
-                x = linen.LayerNorm()(x)
-                x = self.activation(x)
-        return x
+            x = linen.LayerNorm()(x)
+            x = self.activation(x)
+        # Prediction heads
+        heads = []
+        for _ in range(self.num_heads):
+            h = linen.Dense(
+                features=self.layer_sizes[-1], kernel_init=self.kernel_init
+            )(x)
+            heads.append(h)
+        if self.layer_sizes[-1] == 1:
+            return jnp.concatenate(heads, axis=-1)
+        else:
+            return jnp.stack(heads, axis=-1)
 
 
 def _get_obs_state_size(obs_size: types.ObservationSize, obs_key: str) -> int:
@@ -109,6 +130,8 @@ def make_q_network(
     n_critics: int = 2,
     obs_key: str = "state",
     use_bro: bool = True,
+    n_heads: int = 1,
+    head_size: int = 1,
 ) -> networks.FeedForwardNetwork:
     """Creates a value network."""
 
@@ -124,9 +147,10 @@ def make_q_network(
             net = BroNet if use_bro else MLP
             for _ in range(self.n_critics):
                 q = net(  # type: ignore
-                    layer_sizes=list(hidden_layer_sizes) + [1],
+                    layer_sizes=list(hidden_layer_sizes) + [head_size],
                     activation=activation,
                     kernel_init=jax.nn.initializers.lecun_uniform(),
+                    num_heads=n_heads,
                 )(hidden)
                 res.append(q)
             return jnp.concatenate(res, axis=-1)
@@ -157,6 +181,7 @@ def make_sac_networks(
     policy_obs_key: str = "state",
     use_bro: bool = True,
     n_critics: int = 2,
+    n_heads: int = 1,
     *,
     safe: bool = False,
 ) -> SafeSACNetworks:
@@ -181,6 +206,7 @@ def make_sac_networks(
         obs_key=value_obs_key,
         use_bro=use_bro,
         n_critics=n_critics,
+        n_heads=n_heads,
     )
     if safe:
         qc_network = make_q_network(
@@ -190,6 +216,9 @@ def make_sac_networks(
             hidden_layer_sizes=value_hidden_layer_sizes,
             activation=activation,
             obs_key=value_obs_key,
+            use_bro=use_bro,
+            n_critics=n_critics,
+            n_heads=n_heads,
         )
         old_apply = qc_network.apply
         qc_network.apply = lambda *args, **kwargs: jnn.softplus(

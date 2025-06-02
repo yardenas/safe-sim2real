@@ -38,8 +38,8 @@ import ss2r.algorithms.sac.networks as sac_networks
 from ss2r.algorithms.penalizers import Penalizer
 from ss2r.algorithms.sac import gradients
 from ss2r.algorithms.sac.data import collect_single_step
+from ss2r.algorithms.sac.q_transforms import QTransformation, SACBase, SACCost, UCBCost
 from ss2r.algorithms.sac.rae import RAEReplayBuffer
-from ss2r.algorithms.sac.robustness import QTransformation, SACBase, SACCost, UCBCost
 from ss2r.algorithms.sac.types import (
     CollectDataFn,
     Metrics,
@@ -155,6 +155,7 @@ def train(
         sac_networks.SafeSACNetworks
     ] = sac_networks.make_sac_networks,
     n_critics: int = 2,
+    n_heads: int = 1,
     progress_fn: Callable[[int, Metrics], None] = lambda *args: None,
     checkpoint_logdir: Optional[str] = None,
     restore_checkpoint_path: Optional[str] = None,
@@ -221,6 +222,7 @@ def train(
         safe=safe,
         use_bro=use_bro,
         n_critics=n_critics,
+        n_heads=n_heads,
     )
     make_policy = sac_networks.make_inference_fn(sac_network)
     alpha_optimizer = optax.adam(learning_rate=alpha_learning_rate)
@@ -338,6 +340,8 @@ def train(
         key, key_alpha, key_critic, key_cost_critic, key_actor = jax.random.split(
             key, 5
         )
+        transitions = float32(transitions)
+        # optimism_scale = optimism_scheduler(training_state.gradient_steps)
         alpha_loss, alpha_params, alpha_optimizer_state = alpha_update(
             training_state.alpha_params,
             training_state.policy_params,
@@ -471,7 +475,6 @@ def train(
     ) -> Tuple[TrainingState, ReplayBufferState, Metrics]:
         """Runs the jittable training step after experience collection."""
         buffer_state, transitions = replay_buffer.sample(buffer_state)
-        transitions = float32(transitions)
         # Change the front dimension of transitions so 'update_step' is called
         # grad_updates_per_step times by the scan.
         transitions = jax.tree_util.tree_map(
