@@ -162,7 +162,9 @@ def update_fn(
                 [
                     transitions.observation[:, 0],  # Position
                     jnp.arctan2(
-                        transitions.observation[:, 2], transitions.observation[:, 1]
+                        transitions.observation[:, 2],
+                        transitions.observation[:, 1]
+                        + 1e-8,  # Add epsilon to avoid 0/0
                     ),  # Angles
                 ],
                 axis=-1,
