@@ -209,14 +209,28 @@ def make_losses(
         key: PRNGKey,
     ):
         assert uvu_network is not None
+        next_dist_params = policy_network.apply(
+            normalizer_params, policy_params, transitions.next_observation
+        )
+        next_action = parametric_action_distribution.sample_no_postprocessing(
+            next_dist_params, key
+        )
         g = uvu_network.apply(
             normalizer_params, g_params, transitions.observation, transitions.action
         )
+        g_prime = uvu_network.apply(
+            normalizer_params, g_params, transitions.next_observation, next_action
+        )
+        r = g - discounting * g_prime
         u = uvu_network.apply(
             normalizer_params, u_params, transitions.observation, transitions.action
         )
+        u_prime = uvu_network.apply(
+            normalizer_params, u_params, transitions.next_observation, next_action
+        )
+        u_prime = jax.lax.stop_gradient(u_prime)
         # TODO (yarden): maybe use discount here.
-        return jnp.mean(jnp.square(g - u))
+        return jnp.mean(jnp.square(discounting * u_prime + r - u))
 
     out = alpha_loss, critic_loss, actor_loss
     if uvu_network is not None:
