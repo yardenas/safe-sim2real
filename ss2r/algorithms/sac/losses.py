@@ -128,7 +128,7 @@ def make_losses(
             another_key,
             use_bro,
             # FIXME (yarden)
-            True,
+            False,
             use_redq,
             optimism_scale,
             bonus,
