@@ -480,8 +480,9 @@ def train(
         else:
             new_target_qc_params = None
         if aux:
-            if "penalizer_params" in aux:
-                new_penalizer_params = aux.pop("penalizer_params")
+            new_penalizer_params = aux.pop(
+                "penalizer_params", training_state.penalizer_params
+            )
             additional_metrics = {
                 **aux,
             }
