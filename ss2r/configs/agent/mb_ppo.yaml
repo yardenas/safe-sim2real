@@ -3,21 +3,21 @@ defaults:
 
 name: mb_ppo
 
-actor_critic_learning_rate: 3e-4
+actor_critic_learning_rate: 1e-3
 model_learning_rate: 1e-3
-entropy_cost: 0.0001
-discounting: 0.9
+entropy_cost: 0.01
+discounting: 0.995
 safety_discounting: 0.9
-unroll_length: 10
+unroll_length: 30
 batch_size: 1024
-num_minibatches: 16
-num_updates_per_batch: 2
+num_minibatches: 32
+num_updates_per_batch: 16
 ppo_updates_per_step: 100
 model_updates_per_step: 1000
 min_replay_size: 8192
 max_replay_size: 1048576
 normalize_observations: false
-reward_scaling: 1.0
+reward_scaling: 10.0
 cost_scaling: 1.0
 clipping_epsilon: 0.3
 gae_lambda: 0.95
