@@ -3,7 +3,6 @@ from typing import Tuple
 
 import jax
 import jax.numpy as jnp
-from brax import envs
 from brax.training import acting, gradients, types
 from brax.training.acme import running_statistics
 from brax.training.types import PRNGKey
@@ -149,11 +148,17 @@ def update_fn(
             cumulative_cost = jax.random.uniform(
                 cost_key, (transitions.reward.shape[0],), minval=0.0, maxval=0.0
             )
-            state = envs.State(
-                pipeline_state=None,
+            # FIXME (manu): make sure to delete this again
+            reset_fn = env.reset
+            batch_size = replay_buffer._sample_batch_size
+            keys = jax.random.split(current_key, batch_size + 1)
+            sample_keys = keys[:batch_size].reshape(batch_size, -1)
+            current_key = keys[-1]
+            env_state = reset_fn(sample_keys)
+            # END FIXME
+
+            env_state.replace(
                 obs=transitions.observation,
-                reward=transitions.reward,
-                done=transitions.discount,
                 info={
                     "cumulative_cost": cumulative_cost,  # type: ignore
                     "truncation": transitions.extras["state_extras"]["truncation"],
@@ -162,16 +167,30 @@ def update_fn(
                     ),
                 },
             )
+
+            # state = envs.State(
+            #     pipeline_state=env_state.pipeline_state, #REDO!!
+            #     obs=transitions.observation,
+            #     reward=transitions.reward,
+            #     done=transitions.discount,
+            #     info={
+            #         "cumulative_cost": cumulative_cost,  # type: ignore
+            #         "truncation": transitions.extras["state_extras"]["truncation"],
+            #         "cost": transitions.extras["state_extras"].get(
+            #             "cost", jnp.zeros_like(cumulative_cost)
+            #         ),
+            #     },
+            # )
             next_key, current_key = jax.random.split(current_key)
             generate_unroll = lambda state: acting.generate_unroll(
-                env,
+                env,  # REDO!!
                 state,
                 policy,
                 current_key,
                 unroll_length,
                 extra_fields=extra_fields,
             )
-            _, data = generate_unroll(state)
+            _, data = generate_unroll(env_state)
             return (buffer_state, next_key), data
 
         (buffer_state, _), data = jax.lax.scan(
