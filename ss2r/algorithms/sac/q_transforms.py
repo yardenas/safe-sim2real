@@ -240,7 +240,7 @@ class SACCost(QTransformation):
         return target_q
 
 
-def get_cost_robustness(cfg):
+def get_cost_q_transform(cfg):
     if (
         "cost_robustness" not in cfg.agent
         or cfg.agent.cost_robustness is None
@@ -257,7 +257,7 @@ def get_cost_robustness(cfg):
     return robustness
 
 
-def get_reward_robustness(cfg):
+def get_reward_q_transform(cfg):
     if (
         "reward_robustness" not in cfg.agent
         or cfg.agent.reward_robustness is None

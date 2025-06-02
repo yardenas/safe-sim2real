@@ -3,7 +3,10 @@ import functools
 import ss2r.algorithms.sac.networks as sac_networks
 from ss2r.algorithms.penalizers import get_penalizer
 from ss2r.algorithms.sac.data import get_collection_fn
-from ss2r.algorithms.sac.q_transforms import get_cost_robustness, get_reward_robustness
+from ss2r.algorithms.sac.q_transforms import (
+    get_cost_q_transform,
+    get_reward_q_transform,
+)
 
 
 def get_train_fn(cfg, checkpoint_path, restore_checkpoint_path):
@@ -52,8 +55,8 @@ def get_train_fn(cfg, checkpoint_path, restore_checkpoint_path):
         policy_obs_key=policy_obs_key,
     )
     penalizer, penalizer_params = get_penalizer(cfg)
-    cost_robustness = get_cost_robustness(cfg)
-    reward_robustness = get_reward_robustness(cfg)
+    cost_robustness = get_cost_q_transform(cfg)
+    reward_robustness = get_reward_q_transform(cfg)
     data_collection = get_collection_fn(cfg)
     train_fn = functools.partial(
         sac.train,
