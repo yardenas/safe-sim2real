@@ -5,7 +5,9 @@ defaults:
   - _self_
 
 environment:
-  task_name: CartpoleSwingupSparse
+  task_name: HardCartpoleSwingupSparse
+  task_params:
+    action_cost_scale: 0.2
 
 training:
   num_timesteps: 5000000

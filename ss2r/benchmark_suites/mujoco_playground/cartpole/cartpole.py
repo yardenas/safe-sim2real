@@ -5,6 +5,8 @@ import jax.numpy as jnp
 from brax.envs import Wrapper
 from mujoco_playground import MjxEnv, State, dm_control_suite
 
+from ss2r.benchmark_suites.rewards import tolerance
+
 _POLE_ID = -1
 
 
@@ -92,6 +94,20 @@ class ConstraintWrapper(Wrapper):
         return nstate
 
 
+class ActionCostWrapper(Wrapper):
+    def __init__(self, env: MjxEnv, action_cost_scale: float):
+        super().__init__(env)
+        self.action_cost_scale = action_cost_scale
+
+    def step(self, state: State, action: jax.Array) -> State:
+        action_cost = (
+            self.action_cost_scale * (1 - tolerance(action, (-0.1, 0.1), 0.1))[0]
+        )
+        nstate = self.env.step(state, action)
+        nstate = nstate.replace(reward=nstate.reward - action_cost)
+        return nstate
+
+
 _envs = [
     env_name
     for env_name in dm_control_suite.ALL_ENVS
@@ -106,9 +122,23 @@ def make_safe(name, **kwargs):
     return env
 
 
+def make_hard(name, **kwargs):
+    scale = kwargs["config"]["action_cost_scale"]
+    env = dm_control_suite.load(name, **kwargs)
+    env = ActionCostWrapper(env, scale)
+    return env
+
+
 for env_name in _envs:
     dm_control_suite.register_environment(
         f"Safe{env_name}",
         functools.partial(make_safe, env_name),
+        dm_control_suite.cartpole.default_config,
+    )
+
+for env_name in _envs:
+    dm_control_suite.register_environment(
+        f"Hard{env_name}",
+        functools.partial(make_hard, env_name),
         dm_control_suite.cartpole.default_config,
     )
