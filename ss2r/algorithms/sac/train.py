@@ -384,7 +384,7 @@ def train(
         key, key_alpha, key_critic, key_cost_critic, key_actor = jax.random.split(
             key, 5
         )
-        optimism_scale = optimism_scheduler(training_state.gradient_steps)
+        # optimism_scale = optimism_scheduler(training_state.gradient_steps)
         alpha_loss, alpha_params, alpha_optimizer_state = alpha_update(
             training_state.alpha_params,
             training_state.policy_params,
