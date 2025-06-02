@@ -386,12 +386,18 @@ def train(
                 length=model_updates_per_step,
             )
             # Learn model with ppo on learned model (planning MDP)
+            batch_size = replay_buffer._sample_batch_size
+            keys = jax.random.split(actor_critic_key, batch_size + 1)
+            sample_keys = keys[:batch_size].reshape(batch_size, -1)
+            actor_critic_key = keys[-1]
+            env_state = reset_fn(sample_keys)
+
             (
-                (training_state, buffer_state, _),
+                (training_state, env_state, _),
                 ppo_loss_metrics,
             ) = jax.lax.scan(
                 training_step,
-                (training_state, buffer_state, actor_critic_key),
+                (training_state, env_state, actor_critic_key),
                 (),
                 length=ppo_updates_per_step,
             )

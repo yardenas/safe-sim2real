@@ -11,7 +11,7 @@ from brax.training.types import PRNGKey
 
 from ss2r.algorithms.mb_ppo import Metrics, TrainingState
 from ss2r.algorithms.mb_ppo import losses as mb_ppo_losses
-from ss2r.algorithms.sac.types import ReplayBufferState, float32
+from ss2r.algorithms.sac.types import ReplayBufferState  # , float32
 
 
 def update_fn(
@@ -122,7 +122,7 @@ def update_fn(
     def training_step(
         carry: Tuple[TrainingState, ReplayBufferState, PRNGKey], unused_t
     ) -> Tuple[Tuple[TrainingState, ReplayBufferState, PRNGKey], Metrics]:
-        training_state, buffer_state, key = carry
+        training_state, state, key = carry
         key_sgd, key_generate_unroll, cost_key, new_key = jax.random.split(key, 4)
 
         # Create planning environment with current model parameters
@@ -143,41 +143,43 @@ def update_fn(
         # Function to generate unrolls from each initial state
         def f(carry, unused_t):
             # Sample initial states from the replay buffer
-            buffer_state, current_key = carry
-            buffer_state, transitions = replay_buffer.sample(buffer_state)
-            transitions = float32(transitions)
+            current_state, current_key = carry
+
+            # buffer_state, transitions = replay_buffer.sample(buffer_state)
+            # transitions = float32(transitions)
+
             # FIXME (manu): make sure that minval and maxval are correct
             # cumulative_cost = jax.random.uniform(
             #     cost_key, (transitions.reward.shape[0],), minval=0.0, maxval=0.0
             # )
             # FIXME (manu): make sure to delete this again
-            reset_fn = env.reset
-            batch_size = replay_buffer._sample_batch_size
-            keys = jax.random.split(current_key, batch_size + 1)
-            sample_keys = keys[:batch_size].reshape(batch_size, -1)
-            current_key = keys[-1]
-            env_state = reset_fn(sample_keys)
+            # reset_fn = env.reset
+            # batch_size = replay_buffer._sample_batch_size
+            # keys = jax.random.split(current_key, batch_size + 1)
+            # sample_keys = keys[:batch_size].reshape(batch_size, -1)
+            # current_key = keys[-1]
+            # env_state = reset_fn(sample_keys)
 
-            q = jnp.stack(
-                [
-                    transitions.observation[:, 0],  # Position
-                    jnp.arctan2(
-                        transitions.observation[:, 2],
-                        jnp.maximum(jnp.abs(transitions.observation[:, 1]), 1e-6)
-                        * jnp.sign(transitions.observation[:, 1]),
-                    ),  # Angles
-                ],
-                axis=-1,
-            )
-            dq = transitions.observation[:, -2:]
-            v_init = jax.vmap(env.pipeline_init)(q, dq)
+            # q = jnp.stack(
+            #     [
+            #         transitions.observation[:, 0],  # Position
+            #         jnp.arctan2(
+            #             transitions.observation[:, 2],
+            #             jnp.maximum(jnp.abs(transitions.observation[:, 1]), 1e-6)
+            #             * jnp.sign(transitions.observation[:, 1]),
+            #         ),  # Angles
+            #     ],
+            #     axis=-1,
+            # )
+            # dq = transitions.observation[:, -2:]
+            # v_init = jax.vmap(env.pipeline_init)(q, dq)
 
-            env_state = env_state.replace(
-                pipeline_state=v_init,  # REDO!!
-                obs=transitions.observation,
-                reward=transitions.reward,
-                done=transitions.discount,
-            )
+            # env_state = env_state.replace(
+            #     pipeline_state=v_init,  # REDO!!
+            #     obs=transitions.observation,
+            #     reward=transitions.reward,
+            #     done=transitions.discount,
+            # )
 
             # state = envs.State(
             #     pipeline_state=v_init, #REDO!!
@@ -201,12 +203,12 @@ def update_fn(
                 unroll_length,
                 extra_fields=extra_fields,
             )
-            _, data = generate_unroll(env_state)
-            return (buffer_state, next_key), data
+            next_state, data = generate_unroll(current_state)
+            return (next_state, next_key), data
 
-        (buffer_state, _), data = jax.lax.scan(
+        (next_state, _), data = jax.lax.scan(
             f,
-            (buffer_state, key_generate_unroll),
+            (state, key_generate_unroll),
             (),
             length=num_minibatches,
         )
@@ -235,6 +237,6 @@ def update_fn(
             env_steps=training_state.env_steps,
         )  # type: ignore
 
-        return (new_training_state, buffer_state, new_key), aux
+        return (new_training_state, state, new_key), aux
 
     return training_step
