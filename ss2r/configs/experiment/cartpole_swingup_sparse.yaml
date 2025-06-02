@@ -9,7 +9,7 @@ environment:
 
 training:
   num_timesteps: 5000000
-  action_repeat: 4
+  action_repeat: 1
   safe: false
   train_domain_randomization: false
   eval_domain_randomization: false
