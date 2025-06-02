@@ -200,9 +200,7 @@ def train(
             "No training will happen because min_replay_size >= num_timesteps"
         )
     if use_uvu:
-        assert (
-            policy_optimism and optimism_scale > 0.0 and not value_optimism
-        ), "Check configuration of UVU"
+        assert policy_optimism and not value_optimism, "Check configuration of UVU"
     episodic_safety_budget = safety_budget
     if safety_discounting != 1.0 and normalize_budget:
         safety_budget = (
