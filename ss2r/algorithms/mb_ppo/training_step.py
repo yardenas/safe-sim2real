@@ -3,15 +3,15 @@ from typing import Tuple
 
 import jax
 import jax.numpy as jnp
-
-# from brax import envs
+from brax import envs
 from brax.training import acting, gradients, types
 from brax.training.acme import running_statistics
 from brax.training.types import PRNGKey
 
 from ss2r.algorithms.mb_ppo import Metrics, TrainingState
 from ss2r.algorithms.mb_ppo import losses as mb_ppo_losses
-from ss2r.algorithms.sac.types import ReplayBufferState  # , float32
+
+# from ss2r.algorithms.sac.types import ReplayBufferState, float32
 
 
 def update_fn(
@@ -120,8 +120,8 @@ def update_fn(
         return (optimizer_state, params, key), aux
 
     def training_step(
-        carry: Tuple[TrainingState, ReplayBufferState, PRNGKey], unused_t
-    ) -> Tuple[Tuple[TrainingState, ReplayBufferState, PRNGKey], Metrics]:
+        carry: Tuple[TrainingState, envs.State, PRNGKey], unused_t
+    ) -> Tuple[Tuple[TrainingState, envs.State, PRNGKey], Metrics]:
         training_state, state, key = carry
         key_sgd, key_generate_unroll, cost_key, new_key = jax.random.split(key, 4)
 

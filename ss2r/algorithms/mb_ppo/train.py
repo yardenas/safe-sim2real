@@ -390,14 +390,14 @@ def train(
             keys = jax.random.split(actor_critic_key, batch_size + 1)
             sample_keys = keys[:batch_size].reshape(batch_size, -1)
             actor_critic_key = keys[-1]
-            env_state = reset_fn(sample_keys)
+            state = reset_fn(sample_keys)
 
             (
-                (training_state, env_state, _),
+                (training_state, state, _),
                 ppo_loss_metrics,
             ) = jax.lax.scan(
                 training_step,
-                (training_state, env_state, actor_critic_key),
+                (training_state, state, actor_critic_key),
                 (),
                 length=ppo_updates_per_step,
             )
