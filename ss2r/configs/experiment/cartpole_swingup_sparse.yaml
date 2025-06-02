@@ -19,6 +19,3 @@ training:
 
 agent:
   activation: swish
-  use_uvu: true
-  policy_optimism: true
-  optimism_scale: 0.5
