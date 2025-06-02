@@ -201,8 +201,8 @@ def make_losses(
         return actor_loss, aux
 
     def uvu_loss(
-        g_params: Params,
         u_params: Params,
+        g_params: Params,
         policy_params: Params,
         normalizer_params: Any,
         transitions: Transition,

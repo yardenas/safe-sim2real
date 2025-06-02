@@ -427,8 +427,8 @@ def train(
             qc_optimizer_state = None
         if use_uvu:
             uvu_loss, u_params, uvu_optimizer_state = uvu_update(
-                training_state.g_params,
                 training_state.u_params,
+                training_state.g_params,
                 training_state.policy_params,
                 training_state.normalizer_params,
                 transitions,
