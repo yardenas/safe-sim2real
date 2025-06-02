@@ -359,7 +359,7 @@ def train(
         )
     if use_uvu:
         uvu_update = gradients.gradient_update_fn(  # pytype: disable=wrong-arg-types  # jax-ndarray
-            uvu_loss, policy_optimizer, pmap_axis_name=None
+            uvu_loss, uvu_optimizer, pmap_axis_name=None
         )
     actor_update = (
         gradients.gradient_update_fn(  # pytype: disable=wrong-arg-types  # jax-ndarray

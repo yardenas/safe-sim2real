@@ -227,12 +227,12 @@ def make_sac_networks(
             observation_size,
             action_size,
             preprocess_observations_fn=preprocess_observations_fn,
-            hidden_layer_sizes=value_hidden_layer_sizes,
+            hidden_layer_sizes=(128, 128),
             activation=activation,
             obs_key=value_obs_key,
-            use_bro=use_bro,
-            n_critics=n_critics,
-            n_heads=n_heads,
+            use_bro=False,
+            n_critics=1,
+            n_heads=1,
         )
     else:
         uvu_network = None
