@@ -3,6 +3,8 @@ from typing import Tuple
 
 import jax
 import jax.numpy as jnp
+
+# from brax import envs
 from brax.training import acting, gradients, types
 from brax.training.acme import running_statistics
 from brax.training.types import PRNGKey
@@ -145,9 +147,9 @@ def update_fn(
             buffer_state, transitions = replay_buffer.sample(buffer_state)
             transitions = float32(transitions)
             # FIXME (manu): make sure that minval and maxval are correct
-            cumulative_cost = jax.random.uniform(
-                cost_key, (transitions.reward.shape[0],), minval=0.0, maxval=0.0
-            )
+            # cumulative_cost = jax.random.uniform(
+            #     cost_key, (transitions.reward.shape[0],), minval=0.0, maxval=0.0
+            # )
             # FIXME (manu): make sure to delete this again
             reset_fn = env.reset
             batch_size = replay_buffer._sample_batch_size
@@ -155,21 +157,28 @@ def update_fn(
             sample_keys = keys[:batch_size].reshape(batch_size, -1)
             current_key = keys[-1]
             env_state = reset_fn(sample_keys)
-            # END FIXME
 
-            env_state.replace(
+            q = jnp.stack(
+                [
+                    transitions.observation[:, 0],  # Position
+                    jnp.arctan2(
+                        transitions.observation[:, 2], transitions.observation[:, 1]
+                    ),  # Angles
+                ],
+                axis=-1,
+            )
+            dq = transitions.observation[:, -2:]
+            v_init = jax.vmap(env.pipeline_init)(q, dq)
+
+            env_state = env_state.replace(
+                pipeline_state=v_init,  # REDO!!
                 obs=transitions.observation,
-                info={
-                    "cumulative_cost": cumulative_cost,  # type: ignore
-                    "truncation": transitions.extras["state_extras"]["truncation"],
-                    "cost": transitions.extras["state_extras"].get(
-                        "cost", jnp.zeros_like(cumulative_cost)
-                    ),
-                },
+                reward=transitions.reward,
+                done=transitions.discount,
             )
 
             # state = envs.State(
-            #     pipeline_state=env_state.pipeline_state, #REDO!!
+            #     pipeline_state=v_init, #REDO!!
             #     obs=transitions.observation,
             #     reward=transitions.reward,
             #     done=transitions.discount,
