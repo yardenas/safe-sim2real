@@ -113,7 +113,6 @@ def train(
     clipping_epsilon: float = 0.3,
     gae_lambda: float = 0.95,
     max_grad_norm: Optional[float] = None,
-    safety_gae_lambda: float = 0.95,
     deterministic_eval: bool = False,
     network_factory: types.NetworkFactory[
         mb_ppo_networks.MBPPONetworks
@@ -254,7 +253,6 @@ def train(
         reward_scaling=reward_scaling,
         cost_scaling=cost_scaling,
         gae_lambda=gae_lambda,
-        safety_gae_lambda=safety_gae_lambda,
         clipping_epsilon=clipping_epsilon,
         normalize_advantage=normalize_advantage,
     )

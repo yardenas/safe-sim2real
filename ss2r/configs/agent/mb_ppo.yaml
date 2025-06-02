@@ -4,7 +4,7 @@ defaults:
 name: mb_ppo
 
 actor_critic_learning_rate: 3e-4
-model_learning_rate: 1e-4
+model_learning_rate: 3e-4
 entropy_cost: 0.0001
 discounting: 0.9
 safety_discounting: 0.9
@@ -13,7 +13,7 @@ batch_size: 1024
 num_minibatches: 16
 num_updates_per_batch: 2
 ppo_updates_per_step: 1
-model_updates_per_step: 10000
+model_updates_per_step: 1000
 min_replay_size: 8192
 max_replay_size: 1048576
 normalize_observations: false
@@ -21,8 +21,6 @@ reward_scaling: 1.0
 cost_scaling: 1.0
 clipping_epsilon: 0.3
 gae_lambda: 0.95
-# Remove this parameter later
-safety_gae_lambda: 0.95
 deterministic_eval: true
 normalize_advantage: true
 model_hidden_layer_sizes: [512, 512]
@@ -30,7 +28,7 @@ policy_hidden_layer_sizes: [32, 32, 32, 32]
 value_hidden_layer_sizes: [256, 256, 256, 256, 256]
 activation: swish
 max_grad_norm: 1.0
-use_bro: false
+use_bro: true
 n_ensemble: 5
 learn_std: false
 normalize_budget: true

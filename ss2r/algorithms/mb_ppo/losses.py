@@ -88,7 +88,6 @@ def make_losses(
     normalize_advantage,
     cost_scaling,
     safety_discounting,
-    safety_gae_lambda,
 ):
     def _neg_log_posterior(
         predicted_outputs: jax.Array,
@@ -252,7 +251,7 @@ def make_losses(
             rewards=cost,
             values=cost_baseline,
             bootstrap_value=cost_bootstrap,
-            lambda_=safety_gae_lambda,
+            lambda_=1,
             discount=safety_discounting,
         )
         cost_error = vcs - cost_baseline
