@@ -98,7 +98,7 @@ class MLP(linen.Module):
 
     @linen.compact
     def __call__(self, x):
-        for i, size in enumerate(self.layer_sizes - 1):
+        for size in self.layer_sizes[:-1]:
             x = linen.Dense(features=size, kernel_init=self.kernel_init)(x)
             x = linen.LayerNorm()(x)
             x = self.activation(x)
