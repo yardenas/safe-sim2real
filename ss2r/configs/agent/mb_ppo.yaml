@@ -13,7 +13,7 @@ batch_size: 1024
 num_minibatches: 32
 num_updates_per_batch: 16
 ppo_updates_per_step: 100
-model_updates_per_step: 1000
+model_updates_per_step: 1
 min_replay_size: 8192
 max_replay_size: 1048576
 normalize_observations: false
@@ -24,8 +24,8 @@ gae_lambda: 0.95
 deterministic_eval: true
 normalize_advantage: true
 model_hidden_layer_sizes: [256, 256]
-policy_hidden_layer_sizes: [32, 32, 32, 32]
-value_hidden_layer_sizes: [256, 256, 256, 256, 256]
+policy_hidden_layer_sizes: [64, 64, 64]
+value_hidden_layer_sizes: [64, 64, 64]
 activation: swish
 max_grad_norm: 1.0
 use_bro: false

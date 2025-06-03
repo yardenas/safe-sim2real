@@ -371,6 +371,7 @@ def train(
 
         def f(carry, unused_t):
             training_state, env_state, buffer_state, key = carry
+            batch_size = replay_buffer._sample_batch_size
             experience_key, model_key, actor_critic_key = jax.random.split(key, 3)
             training_state, env_state, buffer_state, training_key = run_experience_step(
                 training_state, env_state, buffer_state, experience_key
@@ -383,10 +384,12 @@ def train(
                 model_training_step,
                 (training_state, buffer_state, model_key),
                 (),
-                length=model_updates_per_step,
+                length=model_updates_per_step
+                * env_steps_per_experience_call
+                // batch_size,
             )
             # Learn model with ppo on learned model (planning MDP)
-            batch_size = replay_buffer._sample_batch_size
+            # FIXME (manu) : Change back to handing over raply bufferstate.
             keys = jax.random.split(actor_critic_key, batch_size + 1)
             sample_keys = keys[:batch_size].reshape(batch_size, -1)
             actor_critic_key = keys[-1]
@@ -399,7 +402,9 @@ def train(
                 training_step,
                 (training_state, state, actor_critic_key),
                 (),
-                length=ppo_updates_per_step,
+                length=ppo_updates_per_step
+                * env_steps_per_experience_call
+                // (batch_size * num_minibatches * unroll_length),
             )
             metrics = model_loss_metrics | ppo_loss_metrics
 

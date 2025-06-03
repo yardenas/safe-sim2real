@@ -13,10 +13,10 @@ training:
   num_envs: 32
 
 agent:
-  reward_scaling: 1.0
+  reward_scaling: 10.0
   normalize_observations: true
-  unroll_length: 10
-  num_minibatches: 16
-  num_updates_per_batch: 2
+  unroll_length: 30
+  num_minibatches: 32
+  num_updates_per_batch: 16
   discounting: 0.995
   entropy_cost: 0.025

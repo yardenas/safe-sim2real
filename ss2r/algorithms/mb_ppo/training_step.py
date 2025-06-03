@@ -206,7 +206,7 @@ def update_fn(
             next_state, data = generate_unroll(current_state)
             return (next_state, next_key), data
 
-        (next_state, _), data = jax.lax.scan(
+        (state, _), data = jax.lax.scan(
             f,
             (state, key_generate_unroll),
             (),
