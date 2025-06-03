@@ -10,7 +10,7 @@ training:
   train_domain_randomization: false
   eval_domain_randomization: false
   num_eval_episodes: 1
-  num_envs: 16
+  num_envs: 32
 
 agent:
   reward_scaling: 10.0
