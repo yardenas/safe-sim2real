@@ -216,9 +216,11 @@ def train(
     else:
         dummy_obs = jnp.zeros((obs_size,))
     dummy_action = jnp.zeros((action_size,))
+    dummy_pipeline_state = env.pipeline_init(jnp.zeros((2,)), jnp.zeros((2,)))  # type: ignore
     extras = {
         "state_extras": {
             "truncation": jnp.zeros(()),
+            "pipeline_state": dummy_pipeline_state,  # type: ignore
         },
         "policy_extras": {
             "log_prob": jnp.zeros(()),
@@ -299,6 +301,7 @@ def train(
     )
 
     extra_fields = ("truncation",)
+    extra_fields += ("pipeline_state",)  # type: ignore
     if safe:
         extra_fields += ("cost",)  # type: ignore
 

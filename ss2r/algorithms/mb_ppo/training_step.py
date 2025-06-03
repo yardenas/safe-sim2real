@@ -161,22 +161,10 @@ def update_fn(
             current_key = keys[-1]
             env_state = reset_fn(sample_keys)
 
-            q = jnp.stack(
-                [
-                    transitions.observation[:, 0],  # Position
-                    jnp.arctan2(
-                        transitions.observation[:, 2],
-                        jnp.maximum(jnp.abs(transitions.observation[:, 1]), 1e-6)
-                        * jnp.sign(transitions.observation[:, 1]),
-                    ),  # Angles
-                ],
-                axis=-1,
-            )
-            dq = transitions.observation[:, -2:]
-            v_init = jax.vmap(env.pipeline_init)(q, dq)
-
             env_state = env_state.replace(
-                pipeline_state=v_init,  # REDO!!
+                pipeline_state=transitions.extras["state_extras"][
+                    "pipeline_state"
+                ],  # REDO!!
                 obs=transitions.observation,
                 reward=transitions.reward,
                 done=transitions.discount,
