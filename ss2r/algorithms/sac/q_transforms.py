@@ -16,7 +16,6 @@ class QTransformation(Protocol):
         alpha: jax.Array | None = None,
         scale: float = 1.0,
         key: jax.Array | None = None,
-        use_bro: bool = True,
     ):
         ...
 
@@ -31,7 +30,6 @@ class UCBCost(QTransformation):
         alpha: jax.Array | None = None,
         scale: float = 1.0,
         key: jax.Array | None = None,
-        use_bro: bool = True,
     ):
         next_action, _ = policy(transitions.next_observation)
         next_q = q_fn(transitions.next_observation, next_action)
@@ -63,7 +61,6 @@ class RAMU(QTransformation):
         alpha: jax.Array | None = None,
         scale: float = 1.0,
         key: jax.Array | None = None,
-        use_bro: bool = True,
     ):
         if isinstance(transitions.observation, dict):
             sampled_next_obs = {
@@ -115,6 +112,9 @@ def wang(n_samples, wang_eta, next_v, descending=True):
 
 
 class SACBase(QTransformation):
+    def __init__(self, use_bro: bool = True) -> None:
+        self.use_bro = use_bro
+
     def __call__(
         self,
         transitions: Transition,
@@ -124,11 +124,10 @@ class SACBase(QTransformation):
         alpha: jax.Array | None = None,
         scale: float = 1.0,
         key: jax.Array | None = None,
-        use_bro: bool = True,
     ):
         next_action, next_log_prob = policy(transitions.next_observation)
         next_q = q_fn(transitions.next_observation, next_action)
-        if use_bro:
+        if self.use_bro:
             next_v = next_q.mean(axis=-1)
         else:
             next_v = next_q.min(axis=-1)
@@ -140,10 +139,13 @@ class SACBase(QTransformation):
 
 
 class RAMUReward(QTransformation):
-    def __init__(self, epsilon: float, n_samples: int, wang_eta: float) -> None:
+    def __init__(
+        self, epsilon: float, n_samples: int, wang_eta: float, use_bro: bool
+    ) -> None:
         self.epsilon = epsilon
         self.n_samples = n_samples
         self.wang_eta = wang_eta
+        self.use_bro = use_bro
 
     def __call__(
         self,
@@ -154,7 +156,6 @@ class RAMUReward(QTransformation):
         alpha: jax.Array | None = None,
         scale: float = 1.0,
         key: jax.Array | None = None,
-        use_bro: bool = True,
     ):
         if isinstance(transitions.observation, dict):
             sampled_next_obs = {
@@ -177,7 +178,7 @@ class RAMUReward(QTransformation):
             )
         next_action, next_log_prob = policy(sampled_next_obs)
         next_q = q_fn(sampled_next_obs, next_action)
-        if use_bro:
+        if self.use_bro:
             next_v = next_q.mean(axis=-1)
         else:
             next_v = next_q.min(axis=-1)
@@ -190,6 +191,9 @@ class RAMUReward(QTransformation):
 
 
 class LCBReward(QTransformation):
+    def __init__(self, use_bro: bool = True):
+        self.use_bro = use_bro
+
     def __call__(
         self,
         transitions: Transition,
@@ -199,11 +203,10 @@ class LCBReward(QTransformation):
         alpha: jax.Array | None = None,
         scale: float = 1.0,
         key: jax.Array | None = None,
-        use_bro: bool = True,
     ):
         next_action, next_log_prob = policy(transitions.next_observation)
         next_q = q_fn(transitions.next_observation, next_action)
-        if use_bro:
+        if self.use_bro:
             next_v = next_q.mean(axis=-1)
         else:
             next_v = next_q.min(axis=-1)
@@ -226,7 +229,6 @@ class SACCost(QTransformation):
         alpha: jax.Array | None = None,
         scale: float = 1.0,
         key: jax.Array | None = None,
-        use_bro: bool = True,
     ):
         next_action, _ = policy(transitions.next_observation)
         next_q = q_fn(transitions.next_observation, next_action)
@@ -238,7 +240,7 @@ class SACCost(QTransformation):
         return target_q
 
 
-def get_cost_robustness(cfg):
+def get_cost_q_transform(cfg):
     if (
         "cost_robustness" not in cfg.agent
         or cfg.agent.cost_robustness is None
@@ -255,18 +257,20 @@ def get_cost_robustness(cfg):
     return robustness
 
 
-def get_reward_robustness(cfg):
+def get_reward_q_transform(cfg):
     if (
         "reward_robustness" not in cfg.agent
         or cfg.agent.reward_robustness is None
         or cfg.agent.reward_robustness.name == "neutral"
     ):
-        return SACBase()
+        return SACBase(use_bro=cfg.agent.use_bro)
     if cfg.agent.reward_robustness.name == "ramu":
         del cfg.agent.reward_robustness.name
-        robustness = RAMUReward(**cfg.agent.reward_robustness)
+        robustness = RAMUReward(
+            **cfg.agent.reward_robustness, use_bro=cfg.agent.use_bro
+        )
     elif cfg.agent.reward_robustness.name == "lcb_reward":
-        robustness = LCBReward()
+        robustness = LCBReward(use_bro=cfg.agent.use_bro)
     else:
         raise ValueError("Unknown robustness")
     return robustness

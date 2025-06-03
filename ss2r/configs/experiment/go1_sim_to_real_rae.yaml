@@ -41,3 +41,5 @@ agent:
   min_replay_size: 100000
   max_replay_size: 4194304
   grad_updates_per_step: 250
+  n_heads: 10
+  n_critics: 1
