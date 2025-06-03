@@ -200,7 +200,7 @@ def make_training_step(
             actor_sgd_step,
             (training_state, training_key),
             transitions,
-            -(-grad_updates_per_step // num_critic_updates_per_actor_update),
+            length=-(-grad_updates_per_step // num_critic_updates_per_actor_update),
         )
         metrics = critic_metrics | actor_metrics
         metrics["buffer_current_size"] = replay_buffer.size(buffer_state)
