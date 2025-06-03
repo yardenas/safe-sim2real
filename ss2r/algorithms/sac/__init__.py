@@ -55,8 +55,8 @@ def get_train_fn(cfg, checkpoint_path, restore_checkpoint_path):
         policy_obs_key=policy_obs_key,
     )
     penalizer, penalizer_params = get_penalizer(cfg)
-    cost_robustness = get_cost_q_transform(cfg)
-    reward_robustness = get_reward_q_transform(cfg)
+    cost_q_transform = get_cost_q_transform(cfg)
+    reward_q_transform = get_reward_q_transform(cfg)
     data_collection = get_collection_fn(cfg)
     train_fn = functools.partial(
         sac.train,
@@ -64,8 +64,8 @@ def get_train_fn(cfg, checkpoint_path, restore_checkpoint_path):
         **training_cfg,
         network_factory=network_factory,
         checkpoint_logdir=checkpoint_path,
-        cost_robustness=cost_robustness,
-        reward_robustness=reward_robustness,
+        cost_q_transform=cost_q_transform,
+        reward_q_transform=reward_q_transform,
         penalizer=penalizer,
         penalizer_params=penalizer_params,
         get_experience_fn=data_collection,

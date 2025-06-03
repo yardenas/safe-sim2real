@@ -1,8 +1,10 @@
 import functools
 from typing import Any, Callable, Tuple, TypeAlias
 
+import flax
 import jax
 import jax.numpy as jnp
+import optax
 from brax import envs
 from brax.training import types
 from brax.training.acme import running_statistics
@@ -40,3 +42,23 @@ CollectDataFn = Callable[
         ReplayBufferState,
     ],
 ]
+
+
+@flax.struct.dataclass
+class TrainingState:
+    """Contains training state for the learner."""
+
+    policy_optimizer_state: optax.OptState
+    policy_params: Params
+    qr_optimizer_state: optax.OptState
+    qc_optimizer_state: optax.OptState | None
+    qr_params: Params
+    qc_params: Params | None
+    target_qr_params: Params
+    target_qc_params: Params | None
+    gradient_steps: jnp.ndarray
+    env_steps: jnp.ndarray
+    alpha_optimizer_state: optax.OptState
+    alpha_params: Params
+    normalizer_params: running_statistics.RunningStatisticsState
+    penalizer_params: Params
