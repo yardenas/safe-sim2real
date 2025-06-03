@@ -196,11 +196,17 @@ def make_training_step(
         (training_state, _), critic_metrics = jax.lax.scan(
             critic_sgd_step, (training_state, training_key), transitions
         )
+        num_actor_updates = -(
+            -grad_updates_per_step // num_critic_updates_per_actor_update
+        )
+        transitions = jax.tree_util.tree_map(
+            lambda x: x[:num_actor_updates], transitions
+        )
         (training_state, _), actor_metrics = jax.lax.scan(
             actor_sgd_step,
             (training_state, training_key),
             transitions,
-            length=-(-grad_updates_per_step // num_critic_updates_per_actor_update),
+            length=num_actor_updates,
         )
         metrics = critic_metrics | actor_metrics
         metrics["buffer_current_size"] = replay_buffer.size(buffer_state)
