@@ -68,20 +68,21 @@ class ModelBasedEnv(envs.Env):
         else:
             raise ValueError(f"Unknown ensemble selection: {self.ensemble_selection}")
         done = jnp.zeros_like(reward, dtype=jnp.float32)
-        prev_cumulative_cost = state.info["cumulative_cost"]
-        accumulated_cost_for_transition = prev_cumulative_cost + cost
-        if self.safety_budget < float("inf"):
-            done = jnp.where(
-                accumulated_cost_for_transition > self.safety_budget,
-                jnp.ones_like(done),
-                done,
+        if "cumulative_cost" in state.info:
+            prev_cumulative_cost = state.info["cumulative_cost"]
+            accumulated_cost_for_transition = prev_cumulative_cost + cost
+            if self.safety_budget < float("inf"):
+                done = jnp.where(
+                    accumulated_cost_for_transition > self.safety_budget,
+                    jnp.ones_like(done),
+                    done,
+                )
+            accumulated_cost_for_transition = jnp.where(
+                done > 0,
+                jnp.zeros_like(accumulated_cost_for_transition),
+                accumulated_cost_for_transition,
             )
-        accumulated_cost_for_transition = jnp.where(
-            done > 0,
-            jnp.zeros_like(accumulated_cost_for_transition),
-            accumulated_cost_for_transition,
-        )
-        state.info["cumulative_cost"] = accumulated_cost_for_transition
+            state.info["cumulative_cost"] = accumulated_cost_for_transition
         state.info["cost"] = cost
         state = state.replace(
             obs=next_obs,

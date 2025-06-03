@@ -125,9 +125,9 @@ def update_fn(
         key_sgd, key_generate_unroll, cost_key, new_key = jax.random.split(key, 4)
 
         # Create planning environment with current model parameters
-        # planning_env = planning_env_factory(
-        #     training_state.params.model, training_state.normalizer_params
-        # )
+        planning_env = planning_env_factory(
+            training_state.params.model, training_state.normalizer_params
+        )
         policy = make_policy(
             (
                 training_state.normalizer_params,
@@ -185,7 +185,7 @@ def update_fn(
             # )
             next_key, current_key = jax.random.split(current_key)
             generate_unroll = lambda state: acting.generate_unroll(
-                env,  # REDO!!
+                planning_env,  # REDO!!
                 state,
                 policy,
                 current_key,
