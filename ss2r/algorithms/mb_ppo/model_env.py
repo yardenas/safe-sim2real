@@ -135,9 +135,9 @@ def _propagate_ensemble(
         reward = jax.vmap(lambda arr, idx: arr[idx])(reward_pred, random_indices)
         cost = jax.vmap(lambda arr, idx: arr[idx])(cost_pred, random_indices)
     elif ensemble_selection == "mean":
-        next_obs = state.obs + jnp.mean(diff_next_obs_pred, axis=0)
-        reward = jnp.mean(reward_pred, axis=0)
-        cost = jnp.mean(cost_pred, axis=0)
+        next_obs = state.obs + jnp.median(diff_next_obs_pred, axis=0)
+        reward = jnp.median(reward_pred, axis=0)
+        cost = jnp.median(cost_pred, axis=0)
     elif ensemble_selection == "pessimistic":
         next_obs = state.obs + jnp.mean(diff_next_obs_pred, axis=0)
         reward = jnp.min(reward_pred, axis=0)
