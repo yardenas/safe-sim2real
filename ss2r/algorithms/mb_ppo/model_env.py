@@ -37,50 +37,51 @@ class ModelBasedEnv(envs.Env):
 
     def step(self, state: base.State, action: jax.Array) -> base.State:
         """Step using the learned model."""
-        # # Predict next state, reward, and cost using the model
-        # (
-        #     (diff_next_obs_pred, reward_pred, cost_pred),
-        #     (diff_next_obs_std, reward_std, cost_std),
-        # ) = self.model_network.apply(
-        #     self.normalizer_params, self.model_params, state.obs, action
-        # )
-        # # Select from ensemble
-        # next_obs, reward, cost = _propagate_ensemble(
-        #     diff_next_obs_pred,
-        #     reward_pred,
-        #     cost_pred,
-        #     self.ensemble_selection,
-        #     state,
-        # )
+        # Predict next state, reward, and cost using the model
+        (
+            (diff_next_obs_pred, reward_pred, cost_pred),
+            (diff_next_obs_std, reward_std, cost_std),
+        ) = self.model_network.apply(
+            self.normalizer_params, self.model_params, state.obs, action
+        )
+        # Select from ensemble
+        next_obs, reward, cost = _propagate_ensemble(
+            diff_next_obs_pred,
+            reward_pred,
+            cost_pred,
+            self.ensemble_selection,
+            state,
+        )
 
-        # done = jnp.zeros_like(reward, dtype=jnp.float32)
-        # truncation = jnp.zeros_like(reward, dtype=jnp.float32)
-        # state.info["cost"] = cost
-        # state.info["truncation"] = truncation
+        done = jnp.zeros_like(reward, dtype=jnp.float32)
+        truncation = jnp.zeros_like(reward, dtype=jnp.float32)
+        state.info["cost"] = cost
+        state.info["truncation"] = truncation
 
-        # if "cumulative_cost" in state.info:
-        #     prev_cumulative_cost = state.info["cumulative_cost"]
-        #     accumulated_cost_for_transition = prev_cumulative_cost + cost
-        #     if self.safety_budget < float("inf"):
-        #         done = jnp.where(
-        #             accumulated_cost_for_transition > self.safety_budget,
-        #             jnp.ones_like(done),
-        #             done,
-        #         )
-        #     accumulated_cost_for_transition = jnp.where(
-        #         done > 0,
-        #         jnp.zeros_like(accumulated_cost_for_transition),
-        #         accumulated_cost_for_transition,
-        #     )
-        #     state.info["cumulative_cost"] = accumulated_cost_for_transition
+        if "cumulative_cost" in state.info:
+            prev_cumulative_cost = state.info["cumulative_cost"]
+            accumulated_cost_for_transition = prev_cumulative_cost + cost
+            if self.safety_budget < float("inf"):
+                done = jnp.where(
+                    accumulated_cost_for_transition > self.safety_budget,
+                    jnp.ones_like(done),
+                    done,
+                )
+            accumulated_cost_for_transition = jnp.where(
+                done > 0,
+                jnp.zeros_like(accumulated_cost_for_transition),
+                accumulated_cost_for_transition,
+            )
+            state.info["cumulative_cost"] = accumulated_cost_for_transition
 
-        # state = state.replace(
-        #     obs=next_obs,
-        #     reward=reward,
-        #     done=done,
-        #     info=state.info,
-        # )
         state = self.env.step(state, action)
+
+        state = state.replace(
+            obs=next_obs,
+            reward=reward,
+            # done=done,
+            # info=state.info,
+        )
         return state
 
     def observation_size(self) -> int:
