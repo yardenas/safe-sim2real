@@ -131,6 +131,7 @@ def main(run_id):
         normalize_fn,
         denormalize_fn,
         model_hidden_layer_sizes=(256, 256),
+        policy_hidden_layer_sizes=(64, 64, 64),
         use_bro=False,
     )
     make_policy = mb_ppo_networks.make_inference_fn(ppo_network)
@@ -158,5 +159,5 @@ def main(run_id):
 
 
 if __name__ == "__main__":
-    run_id = "6u5x1gtn"  # <-- Replace with your actual run ID
+    run_id = "geqc5vat"  # <-- Replace with your actual run ID
     main(run_id)
