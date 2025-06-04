@@ -201,6 +201,12 @@ def update_fn(
             (),
             length=num_minibatches,
         )
+
+        # Set end off rolllouts truncation to ones
+        data.extras["state_extras"]["truncation"].at[:, -1, :].set(
+            jnp.ones_like(data.extras["state_extras"]["truncation"][:, -1, :])
+        )
+
         # Have leading dimensions (batch_size * num_minibatches, unroll_length)
         data = jax.tree_util.tree_map(lambda x: jnp.swapaxes(x, 1, 2), data)
         data = jax.tree_util.tree_map(

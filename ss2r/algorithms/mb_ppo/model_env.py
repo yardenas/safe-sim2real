@@ -52,7 +52,7 @@ class ModelBasedEnv(envs.Env):
         )
 
         done = jnp.zeros_like(reward, dtype=jnp.float32)
-        truncation = jnp.ones_like(reward, dtype=jnp.float32)
+        truncation = jnp.zeros_like(reward, dtype=jnp.float32)
         state.info["cost"] = cost
         state.info["truncation"] = truncation
 
