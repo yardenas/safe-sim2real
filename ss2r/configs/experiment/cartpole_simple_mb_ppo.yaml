@@ -6,7 +6,7 @@ defaults:
 
 training:
   num_timesteps: 5000000
-  safe: false
+  safe: true
   train_domain_randomization: false
   eval_domain_randomization: false
   num_eval_episodes: 1
