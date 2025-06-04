@@ -137,7 +137,7 @@ def update_fn(
         )
         extra_fields = ("truncation",)
         if safe:
-            extra_fields += ("cost", "cumulative_cost")  # type: ignore
+            extra_fields += ("cost",)  # type: ignore
 
         # Function to generate unrolls from each initial state
         def f(carry, unused_t):
