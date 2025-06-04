@@ -21,7 +21,8 @@ import jax.numpy as jnp
 import optax
 from absl import logging
 from brax import envs
-from brax.envs.wrappers.training import VmapWrapper
+
+# from brax.envs.wrappers.training import VmapWrapper
 from brax.training import replay_buffers, types
 from brax.training.acme import running_statistics, specs
 from brax.training.agents.sac import checkpoint
@@ -263,6 +264,7 @@ def train(
     def create_planning_env(model_params, normalizer_params):
         """Create a planning environment with correct batch size for model-based rollouts."""
         planning_env = model_env.create_model_env(
+            env,
             model_network=ppo_network.model_network,
             model_params=model_params,
             normalizer_params=normalizer_params,
@@ -271,7 +273,7 @@ def train(
             observation_size=obs_size,
             action_size=action_size,
         )
-        planning_env = VmapWrapper(planning_env)
+        # planning_env = VmapWrapper(planning_env)
         return planning_env
 
     # Creating the PPO update step

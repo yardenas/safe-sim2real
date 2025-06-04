@@ -14,6 +14,7 @@ class ModelBasedEnv(envs.Env):
         action_size: int,
         model_network,
         model_params,
+        env,
         normalizer_params: running_statistics.RunningStatisticsState,
         ensemble_selection: str = "mean",  # "random", "mean", or "pessimistic"
         safety_budget: float = float("inf"),
@@ -26,6 +27,7 @@ class ModelBasedEnv(envs.Env):
         self.safety_budget = safety_budget
         self._observation_size = observation_size
         self._action_size = action_size
+        self.env = env  # The real environment to use for reset and step
 
     def reset(self, rng: jax.Array) -> base.State:
         """Reset using the real environment."""
@@ -35,49 +37,50 @@ class ModelBasedEnv(envs.Env):
 
     def step(self, state: base.State, action: jax.Array) -> base.State:
         """Step using the learned model."""
-        # Predict next state, reward, and cost using the model
-        (
-            (diff_next_obs_pred, reward_pred, cost_pred),
-            (diff_next_obs_std, reward_std, cost_std),
-        ) = self.model_network.apply(
-            self.normalizer_params, self.model_params, state.obs, action
-        )
-        # Select from ensemble
-        next_obs, reward, cost = _propagate_ensemble(
-            diff_next_obs_pred,
-            reward_pred,
-            cost_pred,
-            self.ensemble_selection,
-            state,
-        )
+        # # Predict next state, reward, and cost using the model
+        # (
+        #     (diff_next_obs_pred, reward_pred, cost_pred),
+        #     (diff_next_obs_std, reward_std, cost_std),
+        # ) = self.model_network.apply(
+        #     self.normalizer_params, self.model_params, state.obs, action
+        # )
+        # # Select from ensemble
+        # next_obs, reward, cost = _propagate_ensemble(
+        #     diff_next_obs_pred,
+        #     reward_pred,
+        #     cost_pred,
+        #     self.ensemble_selection,
+        #     state,
+        # )
 
-        done = jnp.zeros_like(reward, dtype=jnp.float32)
-        truncation = jnp.zeros_like(reward, dtype=jnp.float32)
-        state.info["cost"] = cost
-        state.info["truncation"] = truncation
+        # done = jnp.zeros_like(reward, dtype=jnp.float32)
+        # truncation = jnp.zeros_like(reward, dtype=jnp.float32)
+        # state.info["cost"] = cost
+        # state.info["truncation"] = truncation
 
-        if "cumulative_cost" in state.info:
-            prev_cumulative_cost = state.info["cumulative_cost"]
-            accumulated_cost_for_transition = prev_cumulative_cost + cost
-            if self.safety_budget < float("inf"):
-                done = jnp.where(
-                    accumulated_cost_for_transition > self.safety_budget,
-                    jnp.ones_like(done),
-                    done,
-                )
-            accumulated_cost_for_transition = jnp.where(
-                done > 0,
-                jnp.zeros_like(accumulated_cost_for_transition),
-                accumulated_cost_for_transition,
-            )
-            state.info["cumulative_cost"] = accumulated_cost_for_transition
+        # if "cumulative_cost" in state.info:
+        #     prev_cumulative_cost = state.info["cumulative_cost"]
+        #     accumulated_cost_for_transition = prev_cumulative_cost + cost
+        #     if self.safety_budget < float("inf"):
+        #         done = jnp.where(
+        #             accumulated_cost_for_transition > self.safety_budget,
+        #             jnp.ones_like(done),
+        #             done,
+        #         )
+        #     accumulated_cost_for_transition = jnp.where(
+        #         done > 0,
+        #         jnp.zeros_like(accumulated_cost_for_transition),
+        #         accumulated_cost_for_transition,
+        #     )
+        #     state.info["cumulative_cost"] = accumulated_cost_for_transition
 
-        state = state.replace(
-            obs=next_obs,
-            reward=reward,
-            done=done,
-            info=state.info,
-        )
+        # state = state.replace(
+        #     obs=next_obs,
+        #     reward=reward,
+        #     done=done,
+        #     info=state.info,
+        # )
+        state = self.env.step(state, action)
         return state
 
     def observation_size(self) -> int:
@@ -94,6 +97,7 @@ class ModelBasedEnv(envs.Env):
 
 
 def create_model_env(
+    env,
     model_network,
     model_params,
     observation_size: int,
@@ -111,6 +115,7 @@ def create_model_env(
         normalizer_params=normalizer_params,
         ensemble_selection=ensemble_selection,
         safety_budget=safety_budget,
+        env=env,  # The real environment to use for reset and step
     )
 
 
