@@ -167,7 +167,7 @@ def update_fn(
                 ],  # REDO!!
                 obs=transitions.observation,
                 reward=transitions.reward,
-                done=transitions.discount,
+                done=1 - transitions.discount,
                 info={
                     "cumulative_cost": cumulative_cost,  # type: ignore
                     "truncation": transitions.extras["state_extras"]["truncation"],
