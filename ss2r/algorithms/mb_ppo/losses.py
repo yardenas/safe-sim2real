@@ -138,6 +138,7 @@ def make_losses(
             reward_pred, reward_std, current_reward_target, learn_std
         )
         cost_loss = 0.0
+        cost_target = None
         if "state_extras" in data.extras and "cost" in data.extras["state_extras"]:
             cost_target = expand(data.extras["state_extras"]["cost"])
             cost_loss = _neg_log_posterior(cost_pred, cost_std, cost_target, learn_std)
