@@ -25,7 +25,7 @@ deterministic_eval: true
 normalize_advantage: true
 model_hidden_layer_sizes: [512, 512]
 policy_hidden_layer_sizes: [64, 64, 64]
-value_hidden_layer_sizes: [265, 265, 265, 265]
+value_hidden_layer_sizes: [64, 64, 64]
 activation: swish
 max_grad_norm: 1.0
 use_bro: false

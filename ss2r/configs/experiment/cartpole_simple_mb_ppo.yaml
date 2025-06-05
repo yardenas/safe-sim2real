@@ -14,7 +14,7 @@ training:
 
 agent:
   reward_scaling: 10.0
-  normalize_observations: true
+  normalize_observations: false
   unroll_length: 10
   num_minibatches: 32
   num_updates_per_batch: 16

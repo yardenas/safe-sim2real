@@ -180,11 +180,7 @@ def make_losses(
         rewards = data.reward * reward_scaling
         truncation = data.extras["state_extras"]["truncation"]
         termination = (1 - data.discount) * (1 - truncation)
-        jax.debug.print("truncation: {truncation}", truncation=truncation)
-        jax.debug.print("termination: {termination}", termination=termination)
-        jax.debug.print("discount: {discount}", discount=data.discount)
         raw_action = data.extras["policy_extras"]["raw_action"]
-        jax.debug.print("raw_action: {raw_action}", raw_action=raw_action)
 
         target_log_probs = parametric_action_distribution.log_prob(
             policy_logits,
