@@ -142,7 +142,6 @@ def make_losses(
         if "state_extras" in data.extras and "cost" in data.extras["state_extras"]:
             cost_target = expand(data.extras["state_extras"]["cost"])
             cost_loss = _neg_log_posterior(cost_pred, cost_std, cost_target, learn_std)
-        # FIXME: (manu) test zero loss change back!
         total_loss = next_obs_loss + reward_loss + cost_loss
         # Compute MSE for monitoring
         obs_mse = jnp.mean(jnp.square(next_obs_pred - next_obs_target))

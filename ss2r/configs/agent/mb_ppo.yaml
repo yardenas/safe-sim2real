@@ -3,13 +3,13 @@ defaults:
 
 name: mb_ppo
 
-actor_critic_learning_rate: 1e-3
+actor_critic_learning_rate: 3e-4
 model_learning_rate: 1e-3
-entropy_cost: 0.01
+entropy_cost: 0.05
 discounting: 0.995
 safety_discounting: 0.9
-unroll_length: 30
-batch_size: 1024
+unroll_length: 10
+batch_size: 256
 num_minibatches: 32
 num_updates_per_batch: 16
 ppo_updates_per_step: 100
@@ -23,14 +23,14 @@ clipping_epsilon: 0.3
 gae_lambda: 0.95
 deterministic_eval: true
 normalize_advantage: true
-model_hidden_layer_sizes: [512, 512]
+model_hidden_layer_sizes: [200, 200, 200, 200]
 policy_hidden_layer_sizes: [64, 64, 64]
 value_hidden_layer_sizes: [64, 64, 64]
-activation: swish
+activation: silu
 max_grad_norm: 1.0
 use_bro: false
 n_ensemble: 5
-learn_std: false
+learn_std: true
 normalize_budget: true
 reset_on_eval: true
 store_buffer: false
