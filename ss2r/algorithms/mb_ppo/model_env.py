@@ -37,14 +37,14 @@ class ModelBasedEnv(envs.Env):
         """Step using the learned model."""
         # Predict next state, reward, and cost using the model
         (
-            (next_obs_pred, reward_pred, cost_pred),
+            (diff_to_next_obs_pred, reward_pred, cost_pred),
             (diff_next_obs_std, reward_std, cost_std),
         ) = self.model_network.apply(
             self.normalizer_params, self.model_params, state.obs, action
         )
         # Select from ensemble
         next_obs, reward, cost = _propagate_ensemble(
-            next_obs_pred,
+            diff_to_next_obs_pred,
             reward_pred,
             cost_pred,
             self.ensemble_selection,
@@ -115,7 +115,7 @@ def create_model_env(
 
 
 def _propagate_ensemble(
-    next_obs_pred: jax.Array,
+    diff_to_next_obs_pred: jax.Array,
     reward_pred: jax.Array,
     cost_pred: jax.Array,
     ensemble_selection: str,
@@ -124,20 +124,22 @@ def _propagate_ensemble(
     """Propagate the ensemble predictions based on the selection method."""
     if ensemble_selection == "random":
         key_ensemble_selection = jax.random.PRNGKey(jnp.sum(jnp.abs(state.obs)))
-        batch_size = next_obs_pred.shape[0]
-        ensemble_size = next_obs_pred.shape[1]
+        batch_size = diff_to_next_obs_pred.shape[0]
+        ensemble_size = diff_to_next_obs_pred.shape[1]
         random_indices = jax.random.randint(
             key_ensemble_selection, (batch_size,), 0, ensemble_size
         )
-        next_obs = jax.vmap(lambda arr, idx: arr[idx])(next_obs_pred, random_indices)
+        next_obs = state.obs + jax.vmap(lambda arr, idx: arr[idx])(
+            diff_to_next_obs_pred, random_indices
+        )
         reward = jax.vmap(lambda arr, idx: arr[idx])(reward_pred, random_indices)
         cost = jax.vmap(lambda arr, idx: arr[idx])(cost_pred, random_indices)
     elif ensemble_selection == "mean":
-        next_obs = jnp.mean(next_obs_pred, axis=0)
+        next_obs = state.obs + jnp.mean(diff_to_next_obs_pred, axis=0)
         reward = jnp.mean(reward_pred, axis=0)
         cost = jnp.mean(cost_pred, axis=0)
     elif ensemble_selection == "pessimistic":
-        next_obs = jnp.mean(next_obs_pred, axis=0)
+        next_obs = state.obs + jnp.mean(diff_to_next_obs_pred, axis=0)
         reward = jnp.min(reward_pred, axis=0)
         cost = jnp.max(cost_pred, axis=0)
     else:
