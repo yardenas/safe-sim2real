@@ -11,7 +11,7 @@ safety_discounting: 0.9
 unroll_length: 10
 batch_size: 1024
 num_minibatches: 32
-num_updates_per_batch: 1
+num_updates_per_batch: 2
 ppo_updates_per_step: 1600
 model_updates_per_step: 1000
 min_replay_size: 8192

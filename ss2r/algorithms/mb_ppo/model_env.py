@@ -131,14 +131,11 @@ def _propagate_ensemble(
 ) -> tuple[jax.Array, jax.Array, jax.Array]:
     """Propagate the ensemble predictions based on the selection method."""
     if ensemble_selection == "random":
-        batch_size = diff_to_next_obs_pred.shape[0]
-        ensemble_size = diff_to_next_obs_pred.shape[1]
-        random_indices = jax.random.randint(key, (batch_size,), 0, ensemble_size)
-        next_obs = state.obs + jax.vmap(lambda arr, idx: arr[idx])(
-            diff_to_next_obs_pred, random_indices
-        )
-        reward = jax.vmap(lambda arr, idx: arr[idx])(reward_pred, random_indices)
-        cost = jax.vmap(lambda arr, idx: arr[idx])(cost_pred, random_indices)
+        # Randomly select one of the ensemble predictions
+        idx = jax.random.randint(key, (1,), 0, diff_to_next_obs_pred.shape[0])[0]
+        next_obs = state.obs + diff_to_next_obs_pred[idx]
+        reward = reward_pred[idx]
+        cost = cost_pred[idx]
     elif ensemble_selection == "mean":
         next_obs = state.obs + jnp.mean(diff_to_next_obs_pred, axis=0)
         reward = jnp.mean(reward_pred, axis=0)
