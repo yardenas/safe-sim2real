@@ -21,8 +21,7 @@ import jax.numpy as jnp
 import optax
 from absl import logging
 from brax import envs
-
-# from brax.envs.wrappers.training import VmapWrapper
+from brax.envs.wrappers.training import VmapWrapper
 from brax.training import replay_buffers, types
 from brax.training.acme import running_statistics, specs
 from brax.training.agents.sac import checkpoint
@@ -272,6 +271,7 @@ def train(
             observation_size=obs_size,
             action_size=action_size,
         )
+        planning_env = VmapWrapper(planning_env)
         return planning_env
 
     # Creating the PPO update step
