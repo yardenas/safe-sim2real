@@ -137,7 +137,7 @@ def _propagate_ensemble(
         reward = jnp.mean(reward_pred, axis=0)
         cost = jnp.mean(cost_pred, axis=0)
     elif ensemble_selection == "pessimistic":
-        next_obs = state.obs + jnp.mean(next_obs_pred, axis=0)
+        next_obs = jnp.mean(next_obs_pred, axis=0)
         reward = jnp.min(reward_pred, axis=0)
         cost = jnp.max(cost_pred, axis=0)
     else:

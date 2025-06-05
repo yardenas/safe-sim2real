@@ -30,7 +30,7 @@ activation: silu
 max_grad_norm: 1.0
 use_bro: false
 n_ensemble: 5
-learn_std: true
+learn_std: false
 normalize_budget: true
 reset_on_eval: true
 store_buffer: false

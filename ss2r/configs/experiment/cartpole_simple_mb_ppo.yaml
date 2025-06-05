@@ -6,17 +6,17 @@ defaults:
 
 training:
   num_timesteps: 5000000
-  safe: true
+  safe: false
   train_domain_randomization: false
   eval_domain_randomization: false
   num_eval_episodes: 1
   num_envs: 5
 
 agent:
-  reward_scaling: 1.0
+  reward_scaling: 10.0
   normalize_observations: true
   unroll_length: 10
   num_minibatches: 32
   num_updates_per_batch: 16
   discounting: 0.995
-  entropy_cost: 0.05
+  entropy_cost: 0.025
