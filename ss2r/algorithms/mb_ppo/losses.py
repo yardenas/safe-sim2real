@@ -142,11 +142,13 @@ def make_losses(
         if "state_extras" in data.extras and "cost" in data.extras["state_extras"]:
             cost_target = expand(data.extras["state_extras"]["cost"])
             cost_loss = _neg_log_posterior(cost_pred, cost_std, cost_target, learn_std)
-        total_loss = next_obs_loss + reward_loss + cost_loss
+        # total_loss = next_obs_loss + reward_loss + cost_loss
         # Compute MSE for monitoring
         obs_mse = jnp.mean(jnp.square(next_obs_pred - next_obs_target))
         reward_mse = jnp.mean(jnp.square(reward_pred - current_reward_target))
         cost_mse = 0.0
+        # FIXME: (manu) change back to actual losses
+        total_loss = obs_mse + reward_mse
         if cost_target is not None:
             cost_mse = jnp.mean(jnp.square(cost_pred - cost_target))
         aux = {
@@ -178,7 +180,12 @@ def make_losses(
         rewards = data.reward * reward_scaling
         truncation = data.extras["state_extras"]["truncation"]
         termination = (1 - data.discount) * (1 - truncation)
+        jax.debug.print("truncation: {truncation}", truncation=truncation)
+        jax.debug.print("termination: {termination}", termination=termination)
+        jax.debug.print("discount: {discount}", discount=data.discount)
         raw_action = data.extras["policy_extras"]["raw_action"]
+        jax.debug.print("raw_action: {raw_action}", raw_action=raw_action)
+
         target_log_probs = parametric_action_distribution.log_prob(
             policy_logits,
             raw_action,  # Use fixed shape

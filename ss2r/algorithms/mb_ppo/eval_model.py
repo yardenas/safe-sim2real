@@ -130,7 +130,7 @@ def main(run_id):
         action_size,
         normalize_fn,
         denormalize_fn,
-        model_hidden_layer_sizes=(265, 265, 265, 265),
+        model_hidden_layer_sizes=(512, 512),
         policy_hidden_layer_sizes=(64, 64, 64),
         use_bro=False,
     )
@@ -159,5 +159,5 @@ def main(run_id):
 
 
 if __name__ == "__main__":
-    run_id = "dbhfs4ve"  # <-- Replace with your actual run ID
+    run_id = "9qnzmfz0"  # <-- Replace with your actual run ID
     main(run_id)
