@@ -23,9 +23,9 @@ clipping_epsilon: 0.3
 gae_lambda: 0.95
 deterministic_eval: true
 normalize_advantage: true
-model_hidden_layer_sizes: [200, 200, 200, 200]
+model_hidden_layer_sizes: [265, 265, 265, 265]
 policy_hidden_layer_sizes: [64, 64, 64]
-value_hidden_layer_sizes: [64, 64, 64]
+value_hidden_layer_sizes: [265, 265, 265, 265]
 activation: silu
 max_grad_norm: 1.0
 use_bro: false
