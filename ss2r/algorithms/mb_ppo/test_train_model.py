@@ -9,6 +9,7 @@ from brax.training.acme import running_statistics, specs
 from brax.training.types import Transition
 
 from ss2r.algorithms.mb_ppo import losses as mb_ppo_losses
+from ss2r.algorithms.mb_ppo import model_env
 from ss2r.algorithms.mb_ppo import networks as mb_ppo_networks
 from ss2r.benchmark_suites.brax.cartpole import cartpole
 
@@ -151,6 +152,23 @@ def test_train_model(lr=1e-3, epochs=100, use_bro=False, num_ensemble=1):
         normalizer_params, transitions.observation
     )
 
+    def create_planning_env(model_params, normalizer_params):
+        """Create a planning environment with correct batch size for model-based rollouts."""
+        planning_env = model_env.create_model_env(
+            model_network=ppo_network.model_network,
+            model_params=model_params,
+            normalizer_params=normalizer_params,
+            ensemble_selection="mean",
+            safety_budget=float("inf"),
+            observation_size=obs_size,
+            action_size=action_size,
+        )
+        return planning_env
+
+    planning_env = create_planning_env(
+        model_params=params, normalizer_params=normalizer_params
+    )
+
     # Make loss
     model_loss, *_ = mb_ppo_losses.make_losses(
         ppo_network=ppo_network,
@@ -284,6 +302,25 @@ def test_train_model(lr=1e-3, epochs=100, use_bro=False, num_ensemble=1):
             cost_model = jnp.mean(cost_model, axis=0)
             return next_state_model, (next_state_model, reward_model, cost_model)
 
+        def rollout_model_env(carry, action):
+            state_model = carry
+            return planning_env.step(state_model, action)
+
+        def single_traj_model_env(init_state_env, key):
+            (final_state, _), (states) = jax.lax.scan(
+                rollout_model_env, init_state_env, None, length=num_timesteps
+            )
+            obs_seq = jnp.concatenate(
+                [init_state_env.obs[None, ...], states.obs], axis=0
+            )
+            reward_seq = jnp.concatenate([jnp.ones((1,)), states.reward], axis=0)
+            cost_seq = jnp.concatenate([jnp.zeros((1,)), states.cost], axis=0)
+            return obs_seq, reward_seq, cost_seq
+
+        obs_model_env, rewards_model_env, actions_model_env = jax.vmap(
+            single_traj_model_env
+        )(initial_states_env, keys)
+
         def single_env_traj(init_state_env, key):
             (final_state, _), (obs_seq, reward_seq, action_seq) = jax.lax.scan(
                 rollout_env, (init_state_env, key), None, length=num_timesteps
@@ -325,12 +362,21 @@ def test_train_model(lr=1e-3, epochs=100, use_bro=False, num_ensemble=1):
                 plt.plot(
                     obs_model[traj, :, i], label="Model", color="red", linestyle="--"
                 )
+                plt.plot(
+                    obs_model_env[traj, :, i],
+                    label="Model Env",
+                    color="green",
+                    linestyle=":",
+                )
                 plt.title(f"Traj {traj+1} - State {i}")
                 if traj == 0:
                     plt.legend()
             plt.subplot(num_trajs, 6, traj * 6 + 6)
             plt.plot(rewards_env[traj], label="Env", color="blue")
             plt.plot(rewards_model[traj], label="Model", color="red", linestyle="--")
+            plt.plot(
+                rewards_model_env[traj], label="Model Env", color="green", linestyle=":"
+            )
             plt.title(f"Traj {traj+1} - Reward")
             if traj == 0:
                 plt.legend()
@@ -349,10 +395,10 @@ if __name__ == "__main__":
         description="Train and test a model with specified learning rate"
     )
     parser.add_argument(
-        "--lr", type=float, default=1e-4, help="Learning rate for model training"
+        "--lr", type=float, default=1e-3, help="Learning rate for model training"
     )
     parser.add_argument(
-        "--epochs", type=int, default=100, help="Number of training epochs"
+        "--epochs", type=int, default=1, help="Number of training epochs"
     )
     parser.add_argument(
         "--use_bro",

@@ -272,7 +272,6 @@ def train(
             observation_size=obs_size,
             action_size=action_size,
         )
-        # planning_env = VmapWrapper(planning_env)
         return planning_env
 
     # Creating the PPO update step

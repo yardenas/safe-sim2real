@@ -150,9 +150,9 @@ def update_fn(
             transitions = float32(transitions)
 
             # FIXME (manu): make sure that minval and maxval are correct
-            # cumulative_cost = jax.random.uniform(
-            #     cost_key, (transitions.reward.shape[0],), minval=0.0, maxval=0.0
-            # )
+            cumulative_cost = jax.random.uniform(
+                cost_key, (transitions.reward.shape[0],), minval=0.0, maxval=0.0
+            )
             # FIXME (manu): make sure to delete this again
             reset_fn = env.reset
             batch_size = replay_buffer._sample_batch_size
@@ -168,6 +168,13 @@ def update_fn(
                 obs=transitions.observation,
                 reward=transitions.reward,
                 done=transitions.discount,
+                info={
+                    "cumulative_cost": cumulative_cost,  # type: ignore
+                    "truncation": transitions.extras["state_extras"]["truncation"],
+                    "cost": transitions.extras["state_extras"].get(
+                        "cost", jnp.zeros_like(cumulative_cost)
+                    ),
+                },
             )
 
             # state = envs.State(
