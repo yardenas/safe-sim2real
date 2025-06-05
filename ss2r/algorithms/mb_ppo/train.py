@@ -264,7 +264,6 @@ def train(
     def create_planning_env(model_params, normalizer_params):
         """Create a planning environment with correct batch size for model-based rollouts."""
         planning_env = model_env.create_model_env(
-            env,
             model_network=ppo_network.model_network,
             model_params=model_params,
             normalizer_params=normalizer_params,

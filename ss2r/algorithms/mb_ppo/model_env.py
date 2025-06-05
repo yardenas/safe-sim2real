@@ -14,7 +14,6 @@ class ModelBasedEnv(envs.Env):
         action_size: int,
         model_network,
         model_params,
-        env,
         normalizer_params: running_statistics.RunningStatisticsState,
         ensemble_selection: str = "mean",  # "random", "mean", or "pessimistic"
         safety_budget: float = float("inf"),
@@ -27,7 +26,6 @@ class ModelBasedEnv(envs.Env):
         self.safety_budget = safety_budget
         self._observation_size = observation_size
         self._action_size = action_size
-        self.env = env  # The real environment to use for reset and step
 
     def reset(self, rng: jax.Array) -> base.State:
         """Reset using the real environment."""
@@ -74,13 +72,11 @@ class ModelBasedEnv(envs.Env):
             )
             state.info["cumulative_cost"] = accumulated_cost_for_transition
 
-        state = self.env.step(state, action)
-
         state = state.replace(
             obs=next_obs,
             reward=reward,
-            # done=done,
-            # info=state.info,
+            done=done,
+            info=state.info,
         )
         return state
 
@@ -98,7 +94,6 @@ class ModelBasedEnv(envs.Env):
 
 
 def create_model_env(
-    env,
     model_network,
     model_params,
     observation_size: int,
@@ -116,7 +111,6 @@ def create_model_env(
         normalizer_params=normalizer_params,
         ensemble_selection=ensemble_selection,
         safety_budget=safety_budget,
-        env=env,  # The real environment to use for reset and step
     )
 
 
@@ -139,9 +133,9 @@ def _propagate_ensemble(
         reward = jax.vmap(lambda arr, idx: arr[idx])(reward_pred, random_indices)
         cost = jax.vmap(lambda arr, idx: arr[idx])(cost_pred, random_indices)
     elif ensemble_selection == "mean":
-        next_obs = state.obs + jnp.median(next_obs_pred, axis=0)
-        reward = jnp.median(reward_pred, axis=0)
-        cost = jnp.median(cost_pred, axis=0)
+        next_obs = jnp.mean(next_obs_pred, axis=0)
+        reward = jnp.mean(reward_pred, axis=0)
+        cost = jnp.mean(cost_pred, axis=0)
     elif ensemble_selection == "pessimistic":
         next_obs = state.obs + jnp.mean(next_obs_pred, axis=0)
         reward = jnp.min(reward_pred, axis=0)

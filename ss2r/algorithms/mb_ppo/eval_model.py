@@ -130,7 +130,7 @@ def main(run_id):
         action_size,
         normalize_fn,
         denormalize_fn,
-        model_hidden_layer_sizes=(256, 256),
+        model_hidden_layer_sizes=(265, 265, 265, 265),
         policy_hidden_layer_sizes=(64, 64, 64),
         use_bro=False,
     )
@@ -147,7 +147,7 @@ def main(run_id):
     )
     # === Run policy to collect a trajectory ===
     key = jax.random.PRNGKey(42)
-    horizon = 25
+    horizon = 30
     rewards, actions, obs = run_policy(env, policy, steps=horizon, key=key)
     # === Evaluate model over final `horizon` steps ===
     pred_rewards, pred_obs = evaluate_model(
