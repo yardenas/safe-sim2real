@@ -3,6 +3,7 @@ import jax.numpy as jnp
 from brax import envs
 from brax.envs import base
 from brax.training.acme import running_statistics
+from brax.training.types import PRNGKey
 
 
 class ModelBasedEnv(envs.Env):
@@ -17,6 +18,7 @@ class ModelBasedEnv(envs.Env):
         normalizer_params: running_statistics.RunningStatisticsState,
         ensemble_selection: str = "mean",  # "random", "mean", or "pessimistic"
         safety_budget: float = float("inf"),
+        sample_key: PRNGKey = jax.random.PRNGKey(0),
     ):
         super().__init__()
         self.model_network = model_network
@@ -26,6 +28,7 @@ class ModelBasedEnv(envs.Env):
         self.safety_budget = safety_budget
         self._observation_size = observation_size
         self._action_size = action_size
+        self.sample_key = sample_key
 
     def reset(self, rng: jax.Array) -> base.State:
         """Reset using the real environment."""
@@ -43,12 +46,14 @@ class ModelBasedEnv(envs.Env):
             self.normalizer_params, self.model_params, state.obs, action
         )
         # Select from ensemble
+        self.sample_key, key = jax.random.split(self.sample_key)
         next_obs, reward, cost = _propagate_ensemble(
             diff_to_next_obs_pred,
             reward_pred,
             cost_pred,
             self.ensemble_selection,
             state,
+            key,
         )
 
         done = jnp.zeros_like(reward, dtype=jnp.float32)
@@ -101,6 +106,7 @@ def create_model_env(
     normalizer_params: running_statistics.RunningStatisticsState,
     ensemble_selection: str = "random",
     safety_budget: float = float("inf"),
+    sample_key: PRNGKey = jax.random.PRNGKey(0),
 ) -> ModelBasedEnv:
     """Factory function to create a model-based environment."""
     return ModelBasedEnv(
@@ -111,6 +117,7 @@ def create_model_env(
         normalizer_params=normalizer_params,
         ensemble_selection=ensemble_selection,
         safety_budget=safety_budget,
+        sample_key=sample_key,
     )
 
 
@@ -120,10 +127,11 @@ def _propagate_ensemble(
     cost_pred: jax.Array,
     ensemble_selection: str,
     state: base.State,
+    key,
 ) -> tuple[jax.Array, jax.Array, jax.Array]:
     """Propagate the ensemble predictions based on the selection method."""
     if ensemble_selection == "random":
-        key_ensemble_selection = jax.random.PRNGKey(jnp.sum(jnp.abs(state.obs)))
+        key_ensemble_selection = jax.random.PRNGKey(key)
         batch_size = diff_to_next_obs_pred.shape[0]
         ensemble_size = diff_to_next_obs_pred.shape[1]
         random_indices = jax.random.randint(

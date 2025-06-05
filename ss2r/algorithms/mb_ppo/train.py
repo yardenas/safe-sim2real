@@ -126,6 +126,7 @@ def train(
     safe: bool = False,
     use_bro: bool = True,
     n_ensemble: int = 5,
+    ensemble_selection: str = "random",
     learn_std: bool = False,
     normalize_budget: bool = True,
     reset_on_eval: bool = True,
@@ -260,16 +261,19 @@ def train(
     )
 
     # Create the model-based planning environment
-    def create_planning_env(model_params, normalizer_params):
+    def create_planning_env(
+        model_params, normalizer_params, model_env_key, ensemble_selection
+    ):
         """Create a planning environment with correct batch size for model-based rollouts."""
         planning_env = model_env.create_model_env(
             model_network=ppo_network.model_network,
             model_params=model_params,
             normalizer_params=normalizer_params,
-            ensemble_selection="mean",
+            ensemble_selection=ensemble_selection,
             safety_budget=safety_budget,
             observation_size=obs_size,
             action_size=action_size,
+            sample_key=model_env_key,
         )
         planning_env = VmapWrapper(planning_env)
         return planning_env
@@ -289,6 +293,7 @@ def train(
         make_policy,
         num_updates_per_batch,
         safe,
+        ensemble_selection,
         env,  # delete me
     )
 

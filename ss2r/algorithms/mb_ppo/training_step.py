@@ -27,6 +27,7 @@ def update_fn(
     make_policy,
     num_updates_per_batch,
     safe,
+    ensemble_selection,
     env,
 ):
     policy_gradient_update_fn = gradients.gradient_update_fn(
@@ -122,11 +123,20 @@ def update_fn(
         carry: Tuple[TrainingState, envs.State, PRNGKey], unused_t
     ) -> Tuple[Tuple[TrainingState, envs.State, PRNGKey], Metrics]:
         training_state, buffer_state, key = carry
-        key_sgd, key_generate_unroll, cost_key, new_key = jax.random.split(key, 4)
+        (
+            key_model_env,
+            key_sgd,
+            key_generate_unroll,
+            cost_key,
+            new_key,
+        ) = jax.random.split(key, 5)
 
         # Create planning environment with current model parameters
         planning_env = planning_env_factory(
-            training_state.params.model, training_state.normalizer_params
+            training_state.params.model,
+            training_state.normalizer_params,
+            key_model_env,
+            ensemble_selection,
         )
         policy = make_policy(
             (
