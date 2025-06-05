@@ -160,7 +160,6 @@ def test_train_model(lr=1e-3, epochs=100, use_bro=False, num_ensemble=1):
         reward_scaling=1.0,
         cost_scaling=1.0,
         gae_lambda=0.95,
-        safety_gae_lambda=0.95,
         clipping_epsilon=0.3,
         normalize_advantage=True,
     )
