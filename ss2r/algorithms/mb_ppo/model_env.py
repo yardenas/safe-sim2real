@@ -78,7 +78,7 @@ class ModelBasedEnv(envs.Env):
 
         state = state.replace(
             obs=next_obs,
-            reward=reward,
+            # reward=reward,
             # done=done,
             # info=state.info,
         )
