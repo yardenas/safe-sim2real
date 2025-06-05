@@ -131,12 +131,9 @@ def _propagate_ensemble(
 ) -> tuple[jax.Array, jax.Array, jax.Array]:
     """Propagate the ensemble predictions based on the selection method."""
     if ensemble_selection == "random":
-        key_ensemble_selection = jax.random.PRNGKey(key)
         batch_size = diff_to_next_obs_pred.shape[0]
         ensemble_size = diff_to_next_obs_pred.shape[1]
-        random_indices = jax.random.randint(
-            key_ensemble_selection, (batch_size,), 0, ensemble_size
-        )
+        random_indices = jax.random.randint(key, (batch_size,), 0, ensemble_size)
         next_obs = state.obs + jax.vmap(lambda arr, idx: arr[idx])(
             diff_to_next_obs_pred, random_indices
         )
