@@ -255,13 +255,13 @@ def train(
         params = checkpoint.load(restore_checkpoint_path)
         penalizer_params = type(training_state.penalizer_params)(**params[2])
         # FIXME (YARDEN)
-        training_state = training_state.replace(  # type: ignore
-            normalizer_params=params[0],
-            # policy_params=params[1],
-            penalizer_params=penalizer_params,
-            # qr_params=params[3],
-            # qc_params=params[4],
-        )
+        # training_state = training_state.replace(  # type: ignore
+        #     normalizer_params=params[0],
+        #     # policy_params=params[1],
+        #     penalizer_params=penalizer_params,
+        #     # qr_params=params[3],
+        #     # qc_params=params[4],
+        # )
         if len(params) >= 6 and use_rae:
             logging.info("Restoring replay buffer state")
             buffer_state = params[5]
