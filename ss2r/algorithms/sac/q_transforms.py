@@ -128,7 +128,7 @@ class SACBase(QTransformation):
         next_action, next_log_prob = policy(transitions.next_observation)
         next_q = q_fn(transitions.next_observation, next_action)
         if self.use_bro:
-            next_v = next_q.mean(axis=-1)
+            next_v = jax.random.permutation(key, next_q, axis=-1)[..., :2].mean(axis=-1)
         else:
             next_v = next_q.min(axis=-1)
         next_v -= alpha * next_log_prob
