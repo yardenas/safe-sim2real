@@ -118,7 +118,7 @@ def main(run_id):
         value_params,
         cost_value_params,
         model_params,
-        model_params_pretrained,
+        model_paramsl,
     ) = params
     # === Brax environment and policy ===
     env = cartpole.Cartpole(backend="generalized", swingup=False, sparse=False)
@@ -131,7 +131,7 @@ def main(run_id):
         action_size,
         normalize_fn,
         denormalize_fn,
-        model_hidden_layer_sizes=(512, 512),
+        model_hidden_layer_sizes=(256, 256, 256, 256),
         policy_hidden_layer_sizes=(64, 64, 64),
         use_bro=False,
     )
@@ -160,5 +160,5 @@ def main(run_id):
 
 
 if __name__ == "__main__":
-    run_id = "t013qcwi"  # <-- Replace with your actual run ID
+    run_id = "zcuwopxo"  # <-- Replace with your actual run ID
     main(run_id)

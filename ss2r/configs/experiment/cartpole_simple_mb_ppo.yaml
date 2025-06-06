@@ -16,3 +16,5 @@ training:
 agent:
   discounting: 0.995
   entropy_cost: 0.01
+  model_learning_rate: 1e-4
+  unroll_length: 10
