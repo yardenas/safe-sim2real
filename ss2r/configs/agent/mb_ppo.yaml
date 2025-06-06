@@ -5,7 +5,7 @@ name: mb_ppo
 
 actor_critic_learning_rate: 1e-3
 model_learning_rate: 1e-3
-entropy_cost: 0.05
+entropy_cost: 0.01
 discounting: 0.995
 safety_discounting: 0.9
 unroll_length: 10
