@@ -21,7 +21,6 @@ import functools
 import time
 from typing import Any, Callable, Mapping, Optional, Tuple
 
-import flax
 import jax
 import jax.numpy as jnp
 import optax
@@ -45,30 +44,11 @@ from ss2r.algorithms.sac.types import (
     CollectDataFn,
     Metrics,
     ReplayBufferState,
+    TrainingState,
     Transition,
     float16,
 )
 from ss2r.rl.evaluation import ConstraintsEvaluator
-
-
-@flax.struct.dataclass
-class TrainingState:
-    """Contains training state for the learner."""
-
-    policy_optimizer_state: optax.OptState
-    policy_params: Params
-    qr_optimizer_state: optax.OptState
-    qc_optimizer_state: optax.OptState | None
-    qr_params: Params
-    qc_params: Params | None
-    target_qr_params: Params
-    target_qc_params: Params | None
-    gradient_steps: jnp.ndarray
-    env_steps: jnp.ndarray
-    alpha_optimizer_state: optax.OptState
-    alpha_params: Params
-    normalizer_params: running_statistics.RunningStatisticsState
-    penalizer_params: Params
 
 
 def _init_training_state(
@@ -150,6 +130,7 @@ def train(
     min_replay_size: int = 0,
     max_replay_size: Optional[int] = None,
     grad_updates_per_step: int = 1,
+    num_critic_updates_per_actor_update: int = 1,
     deterministic_eval: bool = False,
     network_factory: sac_networks.NetworkFactory[
         sac_networks.SafeSACNetworks
@@ -321,6 +302,8 @@ def train(
         cost_critic_update = gradients.gradient_update_fn(  # pytype: disable=wrong-arg-types  # jax-ndarray
             critic_loss, qc_optimizer, pmap_axis_name=None
         )
+    else:
+        cost_critic_update = None
     actor_update = (
         gradients.gradient_update_fn(  # pytype: disable=wrong-arg-types  # jax-ndarray
             actor_loss, policy_optimizer, pmap_axis_name=None, has_aux=True
@@ -351,6 +334,7 @@ def train(
         env_steps_per_experience_call,
         safety_budget,
         tau,
+        num_critic_updates_per_actor_update,
     )
 
     def prefill_replay_buffer(
