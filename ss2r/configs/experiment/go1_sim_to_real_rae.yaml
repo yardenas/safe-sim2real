@@ -2,15 +2,15 @@
 defaults:
   - go1_joystick
   - override /agent/penalizer: lagrangian
-  - override /agent/data_collection: episodic
+  - override /agent/data_collection: step
   - _self_
 
 training:
   train_domain_randomization: true
   eval_domain_randomization: true
   safe: false
-  wandb_id: 9a3kb4n0
-  num_envs: 1
+  wandb_id: 8wuunrrv
+  num_envs: 10
   num_timesteps: 5000000
 
 environment:
@@ -38,9 +38,11 @@ environment:
 
 agent:
   use_rae: true
-  min_replay_size: 100000
+  min_replay_size: 8192
   max_replay_size: 4194304
-  grad_updates_per_step: 20000
-  num_critic_updates_per_actor_update: 20
+  grad_updates_per_step: 25
+  num_critic_updates_per_actor_update: 25
   n_heads: 10
   n_critics: 1
+  batch_size: 256
+  use_bro: false
