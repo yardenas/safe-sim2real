@@ -45,3 +45,4 @@ agent:
   # FIXME (YARDEN)
   n_heads: 1
   n_critics: 10
+  use_bro: false
