@@ -199,6 +199,7 @@ def make_training_step(
         num_actor_updates = -(
             -grad_updates_per_step // num_critic_updates_per_actor_update
         )
+        assert num_actor_updates > 0, "Actor updates is non-positive"
         transitions = jax.tree_util.tree_map(
             lambda x: x[:num_actor_updates], transitions
         )
