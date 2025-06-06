@@ -2,7 +2,7 @@
 defaults:
   - go1_joystick
   - override /agent/penalizer: lagrangian
-  - override /agent/data_collection: step
+  - override /agent/data_collection: episode
   - _self_
 
 training:
@@ -40,9 +40,8 @@ agent:
   use_rae: true
   min_replay_size: 8192
   max_replay_size: 4194304
-  grad_updates_per_step: 25
-  num_critic_updates_per_actor_update: 25
+  grad_updates_per_step: 250
+  num_critic_updates_per_actor_update: 250
   n_heads: 10
   n_critics: 1
   batch_size: 256
-  use_bro: false
