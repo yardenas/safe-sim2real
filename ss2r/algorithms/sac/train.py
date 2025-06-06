@@ -259,8 +259,8 @@ def train(
             normalizer_params=params[0],
             policy_params=params[1],
             penalizer_params=penalizer_params,
-            # qr_params=params[3],
-            # qc_params=params[4],
+            qr_params=params[3],
+            qc_params=params[4],
         )
         if len(params) >= 6 and use_rae:
             logging.info("Restoring replay buffer state")
