@@ -41,7 +41,7 @@ agent:
   use_rae: true
   min_replay_size: 100000
   max_replay_size: 4194304
-  grad_updates_per_step: 20000
+  grad_updates_per_step: 20
   num_critic_updates_per_actor_update: 20
   # FIXME (YARDEN)
   n_heads: 1
