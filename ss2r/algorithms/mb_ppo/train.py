@@ -526,7 +526,9 @@ def train(
             optimizer_state=(model_optimizer.init(model_params),)
             + training_state.optimizer_state[1:],  # type: ignore
         )
-
+        pretrained_model = training_state.params.model  # type: ignore
+    else:
+        pretrained_model = None
     # Run initial eval
     metrics = {}
     if num_evals > 1:
@@ -580,6 +582,7 @@ def train(
                 training_state.params.value,
                 training_state.params.cost_value,
                 training_state.params.model,
+                pretrained_model,
             )
             if store_buffer:
                 params += (buffer_state,)  # type: ignore
@@ -602,6 +605,7 @@ def train(
         training_state.params.value,
         training_state.params.cost_value,
         training_state.params.model,
+        pretrained_model,  # type: ignore
     )
     if store_buffer:
         params += (buffer_state,)  # type: ignore
