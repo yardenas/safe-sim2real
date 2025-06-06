@@ -302,6 +302,8 @@ def train(
         cost_critic_update = gradients.gradient_update_fn(  # pytype: disable=wrong-arg-types  # jax-ndarray
             critic_loss, qc_optimizer, pmap_axis_name=None
         )
+    else:
+        cost_critic_update = None
     actor_update = (
         gradients.gradient_update_fn(  # pytype: disable=wrong-arg-types  # jax-ndarray
             actor_loss, policy_optimizer, pmap_axis_name=None, has_aux=True
