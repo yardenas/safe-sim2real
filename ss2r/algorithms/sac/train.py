@@ -254,7 +254,6 @@ def train(
     if restore_checkpoint_path is not None:
         params = checkpoint.load(restore_checkpoint_path)
         penalizer_params = type(training_state.penalizer_params)(**params[2])
-        # FIXME (YARDEN)
         training_state = training_state.replace(  # type: ignore
             normalizer_params=params[0],
             policy_params=params[1],

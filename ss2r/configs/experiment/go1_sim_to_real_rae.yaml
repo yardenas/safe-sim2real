@@ -2,8 +2,7 @@
 defaults:
   - go1_joystick
   - override /agent/penalizer: lagrangian
-  # FIXME (yarden)
-  - override /agent/data_collection: step
+  - override /agent/data_collection: episodic
   - _self_
 
 training:
@@ -41,9 +40,7 @@ agent:
   use_rae: true
   min_replay_size: 100000
   max_replay_size: 4194304
-  grad_updates_per_step: 20
+  grad_updates_per_step: 20000
   num_critic_updates_per_actor_update: 20
-  # FIXME (YARDEN)
-  n_heads: 1
-  n_critics: 10
-  use_bro: false
+  n_heads: 10
+  n_critics: 1
