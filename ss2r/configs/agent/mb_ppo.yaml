@@ -35,6 +35,6 @@ learn_std: false
 normalize_budget: true
 reset_on_eval: true
 pretrain_model: true
-pretrain_epochs: 100
+pretrain_epochs: 1000
 pretrain_num_samples: 1000000
 store_buffer: false
