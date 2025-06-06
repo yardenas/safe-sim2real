@@ -11,9 +11,9 @@ safety_discounting: 0.9
 unroll_length: 10
 batch_size: 1024
 num_minibatches: 32
-num_updates_per_batch: 2
-ppo_updates_per_step: 1600
-model_updates_per_step: 1000
+num_updates_per_batch: 16
+ppo_updates_per_step: 100
+model_updates_per_step: 100
 min_replay_size: 8192
 max_replay_size: 1048576
 normalize_observations: false
@@ -30,8 +30,11 @@ activation: swish
 max_grad_norm: 1.0
 use_bro: false
 n_ensemble: 5
-ensemble_selection: random
+ensemble_selection: mean
 learn_std: false
 normalize_budget: true
 reset_on_eval: true
+pretrain_model: true
+pretrain_epochs: 5000
+pretrain_num_samples: 2000000
 store_buffer: false

@@ -34,6 +34,7 @@ from ss2r.algorithms.mb_ppo import Metrics, TrainingState, model_env
 from ss2r.algorithms.mb_ppo import losses as mb_ppo_losses
 from ss2r.algorithms.mb_ppo import model_train_step as mb_model_training_step
 from ss2r.algorithms.mb_ppo import networks as mb_ppo_networks
+from ss2r.algorithms.mb_ppo import pre_train_model as ptm
 from ss2r.algorithms.mb_ppo import training_step as mb_ppo_training_step
 from ss2r.algorithms.sac.data import collect_single_step
 from ss2r.algorithms.sac.types import CollectDataFn, ReplayBufferState, float16
@@ -130,6 +131,9 @@ def train(
     learn_std: bool = False,
     normalize_budget: bool = True,
     reset_on_eval: bool = True,
+    pretrain_model: bool = False,
+    pretrain_epochs: int = 5000,
+    pretrain_num_samples: int = 1000000,
     store_buffer: bool = False,
 ):
     # Check if environment and buffer params are compatible.
@@ -397,11 +401,6 @@ def train(
                 // batch_size,
             )
             # Learn model with ppo on learned model (planning MDP)
-            # FIXME (manu) : Change back to handing over raply bufferstate.
-            # keys = jax.random.split(actor_critic_key, batch_size + 1)
-            # sample_keys = keys[:batch_size].reshape(batch_size, -1)
-            # actor_critic_key = keys[-1]
-            # state = reset_fn(sample_keys)
 
             (
                 (training_state, buffer_state, _),
@@ -506,6 +505,27 @@ def train(
         budget=episodic_safety_budget,
         num_episodes=num_eval_episodes,
     )
+
+    # Pretrain the model
+    if pretrain_model:
+        (model_params, normalizer_params) = ptm.pre_train_model(
+            params=training_state.params.model,  # type: ignore
+            model_network=ppo_network.model_network,
+            normalizer_params=training_state.normalizer_params,
+            model_optimizer=model_optimizer,
+            optimizer_state=training_state.optimizer_state[0],  # type: ignore
+            env=env,
+            model_loss=model_loss,
+            num_samples=pretrain_num_samples,
+            batch_size=batch_size,
+            epochs=pretrain_epochs,
+        )
+        training_state = training_state.replace(  # type: ignore
+            params=training_state.params.replace(model=model_params),  # type: ignore
+            normalizer_params=normalizer_params,
+            optimizer_state=(model_optimizer.init(model_params),)
+            + training_state.optimizer_state[1:],  # type: ignore
+        )
 
     # Run initial eval
     metrics = {}
