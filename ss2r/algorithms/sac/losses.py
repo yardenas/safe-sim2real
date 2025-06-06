@@ -147,7 +147,7 @@ def make_losses(
         if use_bro:
             qr = jnp.mean(qr_action, axis=-1)
         else:
-            # FIXME (yarden)
+            # FIXME
             qr = jnp.mean(qr_action, axis=-1)
         aux = {}
         actor_loss = -qr.mean()
