@@ -118,6 +118,7 @@ def main(run_id):
         value_params,
         cost_value_params,
         model_params,
+        model_params_pretrained,
     ) = params
     # === Brax environment and policy ===
     env = cartpole.Cartpole(backend="generalized", swingup=False, sparse=False)
@@ -147,7 +148,7 @@ def main(run_id):
     )
     # === Run policy to collect a trajectory ===
     key = jax.random.PRNGKey(42)
-    horizon = 500
+    horizon = 10
     rewards, actions, obs = run_policy(env, policy, steps=horizon, key=key)
     # === Evaluate model over final `horizon` steps ===
     pred_rewards, pred_obs = evaluate_model(
@@ -159,5 +160,5 @@ def main(run_id):
 
 
 if __name__ == "__main__":
-    run_id = "f7g57qsj"  # <-- Replace with your actual run ID
+    run_id = "t013qcwi"  # <-- Replace with your actual run ID
     main(run_id)
