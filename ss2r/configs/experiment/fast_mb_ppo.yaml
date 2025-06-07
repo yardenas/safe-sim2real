@@ -23,7 +23,8 @@ agent:
   policy_hidden_layer_sizes: [128, 128, 128, 128]
   value_hidden_layer_sizes: [256, 256, 256, 256, 256]
   normalize_observations: true
-  min_replay_size: 1000
+  min_replay_size: 5000
   pretrain_model: false
   ensemble_selection: random
   reward_scaling: 1.
+  model_updates_per_step: 50
