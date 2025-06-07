@@ -3,7 +3,7 @@ defaults:
 
 name: mb_ppo
 
-actor_critic_learning_rate: 1e-3
+actor_critic_learning_rate: 3e-4
 model_learning_rate: 1e-4
 entropy_cost: 0.01
 discounting: 0.995
