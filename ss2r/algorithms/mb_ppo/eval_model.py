@@ -68,6 +68,10 @@ def plot_observations_and_reward(
 
 def run_policy(env, policy_fn, steps=15, key=jax.random.PRNGKey(0)):
     state = jax.jit(env.reset)(key)
+    for _ in range(100):
+        key, subkey = jax.random.split(key)
+        action, _ = policy_fn(state.obs, subkey)
+        state = jax.jit(env.step)(state, action)
     actions = []
     rewards = []
     obs = []
@@ -164,5 +168,5 @@ def main(run_id):
 
 
 if __name__ == "__main__":
-    run_id = "qo69tn7y"  # <-- Replace with your actual run ID next qo69tn7y
+    run_id = "f47uowh9"  # <-- Replace with your actual run ID next qo69tn7y % f47uowh9
     main(run_id)

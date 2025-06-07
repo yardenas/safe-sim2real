@@ -40,7 +40,7 @@ class ModelBasedEnv(envs.Env):
         """Step using the learned model."""
         # Predict next state, reward, and cost using the model
         (
-            (diff_to_next_obs_pred, reward_pred, cost_pred),
+            (next_obs_pred, reward_pred, cost_pred),
             (diff_next_obs_std, reward_std, cost_std),
         ) = self.model_network.apply(
             self.normalizer_params, self.model_params, state.obs, action
@@ -49,7 +49,7 @@ class ModelBasedEnv(envs.Env):
         # FIXME: Choose key differently
         sample_key, key = jax.random.split(self.sample_key)
         next_obs, reward, cost = _propagate_ensemble(
-            diff_to_next_obs_pred,
+            next_obs_pred,
             reward_pred,
             cost_pred,
             self.ensemble_selection,
@@ -123,7 +123,7 @@ def create_model_env(
 
 
 def _propagate_ensemble(
-    diff_to_next_obs_pred: jax.Array,
+    next_obs_pred: jax.Array,
     reward_pred: jax.Array,
     cost_pred: jax.Array,
     ensemble_selection: str,
@@ -133,16 +133,16 @@ def _propagate_ensemble(
     """Propagate the ensemble predictions based on the selection method."""
     if ensemble_selection == "random":
         # Randomly select one of the ensemble predictions
-        idx = jax.random.randint(key, (1,), 0, diff_to_next_obs_pred.shape[0])[0]
-        next_obs = state.obs + diff_to_next_obs_pred[idx]
+        idx = jax.random.randint(key, (1,), 0, next_obs_pred.shape[0])[0]
+        next_obs = next_obs_pred[idx]
         reward = reward_pred[idx]
         cost = cost_pred[idx]
     elif ensemble_selection == "mean":
-        next_obs = state.obs + jnp.mean(diff_to_next_obs_pred, axis=0)
+        next_obs = state.obs + jnp.mean(next_obs_pred, axis=0)
         reward = jnp.mean(reward_pred, axis=0)
         cost = jnp.mean(cost_pred, axis=0)
     elif ensemble_selection == "pessimistic":
-        next_obs = state.obs + jnp.mean(diff_to_next_obs_pred, axis=0)
+        next_obs = jnp.mean(next_obs_pred, axis=0)
         reward = jnp.min(reward_pred, axis=0)
         cost = jnp.max(cost_pred, axis=0)
     else:
