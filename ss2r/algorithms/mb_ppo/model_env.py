@@ -41,7 +41,7 @@ class ModelBasedEnv(envs.Env):
         # Predict next state, reward, and cost using the model
         (
             (next_obs_pred, reward_pred, cost_pred),
-            (diff_next_obs_std, reward_std, cost_std),
+            (next_obs_std, reward_std, cost_std),
         ) = self.model_network.apply(
             self.normalizer_params, self.model_params, state.obs, action
         )

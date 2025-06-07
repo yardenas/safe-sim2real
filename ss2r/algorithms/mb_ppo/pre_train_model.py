@@ -9,7 +9,7 @@ from brax.training.types import Transition
 def create_env_data(env, key, num_samples, batch_size):
     """Create environment data by sampling states uniformly over the domain."""
     # Compute the rollout length and number of rollouts
-    rollout_length = 100
+    rollout_length = 500
     num_rollouts = num_samples // (batch_size * rollout_length)
 
     # Split the random key
@@ -132,15 +132,13 @@ def pre_train_model(
         """Evaluate the model using mean squared error."""
         model_apply = model_network.apply
         (
-            (diff_next_obs_pred, reward_pred, cost_pred),
+            (next_obs_pred, reward_pred, cost_pred),
             (next_obs_std, reward_std, cost_std),
         ) = model_apply(
             normalizer_params, params, transitions.observation, transitions.action
         )
 
-        next_obs_pred = transitions.observation + jnp.mean(
-            diff_next_obs_pred, axis=0
-        )  # [batch, state_dim]
+        next_obs_pred = jnp.mean(next_obs_pred, axis=0)  # [batch, state_dim]
         reward_pred = jnp.mean(reward_pred, axis=0)  # [batch, 1]
         cost_pred = jnp.mean(cost_pred, axis=0)  # [batch, 1]
 
@@ -261,20 +259,16 @@ def pre_train_model(
             states = carry
 
             def single_model_step(state, action):
-                ((diff_next_state, reward, cost), _) = model_network.apply(
+                ((next_state, reward, cost), _) = model_network.apply(
                     normalizer_params, params, state, action
                 )
-                return diff_next_state, reward, cost
+                return next_state, reward, cost
 
             # Apply to each state-action pair in the batch
-            diff_next_states, rewards, costs = jax.vmap(single_model_step)(
-                states, action_t
-            )
+            next_states, rewards, costs = jax.vmap(single_model_step)(states, action_t)
 
             # Take mean across ensemble dimension
-            next_states = states + jnp.mean(
-                diff_next_states, axis=0
-            )  # [batch, state_dim]
+            next_states = jnp.mean(next_states, axis=0)  # [batch, state_dim]
             rewards = jnp.mean(rewards, axis=0)  # [batch, 1]
             costs = jnp.mean(costs, axis=0)  # [batch, 1]
 
