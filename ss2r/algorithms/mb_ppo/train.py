@@ -298,7 +298,6 @@ def train(
         num_updates_per_batch,
         safe,
         ensemble_selection,
-        env,  # delete me
     )
 
     # Creating the model training step
