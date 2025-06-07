@@ -142,23 +142,27 @@ def make_world_model_ensemble(
         raw_output = model.apply(params, obs_processed, actions)
         # Std devs also need to match the shape (B, E, feature_dim)
         if not learn_std:
-            obs_raw, reward, cost = (
+            diff_obs_raw, reward, cost = (
                 raw_output[..., :obs_size],
                 raw_output[..., obs_size],
                 raw_output[..., obs_size + 1],
             )
-            obs = postprocess_observations_fn(obs_raw, preprocessor_params)
+            obs = postprocess_observations_fn(
+                diff_obs_raw + obs_processed, preprocessor_params
+            )
             obs_std = jnp.ones_like(obs) * 1e-3
             reward_std = jnp.ones_like(reward) * 1e-3
             cost_std = jnp.ones_like(cost) * 1e-3
         else:
             means, stds = jnp.split(raw_output, 2, axis=-1)
-            obs_raw, reward, cost = (
+            diff_obs_raw, reward, cost = (
                 means[..., :obs_size],
                 means[..., obs_size],
                 means[..., obs_size + 1],
             )
-            obs = postprocess_observations_fn(obs_raw, preprocessor_params)
+            obs = postprocess_observations_fn(
+                diff_obs_raw + obs_processed, preprocessor_params
+            )
 
             obs_std, reward_std, cost_std = (
                 stds[..., :obs_size],
