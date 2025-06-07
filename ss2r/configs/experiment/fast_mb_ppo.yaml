@@ -23,3 +23,4 @@ agent:
   value_hidden_layer_sizes: [512, 512]
   normalize_observations: false
   min_replay_size: 1000
+  pretrain_model: false
