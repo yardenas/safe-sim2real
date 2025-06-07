@@ -19,5 +19,5 @@ agent:
   model_hidden_layer_sizes: [256, 256, 256, 256]
   policy_hidden_layer_sizes: [64, 64, 64]
   value_hidden_layer_sizes: [512, 512]
-  normalize_observations: false
+  normalize_observations: true
   pretrain_model: false
