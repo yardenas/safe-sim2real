@@ -18,10 +18,9 @@ agent:
   model_learning_rate: 3e-4
   unroll_length: 15
   model_hidden_layer_sizes: [256, 256, 256, 256]
-  policy_hidden_layer_sizes: [64, 64, 64]
-  value_hidden_layer_sizes: [512, 512]
+  policy_hidden_layer_sizes: [128, 128, 128, 128]
+  value_hidden_layer_sizes: [256, 256, 256, 256, 256]
   normalize_observations: true
   pretrain_model: false
   ensemble_selection: random
   ppo_updates_per_step: 10
-
