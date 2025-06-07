@@ -47,6 +47,8 @@ class ModelBasedEnv(envs.Env):
         # Select from ensemble
         # FIXME: Choose key differently
         key = state.info["key"]
+        # FIXME (yarden): NOT
+        reward_pred = jnp.clip(reward_pred, a_min=-1.0, a_max=1.0)
         sample_key, key = jax.random.split(key)
         next_obs, reward, cost = _propagate_ensemble(
             next_obs_pred,
@@ -75,7 +77,6 @@ class ModelBasedEnv(envs.Env):
                 accumulated_cost_for_transition,
             )
             state.info["cumulative_cost"] = accumulated_cost_for_transition
-
         state = state.replace(
             obs=next_obs,
             reward=reward,
