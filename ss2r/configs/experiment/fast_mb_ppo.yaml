@@ -13,7 +13,6 @@ training:
   num_evals: 50
   num_envs: 5
   episode_length: 128
-  min_replay_size: 1000
 
 agent:
   model_learning_rate: 3e-4
@@ -23,3 +22,4 @@ agent:
   policy_hidden_layer_sizes: [64, 64, 64]
   value_hidden_layer_sizes: [512, 512]
   normalize_observations: false
+  min_replay_size: 1000
