@@ -16,7 +16,7 @@ training:
 
 agent:
   model_learning_rate: 3e-4
-  actor_critic_learning_rate: 3e-4
+  actor_critic_learning_rate: 8e-5
   entropy_cost: 0.01
   unroll_length: 10
   model_hidden_layer_sizes: [256, 256, 256, 256]
@@ -27,6 +27,7 @@ agent:
   pretrain_model: false
   ensemble_selection: random
   reward_scaling: 1.
-  ppo_updates_per_step: 1
+  ppo_updates_per_step: 5
   pretrain_epochs: 1
   num_minibatches: 32
+  discounting: 0.95
