@@ -165,7 +165,7 @@ def update_fn(
                 pipeline_state=None,
                 obs=transitions.observation,
                 reward=transitions.reward,
-                done=1 - transitions.discount,
+                done=jnp.zeros_like(transitions.reward),
                 info={
                     "cumulative_cost": cumulative_cost,  # type: ignore
                     "truncation": transitions.extras["state_extras"]["truncation"],
