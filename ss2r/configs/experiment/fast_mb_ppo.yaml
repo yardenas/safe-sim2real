@@ -18,7 +18,7 @@ agent:
   model_learning_rate: 3e-4
   actor_critic_learning_rate: 8e-5
   entropy_cost: 0.01
-  unroll_length: 10
+  unroll_length: 5
   model_hidden_layer_sizes: [256, 256, 256, 256]
   policy_hidden_layer_sizes: [128, 128, 128, 128]
   value_hidden_layer_sizes: [256, 256, 256, 256, 256]
