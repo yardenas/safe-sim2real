@@ -394,7 +394,7 @@ def train(
                 model_training_step,
                 (training_state, buffer_state, model_key),
                 (),
-                length=model_updates_per_step * env_steps_per_experience_call,
+                length=model_updates_per_step * num_envs,
             )
             # Learn model with ppo on learned model (planning MDP)
 
@@ -405,7 +405,7 @@ def train(
                 training_step,
                 (training_state, buffer_state, actor_critic_key),
                 (),
-                length=ppo_updates_per_step * env_steps_per_experience_call,
+                length=ppo_updates_per_step * num_envs,
             )
             metrics = model_loss_metrics | ppo_loss_metrics
 
