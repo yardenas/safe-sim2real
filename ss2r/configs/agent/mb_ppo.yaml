@@ -23,7 +23,7 @@ clipping_epsilon: 0.3
 gae_lambda: 0.95
 deterministic_eval: true
 normalize_advantage: true
-model_hidden_layer_sizes: [512,512]
+model_hidden_layer_sizes: [256,256,256,256,256]
 policy_hidden_layer_sizes: [64, 64, 64]
 value_hidden_layer_sizes: [512,512]
 activation: swish

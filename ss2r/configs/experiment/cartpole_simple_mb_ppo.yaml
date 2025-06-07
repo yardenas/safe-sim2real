@@ -14,10 +14,10 @@ training:
   num_envs: 5
 
 agent:
-  actor_critic_learning_rate: 3e-4
+  actor_critic_learning_rate: 1e-3
   model_learning_rate: 1e-4
   entropy_cost: 0.01
-  unroll_length: 3
-  model_hidden_layer_sizes: [512,512]
+  unroll_length: 10
+  model_hidden_layer_sizes: [256,256,256,256,256]
   policy_hidden_layer_sizes: [64, 64, 64]
   value_hidden_layer_sizes: [512,512]
