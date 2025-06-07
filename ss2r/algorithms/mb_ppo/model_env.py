@@ -56,7 +56,6 @@ class ModelBasedEnv(envs.Env):
             state,
             key,
         )
-
         done = jnp.zeros_like(reward, dtype=jnp.float32)
         truncation = jnp.zeros_like(reward, dtype=jnp.float32)
         state.info["cost"] = cost

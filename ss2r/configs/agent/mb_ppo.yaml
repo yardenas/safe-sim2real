@@ -41,5 +41,5 @@ store_buffer: false
 num_particles: 100
 num_iters: 10
 num_elite: 10
-stop_cond: 0.
+stop_cond: 0.1
 initial_stddev: 1.
