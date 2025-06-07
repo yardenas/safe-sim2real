@@ -1,0 +1,9 @@
+defaults:
+  - brax_base
+  - _self_
+
+task_name: fast
+task_params: {}
+
+train_params: {}
+eval_params: {}
