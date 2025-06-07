@@ -36,6 +36,9 @@ class ModelBasedEnv(envs.Env):
     def step(self, state: base.State, action: jax.Array) -> base.State:
         """Step using the learned model."""
         # Predict next state, reward, and cost using the model
+        action_max = 1.0
+        action_min = -1.0
+        action = (action + 1) * (action_max - action_min) * 0.5 + action_min
         pred_fn = jax.vmap(self.model_network.apply, in_axes=(None, 0, None, None))
         (
             (next_obs_pred, reward_pred, cost_pred),

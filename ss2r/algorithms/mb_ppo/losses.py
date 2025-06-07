@@ -182,7 +182,7 @@ def make_losses(
         surrogate2 = (
             jnp.clip(rho_s, 1 - clipping_epsilon, 1 + clipping_epsilon) * advantages
         )
-        policy_loss = -jnp.mean(jnp.minimum(surrogate1, surrogate2)) * 0.0
+        policy_loss = -jnp.mean(jnp.minimum(surrogate1, surrogate2))
         entropy = jnp.mean(parametric_action_distribution.entropy(policy_logits, key))
         entropy_loss = -entropy_cost * entropy
         aux = {
