@@ -27,5 +27,5 @@ agent:
   pretrain_model: false
   ensemble_selection: random
   reward_scaling: 1.
-  model_updates_per_step: 50
+  model_updates_per_step: 1
   pretrain_epochs: 100
