@@ -46,7 +46,7 @@ def _index_array(i, aval, x):
     return slicing.index_in_dim(x, i, keepdims=False)
 
 
-def _scan(f, init, xs, length=None, reverse=False, unroll=1, *, use_lax=False):
+def _scan(f, init, xs, length=None, reverse=False, unroll=1, *, use_lax=True):
     if use_lax:
         return jax.lax.scan(f, init, xs, length=length, reverse=reverse, unroll=unroll)
     else:

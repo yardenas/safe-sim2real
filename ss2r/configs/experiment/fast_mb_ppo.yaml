@@ -27,5 +27,6 @@ agent:
   pretrain_model: false
   ensemble_selection: random
   reward_scaling: 1.
-  ppo_updates_per_step: 1000
-  pretrain_epochs: 0
+  ppo_updates_per_step: 1
+  pretrain_epochs: 1
+  num_minibatches: 32
