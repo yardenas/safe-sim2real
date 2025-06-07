@@ -1,6 +1,7 @@
 import flax
 import jax
 import jax.numpy as jnp
+import optax
 from brax.training.types import Params
 
 
@@ -121,45 +122,22 @@ def make_losses(
         data,
         learn_std,
     ):
-        model_apply = ppo_network.model_network.apply
+        model_apply = jax.vmap(ppo_network.model_network.apply, (None, 0, None, None))
         (
             (next_obs_pred, reward_pred, cost_pred),
             (next_obs_std, reward_std, cost_std),
         ) = model_apply(normalizer_params, model_params, data.observation, data.action)
+        # FIXME (yarden): zeros_like_cost pred
+        concat_preds = jnp.concatenate([next_obs_pred, reward_pred[..., None]], axis=-1)
         expand = lambda x: jnp.tile(
             x[None], (next_obs_pred.shape[0],) + (1,) * (x.ndim)
         )
-        next_obs_target = expand(data.next_observation)
-        next_obs_loss = _neg_log_posterior(
-            next_obs_pred, next_obs_std, next_obs_target, learn_std
+        targets = jnp.concatenate(
+            [data.next_observation, data.reward[..., None]], axis=-1
         )
-        current_reward_target = expand(data.reward)
-        reward_loss = _neg_log_posterior(
-            reward_pred, reward_std, current_reward_target, learn_std
-        )
-        cost_loss = 0.0
-        cost_target = None
-        if "state_extras" in data.extras and "cost" in data.extras["state_extras"]:
-            cost_target = expand(data.extras["state_extras"]["cost"])
-            cost_loss = _neg_log_posterior(cost_pred, cost_std, cost_target, learn_std)
-        # total_loss = next_obs_loss + reward_loss + cost_loss
-        # Compute MSE for monitoring
-        obs_mse = jnp.mean(jnp.square(next_obs_pred - next_obs_target))
-        reward_mse = jnp.mean(jnp.square(reward_pred - current_reward_target))
-        cost_mse = 0.0
-        # FIXME: (manu) change back to actual losses
-        total_loss = obs_mse + reward_mse
-        if cost_target is not None:
-            cost_mse = jnp.mean(jnp.square(cost_pred - cost_target))
-        aux = {
-            "model_loss": total_loss,
-            "obs_mse": obs_mse,
-            "reward_mse": reward_mse,
-            "cost_mse": cost_mse,
-            "next_obs_loss": next_obs_loss,
-            "reward_loss": reward_loss,
-            "cost_loss": cost_loss,
-        }
+        targets = expand(targets)
+        total_loss = optax.l2_loss(concat_preds, targets).mean()
+        aux = {"model_loss": total_loss}
         return total_loss, aux
 
     def compute_policy_loss(

@@ -51,8 +51,11 @@ def _init_training_state(
     obs_size,
 ):
     key_policy, key_value, key_cost_value = jax.random.split(key, 3)
+    init_model_ensemble = jax.vmap(ppo_network.model_network.init)
+    # TODO (yarden): hadrocede 5
+    model_keys = jax.random.split(key_policy, 5)
     init_params = mb_ppo_losses.MBPPOParams(
-        model=ppo_network.model_network.init(key_policy),
+        model=init_model_ensemble(model_keys),
         policy=ppo_network.policy_network.init(key_policy),
         value=ppo_network.value_network.init(key_value),
         cost_value=ppo_network.cost_value_network.init(key_cost_value),
@@ -288,44 +291,36 @@ def train(
     def make_policy(params, deterministic=False):
         normalizer_params, model_params = params
 
-        def rollout_fn(horizon, initial_state, key, actions):
-            planning_env = create_planning_env(
-                model_params,
-                normalizer_params,
-                key,
-                ensemble_selection,
-            )
-            state = envs.State(
-                pipeline_state=None,
-                obs=initial_state,
-                reward=jnp.zeros(()),
-                done=jnp.zeros(()),
-                info={
-                    "cost": jnp.zeros(()),
-                    "truncation": jnp.zeros(()),
-                },
-            )
-
+        def per_model_rollout_fn(model_params, horizon, initial_state, key, actions):
             def f(carry, action):
                 state, current_key = carry
                 current_key, next_key = jax.random.split(current_key)
-                nstate = planning_env.unwrapped.step(state, action)
+                (next_obs, r, _), *_ = ppo_network.model_network.apply(
+                    normalizer_params, model_params, state, action
+                )
                 transition = (
                     Transition(  # pytype: disable=wrong-arg-types  # jax-ndarray
                         observation=env_state.obs,
                         action=actions,
-                        reward=nstate.reward,
-                        discount=1 - nstate.done,
-                        next_observation=nstate.obs,
+                        reward=r,
+                        discount=jnp.zeros_like(r),
+                        next_observation=next_obs,
                         extras={},
                     )
                 )
+                nstate = next_obs
                 return (nstate, next_key), transition
 
             assert (
                 actions.shape[0] == horizon
             ), "Actions must be of shape (num_envs, horizon)"
-            _, data = jax.lax.scan(f, (state, key), actions, length=horizon)
+            _, data = jax.lax.scan(f, (initial_state, key), actions, length=horizon)
+            return data
+
+        def rollout_fn(horizon, initial_state, key, actions):
+            fn = jax.vmap(per_model_rollout_fn, in_axes=(0, None, None, None, None))
+            data = fn(model_params, horizon, initial_state, key, actions)
+            data = jax.tree.map(lambda x: x.mean(axis=0), data)
             return data
 
         def policy(observation, key):
@@ -392,6 +387,19 @@ def train(
             del unused
             training_state, env_state, buffer_state, key = carry
             key, new_key = jax.random.split(key)
+
+            # Creates a policy that samples uniformly at random
+            def make_policy(params, deterministic=False):
+                return jax.vmap(
+                    lambda observation, key: (
+                        jax.random.uniform(
+                            key, (action_size,), minval=-1.0, maxval=1.0
+                        ),
+                        {},
+                    ),
+                    in_axes=(0, None),
+                )
+
             new_normalizer_params, env_state, buffer_state = get_experience_fn(
                 env,
                 make_policy,
@@ -426,22 +434,16 @@ def train(
 
         def f(carry, unused_t):
             training_state, env_state, buffer_state, key = carry
-            batch_size = replay_buffer._sample_batch_size
-            experience_key, model_key, actor_critic_key = jax.random.split(key, 3)
+            experience_key, model_key = jax.random.split(key, 2)
             training_state, env_state, buffer_state, training_key = run_experience_step(
                 training_state, env_state, buffer_state, experience_key
             )
             # Learn model from sampled transitions
-            (
-                (training_state, buffer_state, _),
-                model_loss_metrics,
-            ) = jax.lax.scan(
+            (training_state, buffer_state, _), model_loss_metrics = jax.lax.scan(
                 model_training_step,
                 (training_state, buffer_state, model_key),
                 (),
-                length=model_updates_per_step
-                * env_steps_per_experience_call
-                // batch_size,
+                length=model_updates_per_step * env_steps_per_experience_call,
             )
             # Learn model with ppo on learned model (planning MDP)
             metrics = model_loss_metrics
