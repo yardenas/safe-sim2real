@@ -212,8 +212,13 @@ def make_losses(
             discount=discounting,
         )
         v_error = vs - baseline
-        v_loss = jnp.mean(v_error**2) * 0.25 * 0.0
-        return v_loss, {"v_loss": v_loss, "v_baseline": baseline}
+        v_loss = jnp.mean(v_error**2) * 0.25
+        return v_loss, {
+            "v_loss": v_loss,
+            "v_baseline": baseline,
+            "v_rewards": rewards,
+            "vs": vs,
+        }
 
     def compute_cost_value_loss(params, normalizer_params, data):
         cost_value_apply = ppo_network.cost_value_network.apply
