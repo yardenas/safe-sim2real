@@ -26,3 +26,4 @@ agent:
   min_replay_size: 1000
   pretrain_model: false
   ensemble_selection: random
+  reward_scaling: 1.
