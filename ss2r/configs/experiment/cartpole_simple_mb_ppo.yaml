@@ -22,5 +22,5 @@ agent:
   value_hidden_layer_sizes: [512, 512]
   normalize_observations: true
   pretrain_model: false
-
+  ensemble_selection: random
 

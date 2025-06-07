@@ -123,18 +123,16 @@ def update_fn(
     ) -> Tuple[Tuple[TrainingState, envs.State, PRNGKey], Metrics]:
         training_state, buffer_state, key = carry
         (
-            key_model_env,
             key_sgd,
             key_generate_unroll,
             cost_key,
             new_key,
-        ) = jax.random.split(key, 5)
+        ) = jax.random.split(key, 4)
 
         # Create planning environment with current model parameters
         planning_env = planning_env_factory(
             training_state.params.model,
             training_state.normalizer_params,
-            key_model_env,
             ensemble_selection,
         )
         policy = make_policy(
@@ -162,6 +160,7 @@ def update_fn(
             cumulative_cost = jax.random.uniform(
                 cost_key, (transitions.reward.shape[0],), minval=0.0, maxval=0.0
             )
+            next_key, current_key, model_key = jax.random.split(current_key, 3)
             state = envs.State(
                 pipeline_state=None,
                 obs=transitions.observation,
@@ -173,9 +172,11 @@ def update_fn(
                     "cost": transitions.extras["state_extras"].get(
                         "cost", jnp.zeros_like(cumulative_cost)
                     ),
+                    "key": jnp.tile(
+                        model_key[None], (transitions.observation.shape[0], 1)
+                    ),
                 },
             )
-            next_key, current_key = jax.random.split(current_key)
             generate_unroll = lambda state: acting.generate_unroll(
                 planning_env,
                 state,

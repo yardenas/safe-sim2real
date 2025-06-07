@@ -269,9 +269,7 @@ def train(
     )
 
     # Create the model-based planning environment
-    def create_planning_env(
-        model_params, normalizer_params, model_env_key, ensemble_selection
-    ):
+    def create_planning_env(model_params, normalizer_params, ensemble_selection):
         """Create a planning environment with correct batch size for model-based rollouts."""
         planning_env = model_env.create_model_env(
             model_network=ppo_network.model_network,
@@ -281,7 +279,6 @@ def train(
             safety_budget=safety_budget,
             observation_size=obs_size,
             action_size=action_size,
-            sample_key=model_env_key,
         )
         planning_env = VmapWrapper(planning_env)
         return planning_env

@@ -3,7 +3,6 @@ import jax.numpy as jnp
 from brax import envs
 from brax.envs import base
 from brax.training.acme import running_statistics
-from brax.training.types import PRNGKey
 
 
 class ModelBasedEnv(envs.Env):
@@ -18,7 +17,6 @@ class ModelBasedEnv(envs.Env):
         normalizer_params: running_statistics.RunningStatisticsState,
         ensemble_selection: str = "mean",  # "random", "mean", or "pessimistic"
         safety_budget: float = float("inf"),
-        sample_key: PRNGKey = jax.random.PRNGKey(0),
     ):
         super().__init__()
         self.model_network = model_network
@@ -28,7 +26,6 @@ class ModelBasedEnv(envs.Env):
         self.safety_budget = safety_budget
         self._observation_size = observation_size
         self._action_size = action_size
-        self.sample_key = sample_key
 
     def reset(self, rng: jax.Array) -> base.State:
         """Reset using the real environment."""
@@ -39,29 +36,27 @@ class ModelBasedEnv(envs.Env):
     def step(self, state: base.State, action: jax.Array) -> base.State:
         """Step using the learned model."""
         # Predict next state, reward, and cost using the model
+        pred_fn = jax.vmap(self.model_network.apply, in_axes=(None, 0, None, None))
         (
             (next_obs_pred, reward_pred, cost_pred),
             (next_obs_std, reward_std, cost_std),
-        ) = self.model_network.apply(
-            self.normalizer_params, self.model_params, state.obs, action
-        )
+        ) = pred_fn(self.normalizer_params, self.model_params, state.obs, action)
         # Select from ensemble
         # FIXME: Choose key differently
-        sample_key, key = jax.random.split(self.sample_key)
+        key = state.info["key"]
+        sample_key, key = jax.random.split(key)
         next_obs, reward, cost = _propagate_ensemble(
             next_obs_pred,
             reward_pred,
             cost_pred,
             self.ensemble_selection,
-            state,
-            key,
+            sample_key,
         )
-
+        state.info["key"] = key
         done = jnp.zeros_like(reward, dtype=jnp.float32)
         truncation = jnp.zeros_like(reward, dtype=jnp.float32)
         state.info["cost"] = cost
         state.info["truncation"] = truncation
-
         if "cumulative_cost" in state.info:
             prev_cumulative_cost = state.info["cumulative_cost"]
             accumulated_cost_for_transition = prev_cumulative_cost + cost
@@ -107,7 +102,6 @@ def create_model_env(
     normalizer_params: running_statistics.RunningStatisticsState,
     ensemble_selection: str = "random",
     safety_budget: float = float("inf"),
-    sample_key: PRNGKey = jax.random.PRNGKey(0),
 ) -> ModelBasedEnv:
     """Factory function to create a model-based environment."""
     return ModelBasedEnv(
@@ -118,7 +112,6 @@ def create_model_env(
         normalizer_params=normalizer_params,
         ensemble_selection=ensemble_selection,
         safety_budget=safety_budget,
-        sample_key=sample_key,
     )
 
 
@@ -127,7 +120,6 @@ def _propagate_ensemble(
     reward_pred: jax.Array,
     cost_pred: jax.Array,
     ensemble_selection: str,
-    state: base.State,
     key,
 ) -> tuple[jax.Array, jax.Array, jax.Array]:
     """Propagate the ensemble predictions based on the selection method."""
