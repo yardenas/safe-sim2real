@@ -168,7 +168,7 @@ def update_fn(
                 done=jnp.zeros_like(transitions.reward),
                 info={
                     "cumulative_cost": cumulative_cost,  # type: ignore
-                    "truncation": transitions.extras["state_extras"]["truncation"],
+                    "truncation": jnp.zeros_like(cumulative_cost),
                     "cost": transitions.extras["state_extras"].get(
                         "cost", jnp.zeros_like(cumulative_cost)
                     ),
