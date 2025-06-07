@@ -27,6 +27,7 @@ from brax.training.acme import running_statistics, specs
 from brax.training.agents.sac import checkpoint
 from brax.training.types import PRNGKey, Transition
 from etils import epath
+from jax._src.lax import slicing
 from ml_collections import config_dict
 from orbax import checkpoint as ocp
 
@@ -41,6 +42,10 @@ from ss2r.algorithms.sac.types import CollectDataFn, ReplayBufferState, float16
 from ss2r.rl.evaluation import ConstraintsEvaluator
 
 
+def _index_array(i, aval, x):
+    return slicing.index_in_dim(x, i, keepdims=False)
+
+
 def _scan(f, init, xs, length=None, reverse=False, unroll=1, *, use_lax=False):
     if use_lax:
         return jax.lax.scan(f, init, xs, length=length, reverse=reverse, unroll=unroll)
@@ -50,10 +55,7 @@ def _scan(f, init, xs, length=None, reverse=False, unroll=1, *, use_lax=False):
         ys = []
         maybe_reversed = reversed if reverse else lambda x: x
         for i in maybe_reversed(range(length)):
-            xs_slice = [
-                jax._src.lax.loops._index_array(i, jax._src.core.get_aval(x), x)
-                for x in xs_flat
-            ]
+            xs_slice = [_index_array(i, jax._src.core.get_aval(x), x) for x in xs_flat]
             carry, y = f(carry, jax.tree_unflatten(xs_tree, xs_slice))
         ys.append(y)
         stack = lambda *ys: jax.numpy.stack(ys)
