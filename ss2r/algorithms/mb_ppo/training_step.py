@@ -28,7 +28,6 @@ def update_fn(
     num_updates_per_batch,
     safe,
     ensemble_selection,
-    env,
 ):
     policy_gradient_update_fn = gradients.gradient_update_fn(
         policy_loss_fn, optimizer, pmap_axis_name=None, has_aux=True
@@ -163,55 +162,29 @@ def update_fn(
             cumulative_cost = jax.random.uniform(
                 cost_key, (transitions.reward.shape[0],), minval=0.0, maxval=0.0
             )
-            # FIXME (manu): make sure to delete this again
-            reset_fn = env.reset
-            batch_size = replay_buffer._sample_batch_size
-            keys = jax.random.split(current_key, batch_size + 1)
-            sample_keys = keys[:batch_size].reshape(batch_size, -1)
-            current_key = keys[-1]
-            env_state = reset_fn(sample_keys)
-
-            env_state = env_state.replace(
-                pipeline_state=transitions.extras["state_extras"][
-                    "pipeline_state"
-                ],  # REDO!!
+            state = envs.State(
+                pipeline_state=None,
                 obs=transitions.observation,
                 reward=transitions.reward,
-                done=1 - transitions.discount,
+                done=transitions.discount,
                 info={
                     "cumulative_cost": cumulative_cost,  # type: ignore
-                    "truncation": jnp.zeros_like(
-                        transitions.extras["state_extras"]["truncation"]
-                    ),
+                    "truncation": transitions.extras["state_extras"]["truncation"],
                     "cost": transitions.extras["state_extras"].get(
                         "cost", jnp.zeros_like(cumulative_cost)
                     ),
                 },
             )
-
-            # state = envs.State(
-            #     pipeline_state=v_init, #REDO!!
-            #     obs=transitions.observation,
-            #     reward=transitions.reward,
-            #     done=transitions.discount,
-            #     info={
-            #         "cumulative_cost": cumulative_cost,  # type: ignore
-            #         "truncation": transitions.extras["state_extras"]["truncation"],
-            #         "cost": transitions.extras["state_extras"].get(
-            #             "cost", jnp.zeros_like(cumulative_cost)
-            #         ),
-            #     },
-            # )
             next_key, current_key = jax.random.split(current_key)
             generate_unroll = lambda state: acting.generate_unroll(
-                planning_env,  # REDO!!
+                planning_env,
                 state,
                 policy,
                 current_key,
                 unroll_length,
                 extra_fields=extra_fields,
             )
-            _, data = generate_unroll(env_state)
+            _, data = generate_unroll(state)
             return (current_buffer_state, next_key), data
 
         (buffer_state, _), data = jax.lax.scan(

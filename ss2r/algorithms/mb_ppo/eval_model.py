@@ -71,6 +71,8 @@ def run_policy(env, policy_fn, steps=15, key=jax.random.PRNGKey(0)):
     actions = []
     rewards = []
     obs = []
+    obs.append(state.obs)  # Start with the initial observation
+    rewards.append(state.reward)
     for _ in range(steps):
         key, subkey = jax.random.split(key)
         action, _ = policy_fn(state.obs, subkey)
@@ -84,6 +86,7 @@ def run_policy(env, policy_fn, steps=15, key=jax.random.PRNGKey(0)):
 def evaluate_model(model_apply_fn, obs, actions, key, horizon=15):
     pred_rewards = []
     pred_obs = []
+    pred_obs.append(obs[0])  # Start with the initial observation
     current_state = obs[0]
     current_state = envs.State(
         pipeline_state=None,
@@ -96,6 +99,7 @@ def evaluate_model(model_apply_fn, obs, actions, key, horizon=15):
             "cost": jnp.zeros((1,)),
         },
     )
+    pred_rewards.append(jnp.mean(current_state.reward))
     for t in range(horizon):
         action = actions[t]
         next_state = jax.jit(model_apply_fn)(current_state, action)
@@ -160,5 +164,5 @@ def main(run_id):
 
 
 if __name__ == "__main__":
-    run_id = "ljnpz3y8"  # <-- Replace with your actual run ID
+    run_id = "qo69tn7y"  # <-- Replace with your actual run ID next qo69tn7y
     main(run_id)
