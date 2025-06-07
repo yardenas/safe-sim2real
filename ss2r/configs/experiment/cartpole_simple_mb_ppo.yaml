@@ -12,12 +12,15 @@ training:
   num_eval_episodes: 1
   num_evals: 15
   num_envs: 10
+  action_repeat: 4
 
 agent:
   model_learning_rate: 3e-4
-  unroll_length: 10
+  unroll_length: 15
   model_hidden_layer_sizes: [256, 256, 256, 256]
   policy_hidden_layer_sizes: [64, 64, 64]
   value_hidden_layer_sizes: [512, 512]
   normalize_observations: true
   pretrain_model: false
+
+
