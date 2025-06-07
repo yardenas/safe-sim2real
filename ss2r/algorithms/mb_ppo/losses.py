@@ -137,7 +137,11 @@ def make_losses(
         next_obs = normalize_fn(data.next_observation, normalizer_params)
         targets = jnp.concatenate([next_obs, data.reward[..., None]], axis=-1)
         targets = expand(targets)
-        total_loss = optax.l2_loss(concat_preds, targets).mean()
+        total_loss = optax.l2_loss(concat_preds, targets)
+        truncation = data.extras["state_extras"]["truncation"]
+        truncation = expand(truncation)[..., None]
+        total_loss = total_loss * (1 - truncation)
+        total_loss = jnp.mean(total_loss)
         aux = {"model_loss": total_loss}
         return total_loss, aux
 
