@@ -268,6 +268,7 @@ def train(
         gae_lambda=gae_lambda,
         clipping_epsilon=clipping_epsilon,
         normalize_advantage=normalize_advantage,
+        normalize_fn=normalize_fn,
     )
 
     # Create the model-based planning environment

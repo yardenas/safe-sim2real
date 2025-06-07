@@ -89,6 +89,7 @@ def make_losses(
     normalize_advantage,
     cost_scaling,
     safety_discounting,
+    normalize_fn,
 ):
     def _neg_log_posterior(
         predicted_outputs: jax.Array,
@@ -127,14 +128,14 @@ def make_losses(
             (next_obs_pred, reward_pred, cost_pred),
             (next_obs_std, reward_std, cost_std),
         ) = model_apply(normalizer_params, model_params, data.observation, data.action)
+        next_obs_pred = normalize_fn(next_obs_pred, normalizer_params)
         # FIXME (yarden): zeros_like_cost pred
         concat_preds = jnp.concatenate([next_obs_pred, reward_pred[..., None]], axis=-1)
         expand = lambda x: jnp.tile(
             x[None], (next_obs_pred.shape[0],) + (1,) * (x.ndim)
         )
-        targets = jnp.concatenate(
-            [data.next_observation, data.reward[..., None]], axis=-1
-        )
+        next_obs = normalize_fn(data.next_observation, normalizer_params)
+        targets = jnp.concatenate([next_obs, data.reward[..., None]], axis=-1)
         targets = expand(targets)
         total_loss = optax.l2_loss(concat_preds, targets).mean()
         aux = {"model_loss": total_loss}
