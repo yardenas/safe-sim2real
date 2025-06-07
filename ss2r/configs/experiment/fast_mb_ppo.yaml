@@ -11,7 +11,7 @@ training:
   eval_domain_randomization: false
   num_eval_episodes: 1
   num_evals: 50
-  num_envs: 5
+  num_envs: 10
   episode_length: 128
 
 agent:
