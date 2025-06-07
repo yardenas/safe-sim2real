@@ -182,7 +182,7 @@ def make_losses(
         surrogate2 = (
             jnp.clip(rho_s, 1 - clipping_epsilon, 1 + clipping_epsilon) * advantages
         )
-        policy_loss = -jnp.mean(jnp.minimum(surrogate1, surrogate2))
+        policy_loss = -jnp.mean(jnp.minimum(surrogate1, surrogate2)) * 0.0
         entropy = jnp.mean(parametric_action_distribution.entropy(policy_logits, key))
         entropy_loss = -entropy_cost * entropy
         aux = {
@@ -212,7 +212,7 @@ def make_losses(
             discount=discounting,
         )
         v_error = vs - baseline
-        v_loss = jnp.mean(v_error**2) * 0.25
+        v_loss = jnp.mean(v_error**2) * 0.25 * 0.0
         return v_loss, {"v_loss": v_loss, "v_baseline": baseline}
 
     def compute_cost_value_loss(params, normalizer_params, data):
