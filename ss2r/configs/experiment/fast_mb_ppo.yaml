@@ -19,8 +19,9 @@ agent:
   entropy_cost: 0.01
   unroll_length: 10
   model_hidden_layer_sizes: [256, 256, 256, 256]
-  policy_hidden_layer_sizes: [64, 64, 64]
-  value_hidden_layer_sizes: [512, 512]
-  normalize_observations: false
+  policy_hidden_layer_sizes: [128, 128, 128, 128]
+  value_hidden_layer_sizes: [256, 256, 256, 256, 256]
+  normalize_observations: true
   min_replay_size: 1000
   pretrain_model: false
+  ensemble_selection: random
