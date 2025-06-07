@@ -262,6 +262,7 @@ def train(
         gae_lambda=gae_lambda,
         clipping_epsilon=clipping_epsilon,
         normalize_advantage=normalize_advantage,
+        normalizer_fn=normalize_fn,
     )
 
     # Create the model-based planning environment
@@ -511,6 +512,7 @@ def train(
             params=training_state.params.model,  # type: ignore
             model_network=ppo_network.model_network,
             normalizer_params=training_state.normalizer_params,
+            normalizer_fn=normalize_fn,
             model_optimizer=model_optimizer,
             optimizer_state=training_state.optimizer_state[0],  # type: ignore
             env=env,

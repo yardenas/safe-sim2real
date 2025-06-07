@@ -88,6 +88,7 @@ def make_losses(
     normalize_advantage,
     cost_scaling,
     safety_discounting,
+    normalizer_fn,
 ):
     def _neg_log_posterior(
         predicted_outputs: jax.Array,
@@ -129,7 +130,9 @@ def make_losses(
         expand = lambda x: jnp.tile(
             x[None], (next_obs_pred.shape[0],) + (1,) * (x.ndim)
         )
-        next_obs_target = expand(data.next_observation)
+        norm_next_obs = normalizer_fn(data.next_observation, normalizer_params)
+        next_obs_pred = normalizer_fn(next_obs_pred, normalizer_params)
+        next_obs_target = expand(norm_next_obs)
         next_obs_loss = _neg_log_posterior(
             next_obs_pred, next_obs_std, next_obs_target, learn_std
         )

@@ -101,6 +101,7 @@ def pre_train_model(
     params,
     model_network,
     normalizer_params,
+    normalizer_fn,
     model_optimizer,
     optimizer_state,
     env,
@@ -128,7 +129,7 @@ def pre_train_model(
         has_aux=True,
     )
 
-    def eval_model_mse(params, normalizer_params, transitions):
+    def eval_model_mse(params, normalizer_params, normalizer_fn, transitions):
         """Evaluate the model using mean squared error."""
         model_apply = model_network.apply
         (
@@ -142,9 +143,10 @@ def pre_train_model(
         reward_pred = jnp.mean(reward_pred, axis=0)  # [batch, 1]
         cost_pred = jnp.mean(cost_pred, axis=0)  # [batch, 1]
 
-        mse_next_obs = jnp.mean(
-            jnp.square(next_obs_pred - transitions.next_observation)
-        )
+        next_obs_pred = normalizer_fn(next_obs_pred, normalizer_params)
+        target_obs = normalizer_fn(transitions.next_observation, normalizer_params)
+
+        mse_next_obs = jnp.mean(jnp.square(next_obs_pred - target_obs))
         mse_reward = jnp.mean(jnp.square(reward_pred - transitions.reward))
         mse_cost = jnp.mean(
             jnp.square(cost_pred - transitions.extras["state_extras"]["cost"])
@@ -177,7 +179,7 @@ def pre_train_model(
         )
 
         mse_obs, mse_reward, mse_cost = eval_model_mse(
-            params, normalizer_params, transitions
+            params, normalizer_params, normalizer_fn, transitions
         )
 
         return (params, optimizer_state, transitions, normalizer_params, key_sgd), (
