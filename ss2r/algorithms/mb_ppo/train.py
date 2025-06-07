@@ -166,8 +166,10 @@ def train(
     num_prefill_experience_call = -(-min_replay_size // num_envs)
     if get_experience_fn != collect_single_step:
         # Using episodic or hardware (which is episodic)
-        env_steps_per_experience_call *= episode_length
-        num_prefill_experience_call = -(-num_prefill_experience_call // episode_length)
+        env_steps_per_experience_call *= episode_length // action_repeat
+        num_prefill_experience_call = -(
+            -num_prefill_experience_call // (episode_length * action_repeat)
+        )
     num_prefill_env_steps = num_prefill_experience_call * env_steps_per_experience_call
     assert num_timesteps - num_prefill_env_steps >= 0
     num_evals_after_init = max(num_evals - 1, 1)
