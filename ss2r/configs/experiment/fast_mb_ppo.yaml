@@ -1,26 +1,26 @@
 # @package _global_
 defaults:
-  - override /environment: cartpole
+  - override /environment: fast
   - override /agent: mb_ppo
   - _self_
 
 training:
-  num_timesteps: 150000
+  num_timesteps: 50000
   safe: false
   train_domain_randomization: false
   eval_domain_randomization: false
   num_eval_episodes: 1
   num_evals: 15
   num_envs: 10
-  action_repeat: 4
+  episode_length: 128
 
 agent:
   model_learning_rate: 3e-4
-  unroll_length: 15
+  entropy_cost: 0.01
+  unroll_length: 10
   model_hidden_layer_sizes: [256, 256, 256, 256]
   policy_hidden_layer_sizes: [64, 64, 64]
   value_hidden_layer_sizes: [512, 512]
-  normalize_observations: true
+  normalize_observations: false
+  min_replay_size: 1000
   pretrain_model: false
-
-

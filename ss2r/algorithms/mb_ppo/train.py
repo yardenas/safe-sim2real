@@ -51,8 +51,11 @@ def _init_training_state(
     obs_size,
 ):
     key_policy, key_value, key_cost_value = jax.random.split(key, 3)
+    init_model_ensemble = jax.vmap(ppo_network.model_network.init)
+    # TODO (yarden): hadrocede 5
+    model_keys = jax.random.split(key_policy, 5)
     init_params = mb_ppo_losses.MBPPOParams(
-        model=ppo_network.model_network.init(key_policy),
+        model=init_model_ensemble(model_keys),
         policy=ppo_network.policy_network.init(key_policy),
         value=ppo_network.value_network.init(key_value),
         cost_value=ppo_network.cost_value_network.init(key_cost_value),
@@ -158,8 +161,10 @@ def train(
     num_prefill_experience_call = -(-min_replay_size // num_envs)
     if get_experience_fn != collect_single_step:
         # Using episodic or hardware (which is episodic)
-        env_steps_per_experience_call *= episode_length
-        num_prefill_experience_call = -(-num_prefill_experience_call // episode_length)
+        env_steps_per_experience_call *= episode_length // action_repeat
+        num_prefill_experience_call = -(
+            -num_prefill_experience_call // (episode_length * action_repeat)
+        )
     num_prefill_env_steps = num_prefill_experience_call * env_steps_per_experience_call
     assert num_timesteps - num_prefill_env_steps >= 0
     num_evals_after_init = max(num_evals - 1, 1)
@@ -221,11 +226,9 @@ def train(
     else:
         dummy_obs = jnp.zeros((obs_size,))
     dummy_action = jnp.zeros((action_size,))
-    dummy_pipeline_state = env.pipeline_init(jnp.zeros((2,)), jnp.zeros((2,)))  # type: ignore
     extras = {
         "state_extras": {
             "truncation": jnp.zeros(()),
-            "pipeline_state": dummy_pipeline_state,  # type: ignore
         },
         "policy_extras": {
             "log_prob": jnp.zeros(()),
@@ -262,7 +265,7 @@ def train(
         gae_lambda=gae_lambda,
         clipping_epsilon=clipping_epsilon,
         normalize_advantage=normalize_advantage,
-        normalizer_fn=normalize_fn,
+        normalize_fn=normalize_fn,
     )
 
     # Create the model-based planning environment
@@ -310,7 +313,6 @@ def train(
     )
 
     extra_fields = ("truncation",)
-    extra_fields += ("pipeline_state",)  # type: ignore
     if safe:
         extra_fields += ("cost",)  # type: ignore
 
@@ -383,7 +385,6 @@ def train(
 
         def f(carry, unused_t):
             training_state, env_state, buffer_state, key = carry
-            batch_size = replay_buffer._sample_batch_size
             experience_key, model_key, actor_critic_key = jax.random.split(key, 3)
             training_state, env_state, buffer_state, training_key = run_experience_step(
                 training_state, env_state, buffer_state, experience_key
@@ -396,9 +397,7 @@ def train(
                 model_training_step,
                 (training_state, buffer_state, model_key),
                 (),
-                length=model_updates_per_step
-                * env_steps_per_experience_call
-                // batch_size,
+                length=model_updates_per_step * env_steps_per_experience_call,
             )
             # Learn model with ppo on learned model (planning MDP)
 
@@ -409,9 +408,7 @@ def train(
                 training_step,
                 (training_state, buffer_state, actor_critic_key),
                 (),
-                length=ppo_updates_per_step
-                * env_steps_per_experience_call
-                // (batch_size * num_minibatches * unroll_length),
+                length=ppo_updates_per_step * env_steps_per_experience_call,
             )
             metrics = model_loss_metrics | ppo_loss_metrics
 
@@ -534,11 +531,7 @@ def train(
     metrics = {}
     if num_evals > 1:
         metrics = evaluator.run_evaluation(
-            (
-                training_state.normalizer_params,
-                training_state.params.policy,
-                training_state.params.value,
-            ),
+            (training_state.normalizer_params, training_state.params.policy),
             training_metrics={},
         )
         logging.info(metrics)

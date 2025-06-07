@@ -112,71 +112,65 @@ def make_world_model_ensemble(
     class MModule(linen.Module):
         """M Module."""
 
-        n_ensemble: int
         obs_size: int
 
         @linen.compact
         def __call__(self, obs: jnp.ndarray, actions: jnp.ndarray):
             hidden = jnp.concatenate([obs, actions], axis=-1)
-            res = []
             net = BroNet if use_bro else networks.MLP
-            single_output_dim = obs_size + 2  # +2 for reward and cost
+            # FIXME (yarden): +2
+            single_output_dim = obs_size + 1  # +2 for reward and cost
             if learn_std:
                 single_output_dim *= 2
             output_dim = single_output_dim
             hidden_dims = list(hidden_layer_sizes) + [output_dim]
-            for _ in range(self.n_ensemble):
-                m = net(
-                    layer_sizes=hidden_dims,
-                    activation=activation,
-                    kernel_init=jax.nn.initializers.lecun_uniform(),
-                )(hidden)
-                res.append(m)
-            ensemble_output = jnp.stack(res, 0)
-            return ensemble_output
+            out = net(
+                layer_sizes=hidden_dims,
+                activation=activation,
+                kernel_init=jax.nn.initializers.lecun_uniform(),
+            )(hidden)
+            return out
 
-    model = MModule(n_ensemble=n_ensemble, obs_size=obs_size)
+    model = MModule(obs_size=obs_size)
 
     def apply(preprocessor_params, params, obs, actions):
         obs_processed = preprocess_observations_fn(obs, preprocessor_params)
         raw_output = model.apply(params, obs_processed, actions)
         # Std devs also need to match the shape (B, E, feature_dim)
         if not learn_std:
-            diff_obs_raw, reward, cost = (
+            diff_obs_raw, reward = (
                 raw_output[..., :obs_size],
                 raw_output[..., obs_size],
-                raw_output[..., obs_size + 1],
             )
             obs = postprocess_observations_fn(
                 diff_obs_raw + obs_processed, preprocessor_params
             )
             obs_std = jnp.ones_like(obs) * 1e-3
             reward_std = jnp.ones_like(reward) * 1e-3
-            cost_std = jnp.ones_like(cost) * 1e-3
+            # FIXME (yarden): like cost
+            cost_std = jnp.ones_like(reward) * 1e-3
         else:
+            # FIXME (yarden): costs are not taken
             means, stds = jnp.split(raw_output, 2, axis=-1)
-            diff_obs_raw, reward, cost = (
-                means[..., :obs_size],
-                means[..., obs_size],
-                means[..., obs_size + 1],
-            )
+            diff_obs_raw, reward = means[..., :obs_size], means[..., obs_size]
+            # FIXME (yarden)
+            # obs = postprocess_observations_fn(
+            #     diff_obs_raw + obs_processed, preprocessor_params
+            # )
             obs = postprocess_observations_fn(
                 diff_obs_raw + obs_processed, preprocessor_params
             )
-
-            obs_std, reward_std, cost_std = (
-                stds[..., :obs_size],
-                stds[..., obs_size],
-                stds[..., obs_size + 1],
-            )
+            obs_std, reward_std = stds[..., :obs_size], stds[..., obs_size]
             # FIXME: (manu) figure out postprocessing of stds (only take scaling part of postprocessor)
-        return (obs, reward, cost), (obs_std, reward_std, cost_std)
+            # FIXME (yarden): pass the costs not zeros like reward
+        return (obs, reward, jnp.zeros_like(reward)), (obs_std, reward_std, cost_std)
 
     dummy_obs = jnp.zeros((1, obs_size))
     dummy_action = jnp.zeros((1, action_size))
-    return networks.FeedForwardNetwork(
+    net = networks.FeedForwardNetwork(
         init=lambda key: model.init(key, dummy_obs, dummy_action), apply=apply
     )
+    return net
 
 
 def make_mb_ppo_networks(
