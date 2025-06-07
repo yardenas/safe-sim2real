@@ -152,6 +152,8 @@ def train(
     reset_on_eval: bool = True,
     store_buffer: bool = False,
     use_rae: bool = False,
+    critic_warmup_steps: int = 0,
+    critic_entropy: bool = True,
 ):
     if min_replay_size >= num_timesteps:
         raise ValueError(
@@ -257,9 +259,9 @@ def train(
         training_state = training_state.replace(  # type: ignore
             normalizer_params=params[0],
             policy_params=params[1],
-            penalizer_params=penalizer_params,
-            qr_params=params[3],
-            qc_params=params[4],
+            # penalizer_params=penalizer_params,
+            # qr_params=params[3],
+            # qc_params=params[4],
         )
         if len(params) >= 6 and use_rae:
             logging.info("Restoring replay buffer state")
@@ -335,6 +337,7 @@ def train(
         safety_budget,
         tau,
         num_critic_updates_per_actor_update,
+        critic_entropy=critic_entropy,
     )
 
     def prefill_replay_buffer(
@@ -364,12 +367,50 @@ def train(
             )
             return (new_training_state, env_state, buffer_state, new_key), ()
 
-        return jax.lax.scan(
+        training_state, env_state, buffer_state, key = jax.lax.scan(
             f,
             (training_state, env_state, buffer_state, key),
             (),
             length=num_prefill_experience_call,
         )[0]
+        if critic_warmup_steps > 0:
+            critic_step = make_training_step(
+                env,
+                make_policy,
+                replay_buffer,
+                alpha_update,
+                critic_update,
+                cost_critic_update,
+                actor_update,
+                safe,
+                min_alpha,
+                reward_q_transform,
+                cost_q_transform,
+                penalizer,
+                grad_updates_per_step,
+                extra_fields,
+                get_experience_fn,
+                env_steps_per_experience_call,
+                safety_budget,
+                tau,
+                num_critic_updates_per_actor_update,
+                critic_warmup=True,
+                critic_entropy=critic_entropy,
+            )
+
+            def f(carry, unused_t):
+                ts, es, bs, k = carry
+                k, new_key = jax.random.split(k)
+                ts, es, bs, _ = critic_step(ts, es, bs, k)
+                return (ts, es, bs, new_key), None
+
+            (training_state, env_state, buffer_state, key), _ = jax.lax.scan(
+                f,
+                (training_state, env_state, buffer_state, key),
+                (),
+                length=critic_warmup_steps,
+            )
+        return training_state, env_state, buffer_state, key
 
     def training_epoch(
         training_state: TrainingState,

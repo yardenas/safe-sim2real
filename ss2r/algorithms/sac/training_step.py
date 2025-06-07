@@ -34,6 +34,8 @@ def make_training_step(
     safety_budget,
     tau,
     num_critic_updates_per_actor_update,
+    critic_warmup=False,
+    critic_entropy=True,
 ):
     def critic_sgd_step(
         carry: Tuple[TrainingState, PRNGKey], transitions: Transition
@@ -42,7 +44,9 @@ def make_training_step(
 
         key, key_critic, key_cost_critic = jax.random.split(key, 3)
         transitions = float32(transitions)
-        alpha = jnp.exp(training_state.alpha_params) + min_alpha
+        alpha = (
+            jnp.exp(training_state.alpha_params) + min_alpha if critic_entropy else 0.0
+        )
         critic_loss, qr_params, qr_optimizer_state = critic_update(
             training_state.qr_params,
             training_state.policy_params,
@@ -193,9 +197,13 @@ def make_training_step(
             lambda x: jnp.reshape(x, (grad_updates_per_step, -1) + x.shape[1:]),
             transitions,
         )
-        (training_state, _), critic_metrics = jax.lax.scan(
+        (training_state, _), metrics = jax.lax.scan(
             critic_sgd_step, (training_state, training_key), transitions
         )
+        metrics["buffer_current_size"] = replay_buffer.size(buffer_state)
+        metrics |= env_state.metrics
+        if critic_warmup:
+            return training_state, env_state, buffer_state, metrics
         num_actor_updates = -(
             -grad_updates_per_step // num_critic_updates_per_actor_update
         )
@@ -209,9 +217,7 @@ def make_training_step(
             transitions,
             length=num_actor_updates,
         )
-        metrics = critic_metrics | actor_metrics
-        metrics["buffer_current_size"] = replay_buffer.size(buffer_state)
-        metrics |= env_state.metrics
+        metrics |= actor_metrics
         return training_state, env_state, buffer_state, metrics
 
     return training_step
