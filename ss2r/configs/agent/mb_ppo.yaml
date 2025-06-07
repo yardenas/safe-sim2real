@@ -38,3 +38,8 @@ pretrain_model: true
 pretrain_epochs: 1000
 pretrain_num_samples: 1000000
 store_buffer: false
+num_particles: 100
+num_iters: 10
+num_elite: 10
+stop_cond: 0.
+initial_stddev: 1.

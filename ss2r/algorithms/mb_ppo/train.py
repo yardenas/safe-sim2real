@@ -30,7 +30,7 @@ from etils import epath
 from ml_collections import config_dict
 from orbax import checkpoint as ocp
 
-from ss2r.algorithms.mb_ppo import Metrics, TrainingState, model_env
+from ss2r.algorithms.mb_ppo import Metrics, TrainingState, cem, model_env
 from ss2r.algorithms.mb_ppo import losses as mb_ppo_losses
 from ss2r.algorithms.mb_ppo import model_train_step as mb_model_training_step
 from ss2r.algorithms.mb_ppo import networks as mb_ppo_networks
@@ -135,6 +135,11 @@ def train(
     pretrain_epochs: int = 5000,
     pretrain_num_samples: int = 1000000,
     store_buffer: bool = False,
+    num_particles: int = 10,
+    num_iters: int = 10,
+    num_elite: int = 10,
+    stop_cond: float = 0.1,
+    initial_stddev: float = 1.0,
 ):
     # Check if environment and buffer params are compatible.
     if min_replay_size >= num_timesteps:
@@ -191,7 +196,7 @@ def train(
         n_ensemble=n_ensemble,
         learn_std=learn_std,
     )
-    make_policy = mb_ppo_networks.make_inference_fn(ppo_network)
+
     model_optimizer = optax.adam(learning_rate=model_learning_rate)
     policy_optimizer = optax.adam(learning_rate=actor_critic_learning_rate)
     value_optimizer = optax.adam(learning_rate=actor_critic_learning_rate)
@@ -282,24 +287,65 @@ def train(
         planning_env = VmapWrapper(planning_env)
         return planning_env
 
-    # Creating the PPO update step
-    training_step = update_step_factory(
-        policy_loss,
-        value_loss,
-        cost_value_loss,
-        policy_optimizer,
-        value_optimizer,
-        cost_value_optimizer,
-        create_planning_env,  # Pass the factory function
-        replay_buffer,
-        unroll_length,
-        num_minibatches,
-        make_policy,
-        num_updates_per_batch,
-        safe,
-        ensemble_selection,
-        env,  # delete me
-    )
+    def make_policy(params, deterministic=False):
+        normalizer_params, model_params = params
+
+        def rollout_fn(horizon, initial_state, key, actions):
+            planning_env = create_planning_env(
+                model_params,
+                normalizer_params,
+                key,
+                ensemble_selection,
+            )
+            state = envs.State(
+                pipeline_state=None,
+                obs=initial_state,
+                reward=jnp.zeros(()),
+                done=jnp.zeros(()),
+                info={
+                    "cost": jnp.zeros(()),
+                    "truncation": jnp.zeros(()),
+                },
+            )
+
+            def f(carry, action):
+                state, current_key = carry
+                current_key, next_key = jax.random.split(current_key)
+                nstate = planning_env.unwrapped.step(state, action)
+                transition = (
+                    Transition(  # pytype: disable=wrong-arg-types  # jax-ndarray
+                        observation=env_state.obs,
+                        action=actions,
+                        reward=nstate.reward,
+                        discount=1 - nstate.done,
+                        next_observation=nstate.obs,
+                        extras={},
+                    )
+                )
+                return (nstate, next_key), transition
+
+            assert (
+                actions.shape[0] == horizon
+            ), "Actions must be of shape (num_envs, horizon)"
+            _, data = jax.lax.scan(f, (state, key), actions, length=horizon)
+            return data
+
+        def policy(observation, key):
+            objective_fn = cem.make_objective(
+                rollout_fn, unroll_length, observation, key
+            )
+            return cem.solve(
+                objective_fn,
+                jnp.zeros((unroll_length, action_size)),
+                key,
+                num_particles,
+                num_iters,
+                num_elite,
+                stop_cond,
+                initial_stddev,
+            )[0], {}
+
+        return jax.vmap(policy, in_axes=(0, None))
 
     # Creating the model training step
     model_training_step = model_update_step_factory(
@@ -325,7 +371,7 @@ def train(
         normalizer_params, env_state, buffer_state = get_experience_fn(
             env,
             make_policy,
-            training_state.params.policy,
+            training_state.params.model,
             training_state.normalizer_params,
             replay_buffer,
             env_state,
@@ -352,7 +398,7 @@ def train(
             new_normalizer_params, env_state, buffer_state = get_experience_fn(
                 env,
                 make_policy,
-                training_state.params.policy,
+                training_state.params.model,
                 training_state.normalizer_params,
                 replay_buffer,
                 env_state,
@@ -401,20 +447,7 @@ def train(
                 // batch_size,
             )
             # Learn model with ppo on learned model (planning MDP)
-
-            (
-                (training_state, buffer_state, _),
-                ppo_loss_metrics,
-            ) = jax.lax.scan(
-                training_step,
-                (training_state, buffer_state, actor_critic_key),
-                (),
-                length=ppo_updates_per_step
-                * env_steps_per_experience_call
-                // (batch_size * num_minibatches * unroll_length),
-            )
-            metrics = model_loss_metrics | ppo_loss_metrics
-
+            metrics = model_loss_metrics
             return (
                 training_state,
                 env_state,
@@ -533,11 +566,7 @@ def train(
     metrics = {}
     if num_evals > 1:
         metrics = evaluator.run_evaluation(
-            (
-                training_state.normalizer_params,
-                training_state.params.policy,
-                training_state.params.value,
-            ),
+            (training_state.normalizer_params, training_state.params.model),
             training_metrics={},
         )
         logging.info(metrics)
@@ -591,7 +620,7 @@ def train(
 
         # Run evals.
         metrics = evaluator.run_evaluation(
-            (training_state.normalizer_params, training_state.params.policy),
+            (training_state.normalizer_params, training_state.params.model),
             training_metrics,
         )
         logging.info(metrics)

@@ -46,6 +46,7 @@ class ModelBasedEnv(envs.Env):
             self.normalizer_params, self.model_params, state.obs, action
         )
         # Select from ensemble
+        # TODO (this makes step function non-pure)
         self.sample_key, key = jax.random.split(self.sample_key)
         next_obs, reward, cost = _propagate_ensemble(
             diff_to_next_obs_pred,
