@@ -5,19 +5,19 @@ defaults:
   - _self_
 
 training:
-  num_timesteps: 1000000
+  num_timesteps: 150000
   safe: false
   train_domain_randomization: false
   eval_domain_randomization: false
   num_eval_episodes: 1
-  num_evals: 50
-  num_envs: 5
+  num_evals: 15
+  num_envs: 10
 
 agent:
-  actor_critic_learning_rate: 1e-3
-  model_learning_rate: 1e-4
-  entropy_cost: 0.01
+  model_learning_rate: 3e-4
   unroll_length: 10
-  model_hidden_layer_sizes: [256,256,256,256]
+  model_hidden_layer_sizes: [256, 256, 256, 256]
   policy_hidden_layer_sizes: [64, 64, 64]
-  value_hidden_layer_sizes: [512,512]
+  value_hidden_layer_sizes: [512, 512]
+  normalize_observations: false
+  pretrain_model: false
