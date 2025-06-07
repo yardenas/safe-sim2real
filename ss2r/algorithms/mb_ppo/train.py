@@ -363,14 +363,27 @@ def train(
                 normalizer_params=new_normalizer_params,
                 env_steps=training_state.env_steps + env_steps_per_experience_call,
             )
+
             return (new_training_state, env_state, buffer_state, new_key), ()
 
-        return jax.lax.scan(
+        training_state, env_state, buffer_state, new_key = jax.lax.scan(
             f,
             (training_state, env_state, buffer_state, key),
             (),
             length=num_prefill_experience_call,
         )[0]
+        new_key, model_key = jax.random.split(new_key, 2)
+        # Learn model from sampled transitions
+        (
+            (training_state, buffer_state, _),
+            _,
+        ) = jax.lax.scan(
+            model_training_step,
+            (training_state, buffer_state, model_key),
+            (),
+            length=pretrain_epochs,
+        )
+        return training_state, env_state, buffer_state, new_key
 
     def training_epoch(
         training_state: TrainingState,
