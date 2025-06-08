@@ -40,4 +40,4 @@ model_ensemble_size: 5
 unroll_length: 1
 num_model_rollouts: 400
 optimism: 0.
-model_propagation: nominal
+model_propagation: random
