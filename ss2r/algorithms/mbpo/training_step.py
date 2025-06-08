@@ -245,6 +245,22 @@ def make_training_step(
         (training_state, _), model_metrics = jax.lax.scan(
             model_sgd_step, (training_state, training_key), transitions
         )
+        num_transitions = (
+            transitions.observation.shape[0] * transitions.observation.shape[1]
+        )
+        sac_datapoints = critic_grad_updates_per_step * sac_batch_size // unroll_length
+        if sac_datapoints > num_transitions:
+            sample_ratio = -(-sac_datapoints // num_transitions)
+            keys = jax.random.split(training_key, sample_ratio)
+
+            def sample(carry, key):
+                rb_state = carry
+                rb_state, transitions = model_replay_buffer.sample(rb_state)
+                return rb_state, transitions
+
+            model_buffer_state, transitions = jax.lax.scan(
+                sample, sac_buffer_state, keys
+            )
         # Rollout trajectories from the sampled transitions
         transitions = generate_model_data(
             training_state, transitions, sac_buffer_state, training_key
