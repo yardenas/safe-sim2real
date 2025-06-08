@@ -318,7 +318,7 @@ def train(
         model_network=mbpo_network.model_network,
         action_size=action_size,
         observation_size=obs_size,
-        ensemble_selection="random",
+        ensemble_selection="nominal",
         safety_budget=safety_budget,
     )
     training_step = make_training_step(
