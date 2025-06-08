@@ -121,8 +121,6 @@ def make_training_step(
             training_state.model_params,
             training_state.normalizer_params,
             transitions,
-            # FIXME (yarden): don't hardcode this later
-            False,
             optimizer_state=training_state.model_optimizer_state,  # type: ignore
             params=training_state.model_params,
         )

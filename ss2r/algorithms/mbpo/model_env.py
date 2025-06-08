@@ -40,15 +40,11 @@ class ModelBasedEnv(envs.Env):
         action_min = -1.0
         action = (action + 1) * (action_max - action_min) * 0.5 + action_min
         pred_fn = jax.vmap(self.model_network.apply, in_axes=(None, 0, None, None))
-        (
-            (next_obs_pred, reward_pred, cost_pred),
-            (next_obs_std, reward_std, cost_std),
-        ) = pred_fn(self.normalizer_params, self.model_params, state.obs, action)
+        next_obs_pred, reward_pred, cost_pred = pred_fn(
+            self.normalizer_params, self.model_params, state.obs, action
+        )
         # Select from ensemble
-        # FIXME: Choose key differently
         key = state.info["key"]
-        # FIXME (yarden): NOT
-        reward_pred = jnp.clip(reward_pred, a_min=-1.0, a_max=1.0)
         sample_key, key = jax.random.split(key)
         next_obs, reward, cost = _propagate_ensemble(
             next_obs_pred,

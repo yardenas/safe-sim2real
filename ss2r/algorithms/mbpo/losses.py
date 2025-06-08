@@ -146,25 +146,25 @@ def make_losses(
         actor_loss += exploration_loss
         return actor_loss
 
-    def compute_model_loss(
-        model_params,
-        normalizer_params,
-        data,
-        learn_std,
-    ):
+    def compute_model_loss(model_params, normalizer_params, data):
         model_apply = jax.vmap(mbpo_network.model_network.apply, (None, 0, None, None))
-        (
-            (next_obs_pred, reward_pred, cost_pred),
-            (next_obs_std, reward_std, cost_std),
-        ) = model_apply(normalizer_params, model_params, data.observation, data.action)
+
+        (next_obs_pred, reward_pred, cost_pred) = model_apply(
+            normalizer_params, model_params, data.observation, data.action
+        )
         next_obs_pred = normalize_fn(next_obs_pred, normalizer_params)
-        # FIXME (yarden): zeros_like_cost pred
-        concat_preds = jnp.concatenate([next_obs_pred, reward_pred[..., None]], axis=-1)
+        concat_preds = jnp.concatenate(
+            [next_obs_pred, reward_pred[..., None], cost_pred[..., None]], axis=-1
+        )
         expand = lambda x: jnp.tile(
             x[None], (next_obs_pred.shape[0],) + (1,) * (x.ndim)
         )
         next_obs = normalize_fn(data.next_observation, normalizer_params)
-        targets = jnp.concatenate([next_obs, data.reward[..., None]], axis=-1)
+        costs = data.extras["state_extras"].get("cost", jnp.zeros_like(data.reward))
+        targets = jnp.concatenate(
+            [next_obs, data.reward[..., None], costs[..., None]],
+            axis=-1,
+        )
         targets = expand(targets)
         total_loss = optax.l2_loss(concat_preds, targets)
         truncation = data.extras["state_extras"]["truncation"]
