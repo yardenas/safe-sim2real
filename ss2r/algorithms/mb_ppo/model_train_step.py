@@ -3,7 +3,9 @@ from typing import Tuple
 import jax
 from brax import envs
 from brax.training import gradients
-from brax.training.types import PRNGKey
+from brax.training.types import (
+    PRNGKey,
+)
 
 from ss2r.algorithms.mb_ppo import Metrics, TrainingState
 from ss2r.algorithms.mb_ppo import losses as mb_ppo_losses
@@ -34,7 +36,6 @@ def update_fn(
             training_state.params.model,
             training_state.normalizer_params,
             transitions,
-            key_sgd,
             learn_std,
             optimizer_state=training_state.optimizer_state[0],  # type: ignore
         )

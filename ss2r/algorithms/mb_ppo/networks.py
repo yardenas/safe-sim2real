@@ -34,29 +34,29 @@ class MBPPONetworks:
 
 
 class BroNet(linen.Module):
-    hidden_dims: Sequence[int]
+    layer_sizes: Sequence[int]
     activation: Callable
     kernel_init: Callable = jax.nn.initializers.lecun_uniform()
 
     @linen.compact
     def __call__(self, x):
-        assert all(size == self.hidden_dims[0] for size in self.hidden_dims[:-1])
-        x = linen.Dense(features=self.hidden_dims[0], kernel_init=self.kernel_init)(x)
+        assert all(size == self.layer_sizes[0] for size in self.layer_sizes[:-1])
+        x = linen.Dense(features=self.layer_sizes[0], kernel_init=self.kernel_init)(x)
         x = linen.LayerNorm()(x)
         x = self.activation(x)
-        for _ in range(len(self.hidden_dims) - 1):
+        for _ in range(len(self.layer_sizes) - 1):
             residual = x
-            x = linen.Dense(features=self.hidden_dims[0], kernel_init=self.kernel_init)(
+            x = linen.Dense(features=self.layer_sizes[0], kernel_init=self.kernel_init)(
                 x
             )
             x = linen.LayerNorm()(x)
             x = self.activation(x)
-            x = linen.Dense(features=self.hidden_dims[0], kernel_init=self.kernel_init)(
+            x = linen.Dense(features=self.layer_sizes[0], kernel_init=self.kernel_init)(
                 x
             )
             x = linen.LayerNorm()(x)
             x += residual
-        x = linen.Dense(self.hidden_dims[-1], kernel_init=self.kernel_init)(x)
+        x = linen.Dense(self.layer_sizes[-1], kernel_init=self.kernel_init)(x)
         return x
 
 
@@ -95,8 +95,9 @@ def make_world_model_ensemble(
     obs_size: int,
     action_size: int,
     preprocess_observations_fn: types.PreprocessObservationFn = types.identity_observation_preprocessor,
-    hidden_layer_sizes: Sequence[int] = (256, 256),
-    activation: networks.ActivationFn = linen.relu,
+    postprocess_observations_fn: types.PreprocessObservationFn = types.identity_observation_preprocessor,
+    hidden_layer_sizes: Sequence[int] = (512, 512),
+    activation: networks.ActivationFn = linen.swish,
     n_ensemble: int = 5,
     use_bro: bool = True,
     learn_std: bool = False,
@@ -111,74 +112,77 @@ def make_world_model_ensemble(
     class MModule(linen.Module):
         """M Module."""
 
-        n_ensemble: int
         obs_size: int
 
         @linen.compact
         def __call__(self, obs: jnp.ndarray, actions: jnp.ndarray):
             hidden = jnp.concatenate([obs, actions], axis=-1)
-            res = []
             net = BroNet if use_bro else networks.MLP
-            single_output_dim = obs_size + 2  # +2 for reward and cost
+            # FIXME (yarden): +2
+            single_output_dim = obs_size + 1  # +2 for reward and cost
             if learn_std:
                 single_output_dim *= 2
             output_dim = single_output_dim
             hidden_dims = list(hidden_layer_sizes) + [output_dim]
-            for _ in range(self.n_ensemble):
-                m = net(
-                    hidden_dims=hidden_dims,
-                    activation=activation,
-                    kernel_init=jax.nn.initializers.lecun_uniform(),
-                )(hidden)
-                res.append(m)
-            ensemble_output = jnp.stack(res, 0)
-            return ensemble_output
+            out = net(
+                layer_sizes=hidden_dims,
+                activation=activation,
+                kernel_init=jax.nn.initializers.lecun_uniform(),
+            )(hidden)
+            return out
 
-    model = MModule(n_ensemble=n_ensemble, obs_size=obs_size)
+    model = MModule(obs_size=obs_size)
 
-    def apply(processor_params, params, obs, actions):
-        obs_processed = preprocess_observations_fn(obs, processor_params)
+    def apply(preprocessor_params, params, obs, actions):
+        obs_processed = preprocess_observations_fn(obs, preprocessor_params)
         raw_output = model.apply(params, obs_processed, actions)
         # Std devs also need to match the shape (B, E, feature_dim)
         if not learn_std:
-            obs, reward, cost = (
+            diff_obs_raw, reward = (
                 raw_output[..., :obs_size],
                 raw_output[..., obs_size],
-                raw_output[..., obs_size + 1],
+            )
+            obs = postprocess_observations_fn(
+                diff_obs_raw + obs_processed, preprocessor_params
             )
             obs_std = jnp.ones_like(obs) * 1e-3
             reward_std = jnp.ones_like(reward) * 1e-3
-            cost_std = jnp.ones_like(cost) * 1e-3
+            # FIXME (yarden): like cost
+            cost_std = jnp.ones_like(reward) * 1e-3
         else:
+            # FIXME (yarden): costs are not taken
             means, stds = jnp.split(raw_output, 2, axis=-1)
-            obs, reward, cost = (
-                means[..., :obs_size],
-                means[..., obs_size],
-                means[..., obs_size + 1],
+            diff_obs_raw, reward = means[..., :obs_size], means[..., obs_size]
+            # FIXME (yarden)
+            # obs = postprocess_observations_fn(
+            #     diff_obs_raw + obs_processed, preprocessor_params
+            # )
+            obs = postprocess_observations_fn(
+                diff_obs_raw + obs_processed, preprocessor_params
             )
-            obs_std, reward_std, cost_std = (
-                stds[..., :obs_size],
-                stds[..., obs_size],
-                stds[..., obs_size + 1],
-            )
-        return (obs, reward, cost), (obs_std, reward_std, cost_std)
+            obs_std, reward_std = stds[..., :obs_size], stds[..., obs_size]
+            # FIXME: (manu) figure out postprocessing of stds (only take scaling part of postprocessor)
+            # FIXME (yarden): pass the costs not zeros like reward
+        return (obs, reward, jnp.zeros_like(reward)), (obs_std, reward_std, cost_std)
 
     dummy_obs = jnp.zeros((1, obs_size))
     dummy_action = jnp.zeros((1, action_size))
-    return networks.FeedForwardNetwork(
+    net = networks.FeedForwardNetwork(
         init=lambda key: model.init(key, dummy_obs, dummy_action), apply=apply
     )
+    return net
 
 
 def make_mb_ppo_networks(
     observation_size: int,
     action_size: int,
     preprocess_observations_fn: types.PreprocessObservationFn = types.identity_observation_preprocessor,
+    postprocess_observations_fn: types.PreprocessObservationFn = types.identity_observation_preprocessor,
     policy_hidden_layer_sizes: Sequence[int] = (32,) * 4,
     value_hidden_layer_sizes: Sequence[int] = (256,) * 5,
-    model_hidden_layer_sizes: Sequence[int] = (256,) * 5,
+    model_hidden_layer_sizes: Sequence[int] = (512,) * 2,
     n_ensemble: int = 5,
-    model_use_bro: bool = True,
+    use_bro: bool = True,
     activation: networks.ActivationFn = linen.swish,
     policy_obs_key: str = "state",
     value_obs_key: str = "state",
@@ -222,10 +226,11 @@ def make_mb_ppo_networks(
         observation_size,
         action_size,
         preprocess_observations_fn=preprocess_observations_fn,
+        postprocess_observations_fn=postprocess_observations_fn,
         hidden_layer_sizes=model_hidden_layer_sizes,
         activation=activation,
         n_ensemble=n_ensemble,
-        use_bro=model_use_bro,
+        use_bro=use_bro,
         learn_std=learn_std,
     )
 

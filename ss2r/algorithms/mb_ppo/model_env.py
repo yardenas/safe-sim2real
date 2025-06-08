@@ -36,53 +36,47 @@ class ModelBasedEnv(envs.Env):
     def step(self, state: base.State, action: jax.Array) -> base.State:
         """Step using the learned model."""
         # Predict next state, reward, and cost using the model
+        action_max = 1.0
+        action_min = -1.0
+        action = (action + 1) * (action_max - action_min) * 0.5 + action_min
+        pred_fn = jax.vmap(self.model_network.apply, in_axes=(None, 0, None, None))
         (
             (next_obs_pred, reward_pred, cost_pred),
             (next_obs_std, reward_std, cost_std),
-        ) = self.model_network.apply(
-            self.normalizer_params, self.model_params, state.obs, action
-        )
+        ) = pred_fn(self.normalizer_params, self.model_params, state.obs, action)
         # Select from ensemble
-        # TODO (manu): refactor this to a separate function (self._propagate_method)
-        if self.ensemble_selection == "random":
-            key_ensemble_selection = jax.random.PRNGKey(jnp.sum(jnp.abs(state.obs)))
-            batch_size = next_obs_pred.shape[0]
-            ensemble_size = next_obs_pred.shape[1]
-            random_indices = jax.random.randint(
-                key_ensemble_selection, (batch_size,), 0, ensemble_size
-            )
-            next_obs = jax.vmap(lambda arr, idx: arr[idx])(
-                next_obs_pred, random_indices
-            )
-            reward = jax.vmap(lambda arr, idx: arr[idx])(reward_pred, random_indices)
-            cost = jax.vmap(lambda arr, idx: arr[idx])(cost_pred, random_indices)
-        elif self.ensemble_selection == "mean":
-            # Use ensemble mean
-            next_obs = jnp.mean(next_obs_pred, axis=0)
-            reward = jnp.mean(reward_pred, axis=0)
-            cost = jnp.mean(cost_pred, axis=0)
-        elif self.ensemble_selection == "pessimistic":
-            next_obs = jnp.mean(next_obs_pred, axis=0)
-            reward = jnp.min(reward_pred, axis=0)
-            cost = jnp.max(cost_pred, axis=0)
-        else:
-            raise ValueError(f"Unknown ensemble selection: {self.ensemble_selection}")
-        done = jnp.zeros_like(reward, dtype=jnp.float32)
-        prev_cumulative_cost = state.info["cumulative_cost"]
-        accumulated_cost_for_transition = prev_cumulative_cost + cost
-        if self.safety_budget < float("inf"):
-            done = jnp.where(
-                accumulated_cost_for_transition > self.safety_budget,
-                jnp.ones_like(done),
-                done,
-            )
-        accumulated_cost_for_transition = jnp.where(
-            done > 0,
-            jnp.zeros_like(accumulated_cost_for_transition),
-            accumulated_cost_for_transition,
+        # FIXME: Choose key differently
+        key = state.info["key"]
+        # FIXME (yarden): NOT
+        reward_pred = jnp.clip(reward_pred, a_min=-1.0, a_max=1.0)
+        sample_key, key = jax.random.split(key)
+        next_obs, reward, cost = _propagate_ensemble(
+            next_obs_pred,
+            reward_pred,
+            cost_pred,
+            self.ensemble_selection,
+            sample_key,
         )
-        state.info["cumulative_cost"] = accumulated_cost_for_transition
+        state.info["key"] = key
+        done = jnp.zeros_like(reward, dtype=jnp.float32)
+        truncation = jnp.zeros_like(reward, dtype=jnp.float32)
         state.info["cost"] = cost
+        state.info["truncation"] = truncation
+        if "cumulative_cost" in state.info:
+            prev_cumulative_cost = state.info["cumulative_cost"]
+            accumulated_cost_for_transition = prev_cumulative_cost + cost
+            if self.safety_budget < float("inf"):
+                done = jnp.where(
+                    accumulated_cost_for_transition > self.safety_budget,
+                    jnp.ones_like(done),
+                    done,
+                )
+            accumulated_cost_for_transition = jnp.where(
+                done > 0,
+                jnp.zeros_like(accumulated_cost_for_transition),
+                accumulated_cost_for_transition,
+            )
+            state.info["cumulative_cost"] = accumulated_cost_for_transition
         state = state.replace(
             obs=next_obs,
             reward=reward,
@@ -123,3 +117,31 @@ def create_model_env(
         ensemble_selection=ensemble_selection,
         safety_budget=safety_budget,
     )
+
+
+def _propagate_ensemble(
+    next_obs_pred: jax.Array,
+    reward_pred: jax.Array,
+    cost_pred: jax.Array,
+    ensemble_selection: str,
+    key,
+) -> tuple[jax.Array, jax.Array, jax.Array]:
+    """Propagate the ensemble predictions based on the selection method."""
+    if ensemble_selection == "random":
+        # Randomly select one of the ensemble predictions
+        idx = jax.random.randint(key, (1,), 0, next_obs_pred.shape[0])[0]
+        next_obs = next_obs_pred[idx]
+        reward = reward_pred[idx]
+        cost = cost_pred[idx]
+    elif ensemble_selection == "mean":
+        next_obs = jnp.mean(next_obs_pred, axis=0)
+        reward = jnp.mean(reward_pred, axis=0)
+        cost = jnp.mean(cost_pred, axis=0)
+    elif ensemble_selection == "pessimistic":
+        next_obs = jnp.mean(next_obs_pred, axis=0)
+        reward = jnp.min(reward_pred, axis=0)
+        cost = jnp.max(cost_pred, axis=0)
+    else:
+        raise ValueError(f"Unknown ensemble selection: {ensemble_selection}")
+
+    return next_obs, reward, cost

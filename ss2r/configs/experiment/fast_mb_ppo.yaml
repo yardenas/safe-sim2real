@@ -1,0 +1,33 @@
+# @package _global_
+defaults:
+  - override /environment: fast
+  - override /agent: mb_ppo
+  - _self_
+
+training:
+  num_timesteps: 50000
+  safe: false
+  train_domain_randomization: false
+  eval_domain_randomization: false
+  num_eval_episodes: 1
+  num_evals: 15
+  num_envs: 10
+  episode_length: 128
+
+agent:
+  model_learning_rate: 3e-4
+  actor_critic_learning_rate: 8e-5
+  entropy_cost: 0.01
+  unroll_length: 5
+  model_hidden_layer_sizes: [256, 256, 256, 256]
+  policy_hidden_layer_sizes: [128, 128, 128, 128]
+  value_hidden_layer_sizes: [256, 256, 256, 256, 256]
+  normalize_observations: true
+  min_replay_size: 10000
+  pretrain_model: false
+  ensemble_selection: random
+  reward_scaling: 1.
+  ppo_updates_per_step: 5
+  pretrain_epochs: 1
+  num_minibatches: 32
+  discounting: 0.95

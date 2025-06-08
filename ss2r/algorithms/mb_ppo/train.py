@@ -27,6 +27,7 @@ from brax.training.acme import running_statistics, specs
 from brax.training.agents.sac import checkpoint
 from brax.training.types import PRNGKey, Transition
 from etils import epath
+from jax._src.lax import slicing
 from ml_collections import config_dict
 from orbax import checkpoint as ocp
 
@@ -34,10 +35,32 @@ from ss2r.algorithms.mb_ppo import Metrics, TrainingState, model_env
 from ss2r.algorithms.mb_ppo import losses as mb_ppo_losses
 from ss2r.algorithms.mb_ppo import model_train_step as mb_model_training_step
 from ss2r.algorithms.mb_ppo import networks as mb_ppo_networks
+from ss2r.algorithms.mb_ppo import pre_train_model as ptm
 from ss2r.algorithms.mb_ppo import training_step as mb_ppo_training_step
 from ss2r.algorithms.sac.data import collect_single_step
 from ss2r.algorithms.sac.types import CollectDataFn, ReplayBufferState, float16
 from ss2r.rl.evaluation import ConstraintsEvaluator
+
+
+def _index_array(i, aval, x):
+    return slicing.index_in_dim(x, i, keepdims=False)
+
+
+def _scan(f, init, xs, length=None, reverse=False, unroll=1, *, use_lax=True):
+    if use_lax:
+        return jax.lax.scan(f, init, xs, length=length, reverse=reverse, unroll=unroll)
+    else:
+        xs_flat, xs_tree = jax.tree_flatten(xs)
+        carry = init
+        ys = []
+        maybe_reversed = reversed if reverse else lambda x: x
+        for i in maybe_reversed(range(length)):
+            xs_slice = [_index_array(i, jax._src.core.get_aval(x), x) for x in xs_flat]
+            carry, y = f(carry, jax.tree_unflatten(xs_tree, xs_slice))
+        ys.append(y)
+        stack = lambda *ys: jax.numpy.stack(ys)
+        stacked_y = jax.tree_map(stack, *maybe_reversed(ys))
+        return carry, stacked_y
 
 
 def _init_training_state(
@@ -50,8 +73,11 @@ def _init_training_state(
     obs_size,
 ):
     key_policy, key_value, key_cost_value = jax.random.split(key, 3)
+    init_model_ensemble = jax.vmap(ppo_network.model_network.init)
+    # TODO (yarden): hadrocede 5
+    model_keys = jax.random.split(key_policy, 5)
     init_params = mb_ppo_losses.MBPPOParams(
-        model=ppo_network.model_network.init(key_policy),
+        model=init_model_ensemble(model_keys),
         policy=ppo_network.policy_network.init(key_policy),
         value=ppo_network.value_network.init(key_value),
         cost_value=ppo_network.cost_value_network.init(key_cost_value),
@@ -92,13 +118,14 @@ def train(
     num_envs: int = 1,
     num_eval_envs: int = 128,
     num_eval_episodes: int = 10,
-    learning_rate: float = 1e-4,
+    actor_critic_learning_rate: float = 1e-4,
+    model_learning_rate: float = 1e-4,
     entropy_cost: float = 1e-4,
     discounting: float = 0.9,
     safety_discounting: float = 0.9,
     seed: int = 0,
     unroll_length: int = 10,
-    batch_size: int = 32,
+    batch_size: int = 1024,
     num_minibatches: int = 16,
     num_updates_per_batch: int = 2,
     model_updates_per_step: int = 1000,
@@ -112,7 +139,6 @@ def train(
     clipping_epsilon: float = 0.3,
     gae_lambda: float = 0.95,
     max_grad_norm: Optional[float] = None,
-    safety_gae_lambda: float = 0.95,
     deterministic_eval: bool = False,
     network_factory: types.NetworkFactory[
         mb_ppo_networks.MBPPONetworks
@@ -124,10 +150,16 @@ def train(
     checkpoint_logdir: Optional[str] = None,
     safety_budget: float = float("inf"),
     safe: bool = False,
+    use_bro: bool = True,
+    n_ensemble: int = 5,
+    ensemble_selection: str = "random",
+    learn_std: bool = False,
     normalize_budget: bool = True,
     reset_on_eval: bool = True,
+    pretrain_model: bool = False,
+    pretrain_epochs: int = 5000,
+    pretrain_num_samples: int = 1000000,
     store_buffer: bool = False,
-    learn_std: bool = False,
 ):
     # Check if environment and buffer params are compatible.
     if min_replay_size >= num_timesteps:
@@ -151,8 +183,10 @@ def train(
     num_prefill_experience_call = -(-min_replay_size // num_envs)
     if get_experience_fn != collect_single_step:
         # Using episodic or hardware (which is episodic)
-        env_steps_per_experience_call *= episode_length
-        num_prefill_experience_call = -(-num_prefill_experience_call // episode_length)
+        env_steps_per_experience_call *= episode_length // action_repeat
+        num_prefill_experience_call = -(
+            -num_prefill_experience_call // (episode_length * action_repeat)
+        )
     num_prefill_env_steps = num_prefill_experience_call * env_steps_per_experience_call
     assert num_timesteps - num_prefill_env_steps >= 0
     num_evals_after_init = max(num_evals - 1, 1)
@@ -171,33 +205,40 @@ def train(
     obs_size = env.observation_size
     action_size = env.action_size
     normalize_fn = lambda x, y: x
+    denormalize_fn = lambda x, y: x
     if normalize_observations:
         normalize_fn = running_statistics.normalize
-    # Create the model based PPO networks and optimizers
+        denormalize_fn = running_statistics.denormalize
     ppo_network = network_factory(
-        obs_size, action_size, preprocess_observations_fn=normalize_fn
+        obs_size,
+        action_size,
+        preprocess_observations_fn=normalize_fn,
+        postprocess_observations_fn=denormalize_fn,
+        use_bro=use_bro,
+        n_ensemble=n_ensemble,
+        learn_std=learn_std,
     )
     make_policy = mb_ppo_networks.make_inference_fn(ppo_network)
-    model_optimizer = optax.adam(learning_rate=learning_rate)
-    policy_optimizer = optax.adam(learning_rate=learning_rate)
-    value_optimizer = optax.adam(learning_rate=learning_rate)
-    cost_value_optimizer = optax.adam(learning_rate=learning_rate)
+    model_optimizer = optax.adam(learning_rate=model_learning_rate)
+    policy_optimizer = optax.adam(learning_rate=actor_critic_learning_rate)
+    value_optimizer = optax.adam(learning_rate=actor_critic_learning_rate)
+    cost_value_optimizer = optax.adam(learning_rate=actor_critic_learning_rate)
     if max_grad_norm is None:
         model_optimizer = optax.chain(
             optax.clip_by_global_norm(max_grad_norm),
-            optax.adam(learning_rate=learning_rate),
+            optax.adam(learning_rate=model_learning_rate),
         )
         policy_optimizer = optax.chain(
             optax.clip_by_global_norm(max_grad_norm),
-            optax.adam(learning_rate=learning_rate),
+            optax.adam(learning_rate=actor_critic_learning_rate),
         )
         value_optimizer = optax.chain(
             optax.clip_by_global_norm(max_grad_norm),
-            optax.adam(learning_rate=learning_rate),
+            optax.adam(learning_rate=actor_critic_learning_rate),
         )
         cost_value_optimizer = optax.chain(
             optax.clip_by_global_norm(max_grad_norm),
-            optax.adam(learning_rate=learning_rate),
+            optax.adam(learning_rate=actor_critic_learning_rate),
         )
 
     # Create replay buffer
@@ -244,20 +285,19 @@ def train(
         reward_scaling=reward_scaling,
         cost_scaling=cost_scaling,
         gae_lambda=gae_lambda,
-        safety_gae_lambda=safety_gae_lambda,
         clipping_epsilon=clipping_epsilon,
         normalize_advantage=normalize_advantage,
-        safety_budget=safety_budget,
+        normalize_fn=normalize_fn,
     )
 
     # Create the model-based planning environment
-    def create_planning_env(model_params, normalizer_params):
+    def create_planning_env(model_params, normalizer_params, ensemble_selection):
         """Create a planning environment with correct batch size for model-based rollouts."""
         planning_env = model_env.create_model_env(
             model_network=ppo_network.model_network,
             model_params=model_params,
             normalizer_params=normalizer_params,
-            ensemble_selection="mean",
+            ensemble_selection=ensemble_selection,
             safety_budget=safety_budget,
             observation_size=obs_size,
             action_size=action_size,
@@ -276,11 +316,11 @@ def train(
         create_planning_env,  # Pass the factory function
         replay_buffer,
         unroll_length,
-        batch_size,
         num_minibatches,
         make_policy,
         num_updates_per_batch,
         safe,
+        ensemble_selection,
     )
 
     # Creating the model training step
@@ -345,14 +385,27 @@ def train(
                 normalizer_params=new_normalizer_params,
                 env_steps=training_state.env_steps + env_steps_per_experience_call,
             )
+
             return (new_training_state, env_state, buffer_state, new_key), ()
 
-        return jax.lax.scan(
+        training_state, env_state, buffer_state, new_key = _scan(
             f,
             (training_state, env_state, buffer_state, key),
             (),
             length=num_prefill_experience_call,
         )[0]
+        new_key, model_key = jax.random.split(new_key, 2)
+        # Learn model from sampled transitions
+        (
+            (training_state, buffer_state, _),
+            _,
+        ) = _scan(
+            model_training_step,
+            (training_state, buffer_state, model_key),
+            (),
+            length=pretrain_epochs,
+        )
+        return training_state, env_state, buffer_state, new_key
 
     def training_epoch(
         training_state: TrainingState,
@@ -361,25 +414,50 @@ def train(
         key: PRNGKey,
     ) -> Tuple[TrainingState, envs.State, ReplayBufferState, Metrics]:
         # Run experience collection (later online)
-        experience_key, model_key, actor_critic_key = jax.random.split(key, 3)
-        training_state, env_state, buffer_state, training_key = run_experience_step(
-            training_state, env_state, buffer_state, experience_key
-        )
-        # Learn model from sampled transitions
-        (training_state, buffer_state, _), model_loss_metrics = jax.lax.scan(
-            model_training_step,
-            (training_state, buffer_state, key),
+
+        def f(carry, unused_t):
+            training_state, env_state, buffer_state, key = carry
+            experience_key, model_key, actor_critic_key = jax.random.split(key, 3)
+            training_state, env_state, buffer_state, training_key = run_experience_step(
+                training_state, env_state, buffer_state, experience_key
+            )
+            # Learn model from sampled transitions
+            (
+                (training_state, buffer_state, _),
+                model_loss_metrics,
+            ) = jax.lax.scan(
+                model_training_step,
+                (training_state, buffer_state, model_key),
+                (),
+                length=model_updates_per_step,
+            )
+            # Learn model with ppo on learned model (planning MDP)
+
+            (
+                (training_state, buffer_state, _),
+                ppo_loss_metrics,
+            ) = jax.lax.scan(
+                training_step,
+                (training_state, buffer_state, actor_critic_key),
+                (),
+                length=ppo_updates_per_step,
+            )
+            metrics = model_loss_metrics | ppo_loss_metrics
+
+            return (
+                training_state,
+                env_state,
+                buffer_state,
+                training_key,
+            ), metrics
+
+        (training_state, env_state, buffer_state, key), metrics = _scan(
+            f,
+            (training_state, env_state, buffer_state, key),
             (),
-            length=model_updates_per_step,
+            length=num_training_steps_per_epoch,
         )
-        # Learn model with ppo on learned model (planning MDP)
-        (training_state, _, _), ppo_loss_metrics = jax.lax.scan(
-            training_step,
-            (training_state, buffer_state, actor_critic_key),
-            (),
-            length=ppo_updates_per_step,
-        )
-        metrics = model_loss_metrics | ppo_loss_metrics
+        metrics = jax.tree_util.tree_map(jnp.mean, metrics)
         return training_state, env_state, buffer_state, metrics
 
     # Note that this is NOT a pure jittable method.
@@ -457,15 +535,35 @@ def train(
         num_episodes=num_eval_episodes,
     )
 
+    # Pretrain the model
+    if pretrain_model:
+        (model_params, normalizer_params) = ptm.pre_train_model(
+            params=training_state.params.model,  # type: ignore
+            model_network=ppo_network.model_network,
+            normalizer_params=training_state.normalizer_params,
+            normalizer_fn=normalize_fn,
+            model_optimizer=model_optimizer,
+            optimizer_state=training_state.optimizer_state[0],  # type: ignore
+            env=env,
+            model_loss=model_loss,
+            num_samples=pretrain_num_samples,
+            batch_size=batch_size,
+            epochs=pretrain_epochs,
+        )
+        training_state = training_state.replace(  # type: ignore
+            params=training_state.params.replace(model=model_params),  # type: ignore
+            normalizer_params=normalizer_params,
+            optimizer_state=(model_optimizer.init(model_params),)
+            + training_state.optimizer_state[1:],  # type: ignore
+        )
+        pretrained_model = training_state.params.model  # type: ignore
+    else:
+        pretrained_model = None
     # Run initial eval
     metrics = {}
     if num_evals > 1:
         metrics = evaluator.run_evaluation(
-            (
-                training_state.normalizer_params,
-                training_state.params.policy,
-                training_state.params.value,
-            ),
+            (training_state.normalizer_params, training_state.params.policy),
             training_metrics={},
         )
         logging.info(metrics)
@@ -510,6 +608,7 @@ def train(
                 training_state.params.value,
                 training_state.params.cost_value,
                 training_state.params.model,
+                pretrained_model,
             )
             if store_buffer:
                 params += (buffer_state,)  # type: ignore
@@ -532,6 +631,7 @@ def train(
         training_state.params.value,
         training_state.params.cost_value,
         training_state.params.model,
+        pretrained_model,  # type: ignore
     )
     if store_buffer:
         params += (buffer_state,)  # type: ignore
