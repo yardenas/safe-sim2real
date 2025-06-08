@@ -34,6 +34,7 @@ from ml_collections import config_dict
 
 import ss2r.algorithms.mbpo.losses as mbpo_losses
 import ss2r.algorithms.mbpo.networks as mbpo_networks
+from ss2r.algorithms.mbpo.model_env import create_model_env
 from ss2r.algorithms.mbpo.training_step import make_training_step
 from ss2r.algorithms.mbpo.types import TrainingState
 from ss2r.algorithms.sac import gradients
@@ -117,8 +118,10 @@ def train(
     tau: float = 0.005,
     min_replay_size: int = 0,
     max_replay_size: Optional[int] = None,
-    grad_updates_per_step: int = 1,
+    model_grad_updates_per_step: int = 1,
+    critic_grad_updates_per_step: int = 1,
     num_critic_updates_per_actor_update: int = 1,
+    unroll_length: int = 1,
     deterministic_eval: bool = False,
     network_factory: mbpo_networks.NetworkFactory[
         mbpo_networks.MBPONetworks,
@@ -246,20 +249,26 @@ def train(
             logging.info("Restoring replay buffer state")
             model_buffer_state = params[5]
             model_buffer_state = replay_buffers.ReplayBufferState(**model_buffer_state)
-            replay_buffer = RAEReplayBuffer(
+            model_replay_buffer = RAEReplayBuffer(
                 max_replay_size=max_replay_size,
                 dummy_data_sample=dummy_transition,
-                sample_batch_size=batch_size * grad_updates_per_step,
+                sample_batch_size=batch_size * model_grad_updates_per_step,
                 offline_data_state=model_buffer_state,
             )
     if not restore_checkpoint_path or not use_rae:
-        replay_buffer = replay_buffers.UniformSamplingQueue(
+        model_replay_buffer = replay_buffers.UniformSamplingQueue(
             max_replay_size=max_replay_size,
             dummy_data_sample=dummy_transition,
-            sample_batch_size=batch_size * grad_updates_per_step,
+            sample_batch_size=batch_size * model_grad_updates_per_step,
         )
-    model_buffer_state = replay_buffer.init(model_rb_key)
-    actor_critic_buffer_state = replay_buffer.init(actor_critic_rb_key)
+    sac_replay_buffer = replay_buffers.UniformSamplingQueue(
+        max_replay_size=max_replay_size,
+        dummy_data_sample=dummy_transition,
+        # TODO: this should be a batch size for actor critic
+        sample_batch_size=None,
+    )
+    model_buffer_state = model_replay_buffer.init(model_rb_key)
+    sac_buffer_state = model_replay_buffer.init(actor_critic_rb_key)
     alpha_loss, critic_loss, actor_loss, model_loss = mbpo_losses.make_losses(
         mbpo_network=mbpo_network,
         reward_scaling=reward_scaling,
@@ -295,23 +304,34 @@ def train(
     if safe:
         extra_fields += ("cost",)  # type: ignore
 
+    make_model_env = functools.partial(
+        create_model_env,
+        model_network=mbpo_network.model_network,
+        action_size=action_size,
+        observation_size=obs_size,
+        ensemble_selection="random",
+        safety_budget=safety_budget,
+    )
     training_step = make_training_step(
         env,
         make_policy,
-        replay_buffer,
+        make_model_env,
+        model_replay_buffer,
+        sac_replay_buffer,
         alpha_update,
         critic_update,
         model_update,
         actor_update,
         min_alpha,
         reward_q_transform,
-        grad_updates_per_step,
+        model_grad_updates_per_step,
+        critic_grad_updates_per_step,
         extra_fields,
         get_experience_fn,
         env_steps_per_experience_call,
-        safety_budget,
         tau,
         num_critic_updates_per_actor_update,
+        unroll_length,
     )
 
     def prefill_replay_buffer(
@@ -329,7 +349,7 @@ def train(
                 make_policy,
                 training_state.policy_params,
                 training_state.normalizer_params,
-                replay_buffer,
+                model_replay_buffer,
                 env_state,
                 buffer_state,
                 key,
@@ -352,7 +372,7 @@ def train(
         training_state: TrainingState,
         env_state: envs.State,
         model_buffer_state: ReplayBufferState,
-        actor_critic_buffer_state: ReplayBufferState,
+        sac_buffer_state: ReplayBufferState,
         key: PRNGKey,
     ) -> Tuple[
         TrainingState, envs.State, ReplayBufferState, ReplayBufferState, Metrics
@@ -368,7 +388,7 @@ def train(
                 training_state,
                 env_state,
                 model_buffer_state,
-                actor_critic_buffer_state,
+                sac_buffer_state,
                 key,
             ),
             metrics,
@@ -378,7 +398,7 @@ def train(
                 training_state,
                 env_state,
                 model_buffer_state,
-                actor_critic_buffer_state,
+                sac_buffer_state,
                 key,
             ),
             (),
@@ -389,7 +409,7 @@ def train(
             training_state,
             env_state,
             model_buffer_state,
-            actor_critic_buffer_state,
+            sac_buffer_state,
             metrics,
         )
 
@@ -398,7 +418,7 @@ def train(
         training_state: TrainingState,
         env_state: envs.State,
         model_buffer_state: ReplayBufferState,
-        actor_critic_buffer_state: ReplayBufferState,
+        sac_buffer_state: ReplayBufferState,
         key: PRNGKey,
     ) -> Tuple[
         TrainingState, envs.State, ReplayBufferState, ReplayBufferState, Metrics
@@ -409,13 +429,13 @@ def train(
             training_state,
             env_state,
             model_buffer_state,
-            actor_critic_buffer_state,
+            sac_buffer_state,
             metrics,
         ) = training_epoch(
             training_state,
             env_state,
             model_buffer_state,
-            actor_critic_buffer_state,
+            sac_buffer_state,
             key,
         )
         metrics = jax.tree_util.tree_map(jnp.mean, metrics)
@@ -434,7 +454,7 @@ def train(
             training_state,
             env_state,
             model_buffer_state,
-            actor_critic_buffer_state,
+            sac_buffer_state,
             metrics,
         )  # pytype: disable=bad-return-type  # py311-upgrade
 
@@ -475,7 +495,7 @@ def train(
     training_state, env_state, model_buffer_state, _ = prefill_replay_buffer(
         training_state, env_state, model_buffer_state, prefill_key
     )
-    replay_size = jnp.sum(replay_buffer.size(model_buffer_state))
+    replay_size = jnp.sum(model_replay_buffer.size(model_buffer_state))
     logging.info("replay size after prefill %s", replay_size)
     assert replay_size >= min_replay_size
     training_walltime = time.time() - t
@@ -489,13 +509,13 @@ def train(
             training_state,
             env_state,
             model_buffer_state,
-            actor_critic_buffer_state,
+            sac_buffer_state,
             training_metrics,
         ) = training_epoch_with_timing(
             training_state,
             env_state,
             model_buffer_state,
-            actor_critic_buffer_state,
+            sac_buffer_state,
             epoch_key,
         )
         if reset_on_eval:

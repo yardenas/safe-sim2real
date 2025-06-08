@@ -3,13 +3,15 @@ from typing import Tuple
 import jax
 import jax.numpy as jnp
 from brax import envs
+from brax.training import acting
 from brax.training.types import PRNGKey
 
+from ss2r.algorithms.mbpo.types import TrainingState
 from ss2r.algorithms.sac.types import (
     Metrics,
     ReplayBufferState,
-    TrainingState,
     Transition,
+    float16,
     float32,
 )
 
@@ -17,26 +19,28 @@ from ss2r.algorithms.sac.types import (
 def make_training_step(
     env,
     make_policy,
-    replay_buffer,
+    make_model_env,
+    model_replay_buffer,
+    sac_replay_buffer,
     alpha_update,
     critic_update,
     model_update,
     actor_update,
     min_alpha,
     reward_q_transform,
-    grad_updates_per_step,
+    model_grad_updates_per_step,
+    critic_grad_updates_per_step,
     extra_fields,
     get_experience_fn,
     env_steps_per_experience_call,
-    safety_budget,
     tau,
     num_critic_updates_per_actor_update,
+    unroll_length,
 ):
     def critic_sgd_step(
         carry: Tuple[TrainingState, PRNGKey], transitions: Transition
     ) -> Tuple[Tuple[TrainingState, PRNGKey], Metrics]:
         training_state, key = carry
-
         key, key_critic = jax.random.split(key)
         transitions = float32(transitions)
         alpha = jnp.exp(training_state.alpha_params) + min_alpha
@@ -106,6 +110,26 @@ def make_training_step(
         )
         return (new_training_state, key), metrics
 
+    def model_sgd_step(
+        carry: Tuple[TrainingState, PRNGKey], transitions: Transition
+    ) -> Tuple[Tuple[TrainingState, PRNGKey], Metrics]:
+        training_state, key = carry
+        key, key_model = jax.random.split(key)
+        transitions = float32(transitions)
+        (_, aux), model_params, model_optimizer_state = model_update(
+            training_state.model_params,
+            training_state.normalizer_params,
+            transitions,
+            # FIXME (yarden): don't hardcode this later
+            False,
+            optimizer_state=training_state.model_optimizer_state,  # type: ignore
+        )
+        new_training_state = training_state.replace(  # type: ignore
+            model_optimizer_state=model_optimizer_state,
+            model_params=model_params,
+        )
+        return (new_training_state, key), aux
+
     def run_experience_step(
         training_state: TrainingState,
         env_state: envs.State,
@@ -119,7 +143,7 @@ def make_training_step(
             make_policy,
             training_state.policy_params,
             training_state.normalizer_params,
-            replay_buffer,
+            model_replay_buffer,
             env_state,
             buffer_state,
             experience_key,
@@ -131,29 +155,90 @@ def make_training_step(
         )
         return training_state, env_state, buffer_state, training_key
 
+    def generate_model_data(
+        training_state: TrainingState,
+        transitions: Transition,
+        sac_replay_buffer_state: ReplayBufferState,
+        key: PRNGKey,
+    ) -> Tuple[ReplayBufferState, PRNGKey]:
+        planning_env = make_model_env(model_params=training_state.model_params)
+        transitions = jax.tree_map(lambda x: x.reshape(-1, *x.shape[2:]), transitions)
+        key_generate_unroll, cost_key, model_key, next_key = jax.random.split(key, 4)
+        cumulative_cost = jax.random.uniform(
+            cost_key, (transitions.reward.shape[0],), minval=0.0, maxval=0.0
+        )
+        state = envs.State(
+            pipeline_state=None,
+            obs=transitions.observation,
+            reward=transitions.reward,
+            done=jnp.zeros_like(transitions.reward),
+            info={
+                "cumulative_cost": cumulative_cost,  # type: ignore
+                "truncation": jnp.zeros_like(cumulative_cost),
+                "cost": transitions.extras["state_extras"].get(
+                    "cost", jnp.zeros_like(cumulative_cost)
+                ),
+                "key": jnp.tile(model_key[None], (transitions.observation.shape[0], 1)),
+            },
+        )
+        policy = make_policy(
+            (training_state.normalizer_params, training_state.policy_params)
+        )
+        generate_unroll = lambda state: acting.generate_unroll(
+            planning_env,
+            state,
+            policy,
+            key_generate_unroll,
+            unroll_length,
+            extra_fields=extra_fields,
+        )
+        _, transitions = generate_unroll(state)
+        sac_replay_buffer_state = sac_replay_buffer.insert(
+            sac_replay_buffer_state, float16(transitions)
+        )
+        return sac_replay_buffer_state, next_key
+
     def training_step(
         training_state: TrainingState,
         env_state: envs.State,
-        buffer_state: ReplayBufferState,
+        model_buffer_state: ReplayBufferState,
+        sac_buffer_state: ReplayBufferState,
         key: PRNGKey,
     ) -> Tuple[TrainingState, envs.State, ReplayBufferState, Metrics]:
         """Splits training into experience collection and a jitted training step."""
-        # TODO: rewrite this.
-        training_state, env_state, buffer_state, training_key = run_experience_step(
-            training_state, env_state, buffer_state, key
-        )
-        buffer_state, transitions = replay_buffer.sample(buffer_state)
+        (
+            training_state,
+            env_state,
+            model_buffer_state,
+            training_key,
+        ) = run_experience_step(training_state, env_state, model_buffer_state, key)
+        model_buffer_state, transitions = model_replay_buffer.sample(model_buffer_state)
         # Change the front dimension of transitions so 'update_step' is called
         # grad_updates_per_step times by the scan.
         transitions = jax.tree_util.tree_map(
-            lambda x: jnp.reshape(x, (grad_updates_per_step, -1) + x.shape[1:]),
+            lambda x: jnp.reshape(x, (model_grad_updates_per_step, -1) + x.shape[1:]),
+            transitions,
+        )
+        (training_state, _), model_metrics = jax.lax.scan(
+            model_sgd_step, (training_state, training_key), transitions
+        )
+        # Rollout trajectories from the sampled transitions
+        sac_buffer_state, training_key = generate_model_data(
+            training_state, transitions, sac_buffer_state, training_key
+        )
+        # TODO: check if we can use this generated data directly, instead of
+        # using a replay buffer
+        # Train SAC with model data
+        sac_buffer_state, transitions = sac_replay_buffer.sample(sac_buffer_state)
+        transitions = jax.tree_util.tree_map(
+            lambda x: jnp.reshape(x, (critic_grad_updates_per_step, -1) + x.shape[1:]),
             transitions,
         )
         (training_state, _), critic_metrics = jax.lax.scan(
             critic_sgd_step, (training_state, training_key), transitions
         )
         num_actor_updates = -(
-            -grad_updates_per_step // num_critic_updates_per_actor_update
+            -critic_grad_updates_per_step // num_critic_updates_per_actor_update
         )
         assert num_actor_updates > 0, "Actor updates is non-positive"
         transitions = jax.tree_util.tree_map(
@@ -165,9 +250,9 @@ def make_training_step(
             transitions,
             length=num_actor_updates,
         )
-        metrics = critic_metrics | actor_metrics
-        metrics["buffer_current_size"] = replay_buffer.size(buffer_state)
+        metrics = {**model_metrics, **critic_metrics, **actor_metrics}
+        metrics["buffer_current_size"] = model_replay_buffer.size(model_buffer_state)
         metrics |= env_state.metrics
-        return training_state, env_state, buffer_state, metrics
+        return training_state, env_state, model_buffer_state, metrics
 
     return training_step
