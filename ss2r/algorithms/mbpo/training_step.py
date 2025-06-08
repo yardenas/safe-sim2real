@@ -120,6 +120,10 @@ def make_training_step(
         training_state, key = carry
         # TODO (yarden): can remove this
         key, _ = jax.random.split(key)
+        transitions = jax.tree_util.tree_map(
+            lambda x: jnp.reshape(x, (model_grad_updates_per_step, -1) + x.shape[1:]),
+            transitions,
+        )
         transitions = float32(transitions)
         model_loss, model_params, model_optimizer_state = model_update(
             training_state.model_params,
@@ -172,13 +176,6 @@ def make_training_step(
             num_model_rollouts
             <= transitions.observation.shape[0] * transitions.observation.shape[1]
         ), "num_model_rollouts must be less than or equal to the number of transitions"
-
-        def convert_data(x: jnp.ndarray):
-            x = x.reshape(-1, *x.shape[2:])
-            x = jax.random.permutation(key_perm, x)[:num_model_rollouts]
-            return x
-
-        transitions = jax.tree_map(convert_data, transitions)
         transitions = float32(transitions)
         cumulative_cost = jax.random.uniform(
             cost_key, (transitions.reward.shape[0],), minval=0.0, maxval=0.0
@@ -251,10 +248,6 @@ def make_training_step(
         model_buffer_state, transitions = model_replay_buffer.sample(model_buffer_state)
         # Change the front dimension of transitions so 'update_step' is called
         # grad_updates_per_step times by the scan.
-        transitions = jax.tree_util.tree_map(
-            lambda x: jnp.reshape(x, (model_grad_updates_per_step, -1) + x.shape[1:]),
-            transitions,
-        )
         (training_state, _), model_metrics = jax.lax.scan(
             model_sgd_step, (training_state, training_key), transitions
         )
@@ -272,20 +265,20 @@ def make_training_step(
         )
         # Train SAC with model data
         sac_buffer_state, model_transitions = sac_replay_buffer.sample(sac_buffer_state)
-        model_transitions = jax.tree_util.tree_map(
-            lambda x: jnp.reshape(x, (critic_grad_updates_per_step, -1) + x.shape[1:]),
-            transitions,
-        )
-        num_real_minibatches = int(
-            critic_grad_updates_per_step * model_to_real_data_ratio
+        num_real_transitions = int(
+            model_transitions.reward.shape[0] * model_to_real_data_ratio
         )
         assert (
-            num_real_minibatches > model_grad_updates_per_step
+            num_real_transitions <= transitions.reward.shape[0]
         ), "More model minibatches than real minibatches"
         transitions = jax.tree_util.tree_map(
-            lambda x, y: x.at[:num_real_minibatches].set(y[:num_real_minibatches]),
+            lambda x, y: x.at[:num_real_transitions].set(y[:num_real_transitions]),
             model_transitions,
             transitions,
+        )
+        model_transitions = jax.tree_util.tree_map(
+            lambda x: jnp.reshape(x, (critic_grad_updates_per_step, -1) + x.shape[1:]),
+            model_transitions,
         )
         transitions, disagreement = relabel_transitions(planning_env, transitions)
         (training_state, _), critic_metrics = jax.lax.scan(
