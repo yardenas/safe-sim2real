@@ -221,7 +221,7 @@ def make_training_step(
         next_obs_pred, *_ = vmap_pred_fn(
             normalizer_params, model_params, transitions.observation, transitions.action
         )
-        disagreement = next_obs_pred.std(axis=0)
+        disagreement = next_obs_pred.std(axis=0).mean(-1)
         new_reward = transitions.reward + disagreement * optimism
         return transitions.replace(reward=new_reward)
 

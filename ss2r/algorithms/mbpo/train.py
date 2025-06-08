@@ -70,7 +70,7 @@ def _init_training_state(
     qr_params = mbpo_network.qr_network.init(key_qr)
     qr_optimizer_state = qr_optimizer.init(qr_params)
     init_model_ensemble = jax.vmap(mbpo_network.model_network.init)
-    model_keys = jax.random.split(key_policy, model_ensemble_size)
+    model_keys = jax.random.split(key_model, model_ensemble_size)
     model_params = init_model_ensemble(model_keys)
     model_optimizer_state = model_optimizer.init(model_params)
     if isinstance(obs_size, Mapping):
