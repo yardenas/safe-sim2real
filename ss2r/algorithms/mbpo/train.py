@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Soft Actor-Critic training.
+"""Model-Based Proximal Policy Optimization.
 
-See: https://arxiv.org/pdf/1812.05905.pdf
+See: https://arxiv.org/abs/1906.08253
 """
 
 import functools
@@ -29,22 +29,21 @@ from brax import envs
 from brax.training import replay_buffers
 from brax.training.acme import running_statistics, specs
 from brax.training.agents.sac import checkpoint
-from brax.training.types import Params, PRNGKey
+from brax.training.types import PRNGKey
 from ml_collections import config_dict
 
-import ss2r.algorithms.sac.losses as sac_losses
-import ss2r.algorithms.sac.networks as sac_networks
-from ss2r.algorithms.penalizers import Penalizer
+import ss2r.algorithms.mbpo.losses as mbpo_losses
+import ss2r.algorithms.mbpo.networks as mbpo_networks
+from ss2r.algorithms.mbpo.training_step import make_training_step
+from ss2r.algorithms.mbpo.types import TrainingState
 from ss2r.algorithms.sac import gradients
 from ss2r.algorithms.sac.data import collect_single_step
-from ss2r.algorithms.sac.q_transforms import QTransformation, SACBase, SACCost, UCBCost
+from ss2r.algorithms.sac.q_transforms import QTransformation, SACBase
 from ss2r.algorithms.sac.rae import RAEReplayBuffer
-from ss2r.algorithms.sac.training_step import make_training_step
 from ss2r.algorithms.sac.types import (
     CollectDataFn,
     Metrics,
     ReplayBufferState,
-    TrainingState,
     Transition,
     float16,
 )
@@ -54,27 +53,20 @@ from ss2r.rl.evaluation import ConstraintsEvaluator
 def _init_training_state(
     key: PRNGKey,
     obs_size: int,
-    sac_network: sac_networks.SafeSACNetworks,
+    mbpo_network: mbpo_networks.MBPONetworks,
     alpha_optimizer: optax.GradientTransformation,
     policy_optimizer: optax.GradientTransformation,
     qr_optimizer: optax.GradientTransformation,
-    qc_optimizer: optax.GradientTransformation | None,
-    penalizer_params: Params | None,
+    model_optimizer: optax.GradientTransformation,
 ) -> TrainingState:
     """Inits the training state and replicates it over devices."""
-    key_policy, key_qr, key_qc = jax.random.split(key, 3)
+    # TODO: initialize model
+    key_policy, key_qr, key_model = jax.random.split(key, 3)
     log_alpha = jnp.asarray(0.0, dtype=jnp.float32)
     alpha_optimizer_state = alpha_optimizer.init(log_alpha)
-    policy_params = sac_network.policy_network.init(key_policy)
+    policy_params = mbpo_network.policy_network.init(key_policy)
     policy_optimizer_state = policy_optimizer.init(policy_params)
-    qr_params = sac_network.qr_network.init(key_qr)
-    if sac_network.qc_network is not None:
-        qc_params = sac_network.qc_network.init(key_qr)
-        assert qc_optimizer is not None
-        qc_optimizer_state = qc_optimizer.init(qc_params)
-    else:
-        qc_params = None
-        qc_optimizer_state = None
+    qr_params = mbpo_network.qr_network.init(key_qr)
     qr_optimizer_state = qr_optimizer.init(qr_params)
     if isinstance(obs_size, Mapping):
         obs_shape = {
@@ -89,15 +81,11 @@ def _init_training_state(
         qr_optimizer_state=qr_optimizer_state,
         qr_params=qr_params,
         target_qr_params=qr_params,
-        qc_optimizer_state=qc_optimizer_state,
-        qc_params=qc_params,
-        target_qc_params=qc_params,
         gradient_steps=jnp.zeros(()),
         env_steps=jnp.zeros(()),
         alpha_optimizer_state=alpha_optimizer_state,
         alpha_params=log_alpha,
         normalizer_params=normalizer_params,
-        penalizer_params=penalizer_params,
     )  #  type: ignore
     return training_state
 
@@ -114,7 +102,7 @@ def train(
     get_experience_fn: CollectDataFn = collect_single_step,
     learning_rate: float = 1e-4,
     critic_learning_rate: float = 1e-4,
-    cost_critic_learning_rate: float = 1e-4,
+    model_learning_rate: float = 1e-4,
     alpha_learning_rate: float = 3e-4,
     init_alpha: float | None = None,
     min_alpha: float = 0.0,
@@ -132,9 +120,9 @@ def train(
     grad_updates_per_step: int = 1,
     num_critic_updates_per_actor_update: int = 1,
     deterministic_eval: bool = False,
-    network_factory: sac_networks.NetworkFactory[
-        sac_networks.SafeSACNetworks
-    ] = sac_networks.make_sac_networks,
+    network_factory: mbpo_networks.NetworkFactory[
+        mbpo_networks.MBPONetworks,
+    ] = mbpo_networks.make_mbpo_networks,
     n_critics: int = 2,
     n_heads: int = 1,
     progress_fn: Callable[[int, Metrics], None] = lambda *args: None,
@@ -143,10 +131,7 @@ def train(
     eval_env: Optional[envs.Env] = None,
     safe: bool = False,
     safety_budget: float = float("inf"),
-    penalizer: Penalizer | None = None,
-    penalizer_params: Params | None = None,
     reward_q_transform: QTransformation = SACBase(),
-    cost_q_transform: QTransformation = SACCost(),
     use_bro: bool = True,
     normalize_budget: bool = True,
     reset_on_eval: bool = True,
@@ -196,16 +181,15 @@ def train(
     normalize_fn = lambda x, y: x
     if normalize_observations:
         normalize_fn = running_statistics.normalize
-    sac_network = network_factory(
+    mbpo_network = network_factory(
         observation_size=obs_size,
         action_size=action_size,
         preprocess_observations_fn=normalize_fn,
-        safe=safe,
         use_bro=use_bro,
         n_critics=n_critics,
         n_heads=n_heads,
     )
-    make_policy = sac_networks.make_inference_fn(sac_network)
+    make_policy = mbpo_networks.make_inference_fn(mbpo_network)
     alpha_optimizer = optax.adam(learning_rate=alpha_learning_rate)
     make_optimizer = lambda lr, grad_clip_norm: optax.chain(
         optax.clip_by_global_norm(grad_clip_norm),
@@ -213,7 +197,7 @@ def train(
     )
     policy_optimizer = make_optimizer(learning_rate, 1.0)
     qr_optimizer = make_optimizer(critic_learning_rate, 1.0)
-    qc_optimizer = make_optimizer(cost_critic_learning_rate, 1.0) if safe else None
+    model_optimizer = make_optimizer(model_learning_rate, 1.0) if safe else None
     if isinstance(obs_size, Mapping):
         dummy_obs = {k: jnp.zeros(v) for k, v in obs_size.items()}
     else:
@@ -227,8 +211,6 @@ def train(
     }
     if safe:
         extras["state_extras"]["cost"] = jnp.zeros(())  # type: ignore
-    if isinstance(cost_q_transform, UCBCost):
-        extras["state_extras"]["disagreement"] = jnp.zeros(())  # type: ignore
     dummy_transition = Transition(  # pytype: disable=wrong-arg-types  # jax-ndarray
         observation=dummy_obs,
         action=dummy_action,
@@ -242,24 +224,21 @@ def train(
     training_state = _init_training_state(
         key=global_key,
         obs_size=obs_size,
-        sac_network=sac_network,
+        mbpo_network=mbpo_network,
         alpha_optimizer=alpha_optimizer,
         policy_optimizer=policy_optimizer,
         qr_optimizer=qr_optimizer,
-        qc_optimizer=qc_optimizer,
-        penalizer_params=penalizer_params,
+        model_optimizer=model_optimizer,
     )
     del global_key
     local_key, rb_key, env_key, eval_key = jax.random.split(local_key, 4)
     if restore_checkpoint_path is not None:
         params = checkpoint.load(restore_checkpoint_path)
-        penalizer_params = type(training_state.penalizer_params)(**params[2])
         training_state = training_state.replace(  # type: ignore
             normalizer_params=params[0],
             policy_params=params[1],
-            penalizer_params=penalizer_params,
             qr_params=params[3],
-            qc_params=params[4],
+            model_params=params[4],
         )
         if len(params) >= 6 and use_rae:
             logging.info("Restoring replay buffer state")
@@ -278,8 +257,8 @@ def train(
             sample_batch_size=batch_size * grad_updates_per_step,
         )
     buffer_state = replay_buffer.init(rb_key)
-    alpha_loss, critic_loss, actor_loss = sac_losses.make_losses(
-        sac_network=sac_network,
+    alpha_loss, critic_loss, actor_loss, model_loss = mbpo_losses.make_losses(
+        mbpo_network=mbpo_network,
         reward_scaling=reward_scaling,
         cost_scaling=cost_scaling,
         discounting=discounting,
@@ -287,6 +266,7 @@ def train(
         action_size=action_size,
         init_alpha=init_alpha,
         use_bro=use_bro,
+        normalize_fn=normalize_fn,
     )
     alpha_update = (
         gradients.gradient_update_fn(  # pytype: disable=wrong-arg-types  # jax-ndarray
@@ -298,12 +278,11 @@ def train(
             critic_loss, qr_optimizer, pmap_axis_name=None
         )
     )
-    if safe:
-        cost_critic_update = gradients.gradient_update_fn(  # pytype: disable=wrong-arg-types  # jax-ndarray
-            critic_loss, qc_optimizer, pmap_axis_name=None
+    model_update = (
+        gradients.gradient_update_fn(  # pytype: disable=wrong-arg-types  # jax-ndarray
+            model_loss, model_optimizer, pmap_axis_name=None
         )
-    else:
-        cost_critic_update = None
+    )
     actor_update = (
         gradients.gradient_update_fn(  # pytype: disable=wrong-arg-types  # jax-ndarray
             actor_loss, policy_optimizer, pmap_axis_name=None, has_aux=True
@@ -312,8 +291,6 @@ def train(
     extra_fields = ("truncation",)
     if safe:
         extra_fields += ("cost",)  # type: ignore
-    if isinstance(cost_q_transform, UCBCost):
-        extra_fields += ("disagreement",)  # type: ignore
 
     training_step = make_training_step(
         env,
@@ -321,13 +298,10 @@ def train(
         replay_buffer,
         alpha_update,
         critic_update,
-        cost_critic_update,
+        model_update,
         actor_update,
-        safe,
         min_alpha,
         reward_q_transform,
-        cost_q_transform,
-        penalizer,
         grad_updates_per_step,
         extra_fields,
         get_experience_fn,
@@ -490,9 +464,8 @@ def train(
             params = (
                 training_state.normalizer_params,
                 training_state.policy_params,
-                training_state.penalizer_params,
                 training_state.qr_params,
-                training_state.qc_params,
+                training_state.model_params,
             )
             if store_buffer:
                 params += (buffer_state,)
@@ -512,9 +485,8 @@ def train(
     params = (
         training_state.normalizer_params,
         training_state.policy_params,
-        training_state.penalizer_params,
         training_state.qr_params,
-        training_state.qc_params,
+        training_state.model_params,
     )
     if store_buffer:
         params += (buffer_state,)

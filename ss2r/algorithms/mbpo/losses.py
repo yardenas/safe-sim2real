@@ -17,18 +17,22 @@
 See: https://arxiv.org/pdf/1812.05905.pdf
 """
 
-from typing import TypeAlias
+from typing import Any, TypeAlias
 
+import jax
+import jax.numpy as jnp
+import optax
 from brax.training import types
+from brax.training.types import Params, PRNGKey
 
-from ss2r.algorithms.sac.losses import make_losses as sac_make_losses
-from ss2r.algorithms.sac.networks import SafeSACNetworks
+from ss2r.algorithms.mbpo.networks import MBPONetworks
+from ss2r.algorithms.sac.q_transforms import QTransformation
 
 Transition: TypeAlias = types.Transition
 
 
 def make_losses(
-    sac_network: SafeSACNetworks,
+    mbpo_network: MBPONetworks,
     reward_scaling: float,
     cost_scaling: float,
     discounting: float,
@@ -36,15 +40,138 @@ def make_losses(
     action_size: int,
     use_bro: bool,
     init_alpha: float | None,
+    normalize_fn,
 ):
-    alpha_loss, critic_loss, actor_loss = sac_make_losses(
-        sac_network,
-        reward_scaling,
-        cost_scaling,
-        discounting,
-        safety_discounting,
-        action_size,
-        use_bro,
-        init_alpha,
-    )
-    return alpha_loss, critic_loss, actor_loss
+    target_entropy = -0.5 * action_size if init_alpha is None else init_alpha
+    policy_network = mbpo_network.policy_network
+    qr_network = mbpo_network.qr_network
+    parametric_action_distribution = mbpo_network.parametric_action_distribution
+
+    def alpha_loss(
+        log_alpha: jnp.ndarray,
+        policy_params: Params,
+        normalizer_params: Any,
+        transitions: Transition,
+        key: PRNGKey,
+    ) -> jnp.ndarray:
+        """Eq 18 from https://arxiv.org/pdf/1812.05905.pdf."""
+        dist_params = policy_network.apply(
+            normalizer_params, policy_params, transitions.observation
+        )
+        action = parametric_action_distribution.sample_no_postprocessing(
+            dist_params, key
+        )
+        log_prob = parametric_action_distribution.log_prob(dist_params, action)
+        alpha = jnp.exp(log_alpha)
+        alpha_loss = alpha * jax.lax.stop_gradient(-log_prob - target_entropy)
+        alpha_loss = jnp.mean(alpha_loss)
+        return alpha_loss
+
+    def critic_loss(
+        q_params: Params,
+        policy_params: Params,
+        normalizer_params: Any,
+        target_q_params: Params,
+        alpha: jnp.ndarray,
+        transitions: Transition,
+        key: PRNGKey,
+        target_q_fn: QTransformation,
+        safe: bool = False,
+    ) -> jnp.ndarray:
+        action = transitions.action
+        scale = cost_scaling if safe else reward_scaling
+        gamma = safety_discounting if safe else discounting
+        q_old_action = qr_network.apply(
+            normalizer_params, q_params, transitions.observation, action
+        )
+        key, another_key = jax.random.split(key)
+
+        def policy(obs: jax.Array) -> tuple[jax.Array, jax.Array]:
+            next_dist_params = policy_network.apply(
+                normalizer_params, policy_params, obs
+            )
+            next_action = parametric_action_distribution.sample_no_postprocessing(
+                next_dist_params, key
+            )
+            next_log_prob = parametric_action_distribution.log_prob(
+                next_dist_params, next_action
+            )
+            next_action = parametric_action_distribution.postprocess(next_action)
+            return next_action, next_log_prob
+
+        q_fn = lambda obs, action: qr_network.apply(
+            normalizer_params, target_q_params, obs, action
+        )
+        target_q = target_q_fn(
+            transitions,
+            q_fn,
+            policy,
+            gamma,
+            alpha,
+            scale,
+            another_key,
+        )
+        q_error = q_old_action - jnp.expand_dims(target_q, -1)
+        # Better bootstrapping for truncated episodes.
+        truncation = transitions.extras["state_extras"]["truncation"]
+        q_error *= jnp.expand_dims(1 - truncation, -1)
+        q_loss = 0.5 * jnp.mean(jnp.square(q_error))
+        return q_loss
+
+    def actor_loss(
+        policy_params: Params,
+        normalizer_params: Any,
+        qr_params: Params,
+        alpha: jnp.ndarray,
+        transitions: Transition,
+        key: PRNGKey,
+    ) -> jnp.ndarray:
+        dist_params = policy_network.apply(
+            normalizer_params, policy_params, transitions.observation
+        )
+        action = parametric_action_distribution.sample_no_postprocessing(
+            dist_params, key
+        )
+        log_prob = parametric_action_distribution.log_prob(dist_params, action)
+        action = parametric_action_distribution.postprocess(action)
+        qr_action = qr_network.apply(
+            normalizer_params, qr_params, transitions.observation, action
+        )
+        if use_bro:
+            qr = jnp.mean(qr_action, axis=-1)
+        else:
+            qr = jnp.min(qr_action, axis=-1)
+        actor_loss = -qr.mean()
+        exploration_loss = (alpha * log_prob).mean()
+        actor_loss += exploration_loss
+        return actor_loss
+
+    def compute_model_loss(
+        model_params,
+        normalizer_params,
+        data,
+        learn_std,
+    ):
+        model_apply = jax.vmap(mbpo_network.model_network.apply, (None, 0, None, None))
+        (
+            (next_obs_pred, reward_pred, cost_pred),
+            (next_obs_std, reward_std, cost_std),
+        ) = model_apply(normalizer_params, model_params, data.observation, data.action)
+        next_obs_pred = normalize_fn(next_obs_pred, normalizer_params)
+        # FIXME (yarden): zeros_like_cost pred
+        concat_preds = jnp.concatenate([next_obs_pred, reward_pred[..., None]], axis=-1)
+        expand = lambda x: jnp.tile(
+            x[None], (next_obs_pred.shape[0],) + (1,) * (x.ndim)
+        )
+        next_obs = normalize_fn(data.next_observation, normalizer_params)
+        targets = jnp.concatenate([next_obs, data.reward[..., None]], axis=-1)
+        targets = expand(targets)
+        total_loss = optax.l2_loss(concat_preds, targets)
+        truncation = data.extras["state_extras"]["truncation"]
+        truncation = expand(truncation)[..., None]
+        total_loss = total_loss * (1 - truncation)
+        total_loss = jnp.mean(total_loss)
+        aux = {"model_loss": total_loss}
+        return total_loss, aux
+
+    return alpha_loss, critic_loss, actor_loss, compute_model_loss
