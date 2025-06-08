@@ -198,7 +198,7 @@ def make_training_step(
         policy = make_policy(
             (training_state.normalizer_params, training_state.policy_params)
         )
-        generate_unroll = lambda state: acting.generate_unroll(
+        _, transitions = acting.generate_unroll(
             planning_env,
             state,
             policy,
@@ -206,7 +206,6 @@ def make_training_step(
             unroll_length,
             extra_fields=extra_fields,
         )
-        _, transitions = generate_unroll(state)
         sac_replay_buffer_state = sac_replay_buffer.insert(
             sac_replay_buffer_state, float16(transitions)
         )
