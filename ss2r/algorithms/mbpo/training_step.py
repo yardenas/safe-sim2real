@@ -3,6 +3,7 @@ from typing import Tuple
 import jax
 import jax.numpy as jnp
 from brax import envs
+from brax.envs.wrappers.training import VmapWrapper
 from brax.training import acting
 from brax.training.types import PRNGKey
 
@@ -167,6 +168,7 @@ def make_training_step(
             model_params=training_state.model_params,
             normalizer_params=training_state.normalizer_params,
         )
+        planning_env = VmapWrapper(planning_env)
         key_generate_unroll, cost_key, model_key, key_perm = jax.random.split(key, 4)
 
         def convert_data(x: jnp.ndarray):
@@ -175,6 +177,7 @@ def make_training_step(
             return x
 
         transitions = jax.tree_map(convert_data, transitions)
+        transitions = float32(transitions)
         cumulative_cost = jax.random.uniform(
             cost_key, (transitions.reward.shape[0],), minval=0.0, maxval=0.0
         )
