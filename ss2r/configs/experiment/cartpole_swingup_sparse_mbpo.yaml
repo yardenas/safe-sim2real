@@ -1,0 +1,25 @@
+# @package _global_
+defaults:
+  - mujoco_playground_dm_control
+  - override /environment: cartpole_swingup
+  - _self_
+
+environment:
+  task_name: HardCartpoleSwingupSparse
+  task_params:
+    action_cost_scale: 0.2
+
+training:
+  num_timesteps: 5000000
+  action_repeat: 1
+  safe: false
+  train_domain_randomization: false
+  eval_domain_randomization: false
+  num_eval_episodes: 1
+
+agent:
+  min_replay_size: 5000
+  sac_batch_size: 512
+  critic_grad_updates_per_step: 20
+  model_grad_updates_per_step: 25
+  optimism: 5.
