@@ -242,8 +242,6 @@ def make_training_step(
         sac_buffer_state = generate_model_data(
             training_state, transitions, sac_buffer_state, training_key
         )
-        # TODO: check if we can use this generated data directly, instead of
-        # using a replay buffer
         # Train SAC with model data
         sac_buffer_state, transitions = sac_replay_buffer.sample(sac_buffer_state)
         transitions = jax.tree_util.tree_map(
