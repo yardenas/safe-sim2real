@@ -223,7 +223,14 @@ def make_training_step(
         )
         disagreement = next_obs_pred.std(axis=0).mean(-1)
         new_reward = transitions.reward + disagreement * optimism
-        return transitions.replace(reward=new_reward)
+        return Transition(
+            observation=transitions.observation,
+            next_observation=transitions.next_observation,
+            action=transitions.action,
+            reward=new_reward,
+            discount=transitions.discount,
+            extras=transitions.extras,
+        )
 
     def training_step(
         training_state: TrainingState,
