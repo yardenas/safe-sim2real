@@ -218,14 +218,15 @@ def make_training_step(
         model_params = planning_env.model_params
         normalizer_params = planning_env.normalizer_params
         vmap_pred_fn = jax.vmap(pred_fn, in_axes=(None, 0, None, None))
-        next_obs_pred, *_ = vmap_pred_fn(
+        next_obs_pred, reward, cost = vmap_pred_fn(
             normalizer_params, model_params, transitions.observation, transitions.action
         )
         disagreement = next_obs_pred.std(axis=0).mean(-1)
-        new_reward = transitions.reward + disagreement * optimism
+        new_reward = reward.mean(-1) + disagreement * optimism
+        next_obs_pred = next_obs_pred.mean(-1)
         return Transition(
             observation=transitions.observation,
-            next_observation=transitions.next_observation,
+            next_observation=next_obs_pred,
             action=transitions.action,
             reward=new_reward,
             discount=transitions.discount,
