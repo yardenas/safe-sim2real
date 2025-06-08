@@ -120,10 +120,6 @@ def make_training_step(
         training_state, key = carry
         # TODO (yarden): can remove this
         key, _ = jax.random.split(key)
-        transitions = jax.tree_util.tree_map(
-            lambda x: jnp.reshape(x, (model_grad_updates_per_step, -1) + x.shape[1:]),
-            transitions,
-        )
         transitions = float32(transitions)
         model_loss, model_params, model_optimizer_state = model_update(
             training_state.model_params,
@@ -248,8 +244,12 @@ def make_training_step(
         model_buffer_state, transitions = model_replay_buffer.sample(model_buffer_state)
         # Change the front dimension of transitions so 'update_step' is called
         # grad_updates_per_step times by the scan.
+        tmp_transitions = jax.tree_util.tree_map(
+            lambda x: jnp.reshape(x, (model_grad_updates_per_step, -1) + x.shape[1:]),
+            transitions,
+        )
         (training_state, _), model_metrics = jax.lax.scan(
-            model_sgd_step, (training_state, training_key), transitions
+            model_sgd_step, (training_state, training_key), tmp_transitions
         )
         planning_env = make_model_env(
             model_params=training_state.model_params,
