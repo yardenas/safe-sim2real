@@ -10,7 +10,7 @@ environment:
     action_cost_scale: 0.2
 
 training:
-  num_timesteps: 150000
+  num_timesteps: 250000
   safe: false
   num_envs: 10
   train_domain_randomization: false
@@ -19,8 +19,9 @@ training:
 
 agent:
   min_replay_size: 5000
-  sac_batch_size: 512
+  sac_batch_size: 256
   critic_grad_updates_per_step: 30
   model_grad_updates_per_step: 25
   optimism: 35.
   num_critic_updates_per_actor_update: 1
+  model_to_real_data_ratio: 0.25

@@ -148,7 +148,6 @@ def make_losses(
 
     def compute_model_loss(model_params, normalizer_params, data):
         model_apply = jax.vmap(mbpo_network.model_network.apply, (None, 0, None, None))
-
         (next_obs_pred, reward_pred, cost_pred) = model_apply(
             normalizer_params, model_params, data.observation, data.action
         )
