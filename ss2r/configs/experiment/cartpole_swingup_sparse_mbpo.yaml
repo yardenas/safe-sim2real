@@ -23,4 +23,4 @@ agent:
   critic_grad_updates_per_step: 30
   model_grad_updates_per_step: 25
   optimism: 35.
-  num_critic_updates_per_actor_update: 30
+  num_critic_updates_per_actor_update: 1
