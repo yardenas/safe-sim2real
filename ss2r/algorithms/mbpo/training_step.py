@@ -272,14 +272,17 @@ def make_training_step(
         assert (
             num_real_transitions <= transitions.reward.shape[0]
         ), "More model minibatches than real minibatches"
+        if num_real_transitions >= 1:
+            transitions = jax.tree_util.tree_map(
+                lambda x, y: x.at[:num_real_transitions].set(y[:num_real_transitions]),
+                model_transitions,
+                transitions,
+            )
+        else:
+            transitions = model_transitions
         transitions = jax.tree_util.tree_map(
-            lambda x, y: x.at[:num_real_transitions].set(y[:num_real_transitions]),
-            model_transitions,
-            transitions,
-        )
-        model_transitions = jax.tree_util.tree_map(
             lambda x: jnp.reshape(x, (critic_grad_updates_per_step, -1) + x.shape[1:]),
-            model_transitions,
+            transitions,
         )
         transitions, disagreement = relabel_transitions(planning_env, transitions)
         (training_state, _), critic_metrics = jax.lax.scan(
