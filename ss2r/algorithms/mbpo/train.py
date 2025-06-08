@@ -128,6 +128,7 @@ def train(
     model_grad_updates_per_step: int = 1,
     critic_grad_updates_per_step: int = 1,
     num_critic_updates_per_actor_update: int = 1,
+    model_to_real_data_ratio: float = 1.0,
     unroll_length: int = 1,
     num_model_rollouts: int = 400,
     deterministic_eval: bool = False,
@@ -345,6 +346,7 @@ def train(
         unroll_length,
         num_model_rollouts,
         optimism,
+        model_to_real_data_ratio,
     )
 
     def prefill_replay_buffer(

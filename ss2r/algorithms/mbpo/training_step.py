@@ -40,6 +40,7 @@ def make_training_step(
     unroll_length,
     num_model_rollouts,
     optimism,
+    model_to_real_data_ratio,
 ):
     def critic_sgd_step(
         carry: Tuple[TrainingState, PRNGKey], transitions: Transition
@@ -270,9 +271,20 @@ def make_training_step(
             planning_env, policy, transitions, sac_buffer_state, training_key
         )
         # Train SAC with model data
-        sac_buffer_state, transitions = sac_replay_buffer.sample(sac_buffer_state)
-        transitions = jax.tree_util.tree_map(
+        sac_buffer_state, model_transitions = sac_replay_buffer.sample(sac_buffer_state)
+        model_transitions = jax.tree_util.tree_map(
             lambda x: jnp.reshape(x, (critic_grad_updates_per_step, -1) + x.shape[1:]),
+            transitions,
+        )
+        num_real_minibatches = int(
+            critic_grad_updates_per_step * model_to_real_data_ratio
+        )
+        assert (
+            num_real_minibatches > model_grad_updates_per_step
+        ), "More model minibatches than real minibatches"
+        transitions = jax.tree_util.tree_map(
+            lambda x, y: x.at[:num_real_minibatches].set(y[:num_real_minibatches]),
+            model_transitions,
             transitions,
         )
         transitions, disagreement = relabel_transitions(planning_env, transitions)
