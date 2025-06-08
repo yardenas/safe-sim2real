@@ -150,6 +150,7 @@ def train(
     store_buffer: bool = False,
     use_rae: bool = False,
     optimism: float = 0.0,
+    model_propagation: str = "nominal",
 ):
     if min_replay_size >= num_timesteps:
         raise ValueError(
@@ -319,7 +320,7 @@ def train(
         model_network=mbpo_network.model_network,
         action_size=action_size,
         observation_size=obs_size,
-        ensemble_selection="nominal",
+        ensemble_selection=model_propagation,
         safety_budget=safety_budget,
     )
     training_step = make_training_step(

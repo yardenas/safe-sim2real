@@ -214,7 +214,7 @@ def make_training_step(
         planning_env: ModelBasedEnv,
         transitions: Transition,
     ) -> Transition:
-        pred_fn = planning_env.model_network
+        pred_fn = planning_env.model_network.apply
         model_params = planning_env.model_params
         normalizer_params = planning_env.normalizer_params
         vmap_pred_fn = jax.vmap(pred_fn, in_axes=(None, 0, None, None))
