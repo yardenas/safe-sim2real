@@ -1,6 +1,7 @@
 import flax
 import jax
 import jax.numpy as jnp
+import optax
 from brax.training.types import Params
 
 
@@ -87,9 +88,8 @@ def make_losses(
     gae_lambda,
     normalize_advantage,
     cost_scaling,
-    safety_budget,
     safety_discounting,
-    safety_gae_lambda,
+    normalize_fn,
 ):
     def _neg_log_posterior(
         predicted_outputs: jax.Array,
@@ -121,46 +121,28 @@ def make_losses(
         model_params,
         normalizer_params,
         data,
-        key,
         learn_std,
     ):
-        model_apply = ppo_network.model_network.apply
+        model_apply = jax.vmap(ppo_network.model_network.apply, (None, 0, None, None))
         (
             (next_obs_pred, reward_pred, cost_pred),
             (next_obs_std, reward_std, cost_std),
         ) = model_apply(normalizer_params, model_params, data.observation, data.action)
-        reshape = lambda x: jnp.tile(
+        next_obs_pred = normalize_fn(next_obs_pred, normalizer_params)
+        # FIXME (yarden): zeros_like_cost pred
+        concat_preds = jnp.concatenate([next_obs_pred, reward_pred[..., None]], axis=-1)
+        expand = lambda x: jnp.tile(
             x[None], (next_obs_pred.shape[0],) + (1,) * (x.ndim)
         )
-        next_obs_target = reshape(data.next_observation)
-        next_obs_loss = _neg_log_posterior(
-            next_obs_pred, next_obs_std, next_obs_target, learn_std
-        )
-        current_reward_target = reshape(data.reward)
-        reward_loss = _neg_log_posterior(
-            reward_pred, reward_std, current_reward_target, learn_std
-        )
-        cost_loss = 0.0
-        cost_target = None
-        if "state_extras" in data.extras and "cost" in data.extras["state_extras"]:
-            cost_target = reshape(data.extras["state_extras"]["cost"])
-            cost_loss = _neg_log_posterior(cost_pred, cost_std, cost_target, learn_std)
-        total_loss = next_obs_loss + reward_loss + cost_loss
-        # Compute MSE for monitoring
-        obs_mse = jnp.mean(jnp.square(next_obs_pred - next_obs_target))
-        reward_mse = jnp.mean(jnp.square(reward_pred - current_reward_target))
-        cost_mse = 0.0
-        if cost_target is not None:
-            cost_mse = jnp.mean(jnp.square(cost_pred - cost_target))
-        aux = {
-            "model_loss": total_loss,
-            "obs_mse": obs_mse,
-            "reward_mse": reward_mse,
-            "cost_mse": cost_mse,
-            "next_obs_loss": next_obs_loss,
-            "reward_loss": reward_loss,
-            "cost_loss": cost_loss,
-        }
+        next_obs = normalize_fn(data.next_observation, normalizer_params)
+        targets = jnp.concatenate([next_obs, data.reward[..., None]], axis=-1)
+        targets = expand(targets)
+        total_loss = optax.l2_loss(concat_preds, targets)
+        truncation = data.extras["state_extras"]["truncation"]
+        truncation = expand(truncation)[..., None]
+        total_loss = total_loss * (1 - truncation)
+        total_loss = jnp.mean(total_loss)
+        aux = {"model_loss": total_loss}
         return total_loss, aux
 
     def compute_policy_loss(
@@ -234,7 +216,12 @@ def make_losses(
         )
         v_error = vs - baseline
         v_loss = jnp.mean(v_error**2) * 0.25
-        return v_loss, {"v_loss": v_loss}
+        return v_loss, {
+            "v_loss": v_loss,
+            "v_baseline": baseline,
+            "v_rewards": rewards,
+            "vs": vs,
+        }
 
     def compute_cost_value_loss(params, normalizer_params, data):
         cost_value_apply = ppo_network.cost_value_network.apply
@@ -251,7 +238,7 @@ def make_losses(
             rewards=cost,
             values=cost_baseline,
             bootstrap_value=cost_bootstrap,
-            lambda_=safety_gae_lambda,
+            lambda_=1,
             discount=safety_discounting,
         )
         cost_error = vcs - cost_baseline
