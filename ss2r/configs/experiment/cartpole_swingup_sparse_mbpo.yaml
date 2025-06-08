@@ -20,6 +20,7 @@ training:
 agent:
   min_replay_size: 5000
   sac_batch_size: 512
-  critic_grad_updates_per_step: 20
+  critic_grad_updates_per_step: 30
   model_grad_updates_per_step: 25
-  optimism: 5.
+  optimism: 35.
+  num_critic_updates_per_actor_update: 30
