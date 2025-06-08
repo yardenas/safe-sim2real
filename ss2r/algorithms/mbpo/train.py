@@ -59,9 +59,9 @@ def _init_training_state(
     policy_optimizer: optax.GradientTransformation,
     qr_optimizer: optax.GradientTransformation,
     model_optimizer: optax.GradientTransformation,
+    model_ensemble_size: int,
 ) -> TrainingState:
     """Inits the training state and replicates it over devices."""
-    # TODO: initialize model
     key_policy, key_qr, key_model = jax.random.split(key, 3)
     log_alpha = jnp.asarray(0.0, dtype=jnp.float32)
     alpha_optimizer_state = alpha_optimizer.init(log_alpha)
@@ -69,6 +69,10 @@ def _init_training_state(
     policy_optimizer_state = policy_optimizer.init(policy_params)
     qr_params = mbpo_network.qr_network.init(key_qr)
     qr_optimizer_state = qr_optimizer.init(qr_params)
+    init_model_ensemble = jax.vmap(mbpo_network.model_network.init)
+    model_keys = jax.random.split(key_policy, model_ensemble_size)
+    model_params = init_model_ensemble(model_keys)
+    model_optimizer_state = model_optimizer.init(model_params)
     if isinstance(obs_size, Mapping):
         obs_shape = {
             k: specs.Array(v, jnp.dtype("float32")) for k, v in obs_size.items()
@@ -82,6 +86,8 @@ def _init_training_state(
         qr_optimizer_state=qr_optimizer_state,
         qr_params=qr_params,
         target_qr_params=qr_params,
+        model_params=model_params,
+        model_optimizer_state=model_optimizer_state,
         gradient_steps=jnp.zeros(()),
         env_steps=jnp.zeros(()),
         alpha_optimizer_state=alpha_optimizer_state,
@@ -111,6 +117,7 @@ def train(
     safety_discounting: float = 0.9,
     seed: int = 0,
     batch_size: int = 256,
+    sac_batch_size: int = 256,
     num_evals: int = 1,
     normalize_observations: bool = False,
     reward_scaling: float = 1.0,
@@ -128,6 +135,7 @@ def train(
     ] = mbpo_networks.make_mbpo_networks,
     n_critics: int = 2,
     n_heads: int = 1,
+    model_ensemble_size: int = 1,
     progress_fn: Callable[[int, Metrics], None] = lambda *args: None,
     checkpoint_logdir: Optional[str] = None,
     restore_checkpoint_path: Optional[str] = None,
@@ -232,6 +240,7 @@ def train(
         policy_optimizer=policy_optimizer,
         qr_optimizer=qr_optimizer,
         model_optimizer=model_optimizer,
+        model_ensemble_size=model_ensemble_size,
     )
     del global_key
     local_key, model_rb_key, actor_critic_rb_key, env_key, eval_key = jax.random.split(
@@ -264,8 +273,7 @@ def train(
     sac_replay_buffer = replay_buffers.UniformSamplingQueue(
         max_replay_size=max_replay_size,
         dummy_data_sample=dummy_transition,
-        # TODO: this should be a batch size for actor critic
-        sample_batch_size=None,
+        sample_batch_size=sac_batch_size * critic_grad_updates_per_step,
     )
     model_buffer_state = model_replay_buffer.init(model_rb_key)
     sac_buffer_state = model_replay_buffer.init(actor_critic_rb_key)
