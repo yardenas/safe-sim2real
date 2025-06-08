@@ -5,8 +5,9 @@ import jax.numpy as jnp
 from brax import envs
 from brax.envs.wrappers.training import VmapWrapper
 from brax.training import acting
-from brax.training.types import PRNGKey
+from brax.training.types import Policy, PRNGKey
 
+from ss2r.algorithms.mbpo.model_env import ModelBasedEnv
 from ss2r.algorithms.mbpo.types import TrainingState
 from ss2r.algorithms.sac.types import (
     Metrics,
@@ -38,6 +39,8 @@ def make_training_step(
     num_critic_updates_per_actor_update,
     unroll_length,
     num_model_rollouts,
+    optimism,
+    model_to_real_data_ratio,
 ):
     def critic_sgd_step(
         carry: Tuple[TrainingState, PRNGKey], transitions: Transition
@@ -115,7 +118,8 @@ def make_training_step(
         carry: Tuple[TrainingState, PRNGKey], transitions: Transition
     ) -> Tuple[Tuple[TrainingState, PRNGKey], Metrics]:
         training_state, key = carry
-        key, key_model = jax.random.split(key)
+        # TODO (yarden): can remove this
+        key, _ = jax.random.split(key)
         transitions = float32(transitions)
         model_loss, model_params, model_optimizer_state = model_update(
             training_state.model_params,
@@ -157,29 +161,20 @@ def make_training_step(
         return training_state, env_state, buffer_state, training_key
 
     def generate_model_data(
-        training_state: TrainingState,
+        planning_env: ModelBasedEnv,
+        policy: Policy,
         transitions: Transition,
         sac_replay_buffer_state: ReplayBufferState,
         key: PRNGKey,
     ) -> ReplayBufferState:
-        planning_env = make_model_env(
-            model_params=training_state.model_params,
-            normalizer_params=training_state.normalizer_params,
-        )
-        planning_env = VmapWrapper(planning_env)
         key_generate_unroll, cost_key, model_key, key_perm = jax.random.split(key, 4)
         assert (
             num_model_rollouts
             <= transitions.observation.shape[0] * transitions.observation.shape[1]
         ), "num_model_rollouts must be less than or equal to the number of transitions"
-
-        def convert_data(x: jnp.ndarray):
-            x = x.reshape(-1, *x.shape[2:])
-            x = jax.random.permutation(key_perm, x)[:num_model_rollouts]
-            return x
-
-        transitions = jax.tree_map(convert_data, transitions)
+        transitions = jax.tree_map(lambda x: x[:num_model_rollouts], transitions)
         transitions = float32(transitions)
+        # FIXME: not zeros, use what happened in the real system
         cumulative_cost = jax.random.uniform(
             cost_key, (transitions.reward.shape[0],), minval=0.0, maxval=0.0
         )
@@ -197,9 +192,6 @@ def make_training_step(
                 "key": jnp.tile(model_key[None], (transitions.observation.shape[0], 1)),
             },
         )
-        policy = make_policy(
-            (training_state.normalizer_params, training_state.policy_params)
-        )
         _, transitions = acting.generate_unroll(
             planning_env,
             state,
@@ -213,6 +205,29 @@ def make_training_step(
             sac_replay_buffer_state, float16(transitions)
         )
         return sac_replay_buffer_state
+
+    def relabel_transitions(
+        planning_env: ModelBasedEnv,
+        transitions: Transition,
+    ) -> Transition:
+        pred_fn = planning_env.model_network.apply
+        model_params = planning_env.model_params
+        normalizer_params = planning_env.normalizer_params
+        vmap_pred_fn = jax.vmap(pred_fn, in_axes=(None, 0, None, None))
+        next_obs_pred, reward, cost = vmap_pred_fn(
+            normalizer_params, model_params, transitions.observation, transitions.action
+        )
+        disagreement = next_obs_pred.std(axis=0).mean(-1)
+        new_reward = reward.mean(0) + disagreement * optimism
+        next_obs_pred = next_obs_pred.mean(0)
+        return Transition(
+            observation=transitions.observation,
+            next_observation=next_obs_pred,
+            action=transitions.action,
+            reward=new_reward,
+            discount=transitions.discount,
+            extras=transitions.extras,
+        ), disagreement
 
     def training_step(
         training_state: TrainingState,
@@ -231,25 +246,46 @@ def make_training_step(
         model_buffer_state, transitions = model_replay_buffer.sample(model_buffer_state)
         # Change the front dimension of transitions so 'update_step' is called
         # grad_updates_per_step times by the scan.
-        transitions = jax.tree_util.tree_map(
+        tmp_transitions = jax.tree_util.tree_map(
             lambda x: jnp.reshape(x, (model_grad_updates_per_step, -1) + x.shape[1:]),
             transitions,
         )
         (training_state, _), model_metrics = jax.lax.scan(
-            model_sgd_step, (training_state, training_key), transitions
+            model_sgd_step, (training_state, training_key), tmp_transitions
+        )
+        planning_env = make_model_env(
+            model_params=training_state.model_params,
+            normalizer_params=training_state.normalizer_params,
+        )
+        planning_env = VmapWrapper(planning_env)
+        policy = make_policy(
+            (training_state.normalizer_params, training_state.policy_params)
         )
         # Rollout trajectories from the sampled transitions
         sac_buffer_state = generate_model_data(
-            training_state, transitions, sac_buffer_state, training_key
+            planning_env, policy, transitions, sac_buffer_state, training_key
         )
-        # TODO: check if we can use this generated data directly, instead of
-        # using a replay buffer
         # Train SAC with model data
-        sac_buffer_state, transitions = sac_replay_buffer.sample(sac_buffer_state)
+        sac_buffer_state, model_transitions = sac_replay_buffer.sample(sac_buffer_state)
+        num_real_transitions = int(
+            model_transitions.reward.shape[0] * (1 - model_to_real_data_ratio)
+        )
+        assert (
+            num_real_transitions <= transitions.reward.shape[0]
+        ), "More model minibatches than real minibatches"
+        if num_real_transitions >= 1:
+            transitions = jax.tree_util.tree_map(
+                lambda x, y: x.at[:num_real_transitions].set(y[:num_real_transitions]),
+                model_transitions,
+                transitions,
+            )
+        else:
+            transitions = model_transitions
         transitions = jax.tree_util.tree_map(
             lambda x: jnp.reshape(x, (critic_grad_updates_per_step, -1) + x.shape[1:]),
             transitions,
         )
+        transitions, disagreement = relabel_transitions(planning_env, transitions)
         (training_state, _), critic_metrics = jax.lax.scan(
             critic_sgd_step, (training_state, training_key), transitions
         )
@@ -269,6 +305,7 @@ def make_training_step(
         metrics = {**model_metrics, **critic_metrics, **actor_metrics}
         metrics["buffer_current_size"] = model_replay_buffer.size(model_buffer_state)
         metrics |= env_state.metrics
+        metrics["disagreement"] = disagreement
         return training_state, env_state, model_buffer_state, metrics
 
     return training_step

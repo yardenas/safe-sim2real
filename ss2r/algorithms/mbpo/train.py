@@ -70,7 +70,7 @@ def _init_training_state(
     qr_params = mbpo_network.qr_network.init(key_qr)
     qr_optimizer_state = qr_optimizer.init(qr_params)
     init_model_ensemble = jax.vmap(mbpo_network.model_network.init)
-    model_keys = jax.random.split(key_policy, model_ensemble_size)
+    model_keys = jax.random.split(key_model, model_ensemble_size)
     model_params = init_model_ensemble(model_keys)
     model_optimizer_state = model_optimizer.init(model_params)
     if isinstance(obs_size, Mapping):
@@ -128,6 +128,7 @@ def train(
     model_grad_updates_per_step: int = 1,
     critic_grad_updates_per_step: int = 1,
     num_critic_updates_per_actor_update: int = 1,
+    model_to_real_data_ratio: float = 1.0,
     unroll_length: int = 1,
     num_model_rollouts: int = 400,
     deterministic_eval: bool = False,
@@ -149,6 +150,8 @@ def train(
     reset_on_eval: bool = True,
     store_buffer: bool = False,
     use_rae: bool = False,
+    optimism: float = 0.0,
+    model_propagation: str = "nominal",
 ):
     if min_replay_size >= num_timesteps:
         raise ValueError(
@@ -318,7 +321,7 @@ def train(
         model_network=mbpo_network.model_network,
         action_size=action_size,
         observation_size=obs_size,
-        ensemble_selection="random",
+        ensemble_selection=model_propagation,
         safety_budget=safety_budget,
     )
     training_step = make_training_step(
@@ -342,6 +345,8 @@ def train(
         num_critic_updates_per_actor_update,
         unroll_length,
         num_model_rollouts,
+        optimism,
+        model_to_real_data_ratio,
     )
 
     def prefill_replay_buffer(
