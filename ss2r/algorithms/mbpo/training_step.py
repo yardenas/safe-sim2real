@@ -266,7 +266,7 @@ def make_training_step(
         # Train SAC with model data
         sac_buffer_state, model_transitions = sac_replay_buffer.sample(sac_buffer_state)
         num_real_transitions = int(
-            model_transitions.reward.shape[0] * model_to_real_data_ratio
+            model_transitions.reward.shape[0] * (1 - model_to_real_data_ratio)
         )
         assert (
             num_real_transitions <= transitions.reward.shape[0]
