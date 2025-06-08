@@ -149,6 +149,7 @@ def train(
     reset_on_eval: bool = True,
     store_buffer: bool = False,
     use_rae: bool = False,
+    optimism: float = 0.0,
 ):
     if min_replay_size >= num_timesteps:
         raise ValueError(
@@ -342,6 +343,7 @@ def train(
         num_critic_updates_per_actor_update,
         unroll_length,
         num_model_rollouts,
+        optimism,
     )
 
     def prefill_replay_buffer(

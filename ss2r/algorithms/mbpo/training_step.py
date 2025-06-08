@@ -5,8 +5,9 @@ import jax.numpy as jnp
 from brax import envs
 from brax.envs.wrappers.training import VmapWrapper
 from brax.training import acting
-from brax.training.types import PRNGKey
+from brax.training.types import Policy, PRNGKey
 
+from ss2r.algorithms.mbpo.model_env import ModelBasedEnv
 from ss2r.algorithms.mbpo.types import TrainingState
 from ss2r.algorithms.sac.types import (
     Metrics,
@@ -38,6 +39,7 @@ def make_training_step(
     num_critic_updates_per_actor_update,
     unroll_length,
     num_model_rollouts,
+    optimism,
 ):
     def critic_sgd_step(
         carry: Tuple[TrainingState, PRNGKey], transitions: Transition
@@ -115,7 +117,8 @@ def make_training_step(
         carry: Tuple[TrainingState, PRNGKey], transitions: Transition
     ) -> Tuple[Tuple[TrainingState, PRNGKey], Metrics]:
         training_state, key = carry
-        key, key_model = jax.random.split(key)
+        # TODO (yarden): can remove this
+        key, _ = jax.random.split(key)
         transitions = float32(transitions)
         model_loss, model_params, model_optimizer_state = model_update(
             training_state.model_params,
@@ -157,16 +160,12 @@ def make_training_step(
         return training_state, env_state, buffer_state, training_key
 
     def generate_model_data(
-        training_state: TrainingState,
+        planning_env: ModelBasedEnv,
+        policy: Policy,
         transitions: Transition,
         sac_replay_buffer_state: ReplayBufferState,
         key: PRNGKey,
     ) -> ReplayBufferState:
-        planning_env = make_model_env(
-            model_params=training_state.model_params,
-            normalizer_params=training_state.normalizer_params,
-        )
-        planning_env = VmapWrapper(planning_env)
         key_generate_unroll, cost_key, model_key, key_perm = jax.random.split(key, 4)
         assert (
             num_model_rollouts
@@ -197,9 +196,6 @@ def make_training_step(
                 "key": jnp.tile(model_key[None], (transitions.observation.shape[0], 1)),
             },
         )
-        policy = make_policy(
-            (training_state.normalizer_params, training_state.policy_params)
-        )
         _, transitions = acting.generate_unroll(
             planning_env,
             state,
@@ -213,6 +209,21 @@ def make_training_step(
             sac_replay_buffer_state, float16(transitions)
         )
         return sac_replay_buffer_state
+
+    def relabel_transitions(
+        planning_env: ModelBasedEnv,
+        transitions: Transition,
+    ) -> Transition:
+        pred_fn = planning_env.model_network
+        model_params = planning_env.model_params
+        normalizer_params = planning_env.normalizer_params
+        vmap_pred_fn = jax.vmap(pred_fn, in_axes=(None, 0, None, None))
+        next_obs_pred, *_ = vmap_pred_fn(
+            normalizer_params, model_params, transitions.observation, transitions.action
+        )
+        disagreement = next_obs_pred.std(axis=0)
+        new_reward = transitions.reward + disagreement * optimism
+        return transitions.replace(reward=new_reward)
 
     def training_step(
         training_state: TrainingState,
@@ -238,9 +249,17 @@ def make_training_step(
         (training_state, _), model_metrics = jax.lax.scan(
             model_sgd_step, (training_state, training_key), transitions
         )
+        planning_env = make_model_env(
+            model_params=training_state.model_params,
+            normalizer_params=training_state.normalizer_params,
+        )
+        planning_env = VmapWrapper(planning_env)
+        policy = make_policy(
+            (training_state.normalizer_params, training_state.policy_params)
+        )
         # Rollout trajectories from the sampled transitions
         sac_buffer_state = generate_model_data(
-            training_state, transitions, sac_buffer_state, training_key
+            planning_env, policy, transitions, sac_buffer_state, training_key
         )
         # Train SAC with model data
         sac_buffer_state, transitions = sac_replay_buffer.sample(sac_buffer_state)
@@ -248,6 +267,7 @@ def make_training_step(
             lambda x: jnp.reshape(x, (critic_grad_updates_per_step, -1) + x.shape[1:]),
             transitions,
         )
+        transitions = relabel_transitions(planning_env, transitions)
         (training_state, _), critic_metrics = jax.lax.scan(
             critic_sgd_step, (training_state, training_key), transitions
         )

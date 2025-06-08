@@ -36,19 +36,9 @@ class ModelBasedEnv(envs.Env):
     def step(self, state: base.State, action: jax.Array) -> base.State:
         """Step using the learned model."""
         # Predict next state, reward, and cost using the model
-        action_max = 1.0
-        action_min = -1.0
-        action = (action + 1) * (action_max - action_min) * 0.5 + action_min
         key = state.info["key"]
         sample_key, key = jax.random.split(key)
-        (
-            next_obs,
-            reward,
-            cost,
-            next_obs_std,
-            reward_std,
-            cost_std,
-        ) = _propagate_ensemble(
+        next_obs, reward, cost = _propagate_ensemble(
             self.model_network.apply,
             self.normalizer_params,
             self.model_params,
@@ -129,35 +119,33 @@ def _propagate_ensemble(
     key,
 ) -> tuple[jax.Array, jax.Array, jax.Array]:
     """Propagate the ensemble predictions based on the selection method."""
-    vmap_pred_fn = jax.vmap(pred_fn, in_axes=(None, 0, None, None))
-    next_obs_pred, reward_pred, cost_pred = vmap_pred_fn(
-        normalizer_params, model_params, obs, action
-    )
     # Calculate the nominal predictions
     if ensemble_selection == "nominal":
         # Get the average model parameters
         avg_model_params = jax.tree_util.tree_map(
-            lambda *args: jnp.mean(jnp.stack(args), axis=0), *model_params
+            lambda p: jnp.mean(p, axis=0), model_params
         )
         next_obs, reward, cost = pred_fn(
             normalizer_params, avg_model_params, obs, action
         )
     elif ensemble_selection == "random":
+        vmap_pred_fn = jax.vmap(pred_fn, in_axes=(None, 0, None, None))
+        next_obs_pred, reward_pred, cost_pred = vmap_pred_fn(
+            normalizer_params, model_params, obs, action
+        )
         # Randomly select one of the ensemble predictions
         idx = jax.random.randint(key, (1,), 0, next_obs_pred.shape[0])[0]
         next_obs = next_obs_pred[idx]
         reward = reward_pred[idx]
         cost = cost_pred[idx]
     elif ensemble_selection == "mean":
+        vmap_pred_fn = jax.vmap(pred_fn, in_axes=(None, 0, None, None))
+        next_obs_pred, reward_pred, cost_pred = vmap_pred_fn(
+            normalizer_params, model_params, obs, action
+        )
         next_obs = jnp.mean(next_obs_pred, axis=0)
         reward = jnp.mean(reward_pred, axis=0)
         cost = jnp.mean(cost_pred, axis=0)
     else:
         raise ValueError(f"Unknown ensemble selection: {ensemble_selection}")
-
-    # Calculate the uncertainty
-    next_obs_std = jnp.std(next_obs_pred, axis=0)
-    reward_std = jnp.std(reward_pred, axis=0)
-    cost_std = jnp.std(cost_pred, axis=0)
-
-    return next_obs, reward, cost, next_obs_std, reward_std, cost_std
+    return next_obs, reward, cost
