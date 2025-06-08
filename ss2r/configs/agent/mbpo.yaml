@@ -27,6 +27,7 @@ num_critic_updates_per_actor_update: 1
 deterministic_eval: true
 policy_hidden_layer_sizes: [128, 128]
 value_hidden_layer_sizes: [512, 512]
+model_hidden_layer_sizes: [256, 256, 256]
 activation: swish
 use_bro: true
 normalize_budget: true

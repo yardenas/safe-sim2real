@@ -1,7 +1,6 @@
 import functools
 
-import ss2r.algorithms.sac.networks as sac_networks
-from ss2r.algorithms.penalizers import get_penalizer
+import ss2r.algorithms.mbpo.networks as mbpo_networks
 from ss2r.algorithms.sac.data import get_collection_fn
 from ss2r.algorithms.sac.q_transforms import (
     get_cost_q_transform,
@@ -32,6 +31,7 @@ def get_train_fn(cfg, checkpoint_path, restore_checkpoint_path):
     }
     policy_hidden_layer_sizes = agent_cfg.pop("policy_hidden_layer_sizes")
     value_hidden_layer_sizes = agent_cfg.pop("value_hidden_layer_sizes")
+    model_hidden_layer_sizes = agent_cfg.pop("model_hidden_layer_sizes")
     activation = getattr(jnn, agent_cfg.pop("activation"))
     del agent_cfg["name"]
     if "cost_robustness" in agent_cfg:
@@ -47,14 +47,14 @@ def get_train_fn(cfg, checkpoint_path, restore_checkpoint_path):
     value_obs_key = "privileged_state" if cfg.training.value_privileged else "state"
     policy_obs_key = "privileged_state" if cfg.training.policy_privileged else "state"
     network_factory = functools.partial(
-        sac_networks.make_sac_networks,
+        mbpo_networks.make_mbpo_networks,
         policy_hidden_layer_sizes=policy_hidden_layer_sizes,
         value_hidden_layer_sizes=value_hidden_layer_sizes,
+        model_hidden_layer_sizes=model_hidden_layer_sizes,
         activation=activation,
         value_obs_key=value_obs_key,
         policy_obs_key=policy_obs_key,
     )
-    penalizer, penalizer_params = get_penalizer(cfg)
     cost_q_transform = get_cost_q_transform(cfg)
     reward_q_transform = get_reward_q_transform(cfg)
     data_collection = get_collection_fn(cfg)
@@ -66,8 +66,6 @@ def get_train_fn(cfg, checkpoint_path, restore_checkpoint_path):
         checkpoint_logdir=checkpoint_path,
         cost_q_transform=cost_q_transform,
         reward_q_transform=reward_q_transform,
-        penalizer=penalizer,
-        penalizer_params=penalizer_params,
         get_experience_fn=data_collection,
         restore_checkpoint_path=restore_checkpoint_path,
     )
