@@ -1,0 +1,23 @@
+# @package _global_
+defaults:
+  - override /environment: fast
+  - override /agent: mbpo
+  - _self_
+
+training:
+  num_timesteps: 50000
+  safe: false
+  train_domain_randomization: false
+  eval_domain_randomization: false
+  num_eval_episodes: 1
+  num_evals: 15
+  num_envs: 10
+  episode_length: 128
+
+agent:
+  model_learning_rate: 3e-4
+  normalize_observations: true
+  min_replay_size: 1000
+  sac_batch_size: 64
+  model_grad_updates_per_step: 64
+  critic_grad_updates_per_step: 64
