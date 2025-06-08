@@ -1,7 +1,7 @@
 # @package _global_
 defaults:
-  - mujoco_playground_dm_control
   - override /environment: cartpole_swingup
+  - override /agent: mbpo
   - _self_
 
 environment:
@@ -10,12 +10,12 @@ environment:
     action_cost_scale: 0.2
 
 training:
-  num_timesteps: 5000000
-  action_repeat: 1
+  num_timesteps: 150000
   safe: false
+  num_envs: 10
   train_domain_randomization: false
   eval_domain_randomization: false
-  num_eval_episodes: 1
+  action_repeat: 1
 
 agent:
   min_replay_size: 5000

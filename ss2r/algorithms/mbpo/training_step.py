@@ -230,7 +230,7 @@ def make_training_step(
             reward=new_reward,
             discount=transitions.discount,
             extras=transitions.extras,
-        )
+        ), disagreement
 
     def training_step(
         training_state: TrainingState,
@@ -274,7 +274,7 @@ def make_training_step(
             lambda x: jnp.reshape(x, (critic_grad_updates_per_step, -1) + x.shape[1:]),
             transitions,
         )
-        transitions = relabel_transitions(planning_env, transitions)
+        transitions, disagreement = relabel_transitions(planning_env, transitions)
         (training_state, _), critic_metrics = jax.lax.scan(
             critic_sgd_step, (training_state, training_key), transitions
         )
@@ -294,6 +294,7 @@ def make_training_step(
         metrics = {**model_metrics, **critic_metrics, **actor_metrics}
         metrics["buffer_current_size"] = model_replay_buffer.size(model_buffer_state)
         metrics |= env_state.metrics
+        metrics["disagreement"] = disagreement
         return training_state, env_state, model_buffer_state, metrics
 
     return training_step
