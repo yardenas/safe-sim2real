@@ -38,3 +38,4 @@ n_critics: 2
 n_heads: 1
 model_ensemble_size: 1
 unroll_length: 1
+num_model_rollouts: 400

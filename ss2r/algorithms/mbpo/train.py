@@ -129,6 +129,7 @@ def train(
     critic_grad_updates_per_step: int = 1,
     num_critic_updates_per_actor_update: int = 1,
     unroll_length: int = 1,
+    num_model_rollouts: int = 400,
     deterministic_eval: bool = False,
     network_factory: mbpo_networks.NetworkFactory[
         mbpo_networks.MBPONetworks,
@@ -208,7 +209,7 @@ def train(
     )
     policy_optimizer = make_optimizer(learning_rate, 1.0)
     qr_optimizer = make_optimizer(critic_learning_rate, 1.0)
-    model_optimizer = make_optimizer(model_learning_rate, 1.0) if safe else None
+    model_optimizer = make_optimizer(model_learning_rate, 1.0)
     if isinstance(obs_size, Mapping):
         dummy_obs = {k: jnp.zeros(v) for k, v in obs_size.items()}
     else:
@@ -305,7 +306,7 @@ def train(
     )
     actor_update = (
         gradients.gradient_update_fn(  # pytype: disable=wrong-arg-types  # jax-ndarray
-            actor_loss, policy_optimizer, pmap_axis_name=None, has_aux=True
+            actor_loss, policy_optimizer, pmap_axis_name=None
         )
     )
     extra_fields = ("truncation",)
@@ -340,6 +341,7 @@ def train(
         tau,
         num_critic_updates_per_actor_update,
         unroll_length,
+        num_model_rollouts,
     )
 
     def prefill_replay_buffer(

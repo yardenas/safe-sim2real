@@ -171,7 +171,6 @@ def make_losses(
         truncation = expand(truncation)[..., None]
         total_loss = total_loss * (1 - truncation)
         total_loss = jnp.mean(total_loss)
-        aux = {"model_loss": total_loss}
-        return total_loss, aux
+        return total_loss
 
     return alpha_loss, critic_loss, actor_loss, compute_model_loss

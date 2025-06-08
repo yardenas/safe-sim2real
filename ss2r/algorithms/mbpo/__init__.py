@@ -2,10 +2,7 @@ import functools
 
 import ss2r.algorithms.mbpo.networks as mbpo_networks
 from ss2r.algorithms.sac.data import get_collection_fn
-from ss2r.algorithms.sac.q_transforms import (
-    get_cost_q_transform,
-    get_reward_q_transform,
-)
+from ss2r.algorithms.sac.q_transforms import get_reward_q_transform
 
 
 def get_train_fn(cfg, checkpoint_path, restore_checkpoint_path):
@@ -55,7 +52,6 @@ def get_train_fn(cfg, checkpoint_path, restore_checkpoint_path):
         value_obs_key=value_obs_key,
         policy_obs_key=policy_obs_key,
     )
-    cost_q_transform = get_cost_q_transform(cfg)
     reward_q_transform = get_reward_q_transform(cfg)
     data_collection = get_collection_fn(cfg)
     train_fn = functools.partial(
@@ -64,7 +60,6 @@ def get_train_fn(cfg, checkpoint_path, restore_checkpoint_path):
         **training_cfg,
         network_factory=network_factory,
         checkpoint_logdir=checkpoint_path,
-        cost_q_transform=cost_q_transform,
         reward_q_transform=reward_q_transform,
         get_experience_fn=data_collection,
         restore_checkpoint_path=restore_checkpoint_path,

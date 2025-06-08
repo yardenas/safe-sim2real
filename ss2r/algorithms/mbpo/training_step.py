@@ -36,6 +36,7 @@ def make_training_step(
     tau,
     num_critic_updates_per_actor_update,
     unroll_length,
+    num_model_rollouts,
 ):
     def critic_sgd_step(
         carry: Tuple[TrainingState, PRNGKey], transitions: Transition
@@ -86,7 +87,7 @@ def make_training_step(
             optimizer_state=training_state.alpha_optimizer_state,
         )
         alpha = jnp.exp(training_state.alpha_params) + min_alpha
-        (actor_loss, aux), policy_params, policy_optimizer_state = actor_update(
+        actor_loss, policy_params, policy_optimizer_state = actor_update(
             training_state.policy_params,
             training_state.normalizer_params,
             training_state.qr_params,
@@ -100,7 +101,6 @@ def make_training_step(
             "actor_loss": actor_loss,
             "alpha_loss": alpha_loss,
             "alpha": jnp.exp(alpha_params),
-            **aux,
         }
         new_training_state = training_state.replace(  # type: ignore
             policy_optimizer_state=policy_optimizer_state,
@@ -116,19 +116,21 @@ def make_training_step(
         training_state, key = carry
         key, key_model = jax.random.split(key)
         transitions = float32(transitions)
-        (_, aux), model_params, model_optimizer_state = model_update(
+        model_loss, model_params, model_optimizer_state = model_update(
             training_state.model_params,
             training_state.normalizer_params,
             transitions,
             # FIXME (yarden): don't hardcode this later
             False,
             optimizer_state=training_state.model_optimizer_state,  # type: ignore
+            params=training_state.model_params,
         )
         new_training_state = training_state.replace(  # type: ignore
             model_optimizer_state=model_optimizer_state,
             model_params=model_params,
         )
-        return (new_training_state, key), aux
+        metrics = {"model_loss": model_loss}
+        return (new_training_state, key), metrics
 
     def run_experience_step(
         training_state: TrainingState,
@@ -160,10 +162,19 @@ def make_training_step(
         transitions: Transition,
         sac_replay_buffer_state: ReplayBufferState,
         key: PRNGKey,
-    ) -> Tuple[ReplayBufferState, PRNGKey]:
-        planning_env = make_model_env(model_params=training_state.model_params)
-        transitions = jax.tree_map(lambda x: x.reshape(-1, *x.shape[2:]), transitions)
-        key_generate_unroll, cost_key, model_key, next_key = jax.random.split(key, 4)
+    ) -> ReplayBufferState:
+        planning_env = make_model_env(
+            model_params=training_state.model_params,
+            normalizer_params=training_state.normalizer_params,
+        )
+        key_generate_unroll, cost_key, model_key, key_perm = jax.random.split(key, 4)
+
+        def convert_data(x: jnp.ndarray):
+            x = x.reshape(-1, *x.shape[2:])
+            x = jax.random.permutation(key_perm, x)[:num_model_rollouts]
+            return x
+
+        transitions = jax.tree_map(convert_data, transitions)
         cumulative_cost = jax.random.uniform(
             cost_key, (transitions.reward.shape[0],), minval=0.0, maxval=0.0
         )
@@ -196,7 +207,7 @@ def make_training_step(
         sac_replay_buffer_state = sac_replay_buffer.insert(
             sac_replay_buffer_state, float16(transitions)
         )
-        return sac_replay_buffer_state, next_key
+        return sac_replay_buffer_state
 
     def training_step(
         training_state: TrainingState,
