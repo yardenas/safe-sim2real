@@ -231,7 +231,9 @@ def train(
         model_optimizer=model_optimizer,
     )
     del global_key
-    local_key, rb_key, env_key, eval_key = jax.random.split(local_key, 4)
+    local_key, model_rb_key, actor_critic_rb_key, env_key, eval_key = jax.random.split(
+        local_key, 5
+    )
     if restore_checkpoint_path is not None:
         params = checkpoint.load(restore_checkpoint_path)
         training_state = training_state.replace(  # type: ignore
@@ -242,13 +244,13 @@ def train(
         )
         if len(params) >= 6 and use_rae:
             logging.info("Restoring replay buffer state")
-            buffer_state = params[5]
-            buffer_state = replay_buffers.ReplayBufferState(**buffer_state)
+            model_buffer_state = params[5]
+            model_buffer_state = replay_buffers.ReplayBufferState(**model_buffer_state)
             replay_buffer = RAEReplayBuffer(
                 max_replay_size=max_replay_size,
                 dummy_data_sample=dummy_transition,
                 sample_batch_size=batch_size * grad_updates_per_step,
-                offline_data_state=buffer_state,
+                offline_data_state=model_buffer_state,
             )
     if not restore_checkpoint_path or not use_rae:
         replay_buffer = replay_buffers.UniformSamplingQueue(
@@ -256,7 +258,8 @@ def train(
             dummy_data_sample=dummy_transition,
             sample_batch_size=batch_size * grad_updates_per_step,
         )
-    buffer_state = replay_buffer.init(rb_key)
+    model_buffer_state = replay_buffer.init(model_rb_key)
+    actor_critic_buffer_state = replay_buffer.init(actor_critic_rb_key)
     alpha_loss, critic_loss, actor_loss, model_loss = mbpo_losses.make_losses(
         mbpo_network=mbpo_network,
         reward_scaling=reward_scaling,
@@ -348,35 +351,72 @@ def train(
     def training_epoch(
         training_state: TrainingState,
         env_state: envs.State,
-        buffer_state: ReplayBufferState,
+        model_buffer_state: ReplayBufferState,
+        actor_critic_buffer_state: ReplayBufferState,
         key: PRNGKey,
-    ) -> Tuple[TrainingState, envs.State, ReplayBufferState, Metrics]:
+    ) -> Tuple[
+        TrainingState, envs.State, ReplayBufferState, ReplayBufferState, Metrics
+    ]:
         def f(carry, unused_t):
-            ts, es, bs, k = carry
+            ts, es, mbs, acbs, k = carry
             k, new_key = jax.random.split(k)
-            ts, es, bs, metrics = training_step(ts, es, bs, k)
-            return (ts, es, bs, new_key), metrics
+            ts, es, mbs, metrics = training_step(ts, es, mbs, acbs, k)
+            return (ts, es, mbs, acbs, new_key), metrics
 
-        (training_state, env_state, buffer_state, key), metrics = jax.lax.scan(
+        (
+            (
+                training_state,
+                env_state,
+                model_buffer_state,
+                actor_critic_buffer_state,
+                key,
+            ),
+            metrics,
+        ) = jax.lax.scan(
             f,
-            (training_state, env_state, buffer_state, key),
+            (
+                training_state,
+                env_state,
+                model_buffer_state,
+                actor_critic_buffer_state,
+                key,
+            ),
             (),
             length=num_training_steps_per_epoch,
         )
         metrics = jax.tree_util.tree_map(jnp.mean, metrics)
-        return training_state, env_state, buffer_state, metrics
+        return (
+            training_state,
+            env_state,
+            model_buffer_state,
+            actor_critic_buffer_state,
+            metrics,
+        )
 
     # Note that this is NOT a pure jittable method.
     def training_epoch_with_timing(
         training_state: TrainingState,
         env_state: envs.State,
-        buffer_state: ReplayBufferState,
+        model_buffer_state: ReplayBufferState,
+        actor_critic_buffer_state: ReplayBufferState,
         key: PRNGKey,
-    ) -> Tuple[TrainingState, envs.State, ReplayBufferState, Metrics]:
+    ) -> Tuple[
+        TrainingState, envs.State, ReplayBufferState, ReplayBufferState, Metrics
+    ]:
         nonlocal training_walltime  # type: ignore
         t = time.time()
-        (training_state, env_state, buffer_state, metrics) = training_epoch(
-            training_state, env_state, buffer_state, key
+        (
+            training_state,
+            env_state,
+            model_buffer_state,
+            actor_critic_buffer_state,
+            metrics,
+        ) = training_epoch(
+            training_state,
+            env_state,
+            model_buffer_state,
+            actor_critic_buffer_state,
+            key,
         )
         metrics = jax.tree_util.tree_map(jnp.mean, metrics)
         jax.tree_util.tree_map(lambda x: x.block_until_ready(), metrics)
@@ -393,7 +433,8 @@ def train(
         return (
             training_state,
             env_state,
-            buffer_state,
+            model_buffer_state,
+            actor_critic_buffer_state,
             metrics,
         )  # pytype: disable=bad-return-type  # py311-upgrade
 
@@ -431,11 +472,10 @@ def train(
     # Create and initialize the replay buffer.
     t = time.time()
     prefill_key, local_key = jax.random.split(local_key)
-    training_state, env_state, buffer_state, _ = prefill_replay_buffer(
-        training_state, env_state, buffer_state, prefill_key
+    training_state, env_state, model_buffer_state, _ = prefill_replay_buffer(
+        training_state, env_state, model_buffer_state, prefill_key
     )
-
-    replay_size = jnp.sum(replay_buffer.size(buffer_state))
+    replay_size = jnp.sum(replay_buffer.size(model_buffer_state))
     logging.info("replay size after prefill %s", replay_size)
     assert replay_size >= min_replay_size
     training_walltime = time.time() - t
@@ -448,10 +488,15 @@ def train(
         (
             training_state,
             env_state,
-            buffer_state,
+            model_buffer_state,
+            actor_critic_buffer_state,
             training_metrics,
         ) = training_epoch_with_timing(
-            training_state, env_state, buffer_state, epoch_key
+            training_state,
+            env_state,
+            model_buffer_state,
+            actor_critic_buffer_state,
+            epoch_key,
         )
         if reset_on_eval:
             reset_keys = jax.random.split(epoch_key, num_envs)
@@ -468,7 +513,7 @@ def train(
                 training_state.model_params,
             )
             if store_buffer:
-                params += (buffer_state,)
+                params += (model_buffer_state,)
             dummy_ckpt_config = config_dict.ConfigDict()
             checkpoint.save(checkpoint_logdir, current_step, params, dummy_ckpt_config)
 
@@ -489,6 +534,6 @@ def train(
         training_state.model_params,
     )
     if store_buffer:
-        params += (buffer_state,)
+        params += (model_buffer_state,)
     logging.info("total steps: %s", total_steps)
     return make_policy, params, metrics
