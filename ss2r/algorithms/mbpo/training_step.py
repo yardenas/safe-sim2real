@@ -172,6 +172,7 @@ def make_training_step(
             num_model_rollouts
             <= transitions.observation.shape[0] * transitions.observation.shape[1]
         ), "num_model_rollouts must be less than or equal to the number of transitions"
+        transitions = jax.tree_map(lambda x: x[:num_model_rollouts], transitions)
         transitions = float32(transitions)
         cumulative_cost = jax.random.uniform(
             cost_key, (transitions.reward.shape[0],), minval=0.0, maxval=0.0
