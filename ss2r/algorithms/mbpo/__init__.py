@@ -12,7 +12,7 @@ from ss2r.algorithms.sac.q_transforms import (
 def get_train_fn(cfg, checkpoint_path, restore_checkpoint_path):
     import jax.nn as jnn
 
-    import ss2r.algorithms.sac.train as sac
+    import ss2r.algorithms.mbpo.train as mbpo
 
     agent_cfg = dict(cfg.agent)
     training_cfg = {
@@ -59,7 +59,7 @@ def get_train_fn(cfg, checkpoint_path, restore_checkpoint_path):
     reward_q_transform = get_reward_q_transform(cfg)
     data_collection = get_collection_fn(cfg)
     train_fn = functools.partial(
-        sac.train,
+        mbpo.train,
         **agent_cfg,
         **training_cfg,
         network_factory=network_factory,
