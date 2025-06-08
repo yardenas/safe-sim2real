@@ -222,8 +222,8 @@ def make_training_step(
             normalizer_params, model_params, transitions.observation, transitions.action
         )
         disagreement = next_obs_pred.std(axis=0).mean(-1)
-        new_reward = reward.mean(-1) + disagreement * optimism
-        next_obs_pred = next_obs_pred.mean(-1)
+        new_reward = reward.mean(0) + disagreement * optimism
+        next_obs_pred = next_obs_pred.mean(0)
         return Transition(
             observation=transitions.observation,
             next_observation=next_obs_pred,
