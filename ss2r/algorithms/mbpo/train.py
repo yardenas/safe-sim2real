@@ -342,7 +342,6 @@ def train(
         num_critic_updates_per_actor_update,
         unroll_length,
         num_model_rollouts,
-        sac_batch_size,
     )
 
     def prefill_replay_buffer(

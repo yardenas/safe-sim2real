@@ -12,6 +12,7 @@ from ss2r.algorithms.sac.types import (
     Metrics,
     ReplayBufferState,
     Transition,
+    float16,
     float32,
 )
 
@@ -37,7 +38,6 @@ def make_training_step(
     num_critic_updates_per_actor_update,
     unroll_length,
     num_model_rollouts,
-    sac_batch_size,
 ):
     def critic_sgd_step(
         carry: Tuple[TrainingState, PRNGKey], transitions: Transition
@@ -161,27 +161,21 @@ def make_training_step(
         transitions: Transition,
         sac_replay_buffer_state: ReplayBufferState,
         key: PRNGKey,
-    ) -> Transition:
+    ) -> ReplayBufferState:
         planning_env = make_model_env(
             model_params=training_state.model_params,
             normalizer_params=training_state.normalizer_params,
         )
         planning_env = VmapWrapper(planning_env)
         key_generate_unroll, cost_key, model_key, key_perm = jax.random.split(key, 4)
-        num_transitions = (
-            transitions.observation.shape[0] * transitions.observation.shape[1]
-        )
         assert (
-            num_model_rollouts <= num_transitions
+            num_model_rollouts
+            <= transitions.observation.shape[0] * transitions.observation.shape[1]
         ), "num_model_rollouts must be less than or equal to the number of transitions"
-        sac_datapoints = critic_grad_updates_per_step * sac_batch_size // unroll_length
-        assert (
-            sac_datapoints <= num_transitions
-        ), "sac_datapoints must be less than or equal to the number of transitions"
 
         def convert_data(x: jnp.ndarray):
             x = x.reshape(-1, *x.shape[2:])
-            x = jax.random.permutation(key_perm, x)[:sac_datapoints]
+            x = jax.random.permutation(key_perm, x)[:num_model_rollouts]
             return x
 
         transitions = jax.tree_map(convert_data, transitions)
@@ -215,11 +209,10 @@ def make_training_step(
             extra_fields=extra_fields,
         )
         transitions = jax.tree.map(lambda x: x.reshape(-1, *x.shape[2:]), transitions)
-        # transitions = jax.tree.map(lambda x: x.reshape(-1, *x.shape[2:]), transitions)
-        # sac_replay_buffer_state = sac_replay_buffer.insert(
-        #     sac_replay_buffer_state, float16(transitions)
-        # )
-        return transitions
+        sac_replay_buffer_state = sac_replay_buffer.insert(
+            sac_replay_buffer_state, float16(transitions)
+        )
+        return sac_replay_buffer_state
 
     def training_step(
         training_state: TrainingState,
@@ -245,30 +238,14 @@ def make_training_step(
         (training_state, _), model_metrics = jax.lax.scan(
             model_sgd_step, (training_state, training_key), transitions
         )
-        num_transitions = (
-            transitions.observation.shape[0] * transitions.observation.shape[1]
-        )
-        sac_datapoints = critic_grad_updates_per_step * sac_batch_size // unroll_length
-        if sac_datapoints > num_transitions:
-            sample_ratio = -(-sac_datapoints // num_transitions)
-            keys = jax.random.split(training_key, sample_ratio)
-
-            def sample(carry, key):
-                rb_state = carry
-                rb_state, transitions = model_replay_buffer.sample(rb_state)
-                return rb_state, transitions
-
-            model_buffer_state, transitions = jax.lax.scan(
-                sample, sac_buffer_state, keys
-            )
         # Rollout trajectories from the sampled transitions
-        transitions = generate_model_data(
+        sac_buffer_state = generate_model_data(
             training_state, transitions, sac_buffer_state, training_key
         )
         # TODO: check if we can use this generated data directly, instead of
         # using a replay buffer
         # Train SAC with model data
-        # sac_buffer_state, transitions = sac_replay_buffer.sample(sac_buffer_state)
+        sac_buffer_state, transitions = sac_replay_buffer.sample(sac_buffer_state)
         transitions = jax.tree_util.tree_map(
             lambda x: jnp.reshape(x, (critic_grad_updates_per_step, -1) + x.shape[1:]),
             transitions,
