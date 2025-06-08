@@ -170,6 +170,10 @@ def make_training_step(
         )
         planning_env = VmapWrapper(planning_env)
         key_generate_unroll, cost_key, model_key, key_perm = jax.random.split(key, 4)
+        assert (
+            num_model_rollouts
+            <= transitions.observation.shape[0] * transitions.observation.shape[1]
+        ), "num_model_rollouts must be less than or equal to the number of transitions"
 
         def convert_data(x: jnp.ndarray):
             x = x.reshape(-1, *x.shape[2:])
@@ -206,6 +210,7 @@ def make_training_step(
             unroll_length,
             extra_fields=extra_fields,
         )
+        transitions = jax.tree.map(lambda x: x.reshape(-1, *x.shape[2:]), transitions)
         sac_replay_buffer_state = sac_replay_buffer.insert(
             sac_replay_buffer_state, float16(transitions)
         )
@@ -236,7 +241,7 @@ def make_training_step(
             model_sgd_step, (training_state, training_key), transitions
         )
         # Rollout trajectories from the sampled transitions
-        sac_buffer_state, training_key = generate_model_data(
+        sac_buffer_state = generate_model_data(
             training_state, transitions, sac_buffer_state, training_key
         )
         # TODO: check if we can use this generated data directly, instead of
