@@ -1,0 +1,215 @@
+import functools
+import logging
+import os
+from pathlib import Path
+
+import hydra
+import jax
+import wandb
+from brax import envs
+from brax.training.acme import running_statistics
+from omegaconf import OmegaConf
+
+from ss2r import benchmark_suites
+from ss2r.algorithms import mb_ppo, ppo, sac
+from ss2r.algorithms.mb_ppo import model_env
+from ss2r.algorithms.mb_ppo import test_train_model as ttm
+from ss2r.benchmark_suites.utils import get_task_config
+from ss2r.common.logging import TrainingLogger
+
+_LOG = logging.getLogger(__name__)
+
+
+def get_state_path() -> str:
+    log_path = os.getcwd() + "/ckpt"
+    return log_path
+
+
+def locate_last_checkpoint() -> Path | None:
+    ckpt_dir = Path(get_state_path())
+    # Get all directories or files that match the 12-digit pattern
+    checkpoints = [
+        p
+        for p in ckpt_dir.iterdir()
+        if p.is_dir() and p.name.isdigit() and len(p.name) == 12
+    ]
+    if not checkpoints:
+        return None  # No checkpoints found
+    # Sort by step number (converted from the directory name)
+    latest_ckpt = max(checkpoints, key=lambda p: int(p.name))
+    return latest_ckpt
+
+
+def get_wandb_checkpoint(run_id):
+    api = wandb.Api()
+    artifact = api.artifact(f"ss2r/checkpoint:{run_id}")
+    download_dir = artifact.download(f"{get_state_path()}/{run_id}")
+    return download_dir
+
+
+def get_train_fn(cfg):
+    if cfg.training.wandb_id:
+        restore_checkpoint_path = get_wandb_checkpoint(cfg.training.wandb_id)
+    else:
+        restore_checkpoint_path = None
+    if cfg.agent.name == "sac":
+        train_fn = sac.get_train_fn(
+            cfg,
+            restore_checkpoint_path=restore_checkpoint_path,
+            checkpoint_path=get_state_path(),
+        )
+    elif cfg.agent.name == "ppo":
+        train_fn = ppo.get_train_fn(
+            cfg,
+            restore_checkpoint_path=restore_checkpoint_path,
+            checkpoint_path=get_state_path(),
+        )
+    elif cfg.agent.name == "mb_ppo":
+        train_fn = mb_ppo.get_train_fn(
+            cfg,
+            restore_checkpoint_path=restore_checkpoint_path,
+            checkpoint_path=get_state_path(),
+        )
+    else:
+        raise ValueError(f"Unknown agent name: {cfg.agent.name}")
+    return train_fn
+
+
+class Counter:
+    def __init__(self):
+        self.count = 0
+
+
+def report(logger, step, num_steps, metrics):
+    metrics = {k: float(v) for k, v in metrics.items()}
+    logger.log(metrics, num_steps)
+    step.count = num_steps
+
+
+@hydra.main(version_base=None, config_path="ss2r/configs", config_name="train_brax")
+def main(cfg):
+    _LOG.info(
+        f"Setting up experiment with the following configuration: "
+        f"\n{OmegaConf.to_yaml(cfg)}"
+    )
+    logger = TrainingLogger(cfg)
+    train_fn = get_train_fn(cfg)
+    train_env_wrap_fn, eval_env_wrap_fn = benchmark_suites.get_wrap_env_fn(cfg)
+    train_env, eval_env = benchmark_suites.make(
+        cfg, train_env_wrap_fn, eval_env_wrap_fn
+    )
+
+    rng = jax.random.PRNGKey(cfg.training.seed)
+    rng, init_key, sgd_key, compare_key = jax.random.split(rng, 4)
+
+    # HERE: Train the model
+    task_cfg = get_task_config(cfg)
+    env = envs.get_environment(
+        task_cfg.task_name, backend=cfg.environment.backend, **task_cfg.task_params
+    )
+
+    obs, actions, next_obs, rewards, costs = ttm.create_env_data(
+        env=env,
+        key=rng,
+        num_traj=1000,
+        traj_len=1000,
+    )
+
+    transition_data = ttm.create_transitions(
+        obs=obs,
+        actions=actions,
+        next_obs=next_obs,
+        rewards=rewards,
+        costs=costs,
+    )
+
+    obs_size = obs.shape[-1]
+    action_size = actions.shape[-1]
+    normalize_fn = running_statistics.normalize
+    denormalize_fn = running_statistics.denormalize
+
+    (
+        ppo_network,
+        model_loss,
+        model_params,
+        model_optimizer,
+        optimizer_state,
+        normalizer_params,
+    ) = ttm.create_loss_and_networks(
+        obs_size=obs_size,
+        action_size=action_size,
+        normalize_fn=normalize_fn,
+        denormalize_fn=denormalize_fn,
+        num_ensemble=5,
+        lr=1e-4,
+        init_key=init_key,
+    )
+
+    model_params, optimizer_state, metrics = ttm.train_model(
+        transitions=transition_data,
+        model_loss=model_loss,
+        model_params=model_params,
+        model_optimizer=model_optimizer,
+        optimizer_state=optimizer_state,
+        normalizer_params=normalizer_params,
+        epochs=2,
+        key_sgd=sgd_key,
+    )
+
+    def create_planning_env(model_params, normalizer_params):
+        """Create a planning environment with correct batch size for model-based rollouts."""
+        planning_env = model_env.create_model_env(
+            model_network=ppo_network.model_network,
+            model_params=model_params,
+            normalizer_params=normalizer_params,
+            ensemble_selection="mean",
+            safety_budget=float("inf"),
+            observation_size=obs_size,
+            action_size=action_size,
+        )
+        return planning_env
+
+    planning_env = create_planning_env(
+        model_params=model_params, normalizer_params=normalizer_params
+    )
+
+    ttm.compare_trajectories(
+        key=compare_key,
+        env=env,
+        ppo_network=ppo_network,
+        planning_env=planning_env,
+        normalizer_params=normalizer_params,
+        model_params=model_params,
+        num_timesteps=15,
+        num_trajs=5,
+    )
+
+    steps = Counter()
+    with jax.disable_jit(not cfg.jit):
+        make_policy, params, _ = train_fn(
+            environment=train_env,
+            eval_env=eval_env,
+            progress_fn=functools.partial(report, logger, steps),
+        )
+        if cfg.training.render:
+            rng = jax.random.split(rng, cfg.training.num_eval_envs)
+            if len(params) != 2:
+                policy_params = params[:2]
+            else:
+                policy_params = params
+            video = benchmark_suites.render_fns[cfg.environment.task_name](
+                eval_env,
+                make_policy(policy_params, deterministic=True),
+                cfg.training.episode_length,
+                rng,
+            )
+            logger.log_video(video, steps.count, "eval/video")
+        if cfg.training.store_checkpoint:
+            artifacts = locate_last_checkpoint()
+            if artifacts:
+                logger.log_artifact(artifacts, "model", "checkpoint")
+    _LOG.info("Done training.")
+
+
+if __name__ == "__main__":
+    main()

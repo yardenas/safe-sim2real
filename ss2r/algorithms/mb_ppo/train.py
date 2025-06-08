@@ -27,7 +27,6 @@ from brax.training.acme import running_statistics, specs
 from brax.training.agents.sac import checkpoint
 from brax.training.types import PRNGKey, Transition
 from etils import epath
-from jax._src.lax import slicing
 from ml_collections import config_dict
 from orbax import checkpoint as ocp
 
@@ -40,27 +39,6 @@ from ss2r.algorithms.mb_ppo import training_step as mb_ppo_training_step
 from ss2r.algorithms.sac.data import collect_single_step
 from ss2r.algorithms.sac.types import CollectDataFn, ReplayBufferState, float16
 from ss2r.rl.evaluation import ConstraintsEvaluator
-
-
-def _index_array(i, aval, x):
-    return slicing.index_in_dim(x, i, keepdims=False)
-
-
-def _scan(f, init, xs, length=None, reverse=False, unroll=1, *, use_lax=True):
-    if use_lax:
-        return jax.lax.scan(f, init, xs, length=length, reverse=reverse, unroll=unroll)
-    else:
-        xs_flat, xs_tree = jax.tree_flatten(xs)
-        carry = init
-        ys = []
-        maybe_reversed = reversed if reverse else lambda x: x
-        for i in maybe_reversed(range(length)):
-            xs_slice = [_index_array(i, jax._src.core.get_aval(x), x) for x in xs_flat]
-            carry, y = f(carry, jax.tree_unflatten(xs_tree, xs_slice))
-        ys.append(y)
-        stack = lambda *ys: jax.numpy.stack(ys)
-        stacked_y = jax.tree_map(stack, *maybe_reversed(ys))
-        return carry, stacked_y
 
 
 def _init_training_state(
@@ -388,7 +366,7 @@ def train(
 
             return (new_training_state, env_state, buffer_state, new_key), ()
 
-        training_state, env_state, buffer_state, new_key = _scan(
+        training_state, env_state, buffer_state, new_key = jax.lax.scan(
             f,
             (training_state, env_state, buffer_state, key),
             (),
@@ -399,7 +377,7 @@ def train(
         (
             (training_state, buffer_state, _),
             _,
-        ) = _scan(
+        ) = jax.lax.scan(
             model_training_step,
             (training_state, buffer_state, model_key),
             (),
@@ -451,7 +429,7 @@ def train(
                 training_key,
             ), metrics
 
-        (training_state, env_state, buffer_state, key), metrics = _scan(
+        (training_state, env_state, buffer_state, key), metrics = jax.lax.scan(
             f,
             (training_state, env_state, buffer_state, key),
             (),
