@@ -409,8 +409,10 @@ class BraxDomainRandomizationVmapWrapper(DomainRandomizationVmapBase):
 
 
 class HardAutoResetWrapper(Wrapper):
-    """Automatically resets Brax envs that are done.
-    Force resample every step. Inefficient"""
+    """Automatically reset Brax envs that are done.
+
+    Resample only when >=1 environment is actually done. Still resamples for all
+    """
 
     def reset(self, rng: jax.Array) -> State | MjxState:
         rng, sample_rng = jax.vmap(jax.random.split, out_axes=1)(rng)
