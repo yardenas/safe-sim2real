@@ -163,36 +163,15 @@ def make_training_step(
     def generate_model_data(
         planning_env: ModelBasedEnv,
         policy: Policy,
-        transitions: Transition,
         sac_replay_buffer_state: ReplayBufferState,
         key: PRNGKey,
     ) -> ReplayBufferState:
         key_generate_unroll, cost_key, model_key, key_perm = jax.random.split(key, 4)
-        assert (
-            num_model_rollouts
-            <= transitions.observation.shape[0] * transitions.observation.shape[1]
-        ), "num_model_rollouts must be less than or equal to the number of transitions"
-        transitions = jax.tree_map(lambda x: x[:num_model_rollouts], transitions)
-        transitions = float32(transitions)
-        state = envs.State(
-            pipeline_state=None,
-            obs=transitions.observation,
-            reward=transitions.reward,
-            done=1 - transitions.discount,
-            info={
-                "cumulative_cost": transitions.extras["state_extras"].get(
-                    "cumulative_cost", jnp.zeros_like(transitions.reward)
-                ),
-                "curr_discount": transitions.extras["state_extras"].get(
-                    "curr_discount", jnp.ones_like(transitions.reward)
-                ),
-                "truncation": jnp.zeros_like(transitions.reward),
-                "cost": transitions.extras["state_extras"].get(
-                    "cost", jnp.zeros_like(transitions.reward)
-                ),
-                "key": jnp.tile(model_key[None], (transitions.observation.shape[0], 1)),
-            },
-        )
+        keys = jax.random.split(key, num_model_rollouts + 2)
+        key = keys[0]
+        key_generate_unroll = keys[1]
+        rollout_keys = keys[2:]
+        state = planning_env.reset(rollout_keys)
         _, transitions = acting.generate_unroll(
             planning_env,
             state,
@@ -245,6 +224,9 @@ def make_training_step(
             training_key,
         ) = run_experience_step(training_state, env_state, model_buffer_state, key)
         model_buffer_state, transitions = model_replay_buffer.sample(model_buffer_state)
+        assert (
+            num_model_rollouts <= transitions.observation.shape[0]
+        ), "num_model_rollouts must be less than or equal to the number of transitions"
         # Change the front dimension of transitions so 'update_step' is called
         # grad_updates_per_step times by the scan.
         tmp_transitions = jax.tree_util.tree_map(
@@ -257,6 +239,7 @@ def make_training_step(
         planning_env = make_model_env(
             model_params=training_state.model_params,
             normalizer_params=training_state.normalizer_params,
+            transitions=transitions,
         )
         planning_env = VmapWrapper(planning_env)
         policy = make_policy(
@@ -264,7 +247,7 @@ def make_training_step(
         )
         # Rollout trajectories from the sampled transitions
         sac_buffer_state = generate_model_data(
-            planning_env, policy, transitions, sac_buffer_state, training_key
+            planning_env, policy, sac_buffer_state, training_key
         )
         # Train SAC with model data
         sac_buffer_state, model_transitions = sac_replay_buffer.sample(sac_buffer_state)

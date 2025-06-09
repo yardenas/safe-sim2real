@@ -4,12 +4,15 @@ from brax import envs
 from brax.envs import base
 from brax.training.acme import running_statistics
 
+from ss2r.algorithms.sac.types import float32
+
 
 class ModelBasedEnv(envs.Env):
     """Environment wrapper that uses a learned model for predictions."""
 
     def __init__(
         self,
+        transitions,
         observation_size: int,
         action_size: int,
         model_network,
@@ -26,12 +29,36 @@ class ModelBasedEnv(envs.Env):
         self.safety_budget = safety_budget
         self._observation_size = observation_size
         self._action_size = action_size
+        self.transitions = transitions
 
     def reset(self, rng: jax.Array) -> base.State:
-        """Reset using the real environment."""
-        raise NotImplementedError(
-            "ModelBasedEnv does not support reset. Use a real environment for resetting."
+        sample_key, model_key = jax.random.split(rng)
+        indcs = jax.random.randint(
+            sample_key, (), 0, self.transitions.observation.shape[0]
         )
+        transitions = float32(
+            jax.tree_util.tree_map(lambda x: x[indcs], self.transitions)
+        )
+        state = envs.State(
+            pipeline_state=None,
+            obs=transitions.observation,
+            reward=transitions.reward,
+            done=jnp.zeros_like(transitions.reward),
+            info={
+                "cumulative_cost": transitions.extras["state_extras"].get(
+                    "cumulative_cost", jnp.zeros_like(transitions.reward)
+                ),
+                "curr_discount": transitions.extras["state_extras"].get(
+                    "curr_discount", jnp.ones_like(transitions.reward)
+                ),
+                "truncation": jnp.zeros_like(transitions.reward),
+                "cost": transitions.extras["state_extras"].get(
+                    "cost", jnp.zeros_like(transitions.reward)
+                ),
+                "key": model_key,
+            },
+        )
+        return state
 
     def step(self, state: base.State, action: jax.Array) -> base.State:
         """Step using the learned model."""
@@ -58,12 +85,26 @@ class ModelBasedEnv(envs.Env):
             accumulated_cost_for_transition = (
                 prev_cumulative_cost + curr_discount * cost
             )
-            if self.safety_budget < float("inf"):
-                done = jnp.where(
-                    accumulated_cost_for_transition > self.safety_budget,
-                    jnp.ones_like(done),
+            done = jnp.where(
+                accumulated_cost_for_transition > self.safety_budget,
+                jnp.ones_like(done),
+                done,
+            )
+
+            def reset_states(self, done, state, next_obs):
+                """Reset the state if done."""
+                key, reset_keys = jax.random.split(state.info["key"])
+                state.info["key"] = key
+                state.info["cumulative_cost"] = jnp.where(
                     done,
+                    jnp.zeros_like(reward),
+                    state.info["cumulative_cost"],
                 )
+                next_obs = jnp.where(done, self.reset(reset_keys).obs, next_obs)
+                return state, next_obs
+
+            state, next_obs = reset_states(self, done, state, next_obs)
+
         state = state.replace(
             obs=next_obs,
             reward=reward,
@@ -86,6 +127,7 @@ class ModelBasedEnv(envs.Env):
 
 
 def create_model_env(
+    transitions,
     model_network,
     model_params,
     observation_size: int,
@@ -96,6 +138,7 @@ def create_model_env(
 ) -> ModelBasedEnv:
     """Factory function to create a model-based environment."""
     return ModelBasedEnv(
+        transitions=transitions,
         model_network=model_network,
         observation_size=observation_size,
         action_size=action_size,
