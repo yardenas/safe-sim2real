@@ -166,9 +166,8 @@ def make_losses(
         )
         targets = expand(targets)
         total_loss = optax.l2_loss(concat_preds, targets)
-        truncation = data.extras["state_extras"]["truncation"]
-        truncation = expand(truncation)[..., None]
-        total_loss = total_loss * (1 - truncation)
+        mask = expand(data.done)[..., None]
+        total_loss = total_loss * (1 - mask)
         total_loss = jnp.mean(total_loss)
         return total_loss
 
