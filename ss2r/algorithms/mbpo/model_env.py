@@ -52,18 +52,18 @@ class ModelBasedEnv(envs.Env):
         truncation = jnp.zeros_like(reward, dtype=jnp.float32)
         state.info["cost"] = cost
         state.info["truncation"] = truncation
-        if "cumulative_cost" in state.info:
-            prev_cumulative_cost = state.info["cumulative_cost"]
-            curr_discount = state.info.get("curr_discount", jnp.ones_like(reward))
-            accumulated_cost_for_transition = (
-                prev_cumulative_cost + curr_discount * cost
-            )
-            if self.safety_budget < float("inf"):
-                done = jnp.where(
-                    accumulated_cost_for_transition > self.safety_budget,
-                    jnp.ones_like(done),
-                    done,
-                )
+        # if "cumulative_cost" in state.info:
+        #     prev_cumulative_cost = state.info["cumulative_cost"]
+        #     curr_discount = state.info.get("curr_discount", jnp.ones_like(reward))
+        #     accumulated_cost_for_transition = (
+        #         prev_cumulative_cost + curr_discount * cost
+        #     )
+        #     if self.safety_budget < float("inf"):
+        #         done = jnp.where(
+        #             accumulated_cost_for_transition > self.safety_budget,
+        #             jnp.ones_like(done),
+        #             done,
+        #         )
         state = state.replace(
             obs=next_obs,
             reward=reward,
