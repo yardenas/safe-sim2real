@@ -43,7 +43,7 @@ agent:
   max_replay_size: 4194304
   grad_updates_per_step: 25
   num_critic_updates_per_actor_update: 25
-  n_heads: 1
+  n_heads: 10
   n_critics: 1
   batch_size: 256
   use_bro: true
