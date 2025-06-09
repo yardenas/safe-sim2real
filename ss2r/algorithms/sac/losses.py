@@ -147,7 +147,9 @@ def make_losses(
         if use_bro:
             qr = jnp.mean(qr_action, axis=-1)
         else:
-            qr = jnp.min(qr_action, axis=-1)
+            # FIXME (take the mean)
+            # qr = jnp.min(qr_action, axis=-1)
+            qr = jnp.mean(qr_action, axis=-1)
         aux = {}
         actor_loss = -qr.mean()
         exploration_loss = (alpha * log_prob).mean()
