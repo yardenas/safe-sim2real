@@ -188,7 +188,7 @@ def make_training_step(
     ) -> Tuple[TrainingState, envs.State, ReplayBufferState, Metrics]:
         """Splits training into experience collection and a jitted training step."""
         if not critic_warmup:
-            training_state, env_state, buffer_state, training_key = run_experience_step(
+            training_state, env_state, buffer_state, key = run_experience_step(
                 training_state, env_state, buffer_state, key
             )
         buffer_state, transitions = replay_buffer.sample(buffer_state)
@@ -198,6 +198,7 @@ def make_training_step(
             lambda x: jnp.reshape(x, (grad_updates_per_step, -1) + x.shape[1:]),
             transitions,
         )
+        training_key, key = jax.random.split(key)
         (training_state, _), metrics = jax.lax.scan(
             critic_sgd_step, (training_state, training_key), transitions
         )
