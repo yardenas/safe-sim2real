@@ -50,3 +50,4 @@ training:
   eval_domain_randomization: true
   store_checkpoint: true
   wandb_id: null
+  hard_resets: false
