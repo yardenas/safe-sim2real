@@ -37,6 +37,7 @@ import ss2r.algorithms.mbpo.networks as mbpo_networks
 from ss2r.algorithms.mbpo.model_env import create_model_env
 from ss2r.algorithms.mbpo.training_step import make_training_step
 from ss2r.algorithms.mbpo.types import TrainingState
+from ss2r.algorithms.ppo.wrappers import TrackOnlineCosts
 from ss2r.algorithms.sac import gradients
 from ss2r.algorithms.sac.data import collect_single_step
 from ss2r.algorithms.sac.q_transforms import QTransformation, SACBase
@@ -190,6 +191,8 @@ def train(
     env = environment
     if wrap_env_fn is not None:
         env = wrap_env_fn(env)
+    if safe:
+        env = TrackOnlineCosts(env, safety_discounting)
     rng = jax.random.PRNGKey(seed)
     obs_size = env.observation_size
     action_size = env.action_size
@@ -226,6 +229,8 @@ def train(
     }
     if safe:
         extras["state_extras"]["cost"] = jnp.zeros(())  # type: ignore
+        extras["state_extras"]["cumulative_cost"] = jnp.zeros(())  # type: ignore
+        extras["state_extras"]["curr_discount"] = jnp.ones(())  # type: ignore
     dummy_transition = Transition(  # pytype: disable=wrong-arg-types  # jax-ndarray
         observation=dummy_obs,
         action=dummy_action,
@@ -314,7 +319,11 @@ def train(
     )
     extra_fields = ("truncation",)
     if safe:
-        extra_fields += ("cost",)  # type: ignore
+        extra_fields += (
+            "cost",
+            "cumulative_cost",
+            "curr_discount",
+        )  # type: ignore
 
     make_model_env = functools.partial(
         create_model_env,
