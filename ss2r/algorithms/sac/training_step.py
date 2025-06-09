@@ -187,9 +187,10 @@ def make_training_step(
         key: PRNGKey,
     ) -> Tuple[TrainingState, envs.State, ReplayBufferState, Metrics]:
         """Splits training into experience collection and a jitted training step."""
-        training_state, env_state, buffer_state, training_key = run_experience_step(
-            training_state, env_state, buffer_state, key
-        )
+        if not critic_warmup:
+            training_state, env_state, buffer_state, training_key = run_experience_step(
+                training_state, env_state, buffer_state, key
+            )
         buffer_state, transitions = replay_buffer.sample(buffer_state)
         # Change the front dimension of transitions so 'update_step' is called
         # grad_updates_per_step times by the scan.
@@ -200,10 +201,10 @@ def make_training_step(
         (training_state, _), metrics = jax.lax.scan(
             critic_sgd_step, (training_state, training_key), transitions
         )
-        metrics["buffer_current_size"] = replay_buffer.size(buffer_state)
         metrics |= env_state.metrics
         if critic_warmup:
             return training_state, env_state, buffer_state, metrics
+        metrics["buffer_current_size"] = replay_buffer.size(buffer_state)
         num_actor_updates = -(
             -grad_updates_per_step // num_critic_updates_per_actor_update
         )
