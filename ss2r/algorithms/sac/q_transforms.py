@@ -129,7 +129,7 @@ class SACBase(QTransformation):
         next_q = q_fn(transitions.next_observation, next_action)
         if self.use_bro:
             # FIXME (yarden):
-            next_v = jax.random.permutation(key, next_q, axis=-1)[..., :1].min(axis=-1)
+            next_v = jax.random.permutation(key, next_q, axis=-1)[..., :2].mean(axis=-1)
         else:
             next_v = jax.random.permutation(key, next_q, axis=-1)[..., :1].min(axis=-1)
         next_v -= alpha * next_log_prob
