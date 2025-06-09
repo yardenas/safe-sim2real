@@ -174,20 +174,21 @@ def make_training_step(
         ), "num_model_rollouts must be less than or equal to the number of transitions"
         transitions = jax.tree_map(lambda x: x[:num_model_rollouts], transitions)
         transitions = float32(transitions)
-        # FIXME: not zeros, use what happened in the real system
-        cumulative_cost = jax.random.uniform(
-            cost_key, (transitions.reward.shape[0],), minval=0.0, maxval=0.0
-        )
         state = envs.State(
             pipeline_state=None,
             obs=transitions.observation,
             reward=transitions.reward,
-            done=jnp.zeros_like(transitions.reward),
+            done=1 - transitions.discount,
             info={
-                "cumulative_cost": cumulative_cost,  # type: ignore
-                "truncation": jnp.zeros_like(cumulative_cost),
+                "cumulative_cost": transitions.extras["state_extras"].get(
+                    "cumulative_cost", jnp.zeros_like(transitions.reward)
+                ),
+                "curr_discount": transitions.extras["state_extras"].get(
+                    "curr_discount", jnp.ones_like(transitions.reward)
+                ),
+                "truncation": jnp.zeros_like(transitions.reward),
                 "cost": transitions.extras["state_extras"].get(
-                    "cost", jnp.zeros_like(cumulative_cost)
+                    "cost", jnp.zeros_like(transitions.reward)
                 ),
                 "key": jnp.tile(model_key[None], (transitions.observation.shape[0], 1)),
             },
