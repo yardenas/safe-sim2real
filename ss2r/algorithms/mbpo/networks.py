@@ -50,6 +50,7 @@ class NetworkFactory(Protocol[NetworkType]):
 class MBPONetworks:
     policy_network: networks.FeedForwardNetwork
     qr_network: networks.FeedForwardNetwork
+    qc_network: networks.FeedForwardNetwork
     model_network: networks.FeedForwardNetwork
     parametric_action_distribution: distribution.ParametricDistribution
 
@@ -150,6 +151,17 @@ def make_mbpo_networks(
         n_critics=n_critics,
         n_heads=n_heads,
     )
+    qc_network = make_q_network(
+        observation_size,
+        action_size,
+        preprocess_observations_fn=preprocess_observations_fn,
+        hidden_layer_sizes=value_hidden_layer_sizes,
+        activation=activation,
+        obs_key=value_obs_key,
+        use_bro=use_bro,
+        n_critics=n_critics,
+        n_heads=n_heads,
+    )
     model_network = make_world_model_ensemble(
         observation_size,
         action_size,
@@ -161,6 +173,7 @@ def make_mbpo_networks(
     return MBPONetworks(
         policy_network=policy_network,
         qr_network=qr_network,
+        qc_network=qc_network,
         model_network=model_network,
         parametric_action_distribution=parametric_action_distribution,
     )  # type: ignore

@@ -26,10 +26,13 @@ def make_training_step(
     sac_replay_buffer,
     alpha_update,
     critic_update,
+    cost_critic_update,
     model_update,
     actor_update,
+    safe,
     min_alpha,
     reward_q_transform,
+    cost_q_transform,
     model_grad_updates_per_step,
     critic_grad_updates_per_step,
     extra_fields,
@@ -40,6 +43,7 @@ def make_training_step(
     unroll_length,
     num_model_rollouts,
     optimism,
+    pessimism,
     model_to_real_data_ratio,
 ):
     def critic_sgd_step(
@@ -61,17 +65,46 @@ def make_training_step(
             optimizer_state=training_state.qr_optimizer_state,
             params=training_state.qr_params,
         )
+        if safe:
+            cost_critic_loss, qc_params, qc_optimizer_state = cost_critic_update(
+                training_state.qc_params,
+                training_state.policy_params,
+                training_state.normalizer_params,
+                training_state.target_qc_params,
+                alpha,
+                transitions,
+                key_critic,
+                cost_q_transform,
+                True,
+                optimizer_state=training_state.qc_optimizer_state,
+                params=training_state.qc_params,
+            )
+            cost_metrics = {
+                "cost_critic_loss": cost_critic_loss,
+            }
+        else:
+            cost_metrics = {}
+            qc_params = None
+            qc_optimizer_state = None
         polyak = lambda target, new: jax.tree_util.tree_map(
             lambda x, y: x * (1 - tau) + y * tau, target, new
         )
         new_target_qr_params = polyak(training_state.target_qr_params, qr_params)
+        if safe:
+            new_target_qc_params = polyak(training_state.target_qc_params, qc_params)
+        else:
+            new_target_qc_params = None
         metrics = {
             "critic_loss": critic_loss,
+            **cost_metrics,
         }
         new_training_state = training_state.replace(  # type: ignore
             qr_optimizer_state=qr_optimizer_state,
             qr_params=qr_params,
+            qc_optimizer_state=qc_optimizer_state,
+            qc_params=qc_params,
             target_qr_params=new_target_qr_params,
+            target_qc_params=new_target_qc_params,
             gradient_steps=training_state.gradient_steps + 1,
         )
         return (new_training_state, key), metrics
@@ -199,13 +232,42 @@ def make_training_step(
         )
         disagreement = next_obs_pred.std(axis=0).mean(-1)
         new_reward = reward.mean(0) + disagreement * optimism
+        if safe:
+            cost = cost.mean(0) + disagreement * pessimism
+            transitions.extras["state_extras"]["cost"] = cost
+            # TODO: Check if works (Reduce conservatism of terminations)
+            acc_cost = transitions.extras["state_extras"].get("accumulated_cost", 0.0)
+            future_cost = planning_env.qc_network.apply(
+                normalizer_params,
+                planning_env.qc_params,
+                transitions.observation,
+                transitions.action,
+            ).mean(axis=-1)
+            new_discount = jnp.where(  # Inverted done signal
+                acc_cost
+                + transitions.extras["state_extras"].get(
+                    "curr_discount", jnp.ones_like(transitions.reward)
+                )
+                * future_cost
+                > planning_env.safety_budget,
+                jnp.zeros_like(cost, dtype=jnp.float32),
+                jnp.ones_like(cost, dtype=jnp.float32),
+            )
+            discount = (
+                jnp.logical_or(  # Logical OR enforce more ones -> reduce pessimism
+                    transitions.discount, new_discount
+                )
+            )
+        else:
+            discount = transitions.discount
+
         next_obs_pred = next_obs_pred.mean(0)
         return Transition(
             observation=transitions.observation,
             next_observation=next_obs_pred,
             action=transitions.action,
             reward=new_reward,
-            discount=transitions.discount,
+            discount=discount,
             extras=transitions.extras,
         ), disagreement
 
@@ -238,6 +300,7 @@ def make_training_step(
         )
         planning_env = make_model_env(
             model_params=training_state.model_params,
+            qc_params=training_state.qc_params,
             normalizer_params=training_state.normalizer_params,
             transitions=transitions,
         )

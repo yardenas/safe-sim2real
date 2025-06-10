@@ -42,6 +42,33 @@ class UCBCost(QTransformation):
         return target_q
 
 
+class PessCostUpdate(QTransformation):
+    def __call__(
+        self,
+        transitions: Transition,
+        q_fn: Callable[[Params, jax.Array], jax.Array],
+        policy: Callable[[jax.Array], tuple[jax.Array, jax.Array]],
+        gamma: float,
+        alpha: jax.Array | None = None,
+        scale: float = 1.0,
+        key: jax.Array | None = None,
+    ):
+        next_action, _ = policy(transitions.next_observation)
+        next_q = q_fn(transitions.next_observation, next_action)
+        next_v = next_q.mean(axis=-1)
+        cost = transitions.extras["state_extras"]["cost"]
+        new_target_q = jax.lax.stop_gradient(
+            cost * scale + transitions.discount * gamma * next_v
+        )
+        old_q = q_fn(transitions.observation, transitions.action).mean(axis=-1)
+        target_q = jax.lax.stop_gradient(
+            jnp.minimum(
+                new_target_q, old_q
+            )  # TODO: check if works (intersection of models)
+        )
+        return target_q
+
+
 class RAMU(QTransformation):
     """
     https://arxiv.org/pdf/2301.12593
@@ -252,6 +279,8 @@ def get_cost_q_transform(cfg):
         robustness = RAMU(**cfg.agent.cost_robustness)
     elif cfg.agent.cost_robustness.name == "ucb_cost":
         robustness = UCBCost()
+    elif cfg.agent.cost_robustness.name == "pess_cost_update":
+        robustness = PessCostUpdate()
     else:
         raise ValueError("Unknown robustness")
     return robustness
