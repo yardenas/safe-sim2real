@@ -448,5 +448,5 @@ class HardAutoResetWrapper(Wrapper):
         else:
             raise NotImplementedError
         new_data = jax.tree.map(where_done, maybe_reset_data, state_data)
-        obs = jax.tree.map(maybe_reset.obs, state.obs)
+        obs = jax.tree.map(where_done, maybe_reset.obs, state.obs)
         return state.replace(**{data_name: new_data, "obs": obs})
