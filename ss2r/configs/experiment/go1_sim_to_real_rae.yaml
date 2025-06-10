@@ -9,9 +9,11 @@ training:
   train_domain_randomization: true
   eval_domain_randomization: true
   safe: false
-  wandb_id: 9a3kb4n0
-  num_envs: 1
-  num_timesteps: 5000000
+  wandb_id: 8wuunrrv
+  num_envs: 2
+  num_timesteps: 1000000
+  num_evals: 20
+  hard_resets: true
 
 environment:
   train_params:
@@ -44,3 +46,4 @@ agent:
   num_critic_updates_per_actor_update: 20
   n_heads: 10
   n_critics: 1
+  critic_entropy: false

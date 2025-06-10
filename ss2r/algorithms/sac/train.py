@@ -152,6 +152,7 @@ def train(
     reset_on_eval: bool = True,
     store_buffer: bool = False,
     use_rae: bool = False,
+    critic_entropy: bool = True,
 ):
     if min_replay_size >= num_timesteps:
         raise ValueError(
@@ -335,6 +336,7 @@ def train(
         safety_budget,
         tau,
         num_critic_updates_per_actor_update,
+        critic_entropy=critic_entropy,
     )
 
     def prefill_replay_buffer(
