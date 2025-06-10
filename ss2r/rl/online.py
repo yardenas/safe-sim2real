@@ -3,6 +3,7 @@ from typing import Sequence, Tuple
 
 import cloudpickle as pickle
 import jax
+import jax.numpy as jnp
 import zmq
 from brax import envs
 from brax.training import acting
@@ -16,6 +17,7 @@ class OnlineEpisodeOrchestrator:
     def __init__(
         self,
         translate_policy_to_binary_fn,
+        data_postprocess_fn,
         num_steps,
         address="tcp://localhost:5555",
     ):
@@ -40,6 +42,7 @@ class OnlineEpisodeOrchestrator:
             SSH target (e.g., 'user@host[:port]') to tunnel through.
         """
         self._translate_policy_to_binary_fn = translate_policy_to_binary_fn
+        self._data_postprocess_fn = data_postprocess_fn
         self.num_steps = num_steps
         self._address = address
 
@@ -53,26 +56,26 @@ class OnlineEpisodeOrchestrator:
         *,
         extra_fields: Sequence[str],
     ) -> Tuple[envs.State, Transition]:
-        dummy_transitions = acting.generate_unroll(
+        dummy_transitions = acting.actor_step(
             env,
             env_state,
             make_policy_fn(policy_params),
             key,
-            self.num_steps,
             extra_fields,
         )[1]
-        dummy_transitions = jax.tree.map(lambda x: x.squeeze(1), dummy_transitions)
+        dummy_transitions = jax.tree.map(
+            lambda x: jnp.tile(x, (self.num_steps,) + (1,) * (x.ndim - 1)),
+            dummy_transitions,
+        )
         transitions = io_callback(
-            functools.partial(self._send_request, make_policy_fn),
+            functools.partial(self._send_request, make_policy_fn, extra_fields),
             dummy_transitions,
             policy_params,
             ordered=True,
         )
-        state_extras = {x: transitions.extras["state_extras"][x] for x in extra_fields}
-        transitions.extras["state_extras"] = state_extras
         return env_state, transitions
 
-    def _send_request(self, make_policy_fn, policy_params):
+    def _send_request(self, make_policy_fn, extra_fields, policy_params):
         policy_bytes = self._translate_policy_to_binary_fn(
             make_policy_fn, policy_params
         )
@@ -84,6 +87,7 @@ class OnlineEpisodeOrchestrator:
                     # Send data
                     socket.send(pickle.dumps((policy_bytes, self.num_steps)))
                     # Receive response
-                    success, transitions = pickle.loads(socket.recv())
-                    if success:
-                        return transitions
+                    raw_data = pickle.loads(socket.recv())
+                    transitions = self._data_postprocess_fn(raw_data, extra_fields)
+                    print(f"Received {len(transitions.reward)} transitions...")
+                    return transitions
