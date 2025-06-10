@@ -26,11 +26,7 @@ class OnlineEpisodeOrchestrator:
     ):
         """Orchestrator for requesting episodes over ZMQ, with optional SSH reverse tunnel.
 
-        If open_reverse_tunnel=True, a reverse tunnel will be opened from the remote machine
-        (client) back to this machine (server) using SSH:
-            ssh -R remote_tunnel_port:localhost:local_zmq_port ssh_server
-
-        The remote client will connect to tcp://localhost:<remote_tunnel_port>
+        A remote client will connect to tcp://localhost:<remote_tunnel_port>
         which routes to this machine's local ZMQ server.
 
         Parameters
@@ -39,8 +35,6 @@ class OnlineEpisodeOrchestrator:
             Converts policies to a serializable format.
         address : str
             ZMQ address to bind or connect to (default: tcp://localhost:5555).
-        open_reverse_tunnel : bool
-            Whether to open an SSH reverse tunnel to expose this address remotely.
         ssh_server : str
             SSH target (e.g., 'user@host[:port]') to tunnel through.
         """
