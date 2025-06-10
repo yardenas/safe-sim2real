@@ -196,8 +196,8 @@ def make_training_step(
             lambda x: jnp.reshape(x, (grad_updates_per_step, -1) + x.shape[1:]),
             transitions,
         )
-        (training_state, _), metrics = jax.lax.scan(
-            sgd_step, (training_state, training_key), transitions
+        (training_state, *_), metrics = jax.lax.scan(
+            sgd_step, (training_state, training_key, 0), transitions
         )
         metrics["buffer_current_size"] = replay_buffer.size(buffer_state)
         metrics |= env_state.metrics
