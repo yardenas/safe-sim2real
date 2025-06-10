@@ -85,7 +85,10 @@ class BroNet(linen.Module):
                 features=self.layer_sizes[-1], kernel_init=self.kernel_init
             )(x)
             heads.append(h)
-        return jnp.concatenate(heads, axis=-1)
+        if self.layer_sizes[-1] == 1:
+            return jnp.concatenate(heads, axis=-1)
+        else:
+            return jnp.stack(heads, axis=-1)
 
 
 class MLP(linen.Module):
@@ -96,7 +99,7 @@ class MLP(linen.Module):
 
     @linen.compact
     def __call__(self, x):
-        for i, size in enumerate(self.layer_sizes - 1):
+        for size in self.layer_sizes[:-1]:
             x = linen.Dense(features=size, kernel_init=self.kernel_init)(x)
             x = linen.LayerNorm()(x)
             x = self.activation(x)
@@ -107,7 +110,10 @@ class MLP(linen.Module):
                 features=self.layer_sizes[-1], kernel_init=self.kernel_init
             )(x)
             heads.append(h)
-        return jnp.concatenate(heads, axis=-1)
+        if self.layer_sizes[-1] == 1:
+            return jnp.concatenate(heads, axis=-1)
+        else:
+            return jnp.stack(heads, axis=-1)
 
 
 def _get_obs_state_size(obs_size: types.ObservationSize, obs_key: str) -> int:
