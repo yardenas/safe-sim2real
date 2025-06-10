@@ -20,8 +20,8 @@ class OnlineEpisodeOrchestrator:
     def __init__(
         self,
         translate_policy_to_binary_fn,
-        data_postprocess_fn,
         num_steps,
+        data_postprocess_fn=lambda x, y: x,
         address="tcp://localhost:5555",
     ):
         """Orchestrator for requesting episodes over ZMQ, with optional SSH reverse tunnel.
