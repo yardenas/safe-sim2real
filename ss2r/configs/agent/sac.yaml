@@ -22,7 +22,7 @@ tau: 0.005
 min_replay_size: 8192
 max_replay_size: 1000000
 grad_updates_per_step: 512
-num_critic_updates_per_actor_update: 1
+value_to_policy_update_rate: 1
 deterministic_eval: true
 policy_hidden_layer_sizes: [128, 128]
 value_hidden_layer_sizes: [512, 512]
