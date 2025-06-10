@@ -83,23 +83,27 @@ class OnlineEpisodeOrchestrator:
             retries_left = _REQUEST_RETRIES
             print("Requesting data...")
             # Send data
-            socket.send(pickle.dumps((policy_bytes, self.num_steps)))
-            while True:
-                if (socket.poll(_REQUEST_TIMEOUT) & zmq.POLLIN) != 0:
-                    # Receive response
-                    raw_data = pickle.loads(socket.recv())
-                    transitions = self._data_postprocess_fn(raw_data, extra_fields)
-                    print(f"Received {len(transitions.reward)} transitions...")
-                    return transitions
-                else:
-                    retries_left -= 1
-                    print(f"Request timed out, {retries_left} retries left...")
-                    socket.setsockopt(zmq.LINGER, 0)
-                    socket.close()
-                    if retries_left == 0:
-                        raise RuntimeError("Request timed out.")
-                    print("Retrying...")
-                    socket = ctx.socket(zmq.REQ)
-                    socket.connect(self._address)
-                    print("Requesting data...")
-                    socket.send(pickle.dumps((policy_bytes, self.num_steps)))
+            try:
+                socket.send(pickle.dumps((policy_bytes, self.num_steps)))
+                while True:
+                    if (socket.poll(_REQUEST_TIMEOUT) & zmq.POLLIN) != 0:
+                        # Receive response
+                        raw_data = pickle.loads(socket.recv())
+                        transitions = self._data_postprocess_fn(raw_data, extra_fields)
+                        print(f"Received {len(transitions.reward)} transitions...")
+                        return transitions
+                    else:
+                        retries_left -= 1
+                        print(f"Request timed out, {retries_left} retries left...")
+                        socket.setsockopt(zmq.LINGER, 0)
+                        socket.close()
+                        if retries_left == 0:
+                            raise RuntimeError("Request timed out.")
+                        print("Retrying...")
+                        input("Please press Enter to continue")
+                        socket = ctx.socket(zmq.REQ)
+                        socket.connect(self._address)
+                        print("Requesting data...")
+                        socket.send(pickle.dumps((policy_bytes, self.num_steps)))
+            finally:
+                socket.close()
