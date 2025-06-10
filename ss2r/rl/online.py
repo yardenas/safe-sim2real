@@ -12,6 +12,9 @@ from jax.experimental import io_callback
 
 from ss2r.rl.types import MakePolicyFn
 
+_REQUEST_TIMEOUT = 120000
+_REQUEST_RETRIES = 120
+
 
 class OnlineEpisodeOrchestrator:
     def __init__(
@@ -76,18 +79,33 @@ class OnlineEpisodeOrchestrator:
         return env_state, transitions
 
     def _send_request(self, make_policy_fn, extra_fields, policy_params):
+        """Implements a lazy pirate client reliability pattern"""
         policy_bytes = self._translate_policy_to_binary_fn(
             make_policy_fn, policy_params
         )
         with zmq.Context() as ctx:
-            with ctx.socket(zmq.REQ) as socket:
-                socket.connect(self._address)
-                while True:
-                    print("Requesting data...")
-                    # Send data
-                    socket.send(pickle.dumps((policy_bytes, self.num_steps)))
+            socket = ctx.socket(zmq.REQ)
+            socket.connect(self._address)
+            retries_left = _REQUEST_RETRIES
+            print("Requesting data...")
+            # Send data
+            socket.send(pickle.dumps((policy_bytes, self.num_steps)))
+            while True:
+                if (socket.poll(_REQUEST_TIMEOUT) & zmq.POLLIN) != 0:
                     # Receive response
                     raw_data = pickle.loads(socket.recv())
                     transitions = self._data_postprocess_fn(raw_data, extra_fields)
                     print(f"Received {len(transitions.reward)} transitions...")
                     return transitions
+                else:
+                    retries_left -= 1
+                    print(f"Request timed out, {retries_left} retries left...")
+                    socket.setsockopt(zmq.LINGER, 0)
+                    socket.close()
+                    if retries_left == 0:
+                        raise RuntimeError("Request timed out.")
+                    print("Retrying...")
+                    socket = ctx.socket(zmq.REQ)
+                    socket.connect(self._address)
+                    print("Requesting data...")
+                    socket.send(pickle.dumps((policy_bytes, self.num_steps)))
