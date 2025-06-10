@@ -52,7 +52,7 @@ class NetworkFactory(Protocol[NetworkType]):
 class MBPONetworks:
     policy_network: networks.FeedForwardNetwork
     qr_network: networks.FeedForwardNetwork
-    qc_network: networks.FeedForwardNetwork
+    qc_network: networks.FeedForwardNetwork | None
     model_network: networks.FeedForwardNetwork
     parametric_action_distribution: distribution.ParametricDistribution
 

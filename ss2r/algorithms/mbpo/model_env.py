@@ -2,7 +2,6 @@ import jax
 import jax.numpy as jnp
 from brax import envs
 from brax.envs import base
-from brax.training.acme import running_statistics
 
 from ss2r.algorithms.sac.types import float32
 
@@ -13,15 +12,15 @@ class ModelBasedEnv(envs.Env):
     def __init__(
         self,
         transitions,
-        observation_size: int,
-        action_size: int,
+        observation_size,
+        action_size,
         model_network,
         model_params,
         qc_network,
         qc_params,
-        normalizer_params: running_statistics.RunningStatisticsState,
-        ensemble_selection: str = "mean",  # "random", "mean", or "pessimistic"
-        safety_budget: float = float("inf"),
+        normalizer_params,
+        ensemble_selection="mean",  # "random", "mean", or "pessimistic"
+        safety_budget=float("inf"),
     ):
         super().__init__()
         self.model_network = model_network
@@ -94,7 +93,7 @@ class ModelBasedEnv(envs.Env):
                     self.qc_params,
                     state.obs,
                     action,
-                ).max(axis=-1)
+                ).mean(axis=-1)
             )
             done = jnp.where(
                 accumulated_cost_for_transition > self.safety_budget,
@@ -115,7 +114,6 @@ class ModelBasedEnv(envs.Env):
                 return state, next_obs
 
             state, next_obs = reset_states(self, done, state, next_obs)
-
         state = state.replace(
             obs=next_obs,
             reward=reward,
@@ -143,11 +141,11 @@ def create_model_env(
     model_params,
     qc_network,
     qc_params,
-    observation_size: int,
-    action_size: int,
-    normalizer_params: running_statistics.RunningStatisticsState,
-    ensemble_selection: str = "random",
-    safety_budget: float = float("inf"),
+    observation_size,
+    action_size,
+    normalizer_params,
+    ensemble_selection="random",
+    safety_budget=float("inf"),
 ) -> ModelBasedEnv:
     """Factory function to create a model-based environment."""
     return ModelBasedEnv(

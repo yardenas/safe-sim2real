@@ -235,31 +235,6 @@ def make_training_step(
         if safe:
             cost = cost.mean(0) + disagreement * pessimism
             transitions.extras["state_extras"]["cost"] = cost
-            # TODO: Check if works (Reduce conservatism of terminations)
-            acc_cost = transitions.extras["state_extras"].get("accumulated_cost", 0.0)
-            future_cost = planning_env.qc_network.apply(
-                normalizer_params,
-                planning_env.qc_params,
-                transitions.observation,
-                transitions.action,
-            ).mean(axis=-1)
-            new_discount = jnp.where(  # Inverted done signal
-                acc_cost
-                + transitions.extras["state_extras"].get(
-                    "curr_discount", jnp.ones_like(transitions.reward)
-                )
-                * future_cost
-                > planning_env.safety_budget,
-                jnp.zeros_like(cost, dtype=jnp.float32),
-                jnp.ones_like(cost, dtype=jnp.float32),
-            )
-            discount = (
-                jnp.logical_or(  # Logical OR enforce more ones -> reduce pessimism
-                    transitions.discount, new_discount
-                )
-            )
-        else:
-            discount = transitions.discount
 
         next_obs_pred = next_obs_pred.mean(0)
         return Transition(
@@ -267,7 +242,7 @@ def make_training_step(
             next_observation=next_obs_pred,
             action=transitions.action,
             reward=new_reward,
-            discount=discount,
+            discount=transitions.discount,
             extras=transitions.extras,
         ), disagreement
 

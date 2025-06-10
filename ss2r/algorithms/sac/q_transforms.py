@@ -42,7 +42,7 @@ class UCBCost(QTransformation):
         return target_q
 
 
-class PessCostUpdate(QTransformation):
+class PessimisticCostUpdate(QTransformation):
     def __call__(
         self,
         transitions: Transition,
@@ -61,11 +61,8 @@ class PessCostUpdate(QTransformation):
             cost * scale + transitions.discount * gamma * next_v
         )
         old_q = q_fn(transitions.observation, transitions.action).mean(axis=-1)
-        target_q = jax.lax.stop_gradient(
-            jnp.minimum(
-                new_target_q, old_q
-            )  # TODO: check if works (intersection of models)
-        )
+        # TODO: check if works (intersection of models)
+        target_q = jax.lax.stop_gradient(jnp.minimum(new_target_q, old_q))
         return target_q
 
 
@@ -279,8 +276,8 @@ def get_cost_q_transform(cfg):
         robustness = RAMU(**cfg.agent.cost_robustness)
     elif cfg.agent.cost_robustness.name == "ucb_cost":
         robustness = UCBCost()
-    elif cfg.agent.cost_robustness.name == "pess_cost_update":
-        robustness = PessCostUpdate()
+    elif cfg.agent.cost_robustness.name == "pessimistic_cost_update":
+        robustness = PessimisticCostUpdate()
     else:
         raise ValueError("Unknown robustness")
     return robustness
