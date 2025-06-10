@@ -34,6 +34,7 @@ def make_training_step(
     safety_budget,
     tau,
     num_critic_updates_per_actor_update,
+    critic_entropy=True,
 ):
     def critic_sgd_step(
         carry: Tuple[TrainingState, PRNGKey], transitions: Transition
@@ -42,7 +43,9 @@ def make_training_step(
 
         key, key_critic, key_cost_critic = jax.random.split(key, 3)
         transitions = float32(transitions)
-        alpha = jnp.exp(training_state.alpha_params) + min_alpha
+        alpha = (
+            jnp.exp(training_state.alpha_params) + min_alpha if critic_entropy else 0.0
+        )
         critic_loss, qr_params, qr_optimizer_state = critic_update(
             training_state.qr_params,
             training_state.policy_params,
