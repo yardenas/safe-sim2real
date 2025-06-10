@@ -2,7 +2,6 @@ import jax
 import jax.numpy as jnp
 from brax import envs
 from brax.envs import base
-from brax.training.acme import running_statistics
 
 from ss2r.algorithms.sac.types import float32
 
@@ -13,17 +12,21 @@ class ModelBasedEnv(envs.Env):
     def __init__(
         self,
         transitions,
-        observation_size: int,
-        action_size: int,
+        observation_size,
+        action_size,
         model_network,
         model_params,
-        normalizer_params: running_statistics.RunningStatisticsState,
-        ensemble_selection: str = "mean",  # "random", "mean", or "pessimistic"
-        safety_budget: float = float("inf"),
+        qc_network,
+        qc_params,
+        normalizer_params,
+        ensemble_selection="mean",  # "random", "mean", or "pessimistic"
+        safety_budget=float("inf"),
     ):
         super().__init__()
         self.model_network = model_network
         self.model_params = model_params
+        self.qc_network = qc_network
+        self.qc_params = qc_params
         self.normalizer_params = normalizer_params
         self.ensemble_selection = ensemble_selection
         self.safety_budget = safety_budget
@@ -79,11 +82,18 @@ class ModelBasedEnv(envs.Env):
         truncation = jnp.zeros_like(reward, dtype=jnp.float32)
         state.info["cost"] = cost
         state.info["truncation"] = truncation
-        if "cumulative_cost" in state.info:
+        if self.qc_network is not None:
             prev_cumulative_cost = state.info["cumulative_cost"]
             curr_discount = state.info.get("curr_discount", jnp.ones_like(reward))
             accumulated_cost_for_transition = (
-                prev_cumulative_cost + curr_discount * cost
+                prev_cumulative_cost
+                + curr_discount
+                * self.qc_network.apply(
+                    self.normalizer_params,
+                    self.qc_params,
+                    state.obs,
+                    action,
+                ).mean(axis=-1)
             )
             done = jnp.where(
                 accumulated_cost_for_transition > self.safety_budget,
@@ -104,7 +114,6 @@ class ModelBasedEnv(envs.Env):
                 return state, next_obs
 
             state, next_obs = reset_states(self, done, state, next_obs)
-
         state = state.replace(
             obs=next_obs,
             reward=reward,
@@ -130,11 +139,13 @@ def create_model_env(
     transitions,
     model_network,
     model_params,
-    observation_size: int,
-    action_size: int,
-    normalizer_params: running_statistics.RunningStatisticsState,
-    ensemble_selection: str = "random",
-    safety_budget: float = float("inf"),
+    qc_network,
+    qc_params,
+    observation_size,
+    action_size,
+    normalizer_params,
+    ensemble_selection="random",
+    safety_budget=float("inf"),
 ) -> ModelBasedEnv:
     """Factory function to create a model-based environment."""
     return ModelBasedEnv(
@@ -143,6 +154,8 @@ def create_model_env(
         observation_size=observation_size,
         action_size=action_size,
         model_params=model_params,
+        qc_network=qc_network,
+        qc_params=qc_params,
         normalizer_params=normalizer_params,
         ensemble_selection=ensemble_selection,
         safety_budget=safety_budget,

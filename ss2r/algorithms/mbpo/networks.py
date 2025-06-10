@@ -19,6 +19,7 @@ from typing import Any, Callable, Protocol, Sequence, TypeVar
 import brax.training.agents.sac.networks as sac_networks
 import flax
 import jax
+import jax.nn as jnn
 import jax.numpy as jnp
 from brax.training import distribution, networks, types
 from flax import linen
@@ -41,6 +42,7 @@ class NetworkFactory(Protocol[NetworkType]):
         *,
         n_critics: int = 2,
         n_heads: int = 1,
+        safe: bool = False,
         use_bro: bool = True,
     ) -> NetworkType:
         pass
@@ -50,6 +52,7 @@ class NetworkFactory(Protocol[NetworkType]):
 class MBPONetworks:
     policy_network: networks.FeedForwardNetwork
     qr_network: networks.FeedForwardNetwork
+    qc_network: networks.FeedForwardNetwork | None
     model_network: networks.FeedForwardNetwork
     parametric_action_distribution: distribution.ParametricDistribution
 
@@ -126,6 +129,7 @@ def make_mbpo_networks(
     use_bro: bool = True,
     n_critics: int = 2,
     n_heads: int = 1,
+    safe: bool = False,
 ) -> MBPONetworks:
     """Make SAC networks."""
     parametric_action_distribution = distribution.NormalTanhDistribution(
@@ -150,6 +154,24 @@ def make_mbpo_networks(
         n_critics=n_critics,
         n_heads=n_heads,
     )
+    if safe:
+        qc_network = make_q_network(
+            observation_size,
+            action_size,
+            preprocess_observations_fn=preprocess_observations_fn,
+            hidden_layer_sizes=value_hidden_layer_sizes,
+            activation=activation,
+            obs_key=value_obs_key,
+            use_bro=use_bro,
+            n_critics=n_critics,
+            n_heads=n_heads,
+        )
+        old_apply = qc_network.apply
+        qc_network.apply = lambda *args, **kwargs: jnn.softplus(
+            old_apply(*args, **kwargs)
+        )
+    else:
+        qc_network = None
     model_network = make_world_model_ensemble(
         observation_size,
         action_size,
@@ -161,6 +183,7 @@ def make_mbpo_networks(
     return MBPONetworks(
         policy_network=policy_network,
         qr_network=qr_network,
+        qc_network=qc_network,
         model_network=model_network,
         parametric_action_distribution=parametric_action_distribution,
     )  # type: ignore
