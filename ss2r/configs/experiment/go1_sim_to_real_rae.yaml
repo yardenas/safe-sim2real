@@ -11,7 +11,7 @@ training:
   safe: false
   wandb_id: 8wuunrrv
   num_envs: 1
-  num_timesteps: 5000000
+  num_timesteps: 1000000
   num_evals: 20
   hard_resets: false
 
