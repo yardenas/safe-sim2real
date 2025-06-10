@@ -10,10 +10,10 @@ training:
   eval_domain_randomization: true
   safe: false
   wandb_id: 8wuunrrv
-  num_envs: 2
-  num_timesteps: 1000000
+  num_envs: 1
+  num_timesteps: 5000000
   num_evals: 20
-  hard_resets: true
+  hard_resets: false
 
 environment:
   train_params:
@@ -42,8 +42,8 @@ agent:
   use_rae: true
   min_replay_size: 100000
   max_replay_size: 4194304
-  grad_updates_per_step: 20000
-  num_critic_updates_per_actor_update: 20
+  grad_updates_per_step: 250
+  num_critic_updates_per_actor_update: 15
   n_heads: 10
   n_critics: 1
-  critic_entropy: false
+  critic_entropy: true
