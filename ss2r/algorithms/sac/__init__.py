@@ -28,6 +28,7 @@ def get_train_fn(cfg, checkpoint_path, restore_checkpoint_path):
             "value_privileged",
             "policy_privileged",
             "wandb_id",
+            "hard_resets",
         ]
     }
     policy_hidden_layer_sizes = agent_cfg.pop("policy_hidden_layer_sizes")

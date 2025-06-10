@@ -5,6 +5,7 @@ from brax.base import System
 from brax.envs.base import Env, State, Wrapper
 from brax.envs.wrappers import training as brax_training
 from jax import numpy as jp
+from mujoco_playground import State as MjxState
 
 
 class ActionObservationDelayWrapper(Wrapper):
@@ -297,6 +298,8 @@ def wrap(
     randomization_fn: Optional[
         Callable[[System], Tuple[System, System, jax.Array]]
     ] = None,
+    hard_resets: bool = False,
+    *,
     augment_state: bool = True,
 ) -> Wrapper:
     """Common wrapper pattern for all training agents.
@@ -313,14 +316,17 @@ def wrap(
       environment did not already have batch dimensions, it is additional Vmap
       wrapped.
     """
-    env = CostEpisodeWrapper(env, episode_length, action_repeat)
     if randomization_fn is None:
         env = brax_training.VmapWrapper(env)
     else:
         env = DomainRandomizationVmapWrapper(
             env, randomization_fn, augment_state=augment_state
         )
-    env = brax_training.AutoResetWrapper(env)
+    env = CostEpisodeWrapper(env, episode_length, action_repeat)
+    if hard_resets:
+        env = HardAutoResetWrapper(env)
+    else:
+        env = brax_training.AutoResetWrapper(env)
     return env
 
 
@@ -400,3 +406,47 @@ class BraxDomainRandomizationVmapWrapper(DomainRandomizationVmapBase):
         env = self.env
         env.unwrapped._mjx_model = model
         return env
+
+
+class HardAutoResetWrapper(Wrapper):
+    """Automatically reset Brax envs that are done.
+
+    Resample only when >=1 environment is actually done. Still resamples for all
+    """
+
+    def reset(self, rng: jax.Array) -> State | MjxState:
+        rng, sample_rng = jax.vmap(jax.random.split, out_axes=1)(rng)
+        state = self.env.reset(sample_rng)
+        state.info["reset_rng"] = rng
+        return state
+
+    def step(self, state: State | MjxState, action: jax.Array) -> State | MjxState:
+        if "steps" in state.info:
+            steps = state.info["steps"]
+            steps = jp.where(state.done, jp.zeros_like(steps), steps)
+            state.info.update(steps=steps)
+        state = state.replace(done=jp.zeros_like(state.done))
+        state = self.env.step(state, action)
+        maybe_reset = jax.lax.cond(
+            state.done.any(), self.reset, lambda rng: state, state.info["reset_rng"]
+        )
+
+        def where_done(x, y):
+            done = state.done
+            if done.shape:
+                done = jp.reshape(done, [x.shape[0]] + [1] * (len(x.shape) - 1))  # type: ignore
+            return jp.where(done, x, y)
+
+        if hasattr(state, "pipeline_state"):
+            state_data = state.pipeline_state
+            maybe_reset_data = maybe_reset.pipeline_state
+            data_name = "pipeline_state"
+        elif hasattr(state, "data"):
+            state_data = state.data
+            maybe_reset_data = maybe_reset.data
+            data_name = "data"
+        else:
+            raise NotImplementedError
+        new_data = jax.tree.map(where_done, maybe_reset_data, state_data)
+        obs = jax.tree.map(maybe_reset.obs, state.obs)
+        return state.replace(**{data_name: new_data, "obs": obs})
