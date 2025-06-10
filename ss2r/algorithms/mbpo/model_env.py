@@ -83,7 +83,7 @@ class ModelBasedEnv(envs.Env):
         truncation = jnp.zeros_like(reward, dtype=jnp.float32)
         state.info["cost"] = cost
         state.info["truncation"] = truncation
-        if "cumulative_cost" in state.info:
+        if self.qc_network is not None:
             prev_cumulative_cost = state.info["cumulative_cost"]
             curr_discount = state.info.get("curr_discount", jnp.ones_like(reward))
             accumulated_cost_for_transition = (

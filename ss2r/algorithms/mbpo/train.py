@@ -71,12 +71,17 @@ def _init_training_state(
     policy_optimizer_state = policy_optimizer.init(policy_params)
     qr_params = mbpo_network.qr_network.init(key_qr)
     qr_optimizer_state = qr_optimizer.init(qr_params)
-    qc_params = mbpo_network.qc_network.init(key_qr)
-    qc_optimizer_state = qc_optimizer.init(qc_params)
     init_model_ensemble = jax.vmap(mbpo_network.model_network.init)
     model_keys = jax.random.split(key_model, model_ensemble_size)
     model_params = init_model_ensemble(model_keys)
     model_optimizer_state = model_optimizer.init(model_params)
+    if mbpo_network.qc_network is not None:
+        qc_params = mbpo_network.qc_network.init(key_qr)
+        assert qc_optimizer is not None
+        qc_optimizer_state = qc_optimizer.init(qc_params)
+    else:
+        qc_params = None
+        qc_optimizer_state = None
     if isinstance(obs_size, Mapping):
         obs_shape = {
             k: specs.Array(v, jnp.dtype("float32")) for k, v in obs_size.items()
@@ -211,6 +216,7 @@ def train(
         observation_size=obs_size,
         action_size=action_size,
         preprocess_observations_fn=normalize_fn,
+        safe=safe,
         use_bro=use_bro,
         n_critics=n_critics,
         n_heads=n_heads,
