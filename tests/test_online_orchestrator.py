@@ -78,6 +78,6 @@ def test_send_request():
         address="tcp://localhost:5555",
     )
     policy = DummyPolicy(param=123)
-    transitions = orchestrator._send_request(lambda x: x, policy)
+    transitions = orchestrator._send_request(lambda x: x, policy, ())
     assert transitions.observation["privileged_state"].shape == (100, 123)
     assert transitions.observation["state"].shape == (100, 48)
