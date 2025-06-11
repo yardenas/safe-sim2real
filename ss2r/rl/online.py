@@ -12,7 +12,6 @@ from jax.experimental import io_callback
 
 from ss2r.rl.types import MakePolicyFn
 
-_REQUEST_TIMEOUT = 5000
 _REQUEST_RETRIES = 120
 
 
@@ -21,6 +20,7 @@ class OnlineEpisodeOrchestrator:
         self,
         translate_policy_to_binary_fn,
         num_steps,
+        sec_per_step,
         data_postprocess_fn=lambda x, y: x,
         address="tcp://localhost:5555",
     ):
@@ -41,6 +41,7 @@ class OnlineEpisodeOrchestrator:
         self._translate_policy_to_binary_fn = translate_policy_to_binary_fn
         self._data_postprocess_fn = data_postprocess_fn
         self.num_steps = num_steps
+        self.sec_per_step = sec_per_step
         self._address = address
 
     def request_data(
@@ -83,10 +84,11 @@ class OnlineEpisodeOrchestrator:
             retries_left = _REQUEST_RETRIES
             print("Requesting data...")
             # Send data
+            wait = self.num_steps * self.sec_per_step * 3 * 1000
             try:
                 socket.send(pickle.dumps((policy_bytes, self.num_steps)))
                 while True:
-                    if (socket.poll(_REQUEST_TIMEOUT) & zmq.POLLIN) != 0:
+                    if (socket.poll(wait) & zmq.POLLIN) != 0:
                         # Receive response
                         raw_data = pickle.loads(socket.recv())
                         transitions = self._data_postprocess_fn(raw_data, extra_fields)
