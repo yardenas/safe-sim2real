@@ -12,7 +12,7 @@ from jax.experimental import io_callback
 
 from ss2r.rl.types import MakePolicyFn
 
-_REQUEST_TIMEOUT = 120000
+_REQUEST_TIMEOUT = 5000
 _REQUEST_RETRIES = 120
 
 
