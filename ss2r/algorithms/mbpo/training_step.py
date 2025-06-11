@@ -20,7 +20,9 @@ from ss2r.algorithms.sac.types import (
 
 def make_training_step(
     env,
-    make_policy,
+    make_planning_policy,
+    make_rollout_policy,
+    get_rollout_policy_params,
     make_model_env,
     model_replay_buffer,
     sac_replay_buffer,
@@ -68,7 +70,7 @@ def make_training_step(
         if safe:
             cost_critic_loss, qc_params, qc_optimizer_state = cost_critic_update(
                 training_state.qc_params,
-                training_state.policy_params,
+                training_state.backup_policy_params,
                 training_state.normalizer_params,
                 training_state.target_qc_params,
                 alpha,
@@ -79,13 +81,16 @@ def make_training_step(
                 optimizer_state=training_state.qc_optimizer_state,
                 params=training_state.qc_params,
             )
+            qc_params = training_state.qc_params
+            qc_optimizer_state = training_state.qc_optimizer_state
             cost_metrics = {
-                "cost_critic_loss": cost_critic_loss,
+                "cost_critic_loss": critic_loss,
             }
         else:
             cost_metrics = {}
             qc_params = None
             qc_optimizer_state = None
+
         polyak = lambda target, new: jax.tree_util.tree_map(
             lambda x, y: x * (1 - tau) + y * tau, target, new
         )
@@ -178,8 +183,8 @@ def make_training_step(
         experience_key, training_key = jax.random.split(key)
         normalizer_params, env_state, buffer_state = get_experience_fn(
             env,
-            make_policy,
-            training_state.policy_params,
+            make_rollout_policy,
+            get_rollout_policy_params(training_state),
             training_state.normalizer_params,
             model_replay_buffer,
             env_state,
@@ -230,13 +235,20 @@ def make_training_step(
         next_obs_pred, reward, cost = vmap_pred_fn(
             normalizer_params, model_params, transitions.observation, transitions.action
         )
-        disagreement = next_obs_pred.std(axis=0).mean(-1)
+        disagreement = (
+            next_obs_pred.std(axis=0).mean(-1)
+            if isinstance(next_obs_pred, jax.Array)
+            else next_obs_pred["state"].std(axis=0).mean(-1)
+        )
         new_reward = reward.mean(0) + disagreement * optimism
         if safe:
             cost = cost.mean(0) + disagreement * pessimism
             transitions.extras["state_extras"]["cost"] = cost
+        if isinstance(next_obs_pred, dict):
+            next_obs_pred = {k: v.mean(0) for k, v in next_obs_pred.items()}
+        else:
+            next_obs_pred = next_obs_pred.mean(0)
 
-        next_obs_pred = next_obs_pred.mean(0)
         return Transition(
             observation=transitions.observation,
             next_observation=next_obs_pred,
@@ -262,7 +274,7 @@ def make_training_step(
         ) = run_experience_step(training_state, env_state, model_buffer_state, key)
         model_buffer_state, transitions = model_replay_buffer.sample(model_buffer_state)
         assert (
-            num_model_rollouts <= transitions.observation.shape[0]
+            num_model_rollouts <= transitions.reward.shape[0]
         ), "num_model_rollouts must be less than or equal to the number of transitions"
         # Change the front dimension of transitions so 'update_step' is called
         # grad_updates_per_step times by the scan.
@@ -280,7 +292,7 @@ def make_training_step(
             transitions=transitions,
         )
         planning_env = VmapWrapper(planning_env)
-        policy = make_policy(
+        policy = make_planning_policy(
             (training_state.normalizer_params, training_state.policy_params)
         )
         # Rollout trajectories from the sampled transitions
@@ -324,6 +336,7 @@ def make_training_step(
             transitions,
             length=num_actor_updates,
         )
+        metrics = {**model_metrics}
         metrics = {**model_metrics, **critic_metrics, **actor_metrics}
         metrics["buffer_current_size"] = model_replay_buffer.size(model_buffer_state)
         metrics |= env_state.metrics

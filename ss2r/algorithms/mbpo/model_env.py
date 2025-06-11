@@ -21,6 +21,7 @@ class ModelBasedEnv(envs.Env):
         normalizer_params,
         ensemble_selection="mean",  # "random", "mean", or "pessimistic"
         safety_budget=float("inf"),
+        discount=1.0,
     ):
         super().__init__()
         self.model_network = model_network
@@ -33,12 +34,11 @@ class ModelBasedEnv(envs.Env):
         self._observation_size = observation_size
         self._action_size = action_size
         self.transitions = transitions
+        self.discount = discount
 
     def reset(self, rng: jax.Array) -> base.State:
         sample_key, model_key = jax.random.split(rng)
-        indcs = jax.random.randint(
-            sample_key, (), 0, self.transitions.observation.shape[0]
-        )
+        indcs = jax.random.randint(sample_key, (), 0, self.transitions.reward.shape[0])
         transitions = float32(
             jax.tree_util.tree_map(lambda x: x[indcs], self.transitions)
         )
@@ -48,12 +48,6 @@ class ModelBasedEnv(envs.Env):
             reward=transitions.reward,
             done=jnp.zeros_like(transitions.reward),
             info={
-                "cumulative_cost": transitions.extras["state_extras"].get(
-                    "cumulative_cost", jnp.zeros_like(transitions.reward)
-                ),
-                "curr_discount": transitions.extras["state_extras"].get(
-                    "curr_discount", jnp.ones_like(transitions.reward)
-                ),
                 "truncation": jnp.zeros_like(transitions.reward),
                 "cost": transitions.extras["state_extras"].get(
                     "cost", jnp.zeros_like(transitions.reward)
@@ -83,9 +77,9 @@ class ModelBasedEnv(envs.Env):
         state.info["cost"] = cost
         state.info["truncation"] = truncation
         if self.qc_network is not None:
-            prev_cumulative_cost = state.info["cumulative_cost"]
-            curr_discount = state.info.get("curr_discount", jnp.ones_like(reward))
-            accumulated_cost_for_transition = (
+            prev_cumulative_cost = state.obs["cumulative_cost"][0]
+            curr_discount = state.obs["curr_discount"][0]
+            expected_cost_for_traj = (
                 prev_cumulative_cost
                 + curr_discount
                 * self.qc_network.apply(
@@ -96,7 +90,7 @@ class ModelBasedEnv(envs.Env):
                 ).mean(axis=-1)
             )
             done = jnp.where(
-                accumulated_cost_for_transition > self.safety_budget,
+                expected_cost_for_traj > self.safety_budget,
                 jnp.ones_like(done),
                 done,
             )
@@ -105,13 +99,18 @@ class ModelBasedEnv(envs.Env):
                 """Reset the state if done."""
                 key, reset_keys = jax.random.split(state.info["key"])
                 state.info["key"] = key
-                state.info["cumulative_cost"] = jnp.where(
-                    done,
-                    jnp.zeros_like(reward),
-                    state.info["cumulative_cost"],
+                next_obs["cumulative_cost"] = (
+                    state.obs["cumulative_cost"] + curr_discount * cost
                 )
-                next_obs = jnp.where(done, self.reset(reset_keys).obs, next_obs)
-                return state, next_obs
+                next_obs["curr_discount"] = (
+                    state.obs.get("curr_discount", jnp.ones_like(reward))
+                    * self.discount
+                )
+                obs = {
+                    k: jnp.where(done, self.reset(reset_keys).obs[k], next_obs[k])
+                    for k in next_obs.keys()
+                }
+                return state, obs
 
             state, next_obs = reset_states(self, done, state, next_obs)
         state = state.replace(
@@ -146,6 +145,7 @@ def create_model_env(
     normalizer_params,
     ensemble_selection="random",
     safety_budget=float("inf"),
+    discount=1.0,
 ) -> ModelBasedEnv:
     """Factory function to create a model-based environment."""
     return ModelBasedEnv(
@@ -159,6 +159,7 @@ def create_model_env(
         normalizer_params=normalizer_params,
         ensemble_selection=ensemble_selection,
         safety_budget=safety_budget,
+        discount=discount,
     )
 
 
@@ -187,8 +188,11 @@ def _propagate_ensemble(
             normalizer_params, model_params, obs, action
         )
         # Randomly select one of the ensemble predictions
-        idx = jax.random.randint(key, (1,), 0, next_obs_pred.shape[0])[0]
-        next_obs = next_obs_pred[idx]
+        idx = jax.random.randint(key, (1,), 0, reward_pred.shape[0])[0]
+        if isinstance(next_obs_pred, dict):
+            next_obs = {k: v[idx] for k, v in next_obs_pred.items()}
+        else:
+            next_obs = next_obs_pred[idx]
         reward = reward_pred[idx]
         cost = cost_pred[idx]
     elif ensemble_selection == "mean":
@@ -196,7 +200,10 @@ def _propagate_ensemble(
         next_obs_pred, reward_pred, cost_pred = vmap_pred_fn(
             normalizer_params, model_params, obs, action
         )
-        next_obs = jnp.mean(next_obs_pred, axis=0)
+        if isinstance(next_obs_pred, dict):
+            next_obs = {k: jnp.mean(v, axis=0) for k, v in next_obs_pred.items()}
+        else:
+            next_obs = jnp.mean(next_obs_pred, axis=0)
         reward = jnp.mean(reward_pred, axis=0)
         cost = jnp.mean(cost_pred, axis=0)
     else:

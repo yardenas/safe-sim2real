@@ -108,9 +108,11 @@ def make_collection_fn(unroll_fn: UnrollFn) -> CollectDataFn:
             transitions = jax.tree.map(
                 lambda x: x.reshape(-1, *x.shape[2:]), transitions
             )
-        normalizer_params = running_statistics.update(
-            normalizer_params, transitions.observation
-        )
+        # FIXME
+        if not isinstance(transitions.observation, dict):
+            normalizer_params = running_statistics.update(
+                normalizer_params, transitions.observation
+            )
         buffer_state = replay_buffer.insert(buffer_state, float16(transitions))
         return normalizer_params, env_state, buffer_state
 

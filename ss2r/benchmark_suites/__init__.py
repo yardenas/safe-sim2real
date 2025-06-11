@@ -3,6 +3,7 @@ import functools
 import jax
 from brax import envs
 
+from ss2r.algorithms.mbpo.wrappers import TrackOnlineCostsInObservation
 from ss2r.algorithms.ppo.wrappers import Saute
 from ss2r.benchmark_suites import brax, mujoco_playground, safety_gym
 from ss2r.benchmark_suites.brax.ant import ant
@@ -73,6 +74,19 @@ def get_wrap_env_fn(cfg):
             return env
 
         out = saute_train, saute_eval
+
+    if cfg.agent.name == "mbpo" and cfg.training.safe:
+
+        def safe_mbpo_train(env):
+            env = TrackOnlineCostsInObservation(env, cfg.agent.safety_discounting)
+            return env
+
+        def safe_mbpo_eval(env):
+            env = TrackOnlineCostsInObservation(env, cfg.agent.safety_discounting)
+            return env
+
+        out = safe_mbpo_train, safe_mbpo_eval
+
     return out
 
 

@@ -108,6 +108,13 @@ def main(cfg):
                 policy_params = params[:2]
             else:
                 policy_params = params
+            if cfg.agent.name == "mbpo" and cfg.agent.safe:
+                policy_params = (
+                    policy_params[0],
+                    policy_params[1],
+                    policy_params[2],
+                    policy_params[4],
+                )
             video = benchmark_suites.render_fns[cfg.environment.task_name](
                 eval_env,
                 make_policy(policy_params, deterministic=True),

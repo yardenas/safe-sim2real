@@ -24,6 +24,7 @@ from typing import Any, Callable, Mapping, Optional, Tuple
 import jax
 import jax.numpy as jnp
 import optax
+import wandb
 from absl import logging
 from brax import envs
 from brax.training import replay_buffers
@@ -37,7 +38,6 @@ import ss2r.algorithms.mbpo.networks as mbpo_networks
 from ss2r.algorithms.mbpo.model_env import create_model_env
 from ss2r.algorithms.mbpo.training_step import make_training_step
 from ss2r.algorithms.mbpo.types import TrainingState
-from ss2r.algorithms.ppo.wrappers import TrackOnlineCosts
 from ss2r.algorithms.sac import gradients
 from ss2r.algorithms.sac.data import collect_single_step
 from ss2r.algorithms.sac.q_transforms import QTransformation, SACBase, SACCost
@@ -92,6 +92,7 @@ def _init_training_state(
     training_state = TrainingState(
         policy_optimizer_state=policy_optimizer_state,
         policy_params=policy_params,
+        backup_policy_params=policy_params,
         qr_optimizer_state=qr_optimizer_state,
         qr_params=qr_params,
         qc_optimizer_state=qc_optimizer_state,
@@ -166,6 +167,7 @@ def train(
     optimism: float = 0.0,
     pessimism: float = 0.0,
     model_propagation: str = "nominal",
+    safe_run_id: Optional[str] = None,
 ):
     if min_replay_size >= num_timesteps:
         raise ValueError(
@@ -204,16 +206,17 @@ def train(
     env = environment
     if wrap_env_fn is not None:
         env = wrap_env_fn(env)
-    if safe:
-        env = TrackOnlineCosts(env, safety_discounting)
     rng = jax.random.PRNGKey(seed)
     obs_size = env.observation_size
     action_size = env.action_size
     normalize_fn = lambda x, y: x
     if normalize_observations:
         normalize_fn = running_statistics.normalize
+
     mbpo_network = network_factory(
-        observation_size=obs_size,
+        observation_size=obs_size["state"]
+        if isinstance(obs_size, Mapping)
+        else obs_size,
         action_size=action_size,
         preprocess_observations_fn=normalize_fn,
         safe=safe,
@@ -221,7 +224,15 @@ def train(
         n_critics=n_critics,
         n_heads=n_heads,
     )
-    make_policy = mbpo_networks.make_inference_fn(mbpo_network)
+    make_planning_policy = mbpo_networks.make_inference_fn(mbpo_network)
+    if safe:
+        make_rollout_policy = mbpo_networks.make_safe_inference_fn(mbpo_network)
+        get_rollout_policy_params = mbpo_networks.get_inference_policy_params(
+            True, safety_budget=safety_budget
+        )
+    else:
+        make_rollout_policy = mbpo_networks.make_inference_fn(mbpo_network)
+        get_rollout_policy_params = mbpo_networks.get_inference_policy_params(False)
     alpha_optimizer = optax.adam(learning_rate=alpha_learning_rate)
     make_optimizer = lambda lr, grad_clip_norm: optax.chain(
         optax.clip_by_global_norm(grad_clip_norm),
@@ -244,8 +255,7 @@ def train(
     }
     if safe:
         extras["state_extras"]["cost"] = jnp.zeros(())  # type: ignore
-        extras["state_extras"]["cumulative_cost"] = jnp.zeros(())  # type: ignore
-        extras["state_extras"]["curr_discount"] = jnp.ones(())  # type: ignore
+
     dummy_transition = Transition(  # pytype: disable=wrong-arg-types  # jax-ndarray
         observation=dummy_obs,
         action=dummy_action,
@@ -271,18 +281,60 @@ def train(
     local_key, model_rb_key, actor_critic_rb_key, env_key, eval_key = jax.random.split(
         local_key, 5
     )
+    if safe_run_id is not None:
+
+        def get_wandb_checkpoint(run_id):
+            def get_state_path():
+                return "./wandb_checkpoints"
+
+            api = wandb.Api()
+            artifact = api.artifact(f"ss2r/checkpoint:{run_id}")
+            download_dir = artifact.download(f"{get_state_path()}/{run_id}")
+            return download_dir
+
+        load_safe_policy_path = get_wandb_checkpoint(safe_run_id)
+        params = checkpoint.load(load_safe_policy_path)
+        ts_normalizer_params = training_state.normalizer_params
+        if isinstance(ts_normalizer_params.mean, dict):
+            mean = {
+                "state": params[0].mean,
+                "cumulative_cost": ts_normalizer_params.mean["cumulative_cost"],
+                "curr_discount": ts_normalizer_params.mean["curr_discount"],
+            }
+            std = {
+                "state": params[0].std,
+                "cumulative_cost": ts_normalizer_params.std["cumulative_cost"],
+                "curr_discount": ts_normalizer_params.std["curr_discount"],
+            }
+            count = params[0].count
+            ts_normalizer_params = ts_normalizer_params.replace(
+                mean=mean,
+                std=std,
+                count=count,
+            )
+        else:
+            ts_normalizer_params = params[0]
+        training_state = training_state.replace(  # type: ignore
+            normalizer_params=ts_normalizer_params,
+            # policy_params=params[1],
+            backup_policy_params=params[1],
+            qr_params=params[3],
+            qc_params=params[4] if safe else None,
+        )
+
     if restore_checkpoint_path is not None:
         params = checkpoint.load(restore_checkpoint_path)
         training_state = training_state.replace(  # type: ignore
             normalizer_params=params[0],
             policy_params=params[1],
-            qr_params=params[2],
-            qc_params=params[3],
-            model_params=params[4],
+            backup_policy_params=params[2],
+            qr_params=params[3],
+            qc_params=params[4],
+            model_params=params[5],
         )
-        if len(params) >= 6 and use_rae:
+        if len(params) >= 7 and use_rae:
             logging.info("Restoring replay buffer state")
-            model_buffer_state = params[5]
+            model_buffer_state = params[6]
             model_buffer_state = replay_buffers.ReplayBufferState(**model_buffer_state)
             model_replay_buffer = RAEReplayBuffer(
                 max_replay_size=max_replay_size,
@@ -342,11 +394,7 @@ def train(
     )
     extra_fields = ("truncation",)
     if safe:
-        extra_fields += (
-            "cost",
-            "cumulative_cost",
-            "curr_discount",
-        )  # type: ignore
+        extra_fields += ("cost",)  # type: ignore
 
     make_model_env = functools.partial(
         create_model_env,
@@ -356,10 +404,13 @@ def train(
         observation_size=obs_size,
         ensemble_selection=model_propagation,
         safety_budget=safety_budget,
+        discount=safety_discounting,
     )
     training_step = make_training_step(
         env,
-        make_policy,
+        make_planning_policy,
+        make_rollout_policy,
+        get_rollout_policy_params,
         make_model_env,
         model_replay_buffer,
         sac_replay_buffer,
@@ -398,8 +449,8 @@ def train(
             key, new_key = jax.random.split(key)
             new_normalizer_params, env_state, buffer_state = get_experience_fn(
                 env,
-                make_policy,
-                training_state.policy_params,
+                make_rollout_policy,
+                get_rollout_policy_params(training_state),
                 training_state.normalizer_params,
                 model_replay_buffer,
                 env_state,
@@ -522,7 +573,7 @@ def train(
         eval_env = environment
     evaluator = ConstraintsEvaluator(
         eval_env,
-        functools.partial(make_policy, deterministic=deterministic_eval),
+        functools.partial(make_rollout_policy, deterministic=deterministic_eval),
         num_eval_envs=num_eval_envs,
         episode_length=episode_length,
         action_repeat=action_repeat,
@@ -535,7 +586,10 @@ def train(
     metrics = {}
     if num_evals > 1:
         metrics = evaluator.run_evaluation(
-            (training_state.normalizer_params, training_state.policy_params),
+            (
+                training_state.normalizer_params,
+                get_rollout_policy_params(training_state),
+            ),
             training_metrics={},
         )
         logging.info(metrics)
@@ -581,6 +635,7 @@ def train(
             params = (
                 training_state.normalizer_params,
                 training_state.policy_params,
+                training_state.backup_policy_params,
                 training_state.qr_params,
                 training_state.qc_params,
                 training_state.model_params,
@@ -592,7 +647,10 @@ def train(
 
         # Run evals.
         metrics = evaluator.run_evaluation(
-            (training_state.normalizer_params, training_state.policy_params),
+            (
+                training_state.normalizer_params,
+                get_rollout_policy_params(training_state),
+            ),
             training_metrics,
         )
         logging.info(metrics)
@@ -603,6 +661,7 @@ def train(
     params = (
         training_state.normalizer_params,
         training_state.policy_params,
+        training_state.backup_policy_params,
         training_state.qr_params,
         training_state.qc_params,
         training_state.model_params,
@@ -610,4 +669,4 @@ def train(
     if store_buffer:
         params += (model_buffer_state,)
     logging.info("total steps: %s", total_steps)
-    return make_policy, params, metrics
+    return make_rollout_policy, params, metrics
