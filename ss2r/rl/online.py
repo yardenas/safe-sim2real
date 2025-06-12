@@ -103,20 +103,15 @@ class OnlineEpisodeOrchestrator:
                         if retries_left == 0:
                             raise RuntimeError("Request timed out.")
                         print("Retrying...")
-                        ok = False
-                        while not ok:
+                        while True:
                             response = (
                                 input("Do you want to continue? (yes/no): ")
                                 .strip()
                                 .lower()
                             )
-                            if response in ["yes", "y", "no", "n"]:
+                            if response in ["yes", "y"]:
                                 break
                             print("Please enter yes or no.")
-
-                        if response in ["yes", "y"]:
-                            ok = True
-                        else:
                             time.sleep(1.0)
                         socket = ctx.socket(zmq.REQ)
                         socket.connect(self._address)
