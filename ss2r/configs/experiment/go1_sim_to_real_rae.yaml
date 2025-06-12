@@ -11,7 +11,7 @@ training:
   safe: false
   wandb_id: ux36oqh0
   num_envs: 1
-  num_timesteps: 150000
+  num_timesteps: 100000
   num_evals: 20
   hard_resets: false
 
@@ -47,3 +47,4 @@ agent:
   n_heads: 10
   n_critics: 1
   critic_entropy: true
+  schedule_lr: true

@@ -160,6 +160,7 @@ def train(
     store_buffer: bool = False,
     use_rae: bool = False,
     critic_entropy: bool = True,
+    schedule_lr: bool = False,
 ):
     if min_replay_size >= num_timesteps:
         raise ValueError(
@@ -219,7 +220,9 @@ def train(
     make_optimizer = lambda lr, grad_clip_norm, grad_steps: optax.chain(
         optax.clip_by_global_norm(grad_clip_norm),
         optax.inject_hyperparams(optax.adamw)(
-            learning_rate=optax.schedules.linear_schedule(1e-6, lr, grad_steps)
+            learning_rate=optax.schedules.linear_schedule(
+                1e-6 if schedule_lr else lr, lr, grad_steps
+            )
         ),
     )
     policy_optimizer = make_optimizer(
