@@ -446,6 +446,12 @@ def train(
             "alpha": jnp.exp(alpha_params),
             **cost_metrics,
             **additional_metrics,
+            "policy_lr": training_state.policy_optimizer_state[-1].hyperparams[
+                "learning_rate"
+            ],
+            "critic_lr": training_state.qr_optimizer_state[-1].hyperparams[
+                "learning_rate"
+            ],
         }
         new_training_state = TrainingState(
             policy_optimizer_state=policy_optimizer_state,
