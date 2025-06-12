@@ -211,7 +211,9 @@ def train(
     alpha_optimizer = optax.adam(learning_rate=alpha_learning_rate)
     make_optimizer = lambda lr, grad_clip_norm, grad_steps: optax.chain(
         optax.clip_by_global_norm(grad_clip_norm),
-        optax.adamw(optax.schedules.linear_schedule(1e-6, lr, grad_steps)),
+        optax.inject_hyperparams(optax.adamw)(
+            learning_rate=optax.schedules.linear_schedule(1e-6, lr, grad_steps)
+        ),
     )
     policy_optimizer = make_optimizer(
         learning_rate, 1.0, num_grad_steps // num_critic_updates_per_actor_update
@@ -271,7 +273,7 @@ def train(
             qr_optimizer_state=params[7],
             qc_optimizer_state=params[8],
         )
-        if len(params) >= 9 and use_rae:
+        if len(params) >= 6 and use_rae:
             logging.info("Restoring replay buffer state")
             buffer_state = params[-1]
             buffer_state = replay_buffers.ReplayBufferState(**buffer_state)
@@ -423,10 +425,12 @@ def train(
             "alpha": jnp.exp(alpha_params),
             **cost_metrics,
             **additional_metrics,
-            "policy_lr": training_state.policy_optimizer_state.hyperparams[
+            "policy_lr": training_state.policy_optimizer_state[-1].hyperparams[
                 "learning_rate"
             ],
-            "critic_lr": training_state.qr_optimizer_state.hyperparams["learning_rate"],
+            "critic_lr": training_state.qr_optimizer_state[-1].hyperparams[
+                "learning_rate"
+            ],
         }
         new_training_state = TrainingState(
             policy_optimizer_state=policy_optimizer_state,
