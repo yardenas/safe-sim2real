@@ -51,6 +51,13 @@ from ss2r.algorithms.sac.types import (
 from ss2r.rl.evaluation import ConstraintsEvaluator
 
 
+def _restore_state(tree, target_example):
+    state = jax.tree_util.tree_unflatten(
+        jax.tree_util.tree_structure(target_example), jax.tree_util.tree_leaves(tree)
+    )
+    return state
+
+
 def _init_training_state(
     key: PRNGKey,
     obs_size: int,
@@ -254,17 +261,28 @@ def train(
     local_key, rb_key, env_key, eval_key = jax.random.split(local_key, 4)
     if restore_checkpoint_path is not None:
         params = checkpoint.load(restore_checkpoint_path)
-        penalizer_params = type(training_state.penalizer_params)(**params[2])
         training_state = training_state.replace(  # type: ignore
             normalizer_params=params[0],
             policy_params=params[1],
-            penalizer_params=penalizer_params,
+            penalizer_params=_restore_state(params[2], training_state.penalizer_params),
             qr_params=params[3],
             qc_params=params[4],
+            policy_optimizer_state=_restore_state(
+                params[5], training_state.policy_optimizer_state
+            ),
+            alpha_optimizer_state=_restore_state(
+                params[6], training_state.alpha_optimizer_state
+            ),
+            qr_optimizer_state=_restore_state(
+                params[7], training_state.qr_optimizer_state
+            ),
+            qc_optimizer_state=_restore_state(
+                params[8], training_state.qc_optimizer_state
+            ),
         )
-        if len(params) >= 6 and use_rae:
+        if len(params) >= 9 and use_rae:
             logging.info("Restoring replay buffer state")
-            buffer_state = params[5]
+            buffer_state = params[-1]
             buffer_state = replay_buffers.ReplayBufferState(**buffer_state)
             replay_buffer = RAEReplayBuffer(
                 max_replay_size=max_replay_size,
@@ -495,6 +513,10 @@ def train(
                 training_state.penalizer_params,
                 training_state.qr_params,
                 training_state.qc_params,
+                training_state.policy_optimizer_state,
+                training_state.alpha_optimizer_state,
+                training_state.qr_optimizer_state,
+                training_state.qc_optimizer_state,
             )
             if store_buffer:
                 params += (buffer_state,)
@@ -517,6 +539,10 @@ def train(
         training_state.penalizer_params,
         training_state.qr_params,
         training_state.qc_params,
+        training_state.policy_optimizer_state,
+        training_state.alpha_optimizer_state,
+        training_state.qr_optimizer_state,
+        training_state.qc_optimizer_state,
     )
     if store_buffer:
         params += (buffer_state,)

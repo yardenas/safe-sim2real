@@ -25,7 +25,6 @@ def get_collection_fn(cfg):
             make_policy_fn,
             policy_params,
             key,
-            episode_length,
             extra_fields,
         ):
             env_state, transitions = acting.generate_unroll(
@@ -33,7 +32,7 @@ def get_collection_fn(cfg):
                 env_state,
                 make_policy_fn(policy_params),
                 key,
-                episode_length,
+                cfg.training.episode_length,
                 extra_fields,
             )
             transitions = jax.tree.map(

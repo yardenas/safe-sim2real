@@ -9,9 +9,9 @@ training:
   train_domain_randomization: true
   eval_domain_randomization: true
   safe: false
-  wandb_id: 8wuunrrv
+  wandb_id: ux36oqh0
   num_envs: 1
-  num_timesteps: 1000000
+  num_timesteps: 150000
   num_evals: 20
   hard_resets: false
 
