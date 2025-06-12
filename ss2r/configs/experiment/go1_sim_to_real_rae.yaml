@@ -9,7 +9,7 @@ training:
   train_domain_randomization: true
   eval_domain_randomization: true
   safe: false
-  wandb_id: ux36oqh0
+  wandb_id: v4j28y3m
   num_envs: 1
   num_timesteps: 100000
   num_evals: 20
@@ -40,7 +40,7 @@ environment:
 
 agent:
   use_rae: true
-  min_replay_size: 100000
+  min_replay_size: 10000
   max_replay_size: 4194304
   grad_updates_per_step: 250
   num_critic_updates_per_actor_update: 15

@@ -58,6 +58,29 @@ def _restore_state(tree, target_example):
     return state
 
 
+def update_lr_schedule_count(opt_state, new_count):
+    """Return a copy of opt_state with updated learning rate schedule count."""
+    # Deepcopy to avoid in-place mutation
+    # Update the learning rate scheduler count
+    if opt_state is None:
+        return
+    state = opt_state[-1]
+    if "learning_rate" in state.hyperparams_states:
+        old_hyperparams_state = state.hyperparams_states["learning_rate"]
+        updated_schedule_state = old_hyperparams_state._replace(count=new_count)
+        state = state._replace(
+            hyperparams_states={
+                **state.hyperparams_states,
+                "learning_rate": updated_schedule_state,
+            }
+        )
+        opt_state = opt_state[0], state
+    else:
+        raise KeyError("No 'learning_rate' key found in hyperparams_states")
+
+    return opt_state
+
+
 def _init_training_state(
     key: PRNGKey,
     obs_size: int,
@@ -275,24 +298,28 @@ def train(
     local_key, rb_key, env_key, eval_key = jax.random.split(local_key, 4)
     if restore_checkpoint_path is not None:
         params = checkpoint.load(restore_checkpoint_path)
+        policy_optimizer_state = update_lr_schedule_count(
+            _restore_state(params[5], training_state.policy_optimizer_state), 0
+        )
+        alpha_optimizer_state = _restore_state(
+            params[6], training_state.alpha_optimizer_state
+        )
+        qr_optimizer_state = update_lr_schedule_count(
+            _restore_state(params[7], training_state.qr_optimizer_state), 0
+        )
+        qc_optimizer_state = update_lr_schedule_count(
+            _restore_state(params[8], training_state.qc_optimizer_state), 0
+        )
         training_state = training_state.replace(  # type: ignore
             normalizer_params=params[0],
             policy_params=params[1],
             penalizer_params=_restore_state(params[2], training_state.penalizer_params),
             qr_params=params[3],
             qc_params=params[4],
-            policy_optimizer_state=_restore_state(
-                params[5], training_state.policy_optimizer_state
-            ),
-            alpha_optimizer_state=_restore_state(
-                params[6], training_state.alpha_optimizer_state
-            ),
-            qr_optimizer_state=_restore_state(
-                params[7], training_state.qr_optimizer_state
-            ),
-            qc_optimizer_state=_restore_state(
-                params[8], training_state.qc_optimizer_state
-            ),
+            policy_optimizer_state=policy_optimizer_state,
+            alpha_optimizer_state=alpha_optimizer_state,
+            qr_optimizer_state=qr_optimizer_state,
+            qc_optimizer_state=qc_optimizer_state,
         )
         if len(params) >= 9 and use_rae:
             logging.info("Restoring replay buffer state")
