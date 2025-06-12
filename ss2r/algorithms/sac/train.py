@@ -196,7 +196,6 @@ def train(
         -(num_timesteps - num_prefill_env_steps)
         // (num_evals_after_init * env_steps_per_experience_call)
     )
-    num_grad_steps = num_training_steps_per_epoch * grad_updates_per_step * num_evals
     env = environment
     if wrap_env_fn is not None:
         env = wrap_env_fn(env)
@@ -225,12 +224,17 @@ def train(
             )
         ),
     )
+    num_grad_steps = num_training_steps_per_epoch * grad_updates_per_step * num_evals
     policy_optimizer = make_optimizer(
-        learning_rate, 1.0, num_grad_steps // num_critic_updates_per_actor_update
+        learning_rate,
+        1.0,
+        int(num_grad_steps // num_critic_updates_per_actor_update * 0.4),
     )
-    qr_optimizer = make_optimizer(critic_learning_rate, 1.0, num_grad_steps)
+    qr_optimizer = make_optimizer(critic_learning_rate, 1.0, int(num_grad_steps * 0.4))
     qc_optimizer = (
-        make_optimizer(cost_critic_learning_rate, 1.0, num_grad_steps) if safe else None
+        make_optimizer(cost_critic_learning_rate, 1.0, int(num_grad_steps * 0.4))
+        if safe
+        else None
     )
     if isinstance(obs_size, Mapping):
         dummy_obs = {k: jnp.zeros(v) for k, v in obs_size.items()}
