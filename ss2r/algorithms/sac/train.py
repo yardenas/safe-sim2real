@@ -188,6 +188,7 @@ def train(
         -(num_timesteps - num_prefill_env_steps)
         // (num_evals_after_init * env_steps_per_experience_call)
     )
+    num_grad_steps = num_training_steps_per_epoch * grad_updates_per_step * num_evals
     env = environment
     if wrap_env_fn is not None:
         env = wrap_env_fn(env)
@@ -208,13 +209,17 @@ def train(
     )
     make_policy = sac_networks.make_inference_fn(sac_network)
     alpha_optimizer = optax.adam(learning_rate=alpha_learning_rate)
-    make_optimizer = lambda lr, grad_clip_norm: optax.chain(
+    make_optimizer = lambda lr, grad_clip_norm, grad_steps: optax.chain(
         optax.clip_by_global_norm(grad_clip_norm),
-        optax.adamw(learning_rate=lr),
+        optax.adamw(optax.schedules.linear_schedule(1e-6, lr, grad_steps)),
     )
-    policy_optimizer = make_optimizer(learning_rate, 1.0)
-    qr_optimizer = make_optimizer(critic_learning_rate, 1.0)
-    qc_optimizer = make_optimizer(cost_critic_learning_rate, 1.0) if safe else None
+    policy_optimizer = make_optimizer(
+        learning_rate, 1.0, num_grad_steps // num_critic_updates_per_actor_update
+    )
+    qr_optimizer = make_optimizer(critic_learning_rate, 1.0, num_grad_steps)
+    qc_optimizer = (
+        make_optimizer(cost_critic_learning_rate, 1.0, num_grad_steps) if safe else None
+    )
     if isinstance(obs_size, Mapping):
         dummy_obs = {k: jnp.zeros(v) for k, v in obs_size.items()}
     else:
@@ -418,6 +423,10 @@ def train(
             "alpha": jnp.exp(alpha_params),
             **cost_metrics,
             **additional_metrics,
+            "policy_lr": training_state.policy_optimizer_state.hyperparams[
+                "learning_rate"
+            ],
+            "critic_lr": training_state.qr_optimizer_state.hyperparams["learning_rate"],
         }
         new_training_state = TrainingState(
             policy_optimizer_state=policy_optimizer_state,
