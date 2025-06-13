@@ -22,7 +22,7 @@ import jax
 import jax.nn as jnn
 import jax.numpy as jnp
 from brax.training import distribution, networks, types
-from brax.training.types import PRNGKey
+from brax.training.types import PolicyParams, PRNGKey
 from flax import linen
 
 from ss2r.algorithms.mbpo.types import TrainingState
@@ -200,7 +200,7 @@ def make_mbpo_networks(
 
 
 def get_inference_policy_params(safe: bool, safety_budget=float("inf")) -> Any:
-    def get_parms(training_state: TrainingState) -> Any:
+    def get_params(training_state: TrainingState) -> Any:
         if safe:
             return (
                 training_state.policy_params,
@@ -210,7 +210,7 @@ def get_inference_policy_params(safe: bool, safety_budget=float("inf")) -> Any:
         else:
             return training_state.policy_params
 
-    return get_parms
+    return get_params
 
 
 def make_safe_inference_fn(
@@ -225,7 +225,7 @@ def make_safe_inference_fn(
     )
 
     def make_policy(
-        params: Any,
+        params: PolicyParams,
         deterministic: bool = False,  # Policy params gave me a warning here
     ) -> types.Policy:
         (

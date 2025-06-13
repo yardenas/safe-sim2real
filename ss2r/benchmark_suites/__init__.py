@@ -75,6 +75,8 @@ def get_wrap_env_fn(cfg):
 
         out = saute_train, saute_eval
 
+    # TODO (manu): use another flag than safe because we
+    # might implement other baselines for safety
     if cfg.agent.name == "mbpo" and cfg.training.safe:
 
         def safe_mbpo_train(env):

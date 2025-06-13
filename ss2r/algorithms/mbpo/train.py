@@ -24,7 +24,6 @@ from typing import Any, Callable, Mapping, Optional, Tuple
 import jax
 import jax.numpy as jnp
 import optax
-import wandb
 from absl import logging
 from brax import envs
 from brax.training import replay_buffers
@@ -167,7 +166,6 @@ def train(
     optimism: float = 0.0,
     pessimism: float = 0.0,
     model_propagation: str = "nominal",
-    safe_run_id: Optional[str] = None,
 ):
     if min_replay_size >= num_timesteps:
         raise ValueError(
@@ -278,19 +276,8 @@ def train(
     local_key, model_rb_key, actor_critic_rb_key, env_key, eval_key = jax.random.split(
         local_key, 5
     )
-    if safe_run_id is not None:
-
-        def get_wandb_checkpoint(run_id):
-            def get_state_path():
-                return "./wandb_checkpoints"
-
-            api = wandb.Api()
-            artifact = api.artifact(f"ss2r/checkpoint:{run_id}")
-            download_dir = artifact.download(f"{get_state_path()}/{run_id}")
-            return download_dir
-
-        load_safe_policy_path = get_wandb_checkpoint(safe_run_id)
-        params = checkpoint.load(load_safe_policy_path)
+    if restore_checkpoint_path is not None:
+        params = checkpoint.load(restore_checkpoint_path)
         ts_normalizer_params = training_state.normalizer_params
         if isinstance(ts_normalizer_params.mean, dict):
             mean = {
@@ -593,10 +580,7 @@ def train(
 
     if not eval_env:
         eval_env = environment
-    if safe:
-        Evaluator = InterventionConstraintsEvaluator
-    else:
-        Evaluator = ConstraintsEvaluator
+    Evaluator = InterventionConstraintsEvaluator if safe else ConstraintsEvaluator
     evaluator = Evaluator(
         eval_env,
         functools.partial(make_rollout_policy, deterministic=deterministic_eval),

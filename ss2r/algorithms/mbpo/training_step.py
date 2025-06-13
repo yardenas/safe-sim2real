@@ -101,7 +101,7 @@ def make_training_step(
             new_target_qc_params = None
         metrics = {
             "critic_loss": critic_loss,
-            "fraction_done": transitions.discount.mean(),
+            "fraction_done": 1.0 - transitions.discount.mean(),
             **cost_metrics,
         }
         new_training_state = training_state.replace(  # type: ignore
@@ -245,11 +245,7 @@ def make_training_step(
         if safe:
             cost = cost.mean(0) + disagreement * pessimism
             transitions.extras["state_extras"]["cost"] = cost
-        if isinstance(next_obs_pred, dict):
-            next_obs_pred = {k: v.mean(0) for k, v in next_obs_pred.items()}
-        else:
-            next_obs_pred = next_obs_pred.mean(0)
-
+        next_obs_pred = jax.tree_map(lambda x: x.mean(0), next_obs_pred)
         return Transition(
             observation=transitions.observation,
             next_observation=next_obs_pred,

@@ -31,7 +31,7 @@ def safe_actor_step(
         observation=env_state.obs,
         action=actions,
         reward=nstate.reward,
-        discount=1 - nstate.done,  # jnp.where(intervetion, 1, 1 - nstate.done),
+        discount=1 - nstate.done,
         next_observation=nstate.obs,
         extras={"policy_extras": policy_extras, "state_extras": state_extras},
     )

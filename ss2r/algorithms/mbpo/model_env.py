@@ -97,22 +97,19 @@ class ModelBasedEnv(envs.Env):
                 done,
             )
 
-            def reset_states(self, done, state, next_obs):
+            def reset_states(done, state, next_obs):
                 """Reset the state if done."""
                 key, reset_keys = jax.random.split(state.info["key"])
                 state.info["key"] = key
                 next_obs["cumulative_cost"] = (
                     state.obs["cumulative_cost"] + cost * curr_discount
                 )
-                next_obs["curr_discount"] = curr_discount
-                obs = {
-                    k: jnp.where(done, self.reset(reset_keys).obs[k], next_obs[k])
-                    for k in next_obs.keys()
-                }
+                obs = jax.tree_map(
+                    lambda x: jnp.where(done, self.reset(reset_keys).obs[x], x),
+                )
                 return state, obs
 
-            state, next_obs = reset_states(self, done, state, next_obs)
-
+            state, next_obs = reset_states(done, state, next_obs)
         state = state.replace(
             obs=next_obs,
             reward=reward,
@@ -191,10 +188,7 @@ def _propagate_ensemble(
         )
         # Randomly select one of the ensemble predictions
         idx = jax.random.randint(key, (1,), 0, reward_pred.shape[0])[0]
-        if isinstance(next_obs_pred, dict):
-            next_obs = {k: v[idx] for k, v in next_obs_pred.items()}
-        else:
-            next_obs = next_obs_pred[idx]
+        next_obs = jax.tree_map(lambda x: x[idx], next_obs_pred)
         reward = reward_pred[idx]
         cost = cost_pred[idx]
     elif ensemble_selection == "mean":
@@ -202,10 +196,7 @@ def _propagate_ensemble(
         next_obs_pred, reward_pred, cost_pred = vmap_pred_fn(
             normalizer_params, model_params, obs, action
         )
-        if isinstance(next_obs_pred, dict):
-            next_obs = {k: jnp.mean(v, axis=0) for k, v in next_obs_pred.items()}
-        else:
-            next_obs = jnp.mean(next_obs_pred, axis=0)
+        next_obs = jax.tree_map(lambda x: jnp.mean(x, axis=0), next_obs_pred)
         reward = jnp.mean(reward_pred, axis=0)
         cost = jnp.mean(cost_pred, axis=0)
     else:

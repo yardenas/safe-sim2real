@@ -260,9 +260,7 @@ class InterventionConstraintsEvaluator(ConstraintsEvaluator):
             .episode_metrics["expected_total_cost"]
             .mean(0)
         )
-
         safe = np.where(constraint < self.budget, 1.0, 0.0)
-
         eval_state.info["eval_metrics"].episode_metrics["cost"] = constraint
         eval_state.info["eval_metrics"].episode_metrics["intervention"] = intervention
         eval_state.info["eval_metrics"].episode_metrics[
@@ -273,7 +271,6 @@ class InterventionConstraintsEvaluator(ConstraintsEvaluator):
             "expected_total_cost"
         ] = expected_total_cost
         eval_state.info["eval_metrics"].episode_metrics["safe"] = safe
-
         eval_metrics = eval_state.info["eval_metrics"]
         eval_metrics.active_episodes.block_until_ready()
 
