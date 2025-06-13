@@ -104,8 +104,9 @@ class ModelBasedEnv(envs.Env):
                 next_obs["cumulative_cost"] = (
                     state.obs["cumulative_cost"] + cost * curr_discount
                 )
+                reset_state_obs = self.reset(reset_keys).obs
                 obs = jax.tree_map(
-                    lambda x: jnp.where(done, self.reset(reset_keys).obs[x], x),
+                    lambda x, y: jnp.where(done, x, y), reset_state_obs, next_obs
                 )
                 return state, obs
 
