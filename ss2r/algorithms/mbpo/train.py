@@ -313,16 +313,6 @@ def train(
             qr_params=params[3],
             qc_params=params[4] if safe else None,
         )
-
-    if restore_checkpoint_path is not None:
-        params = checkpoint.load(restore_checkpoint_path)
-        training_state = training_state.replace(  # type: ignore
-            normalizer_params=params[0],
-            policy_params=params[1],
-            qr_params=params[2],
-            qc_params=params[3],
-            model_params=params[4],
-        )
         if len(params) >= 5 and use_rae:
             logging.info("Restoring replay buffer state")
             model_buffer_state = params[5]
