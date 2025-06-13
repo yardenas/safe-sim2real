@@ -9,8 +9,8 @@ training:
   num_envs: 10
   safe: true
   safety_budget: 75
-  train_domain_randomization: false
-  eval_domain_randomization: false
+  train_domain_randomization: true
+  eval_domain_randomization: true
   safe_run_id: "1bfmnt25"
   
 agent:
@@ -19,6 +19,7 @@ agent:
   critic_grad_updates_per_step: 20
   model_grad_updates_per_step: 25
   pessimism: 10
+  optimism: 0
 
 environment:
   train_params:

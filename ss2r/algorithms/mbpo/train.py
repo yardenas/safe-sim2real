@@ -49,7 +49,7 @@ from ss2r.algorithms.sac.types import (
     Transition,
     float16,
 )
-from ss2r.rl.evaluation import ConstraintsEvaluator
+from ss2r.rl.evaluation import ConstraintsEvaluator, InterventionConstraintsEvaluator
 
 
 def _init_training_state(
@@ -174,12 +174,12 @@ def train(
             "No training will happen because min_replay_size >= num_timesteps"
         )
     episodic_safety_budget = safety_budget
+    budget_scaling_fun = lambda x: x
     if safety_discounting != 1.0 and normalize_budget:
-        safety_budget = (
-            (safety_budget / episode_length)
-            / (1.0 - safety_discounting)
-            * action_repeat
+        budget_scaling_fun = (
+            lambda x: x / episode_length / (1.0 - safety_discounting) * action_repeat
         )
+        safety_budget = budget_scaling_fun(episodic_safety_budget)
     logging.info(f"Episode safety budget: {safety_budget}")
     if max_replay_size is None:
         max_replay_size = num_timesteps
@@ -224,15 +224,6 @@ def train(
         n_critics=n_critics,
         n_heads=n_heads,
     )
-    make_planning_policy = mbpo_networks.make_inference_fn(mbpo_network)
-    if safe:
-        make_rollout_policy = mbpo_networks.make_safe_inference_fn(mbpo_network)
-        get_rollout_policy_params = mbpo_networks.get_inference_policy_params(
-            True, safety_budget=safety_budget
-        )
-    else:
-        make_rollout_policy = mbpo_networks.make_inference_fn(mbpo_network)
-        get_rollout_policy_params = mbpo_networks.get_inference_policy_params(False)
     alpha_optimizer = optax.adam(learning_rate=alpha_learning_rate)
     make_optimizer = lambda lr, grad_clip_norm: optax.chain(
         optax.clip_by_global_norm(grad_clip_norm),
@@ -255,6 +246,12 @@ def train(
     }
     if safe:
         extras["state_extras"]["cost"] = jnp.zeros(())  # type: ignore
+        extras["policy_extras"] = {
+            "intervention": jnp.zeros(()),
+            "policy_distance": jnp.zeros(()),
+            "cumulative_cost": jnp.zeros(()),
+            "expected_total_cost": jnp.zeros(()),
+        }
 
     dummy_transition = Transition(  # pytype: disable=wrong-arg-types  # jax-ndarray
         observation=dummy_obs,
@@ -306,17 +303,25 @@ def train(
                 "cumulative_cost": ts_normalizer_params.std["cumulative_cost"],
                 "curr_discount": ts_normalizer_params.std["curr_discount"],
             }
+            summed_var = {
+                "state": params[0].summed_variance,
+                "cumulative_cost": ts_normalizer_params.summed_variance[
+                    "cumulative_cost"
+                ],
+                "curr_discount": ts_normalizer_params.summed_variance["curr_discount"],
+            }
             count = params[0].count
             ts_normalizer_params = ts_normalizer_params.replace(
                 mean=mean,
                 std=std,
                 count=count,
+                summed_variance=summed_var,
             )
         else:
             ts_normalizer_params = params[0]
         training_state = training_state.replace(  # type: ignore
             normalizer_params=ts_normalizer_params,
-            # policy_params=params[1],
+            policy_params=params[1],
             backup_policy_params=params[1],
             qr_params=params[3],
             qc_params=params[4] if safe else None,
@@ -342,6 +347,22 @@ def train(
                 sample_batch_size=batch_size * model_grad_updates_per_step,
                 offline_data_state=model_buffer_state,
             )
+
+    make_planning_policy = mbpo_networks.make_inference_fn(mbpo_network)
+    if safe:
+        make_rollout_policy = mbpo_networks.make_safe_inference_fn(
+            mbpo_network,
+            training_state.backup_policy_params,
+            training_state.normalizer_params,
+            budget_scaling_fun,
+        )
+        get_rollout_policy_params = mbpo_networks.get_inference_policy_params(
+            True, safety_budget=safety_budget
+        )
+    else:
+        make_rollout_policy = mbpo_networks.make_inference_fn(mbpo_network)
+        get_rollout_policy_params = mbpo_networks.get_inference_policy_params(False)
+
     if not restore_checkpoint_path or not use_rae:
         model_replay_buffer = replay_buffers.UniformSamplingQueue(
             max_replay_size=max_replay_size,
@@ -404,7 +425,8 @@ def train(
         observation_size=obs_size,
         ensemble_selection=model_propagation,
         safety_budget=safety_budget,
-        discount=safety_discounting,
+        cost_discount=safety_discounting,
+        scaling_fn=budget_scaling_fun,
     )
     training_step = make_training_step(
         env,
@@ -571,14 +593,18 @@ def train(
 
     if not eval_env:
         eval_env = environment
-    evaluator = ConstraintsEvaluator(
+    if safe:
+        Evaluator = InterventionConstraintsEvaluator
+    else:
+        Evaluator = ConstraintsEvaluator
+    evaluator = Evaluator(
         eval_env,
         functools.partial(make_rollout_policy, deterministic=deterministic_eval),
         num_eval_envs=num_eval_envs,
         episode_length=episode_length,
         action_repeat=action_repeat,
         key=eval_key,
-        budget=episodic_safety_budget,
+        budget=safety_budget,
         num_episodes=num_eval_episodes,
     )
 

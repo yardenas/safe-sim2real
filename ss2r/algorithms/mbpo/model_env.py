@@ -21,7 +21,8 @@ class ModelBasedEnv(envs.Env):
         normalizer_params,
         ensemble_selection="mean",  # "random", "mean", or "pessimistic"
         safety_budget=float("inf"),
-        discount=1.0,
+        cost_discount=1.0,
+        scaling_fn=lambda x: x,  # Function to scale costs
     ):
         super().__init__()
         self.model_network = model_network
@@ -34,7 +35,8 @@ class ModelBasedEnv(envs.Env):
         self._observation_size = observation_size
         self._action_size = action_size
         self.transitions = transitions
-        self.discount = discount
+        self.cost_discount = cost_discount
+        self.scaling_fn = scaling_fn
 
     def reset(self, rng: jax.Array) -> base.State:
         sample_key, model_key = jax.random.split(rng)
@@ -78,16 +80,16 @@ class ModelBasedEnv(envs.Env):
         state.info["truncation"] = truncation
         if self.qc_network is not None:
             prev_cumulative_cost = state.obs["cumulative_cost"][0]
-            curr_discount = state.obs["curr_discount"][0]
+            curr_discount = state.obs["curr_discount"][0] * self.cost_discount
             expected_cost_for_traj = (
-                prev_cumulative_cost
-                + curr_discount
-                * self.qc_network.apply(
+                self.scaling_fn(prev_cumulative_cost)
+                + self.qc_network.apply(
                     self.normalizer_params,
                     self.qc_params,
                     state.obs,
                     action,
                 ).mean(axis=-1)
+                * curr_discount
             )
             done = jnp.where(
                 expected_cost_for_traj > self.safety_budget,
@@ -100,19 +102,17 @@ class ModelBasedEnv(envs.Env):
                 key, reset_keys = jax.random.split(state.info["key"])
                 state.info["key"] = key
                 next_obs["cumulative_cost"] = (
-                    state.obs["cumulative_cost"] + curr_discount * cost
+                    state.obs["cumulative_cost"] + cost * curr_discount
                 )
-                next_obs["curr_discount"] = (
-                    state.obs.get("curr_discount", jnp.ones_like(reward))
-                    * self.discount
-                )
+                next_obs["curr_discount"] = curr_discount
                 obs = {
                     k: jnp.where(done, self.reset(reset_keys).obs[k], next_obs[k])
                     for k in next_obs.keys()
                 }
                 return state, obs
 
-            state, next_obs = reset_states(self, done, state, next_obs)
+        state, next_obs = reset_states(self, done, state, next_obs)
+
         state = state.replace(
             obs=next_obs,
             reward=reward,
@@ -145,7 +145,8 @@ def create_model_env(
     normalizer_params,
     ensemble_selection="random",
     safety_budget=float("inf"),
-    discount=1.0,
+    cost_discount=1.0,
+    scaling_fn=lambda x: x,  # Function to scale costs
 ) -> ModelBasedEnv:
     """Factory function to create a model-based environment."""
     return ModelBasedEnv(
@@ -159,7 +160,8 @@ def create_model_env(
         normalizer_params=normalizer_params,
         ensemble_selection=ensemble_selection,
         safety_budget=safety_budget,
-        discount=discount,
+        cost_discount=cost_discount,
+        scaling_fn=scaling_fn,
     )
 
 

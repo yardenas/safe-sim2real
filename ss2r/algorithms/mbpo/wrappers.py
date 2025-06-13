@@ -15,7 +15,7 @@ class TrackOnlineCostsInObservation(Wrapper):
         observation_size = self.env.observation_size
         if isinstance(observation_size, dict):
             observation_size = {k: v for k, v in observation_size.items()}
-            observation_size.update(cumulative_cost=1, curr_discount=1)
+            observation_size.update(cumulative_cost=1)
         else:
             observation_size = {
                 "state": observation_size,
@@ -41,23 +41,18 @@ class TrackOnlineCostsInObservation(Wrapper):
 
     def reset(self, rng: jax.Array) -> State:
         reset_state = self.env.reset(rng)
-        cummulative_cost = reset_state.info.get(
-            "cost", jnp.zeros_like(reset_state.reward)
-        )
-        curr_discount = jnp.ones_like(reset_state.reward)
+        cummulative_cost = jnp.zeros_like(reset_state.reward)[None]
+        curr_discount = jnp.ones_like(reset_state.reward)[None]
         return self.augment_obs(reset_state, cummulative_cost, curr_discount)
 
     def step(self, state: State, action: jax.Array) -> State:
-        cumulative_cost = jnp.where(
-            state.done,
-            jnp.zeros_like(state.reward),
-            state.obs["cumulative_cost"],
-        )
-        curr_discount = state.obs.get("curr_discount", jnp.ones_like(state.reward))
+        cumulative_cost = state.obs["cumulative_cost"]
+        curr_discount = state.obs["curr_discount"] * self.cost_discount
+        old_obs = state.obs
         state = state.replace(obs=state.obs["state"])
-        state = self.env.step(state, action)
+        next_state = self.env.step(state, action)
+        state = state.replace(obs=old_obs)
         cost = state.info.get("cost", jnp.zeros_like(state.reward))
-        next_cumulative_cost = cumulative_cost + curr_discount * cost
-        next_discount = curr_discount * self.cost_discount
-        state = self.augment_obs(state, next_cumulative_cost, next_discount)
-        return state
+        next_cumulative_cost = cumulative_cost + cost  # * curr_discount
+        next_state = self.augment_obs(next_state, next_cumulative_cost, curr_discount)
+        return next_state

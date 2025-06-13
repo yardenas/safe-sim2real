@@ -204,7 +204,6 @@ def get_inference_policy_params(safe: bool, safety_budget=float("inf")) -> Any:
         if safe:
             return (
                 training_state.policy_params,
-                training_state.backup_policy_params,
                 training_state.qc_params,
                 safety_budget,
             )
@@ -214,11 +213,16 @@ def get_inference_policy_params(safe: bool, safety_budget=float("inf")) -> Any:
     return get_parms
 
 
-def make_safe_inference_fn(mbpo_networks: MBPONetworks):
+def make_safe_inference_fn(
+    mbpo_networks: MBPONetworks,
+    inital_backup_policy_params,
+    initial_normalizer_params,
+    scaling_fn,
+) -> Callable[[Any, bool], types.Policy]:
     """Creates params and inference function for the SAC agent."""
-    assert (
-        mbpo_networks.qc_network is not None
-    ), "For safe inference QC network must be defined"
+    backup_policy = sac_networks.make_inference_fn(mbpo_networks)(
+        (initial_normalizer_params, inital_backup_policy_params), deterministic=True
+    )
 
     def make_policy(
         params: Any,
@@ -226,7 +230,7 @@ def make_safe_inference_fn(mbpo_networks: MBPONetworks):
     ) -> types.Policy:
         (
             normalizer_params,
-            (policy_params, backup_policy_params, qc_params, safety_budget),
+            (policy_params, qc_params, safety_budget),
         ) = params
 
         def policy(
@@ -235,40 +239,40 @@ def make_safe_inference_fn(mbpo_networks: MBPONetworks):
             logits = mbpo_networks.policy_network.apply(
                 normalizer_params, policy_params, observations
             )
+
+            mode_a = mbpo_networks.parametric_action_distribution.mode(logits)
             if deterministic:
-                a = mbpo_networks.parametric_action_distribution.mode(logits)
+                a = mode_a
             else:
                 a = mbpo_networks.parametric_action_distribution.sample(
                     logits, key_sample
                 )
-            accumulated_cost = observations["cumulative_cost"]
-            current_discount = observations["curr_discount"]
             if mbpo_networks.qc_network is not None:
                 qc = mbpo_networks.qc_network.apply(
                     normalizer_params, qc_params, observations, a
                 ).mean(axis=-1)
             else:
                 raise ValueError("QC network is not defined, cannot do shielding.")
-            accumulated_cost = observations["cumulative_cost"]
-            current_discount = observations["curr_discount"]
-
-            expected_total_cost = accumulated_cost + qc * current_discount
-
-            hat_logits = mbpo_networks.policy_network.apply(
-                normalizer_params, backup_policy_params, observations
-            )
-            if deterministic:
-                hat_a = mbpo_networks.parametric_action_distribution.mode(hat_logits)
-            else:
-                hat_a = mbpo_networks.parametric_action_distribution.sample(
-                    hat_logits, key_sample
-                )
+            accumulated_cost = observations["cumulative_cost"][:, 0]
+            curr_discount = observations["curr_discount"][:, 0]
+            expected_total_cost = scaling_fn(accumulated_cost) + qc * curr_discount
+            hat_a = backup_policy(observations, key_sample)[0]
+            safe = expected_total_cost[:, None] < safety_budget
             sa = jnp.where(
-                expected_total_cost[:, None] < safety_budget,
+                safe,
                 a,
                 hat_a,
             )
-            return sa, {}
+            extras = {
+                "intervention": 1 - safe[:, 0].astype(jnp.float32),
+                "policy_distance": jnp.linalg.norm(mode_a - sa, axis=-1),
+                "safety_gap": jnp.maximum(
+                    expected_total_cost - safety_budget,
+                    jnp.zeros_like(expected_total_cost),
+                ),
+                "expected_total_cost": expected_total_cost,
+            }
+            return sa, extras
 
         return policy
 

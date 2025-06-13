@@ -84,7 +84,7 @@ def make_training_step(
             qc_params = training_state.qc_params
             qc_optimizer_state = training_state.qc_optimizer_state
             cost_metrics = {
-                "cost_critic_loss": critic_loss,
+                "cost_critic_loss": cost_critic_loss,
             }
         else:
             cost_metrics = {}
@@ -101,6 +101,7 @@ def make_training_step(
             new_target_qc_params = None
         metrics = {
             "critic_loss": critic_loss,
+            "fraction_done": transitions.discount.mean(),
             **cost_metrics,
         }
         new_training_state = training_state.replace(  # type: ignore
@@ -336,7 +337,6 @@ def make_training_step(
             transitions,
             length=num_actor_updates,
         )
-        metrics = {**model_metrics}
         metrics = {**model_metrics, **critic_metrics, **actor_metrics}
         metrics["buffer_current_size"] = model_replay_buffer.size(model_buffer_state)
         metrics |= env_state.metrics
