@@ -115,8 +115,10 @@ def main(cfg):
                     params[0],
                     (
                         params[1],
-                        params[2],
-                        params[4],
+                        params[3],
+                        cfg.training.safety_budget
+                        / (1 - cfg.training.cost_discount)
+                        / cfg.training.episode_length,
                     ),
                 )
             video = benchmark_suites.render_fns[cfg.environment.task_name](

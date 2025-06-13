@@ -319,14 +319,13 @@ def train(
         training_state = training_state.replace(  # type: ignore
             normalizer_params=params[0],
             policy_params=params[1],
-            backup_policy_params=params[2],
-            qr_params=params[3],
-            qc_params=params[4],
-            model_params=params[5],
+            qr_params=params[2],
+            qc_params=params[3],
+            model_params=params[4],
         )
-        if len(params) >= 7 and use_rae:
+        if len(params) >= 5 and use_rae:
             logging.info("Restoring replay buffer state")
-            model_buffer_state = params[6]
+            model_buffer_state = params[5]
             model_buffer_state = replay_buffers.ReplayBufferState(**model_buffer_state)
             model_replay_buffer = RAEReplayBuffer(
                 max_replay_size=max_replay_size,
@@ -645,7 +644,6 @@ def train(
             params = (
                 training_state.normalizer_params,
                 training_state.policy_params,
-                training_state.backup_policy_params,
                 training_state.qr_params,
                 training_state.qc_params,
                 training_state.model_params,
@@ -671,7 +669,6 @@ def train(
     params = (
         training_state.normalizer_params,
         training_state.policy_params,
-        training_state.backup_policy_params,
         training_state.qr_params,
         training_state.qc_params,
         training_state.model_params,
