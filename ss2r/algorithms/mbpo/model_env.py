@@ -23,6 +23,7 @@ class ModelBasedEnv(envs.Env):
         safety_budget=float("inf"),
         cost_discount=1.0,
         scaling_fn=lambda x: x,  # Function to scale costs
+        reward_termination=0.0,  # Not used in this implementation
     ):
         super().__init__()
         self.model_network = model_network
@@ -37,6 +38,7 @@ class ModelBasedEnv(envs.Env):
         self.transitions = transitions
         self.cost_discount = cost_discount
         self.scaling_fn = scaling_fn
+        self.reward_termination = reward_termination
 
     def reset(self, rng: jax.Array) -> base.State:
         sample_key, model_key = jax.random.split(rng)
@@ -96,6 +98,11 @@ class ModelBasedEnv(envs.Env):
                 jnp.ones_like(done),
                 done,
             )
+            reward = jnp.where(
+                expected_cost_for_traj > self.safety_budget,
+                jnp.ones_like(reward) * self.reward_termination,
+                reward,
+            )
 
             def reset_states(done, state, next_obs):
                 """Reset the state if done."""
@@ -108,6 +115,7 @@ class ModelBasedEnv(envs.Env):
                 obs = jax.tree_map(
                     lambda x, y: jnp.where(done, x, y), reset_state_obs, next_obs
                 )
+
                 return state, obs
 
             state, next_obs = reset_states(done, state, next_obs)
@@ -145,6 +153,7 @@ def create_model_env(
     safety_budget=float("inf"),
     cost_discount=1.0,
     scaling_fn=lambda x: x,  # Function to scale costs
+    reward_termination=0.0,
 ) -> ModelBasedEnv:
     """Factory function to create a model-based environment."""
     return ModelBasedEnv(
@@ -160,6 +169,7 @@ def create_model_env(
         safety_budget=safety_budget,
         cost_discount=cost_discount,
         scaling_fn=scaling_fn,
+        reward_termination=reward_termination,
     )
 
 
