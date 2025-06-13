@@ -18,9 +18,15 @@ training:
   
 agent:
   batch_size: 512
-  learning_rate: 0.001
   max_replay_size: 4194304
   min_replay_size: 8192
   policy_hidden_layer_sizes: [256, 256, 256]
   value_hidden_layer_sizes: [512, 512]
   activation: swish
+  critic_grad_updates_per_step: 40
+  model_grad_updates_per_step: 40
+  learning_rate: 6e-4
+  critic_learning_rate: 3e-4
+  model_learning_rate: 6e-4
+  pessimism: 0
+  optimism: 0
