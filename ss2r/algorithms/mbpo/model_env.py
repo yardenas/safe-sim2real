@@ -111,7 +111,7 @@ class ModelBasedEnv(envs.Env):
                 }
                 return state, obs
 
-        state, next_obs = reset_states(self, done, state, next_obs)
+            state, next_obs = reset_states(self, done, state, next_obs)
 
         state = state.replace(
             obs=next_obs,
