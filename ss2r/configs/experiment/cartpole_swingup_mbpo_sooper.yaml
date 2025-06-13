@@ -6,14 +6,14 @@ defaults:
 
 
 training:
-  num_timesteps: 50000
+  num_timesteps: 150000
   action_repeat: 4
   safe: true
   train_domain_randomization: false
   eval_domain_randomization: false
   safety_budget: 100
   num_envs: 10
-  num_evals: 2
+  num_evals: 15
   wandb_id: iofpi8gq
   
 agent:
