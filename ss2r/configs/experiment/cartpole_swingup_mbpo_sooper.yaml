@@ -1,0 +1,26 @@
+# @package _global_
+defaults:
+  - override /environment: cartpole_swingup
+  - override /agent: mbpo
+  - _self_
+
+
+training:
+  num_timesteps: 50000
+  action_repeat: 4
+  safe: true
+  train_domain_randomization: false
+  eval_domain_randomization: false
+  safety_budget: 100
+  num_envs: 10
+  num_evals: 2
+  wandb_id: iofpi8gq
+  
+agent:
+  batch_size: 512
+  learning_rate: 0.001
+  max_replay_size: 4194304
+  min_replay_size: 8192
+  policy_hidden_layer_sizes: [256, 256, 256]
+  value_hidden_layer_sizes: [512, 512]
+  activation: swish
