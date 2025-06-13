@@ -307,9 +307,12 @@ def train(
         qr_optimizer_state = update_lr_schedule_count(
             _restore_state(params[7], training_state.qr_optimizer_state), 0
         )
-        qc_optimizer_state = update_lr_schedule_count(
-            _restore_state(params[8], training_state.qc_optimizer_state), 0
-        )
+        if qc_optimizer is None:
+            qc_optimizer_state = None
+        else:
+            qc_optimizer_state = update_lr_schedule_count(
+                _restore_state(params[8], training_state.qc_optimizer_state), 0
+            )
         training_state = training_state.replace(  # type: ignore
             normalizer_params=params[0],
             policy_params=params[1],
