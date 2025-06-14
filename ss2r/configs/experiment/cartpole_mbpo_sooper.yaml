@@ -9,8 +9,8 @@ training:
   num_envs: 10
   safe: true
   safety_budget: 75
-  train_domain_randomization: false
-  eval_domain_randomization: false
+  train_domain_randomization: true
+  eval_domain_randomization: true
   wandb_id: 1bfmnt25
 
 agent:
