@@ -98,11 +98,11 @@ class ModelBasedEnv(envs.Env):
                 jnp.ones_like(done),
                 done,
             )
-            reward = jnp.where(
-                expected_cost_for_traj > self.safety_budget,
-                jnp.ones_like(reward) * self.reward_termination,
-                reward,
-            )
+            # reward = jnp.where(
+            #     expected_cost_for_traj > self.safety_budget,
+            #     jnp.ones_like(reward) * self.reward_termination,
+            #     reward,
+            # )
 
             def reset_states(done, state, next_obs):
                 """Reset the state if done."""
