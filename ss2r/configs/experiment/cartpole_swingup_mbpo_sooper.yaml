@@ -18,12 +18,12 @@ training:
 
 environment:
   train_params:
-    pole_length: [0.1, 0.1]
+    pole_length: [-0.3, -0.3]
     pole_mass: [0., 0.]
     gear: [0., 0.]
 
   eval_params:
-    pole_length: [0.1, 0.1]
+    pole_length: [-0.3, -0.3]
     pole_mass: [0., 0.]
     gear: [0., 0.]
   
