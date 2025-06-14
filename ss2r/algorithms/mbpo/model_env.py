@@ -21,6 +21,9 @@ class ModelBasedEnv(envs.Env):
         normalizer_params,
         ensemble_selection="mean",  # "random", "mean", or "pessimistic"
         safety_budget=float("inf"),
+        cost_discount=1.0,
+        scaling_fn=lambda x: x,  # Function to scale costs
+        reward_termination=0.0,  # Not used in this implementation
     ):
         super().__init__()
         self.model_network = model_network
@@ -33,12 +36,13 @@ class ModelBasedEnv(envs.Env):
         self._observation_size = observation_size
         self._action_size = action_size
         self.transitions = transitions
+        self.cost_discount = cost_discount
+        self.scaling_fn = scaling_fn
+        self.reward_termination = reward_termination
 
     def reset(self, rng: jax.Array) -> base.State:
         sample_key, model_key = jax.random.split(rng)
-        indcs = jax.random.randint(
-            sample_key, (), 0, self.transitions.observation.shape[0]
-        )
+        indcs = jax.random.randint(sample_key, (), 0, self.transitions.reward.shape[0])
         transitions = float32(
             jax.tree_util.tree_map(lambda x: x[indcs], self.transitions)
         )
@@ -48,12 +52,6 @@ class ModelBasedEnv(envs.Env):
             reward=transitions.reward,
             done=jnp.zeros_like(transitions.reward),
             info={
-                "cumulative_cost": transitions.extras["state_extras"].get(
-                    "cumulative_cost", jnp.zeros_like(transitions.reward)
-                ),
-                "curr_discount": transitions.extras["state_extras"].get(
-                    "curr_discount", jnp.ones_like(transitions.reward)
-                ),
                 "truncation": jnp.zeros_like(transitions.reward),
                 "cost": transitions.extras["state_extras"].get(
                     "cost", jnp.zeros_like(transitions.reward)
@@ -83,37 +81,44 @@ class ModelBasedEnv(envs.Env):
         state.info["cost"] = cost
         state.info["truncation"] = truncation
         if self.qc_network is not None:
-            prev_cumulative_cost = state.info["cumulative_cost"]
-            curr_discount = state.info.get("curr_discount", jnp.ones_like(reward))
-            accumulated_cost_for_transition = (
-                prev_cumulative_cost
-                + curr_discount
-                * self.qc_network.apply(
+            prev_cumulative_cost = state.obs["cumulative_cost"][0]
+            curr_discount = state.obs["curr_discount"][0] * self.cost_discount
+            expected_cost_for_traj = (
+                self.scaling_fn(prev_cumulative_cost)
+                + self.qc_network.apply(
                     self.normalizer_params,
                     self.qc_params,
                     state.obs,
                     action,
                 ).mean(axis=-1)
+                * curr_discount
             )
             done = jnp.where(
-                accumulated_cost_for_transition > self.safety_budget,
+                expected_cost_for_traj > self.safety_budget,
                 jnp.ones_like(done),
                 done,
             )
+            reward = jnp.where(
+                expected_cost_for_traj > self.safety_budget,
+                jnp.ones_like(reward) * self.reward_termination,
+                reward,
+            )
 
-            def reset_states(self, done, state, next_obs):
+            def reset_states(done, state, next_obs):
                 """Reset the state if done."""
                 key, reset_keys = jax.random.split(state.info["key"])
                 state.info["key"] = key
-                state.info["cumulative_cost"] = jnp.where(
-                    done,
-                    jnp.zeros_like(reward),
-                    state.info["cumulative_cost"],
+                next_obs["cumulative_cost"] = (
+                    state.obs["cumulative_cost"] + cost * curr_discount
                 )
-                next_obs = jnp.where(done, self.reset(reset_keys).obs, next_obs)
-                return state, next_obs
+                reset_state_obs = self.reset(reset_keys).obs
+                obs = jax.tree_map(
+                    lambda x, y: jnp.where(done, x, y), reset_state_obs, next_obs
+                )
 
-            state, next_obs = reset_states(self, done, state, next_obs)
+                return state, obs
+
+            state, next_obs = reset_states(done, state, next_obs)
         state = state.replace(
             obs=next_obs,
             reward=reward,
@@ -146,6 +151,9 @@ def create_model_env(
     normalizer_params,
     ensemble_selection="random",
     safety_budget=float("inf"),
+    cost_discount=1.0,
+    scaling_fn=lambda x: x,  # Function to scale costs
+    reward_termination=0.0,
 ) -> ModelBasedEnv:
     """Factory function to create a model-based environment."""
     return ModelBasedEnv(
@@ -159,6 +167,9 @@ def create_model_env(
         normalizer_params=normalizer_params,
         ensemble_selection=ensemble_selection,
         safety_budget=safety_budget,
+        cost_discount=cost_discount,
+        scaling_fn=scaling_fn,
+        reward_termination=reward_termination,
     )
 
 
@@ -187,8 +198,8 @@ def _propagate_ensemble(
             normalizer_params, model_params, obs, action
         )
         # Randomly select one of the ensemble predictions
-        idx = jax.random.randint(key, (1,), 0, next_obs_pred.shape[0])[0]
-        next_obs = next_obs_pred[idx]
+        idx = jax.random.randint(key, (1,), 0, reward_pred.shape[0])[0]
+        next_obs = jax.tree_map(lambda x: x[idx], next_obs_pred)
         reward = reward_pred[idx]
         cost = cost_pred[idx]
     elif ensemble_selection == "mean":
@@ -196,7 +207,7 @@ def _propagate_ensemble(
         next_obs_pred, reward_pred, cost_pred = vmap_pred_fn(
             normalizer_params, model_params, obs, action
         )
-        next_obs = jnp.mean(next_obs_pred, axis=0)
+        next_obs = jax.tree_map(lambda x: jnp.mean(x, axis=0), next_obs_pred)
         reward = jnp.mean(reward_pred, axis=0)
         cost = jnp.mean(cost_pred, axis=0)
     else:

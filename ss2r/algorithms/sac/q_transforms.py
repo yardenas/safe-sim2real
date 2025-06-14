@@ -60,9 +60,8 @@ class PessimisticCostUpdate(QTransformation):
         new_target_q = jax.lax.stop_gradient(
             cost * scale + transitions.discount * gamma * next_v
         )
-        old_q = q_fn(transitions.observation, transitions.action).mean(axis=-1)
-        # TODO: check if works (intersection of models)
-        target_q = jax.lax.stop_gradient(jnp.minimum(new_target_q, old_q))
+        old_target_q = q_fn(transitions.observation, transitions.action).mean(axis=-1)
+        target_q = jax.lax.stop_gradient(jnp.minimum(new_target_q, old_target_q))
         return target_q
 
 

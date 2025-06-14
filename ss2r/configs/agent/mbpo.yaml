@@ -1,5 +1,5 @@
 defaults:
-  - cost_robustness: pess_cost_update
+  - cost_robustness: pessimistic_cost_update
   - reward_robustness: null
   - propagation: null
   - data_collection: step
