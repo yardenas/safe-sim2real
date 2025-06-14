@@ -6,14 +6,14 @@ defaults:
 
 
 training:
-  num_timesteps: 150000
+  num_timesteps: 1000000
   action_repeat: 4
   safe: true
   train_domain_randomization: false
   eval_domain_randomization: false
   safety_budget: 100
   num_envs: 10
-  num_evals: 15
+  num_evals: 20
   wandb_id: 54g1zvye
   
 agent:
@@ -25,9 +25,9 @@ agent:
   activation: swish
   critic_grad_updates_per_step: 40
   model_grad_updates_per_step: 40
-  learning_rate: 6e-4
+  learning_rate: 1e-3
   critic_learning_rate: 3e-4
-  model_learning_rate: 6e-4
+  model_learning_rate: 3e-4
   pessimism: 0
   optimism: 0
   reward_termination: 0
