@@ -33,7 +33,7 @@ class TrackOnlineCostsInObservation(Wrapper):
             }
         else:
             # Append the cumulative cost to state.obs
-            obs = jnp.concatenate([state.obs, cumulative_cost], axis=-1)
+            # obs = jnp.concatenate([state.obs, cumulative_cost], axis=-1)
             obs = {
                 "state": state.obs,
                 "cumulative_cost": cumulative_cost,
