@@ -14,18 +14,18 @@ training:
   safety_budget: 100
   num_envs: 10
   num_evals: 15
-  wandb_id: q2q1xl7v
+  wandb_id: u237697z
 
 environment:
   train_params:
-    pole_length: [-0.3, -0.3]
+    pole_length: [-0.1, -0.1]
     pole_mass: [0., 0.]
-    gear: [0., 0.]
+    gear: [3., 3.]
 
   eval_params:
-    pole_length: [-0.3, -0.3]
+    pole_length: [-0.1, -0.1]
     pole_mass: [0., 0.]
-    gear: [0., 0.]
+    gear: [3., 3.]
   
 agent:
   batch_size: 512
