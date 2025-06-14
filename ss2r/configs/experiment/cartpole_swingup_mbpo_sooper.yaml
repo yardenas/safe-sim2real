@@ -9,23 +9,12 @@ training:
   num_timesteps: 150000
   action_repeat: 4
   safe: true
-  train_domain_randomization: true
-  eval_domain_randomization: true
+  train_domain_randomization: false
+  eval_domain_randomization: false
   safety_budget: 100
   num_envs: 10
   num_evals: 15
-  wandb_id: u237697z
-
-environment:
-  train_params:
-    pole_length: [-0.1, -0.1]
-    pole_mass: [0., 0.]
-    gear: [3., 3.]
-
-  eval_params:
-    pole_length: [-0.1, -0.1]
-    pole_mass: [0., 0.]
-    gear: [3., 3.]
+  wandb_id: wp4wf3fk
   
 agent:
   batch_size: 512
