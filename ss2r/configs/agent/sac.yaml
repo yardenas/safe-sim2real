@@ -35,3 +35,4 @@ use_rae: false
 n_critics: 2
 n_heads: 1
 critic_entropy: true
+schedule_lr: false
