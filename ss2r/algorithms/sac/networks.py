@@ -125,6 +125,7 @@ def make_q_network(
     obs_key: str = "state",
     use_bro: bool = True,
     n_heads: int = 1,
+    head_size: int = 1,
 ) -> networks.FeedForwardNetwork:
     """Creates a value network."""
 
@@ -140,7 +141,7 @@ def make_q_network(
             net = BroNet if use_bro else MLP
             for _ in range(self.n_critics):
                 q = net(  # type: ignore
-                    layer_sizes=list(hidden_layer_sizes) + [1],
+                    layer_sizes=list(hidden_layer_sizes) + [head_size],
                     activation=activation,
                     kernel_init=jax.nn.initializers.lecun_uniform(),
                     num_heads=n_heads,
