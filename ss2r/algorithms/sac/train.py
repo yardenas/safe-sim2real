@@ -182,8 +182,11 @@ def train(
     reset_on_eval: bool = True,
     store_buffer: bool = False,
     use_rae: bool = False,
-    critic_entropy: bool = True,
     schedule_lr: bool = False,
+    init_lr: float = 0.0,
+    actor_burnin: float = 0.0,
+    actor_wait: float = 0.0,
+    critic_burnin: float = 0.0,
 ):
     if min_replay_size >= num_timesteps:
         raise ValueError(
@@ -239,11 +242,11 @@ def train(
     )
     make_policy = sac_networks.make_inference_fn(sac_network)
     alpha_optimizer = optax.adam(learning_rate=alpha_learning_rate)
-    make_optimizer = lambda lr, grad_clip_norm, grad_steps: optax.chain(
+    make_optimizer = lambda lr, grad_clip_norm, grad_steps, wait=0: optax.chain(
         optax.clip_by_global_norm(grad_clip_norm),
         optax.inject_hyperparams(optax.adamw)(
             learning_rate=optax.schedules.linear_schedule(
-                1e-6 if schedule_lr else lr, lr, grad_steps
+                init_lr if schedule_lr else lr, lr, grad_steps, wait
             )
         ),
     )
@@ -251,11 +254,16 @@ def train(
     policy_optimizer = make_optimizer(
         learning_rate,
         1.0,
-        int(num_grad_steps // num_critic_updates_per_actor_update * 0.4),
+        int(num_grad_steps // num_critic_updates_per_actor_update * actor_burnin),
+        actor_wait,
     )
-    qr_optimizer = make_optimizer(critic_learning_rate, 1.0, int(num_grad_steps * 0.4))
+    qr_optimizer = make_optimizer(
+        critic_learning_rate, 1.0, int(num_grad_steps * critic_burnin)
+    )
     qc_optimizer = (
-        make_optimizer(cost_critic_learning_rate, 1.0, int(num_grad_steps * 0.4))
+        make_optimizer(
+            cost_critic_learning_rate, 1.0, int(num_grad_steps * critic_burnin)
+        )
         if safe
         else None
     )
