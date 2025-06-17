@@ -39,3 +39,4 @@ init_lr: 0.
 actor_burnin: 0.
 actor_wait: 0.
 critic_burnin: 0.
+finetune: false

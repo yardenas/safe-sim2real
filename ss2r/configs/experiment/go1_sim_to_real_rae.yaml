@@ -24,3 +24,4 @@ agent:
   actor_burnin: 1.
   critic_burnin: 1.
   actor_wait: 0.2
+  finetune: true
