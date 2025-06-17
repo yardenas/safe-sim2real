@@ -9,7 +9,7 @@ training:
   train_domain_randomization: true
   eval_domain_randomization: true
   safe: false
-  wandb_id: k2i4ej7e
+  wandb_id: gsy4lrxa
   num_envs: 10
   num_timesteps: 1000000
   num_evals: 20
