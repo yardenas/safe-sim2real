@@ -42,7 +42,7 @@ agent:
   use_rae: true
   min_replay_size: 10000
   max_replay_size: 4194304
-  grad_updates_per_step: 250
+  grad_updates_per_step: 500
   num_critic_updates_per_actor_update: 15
   n_heads: 10
   n_critics: 1
