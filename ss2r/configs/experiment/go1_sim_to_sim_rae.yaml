@@ -1,0 +1,48 @@
+# @package _global_
+defaults:
+  - go1_joystick
+  - override /agent/penalizer: lagrangian
+  - override /agent/data_collection: episodic
+  - _self_
+
+training:
+  train_domain_randomization: true
+  eval_domain_randomization: true
+  safe: false
+  wandb_id: v4j28y3m
+  num_envs: 10
+  num_timesteps: 1000000
+  num_evals: 20
+  hard_resets: false
+
+environment:
+  train_params:
+    floor_friction: [0.2, 0.2]
+    scale_friction: [1., 1.]
+    scale_armature: [1., 1.]
+    jitter_mass: [0., 0.]
+    scale_link_mass: [1., 1.]
+    add_torso_mass: [0., 0.]
+    jitter_qpos0: [0., 0.]
+    Kd: [0.0, 0.0]
+    Kp: [0.0, 0.0]
+
+  eval_params:
+    floor_friction: [0.2, 0.2]
+    scale_friction: [1., 1.]
+    scale_armature: [1., 1.]
+    jitter_mass: [0., 0.]
+    scale_link_mass: [1., 1.]
+    add_torso_mass: [0., 0.]
+    jitter_qpos0: [0., 0.]
+    Kd: [0.0, 0.0]
+    Kp: [0.0, 0.0]
+
+agent:
+  use_rae: true
+  min_replay_size: 100000
+  max_replay_size: 4194304
+  grad_updates_per_step: 250
+  num_critic_updates_per_actor_update: 15
+  n_heads: 10
+  n_critics: 1
