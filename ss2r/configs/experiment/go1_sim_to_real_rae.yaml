@@ -46,5 +46,7 @@ agent:
   num_critic_updates_per_actor_update: 15
   n_heads: 10
   n_critics: 1
-  critic_entropy: true
   schedule_lr: true
+  actor_burnin: 1.
+  critic_burnin: 1.
+  actor_wait: 0.15
