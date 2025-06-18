@@ -1,0 +1,25 @@
+defaults:
+  - mujoco_playground_base
+task_name: AlohaSinglePegInsertion
+task_params:
+  ctrl_dt: 0.0025
+  sim_dt: 0.0025
+  episode_length: 1000
+  action_repeat: 2
+  action_scale: 0.005
+  reward_config:
+    scales:
+      left_reward: 1
+      right_reward: 1
+      left_target_qpos: 0.3
+      right_target_qpos: 0.3
+      no_table_collision: 0.3
+      socket_z_up: 0.5
+      peg_z_up: 0.5
+      socket_entrance_reward: 4
+      peg_end2_reward: 4
+      peg_insertion_reward: 8
+
+train_params: {}
+
+eval_params: {}
