@@ -23,6 +23,7 @@ import jax.numpy as jp
 import numpy as np
 from ml_collections import config_dict
 from mujoco import mjx
+from mujoco_playground import manipulation
 from mujoco_playground._src.manipulation.aloha import (
     depth_noise,
     distillation,
@@ -31,7 +32,7 @@ from mujoco_playground._src.manipulation.aloha import (
 )
 
 
-class VisionPegInsertion(peg_insertion.SinglePegInsertion):
+class PegInsertionVision(peg_insertion.SinglePegInsertion):
     """Distillation environment for peg insertion task with vision capabilities.
 
     This class extends the PegInsertion environment to support policy distillation
@@ -299,3 +300,10 @@ class VisionPegInsertion(peg_insertion.SinglePegInsertion):
         else:
             ret["state_with_time"] = (110,)
         return ret
+
+
+manipulation.register_environment(
+    "AlohaPegInsertionVision",
+    PegInsertionVision,
+    distillation.default_config(),
+)
