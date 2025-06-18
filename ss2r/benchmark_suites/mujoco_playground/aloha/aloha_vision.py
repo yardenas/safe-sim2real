@@ -150,11 +150,6 @@ class PegInsertionVision(peg_insertion.SinglePegInsertion):
         rgb_r = distillation.adjust_brightness(
             self.rgb_noise(rng_noise2, rgb_r, info), info["brightness"]
         )
-        latent_rgb_l, latent_rgb_r = jp.split(
-            self.encoder_fn({"pixels/view_0": rgb_l, "pixels/view_1": rgb_r}),
-            2,
-            axis=-1,
-        )
 
         # Required for supervision to stay still.
         socket_pos = data.xpos[self._socket_body]
@@ -171,8 +166,6 @@ class PegInsertionVision(peg_insertion.SinglePegInsertion):
             "pixels/view_1": dmap_r,
             "pixels/view_2": rgb_l,
             "pixels/view_3": rgb_r,
-            "latent_0": latent_rgb_l,  # actual policy inputs
-            "latent_1": latent_rgb_r,
             "latent_2": r_dmap_l.ravel(),
             "latent_3": r_dmap_r.ravel(),
             "socket_hidden": socket_hidden,
