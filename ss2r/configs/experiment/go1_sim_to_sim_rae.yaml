@@ -11,7 +11,7 @@ training:
   safe: false
   wandb_id: gsy4lrxa
   num_envs: 1
-  num_timesteps: 1000000
+  num_timesteps: 3500000
   num_evals: 20
   hard_resets: false
 
@@ -46,4 +46,4 @@ agent:
   num_critic_updates_per_actor_update: 15
   n_heads: 10
   n_critics: 1
-  finetune: true
+  finetune: false
