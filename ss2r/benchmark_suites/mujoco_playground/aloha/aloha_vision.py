@@ -31,6 +31,8 @@ from mujoco_playground._src.manipulation.aloha import (
     pick_base,
 )
 
+domain_randomize = distillation.domain_randomize
+
 
 class PegInsertionVision(peg_insertion.SinglePegInsertion):
     """Distillation environment for peg insertion task with vision capabilities.
