@@ -97,25 +97,22 @@ files = [
 
 [[package]]
 name = "brax"
-version = "0.12.3"
+version = "0.12.4"
 description = "A differentiable physics engine written in JAX."
 optional = false
 python-versions = ">=3.10"
 groups = ["main"]
 files = [
-    {file = "brax-0.12.3-py3-none-any.whl", hash = "sha256:acf110e9df394c5f5e85709692d8ee6ad6d67aca7379b8f64239bd7799d1ccc2"},
-    {file = "brax-0.12.3.tar.gz", hash = "sha256:8bd1a031379d48f976dab42f303d9de2ccf4a9016159e41d528e40712d12ed47"},
+    {file = "brax-0.12.4-py3-none-any.whl", hash = "sha256:dc4b644de697e4ec8f774421bf4ff5b90bff5742f780b9fc0511013b0cc9bbba"},
+    {file = "brax-0.12.4.tar.gz", hash = "sha256:a7ae5e6f459bce96d1092a9a53eb73663c297890f12bc6bb2b3108ab2c8f6451"},
 ]
 
 [package.dependencies]
 absl-py = "*"
-dm-env = "*"
 etils = "*"
 flask = "*"
 flask-cors = "*"
 flax = "*"
-grpcio = "*"
-gym = "*"
 jax = ">=0.4.6"
 jaxlib = ">=0.4.6"
 jaxopt = "*"
@@ -127,14 +124,13 @@ numpy = "*"
 optax = "*"
 orbax-checkpoint = "*"
 pillow = "*"
-pytinyrenderer = "*"
 scipy = "*"
 tensorboardx = "*"
 trimesh = "*"
 typing-extensions = "*"
 
 [package.extras]
-develop = ["pytest", "transforms3d"]
+develop = ["dm-env", "gym", "pytest", "transforms3d"]
 
 [[package]]
 name = "certifi"
@@ -1179,46 +1175,6 @@ files = [
 
 [package.extras]
 protobuf = ["grpcio-tools (>=1.64.0)"]
-
-[[package]]
-name = "gym"
-version = "0.26.2"
-description = "Gym: A universal API for reinforcement learning environments"
-optional = false
-python-versions = ">=3.6"
-groups = ["main"]
-files = [
-    {file = "gym-0.26.2.tar.gz", hash = "sha256:e0d882f4b54f0c65f203104c24ab8a38b039f1289986803c7d02cdbe214fbcc4"},
-]
-
-[package.dependencies]
-cloudpickle = ">=1.2.0"
-gym_notices = ">=0.0.4"
-numpy = ">=1.18.0"
-
-[package.extras]
-accept-rom-license = ["autorom[accept-rom-license] (>=0.4.2,<0.5.0)"]
-all = ["ale-py (>=0.8.0,<0.9.0)", "box2d-py (==2.3.5)", "imageio (>=2.14.1)", "lz4 (>=3.1.0)", "matplotlib (>=3.0)", "moviepy (>=1.0.0)", "mujoco (==2.2)", "mujoco_py (>=2.1,<2.2)", "opencv-python (>=3.0)", "pygame (==2.1.0)", "pytest (==7.0.1)", "swig (==4.*)"]
-atari = ["ale-py (>=0.8.0,<0.9.0)"]
-box2d = ["box2d-py (==2.3.5)", "pygame (==2.1.0)", "swig (==4.*)"]
-classic-control = ["pygame (==2.1.0)"]
-mujoco = ["imageio (>=2.14.1)", "mujoco (==2.2)"]
-mujoco-py = ["mujoco_py (>=2.1,<2.2)"]
-other = ["lz4 (>=3.1.0)", "matplotlib (>=3.0)", "moviepy (>=1.0.0)", "opencv-python (>=3.0)"]
-testing = ["box2d-py (==2.3.5)", "imageio (>=2.14.1)", "lz4 (>=3.1.0)", "matplotlib (>=3.0)", "moviepy (>=1.0.0)", "mujoco (==2.2)", "mujoco_py (>=2.1,<2.2)", "opencv-python (>=3.0)", "pygame (==2.1.0)", "pytest (==7.0.1)", "swig (==4.*)"]
-toy-text = ["pygame (==2.1.0)"]
-
-[[package]]
-name = "gym-notices"
-version = "0.0.8"
-description = "Notices for gym"
-optional = false
-python-versions = "*"
-groups = ["main"]
-files = [
-    {file = "gym-notices-0.0.8.tar.gz", hash = "sha256:ad25e200487cafa369728625fe064e88ada1346618526102659b4640f2b4b911"},
-    {file = "gym_notices-0.0.8-py3-none-any.whl", hash = "sha256:e5f82e00823a166747b4c2a07de63b6560b1acb880638547e0cabf825a01e463"},
-]
 
 [[package]]
 name = "gymnasium"
@@ -3628,26 +3584,6 @@ files = [
 six = ">=1.5"
 
 [[package]]
-name = "pytinyrenderer"
-version = "0.0.14"
-description = "Python bindings for Tiny Renderer"
-optional = false
-python-versions = "*"
-groups = ["main"]
-files = [
-    {file = "pytinyrenderer-0.0.14-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:b7f49b979632b4a876d13e33b819a86a66fe94fc66b9421c3d6b8eebcc9f5b1a"},
-    {file = "pytinyrenderer-0.0.14-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:f7505373ba6e3483422255b0fd79a0e162807de3028f69c7d6806167e80ad1ff"},
-    {file = "pytinyrenderer-0.0.14-cp36-cp36m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:764ade8ba54666342efddc785156a14e44972f97db95f2e049ff97bbd0ee3eb1"},
-    {file = "pytinyrenderer-0.0.14-cp37-cp37m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:d713d0a3d3295ab174cf4d79eac080e008fd139767b929dd81162cb9ae8e2e27"},
-    {file = "pytinyrenderer-0.0.14-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:c75b8d99576414272279e9ed0a0f96794a095be5ab79134fe153a7db42997b05"},
-    {file = "pytinyrenderer-0.0.14-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:9bdabc6caf757ad3d055772f765bf9ebb257df888cb771416cb3cad83363ad28"},
-    {file = "pytinyrenderer-0.0.14-pp37-pypy37_pp73-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:9e093651ea2f38f8159d491e70ff66f693e2f1c77855d32c0236798bc598a700"},
-    {file = "pytinyrenderer-0.0.14-pp38-pypy38_pp73-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:61b82253eb3c0174e279893831be0cee773408d8be18fb548e82d71ac3f0acd5"},
-    {file = "pytinyrenderer-0.0.14-pp39-pypy39_pp73-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:68210d66b8fe2264445caf29de646bf17da6afef9da03ab2538b04432c650c15"},
-    {file = "pytinyrenderer-0.0.14.tar.gz", hash = "sha256:5fedb4798509cb911a03a3bc9e8de8d4d5aa36b1de52eb878efef104b95a3d15"},
-]
-
-[[package]]
 name = "pytz"
 version = "2024.1"
 description = "World timezone definitions, modern and historical"
@@ -4925,4 +4861,4 @@ test = ["big-O", "jaraco.functools", "jaraco.itertools", "jaraco.test", "more-it
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.10,<3.12"
-content-hash = "edbc3da02286d25ada82fa89d075807bb4e6f0dbf6d148f5aa6e0eee83b882c7"
+content-hash = "d2702a181e4181343cd62e0e9a56e4adb53901724cf046af1dcb2ec93c215218"
