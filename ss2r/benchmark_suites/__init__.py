@@ -2,6 +2,7 @@ import functools
 
 import jax
 from brax import envs
+from mujoco_playground import locomotion
 
 from ss2r.algorithms.ppo.wrappers import Saute
 from ss2r.benchmark_suites import brax, mujoco_playground, safety_gym
@@ -11,7 +12,9 @@ from ss2r.benchmark_suites.brax.humanoid import humanoid
 from ss2r.benchmark_suites.mujoco_playground.cartpole import cartpole as dm_cartpole
 from ss2r.benchmark_suites.mujoco_playground.go1_joystick import go1_joystick
 from ss2r.benchmark_suites.mujoco_playground.go2_joystick import (
-    randomize as go2_randomize,
+    getup,
+    handstand,
+    joystick,
 )
 from ss2r.benchmark_suites.mujoco_playground.humanoid import humanoid as dm_humanoid
 from ss2r.benchmark_suites.mujoco_playground.quadruped import quadruped
@@ -24,6 +27,24 @@ from ss2r.benchmark_suites.wrappers import (
     FrameActionStack,
     SPiDR,
     wrap,
+)
+
+locomotion.register_environment(
+    "Go2JoystickFlatTerrain",
+    functools.partial(joystick.Joystick, task="flat_terrain"),
+    joystick.default_config,
+)
+locomotion.register_environment(
+    "Go2JoystickRoughTerrain",
+    functools.partial(joystick.Joystick, task="rough_terrain"),
+    joystick.default_config,
+)
+locomotion.register_environment("Go2Getup", getup.Getup, getup.default_config)
+locomotion.register_environment(
+    "Go2Handstand", handstand.Handstand, handstand.default_config
+)
+locomotion.register_environment(
+    "Go2Footstand", handstand.Footstand, handstand.default_config
 )
 
 
@@ -309,8 +330,8 @@ randomization_fns = {
     "SafeJointGo1JoystickFlatTerrain": go1_joystick.domain_randomization,
     "SafeFlipGo1JoystickFlatTerrain": go1_joystick.domain_randomization,
     "SafeJointTorqueGo1JoystickFlatTerrain": go1_joystick.domain_randomization,
-    "Go2JoystickFlatTerrain": go2_randomize.domain_randomize,
-    "Go2JoystickRoughTerrain": go2_randomize.domain_randomize,
+    "Go2JoystickFlatTerrain": go1_joystick.domain_randomization,
+    "Go2JoystickRoughTerrain": go1_joystick.domain_randomization,
     "ant": ant.domain_randomization,
     "ant_safe": ant.domain_randomization,
     "QuadrupedWalk": quadruped.domain_randomization,

@@ -16,7 +16,7 @@
 
 from etils import epath
 
-ROOT_PATH = epath.Path(__file__).parent
+ROOT_PATH = epath.Path(__file__).parent / "assets"
 FEET_ONLY_FLAT_TERRAIN_XML = ROOT_PATH / "xmls" / "scene_mjx_feetonly_flat_terrain.xml"
 FEET_ONLY_ROUGH_TERRAIN_XML = (
     ROOT_PATH / "xmls" / "scene_mjx_feetonly_rough_terrain.xml"
