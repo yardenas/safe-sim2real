@@ -16,7 +16,7 @@ training:
 agent:
   min_replay_size: 1000
   max_replay_size: 4194304
-  grad_updates_per_step: 5000
+  grad_updates_per_step: 10000
   num_critic_updates_per_actor_update: 20
   n_heads: 10
   n_critics: 1
