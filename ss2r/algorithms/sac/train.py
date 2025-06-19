@@ -188,7 +188,6 @@ def train(
     actor_burnin: float = 0.0,
     actor_wait: float = 0.0,
     critic_burnin: float = 0.0,
-    finetune: bool = False,
 ):
     if min_replay_size >= num_timesteps:
         raise ValueError(

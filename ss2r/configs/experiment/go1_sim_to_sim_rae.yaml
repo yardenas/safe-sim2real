@@ -46,7 +46,6 @@ agent:
   num_critic_updates_per_actor_update: 15
   n_heads: 10
   n_critics: 1
-  finetune: false
   replay_buffer:
     wandb_ids:
       - gsy4lrxa
