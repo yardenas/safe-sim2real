@@ -16,12 +16,15 @@ training:
 agent:
   min_replay_size: 1000
   max_replay_size: 4194304
-  grad_updates_per_step: 10000
+  grad_updates_per_step: 7500
   num_critic_updates_per_actor_update: 20
   n_heads: 10
   n_critics: 1
   schedule_lr: true
   actor_burnin: 1.
   critic_burnin: 1.
-  actor_wait: 0.025
+  actor_wait: 0.01
   learning_rate: 8e-5
+  replay_buffer:
+    wandb_ids:
+      - m96xy7yo
