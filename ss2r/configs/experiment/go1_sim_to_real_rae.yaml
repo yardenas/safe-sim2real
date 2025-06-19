@@ -26,6 +26,4 @@ agent:
   actor_wait: 0.02
   learning_rate: 8e-5
   replay_buffer:
-    wandb_ids:
-      - m96xy7yo
     mix: 0.75
