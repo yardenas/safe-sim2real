@@ -23,7 +23,7 @@ agent:
   schedule_lr: true
   actor_burnin: 1.
   critic_burnin: 1.
-  actor_wait: 0.01
+  actor_wait: 0.02
   learning_rate: 8e-5
   replay_buffer:
     wandb_ids:
