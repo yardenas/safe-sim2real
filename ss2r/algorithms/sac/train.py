@@ -38,7 +38,6 @@ from ss2r.algorithms.penalizers import Penalizer
 from ss2r.algorithms.sac import gradients
 from ss2r.algorithms.sac.data import collect_single_step
 from ss2r.algorithms.sac.q_transforms import QTransformation, SACBase, SACCost, UCBCost
-from ss2r.algorithms.sac.rae import RAEReplayBuffer
 from ss2r.algorithms.sac.types import (
     CollectDataFn,
     Metrics,
@@ -165,6 +164,9 @@ def train(
     network_factory: sac_networks.NetworkFactory[
         sac_networks.SafeSACNetworks
     ] = sac_networks.make_sac_networks,
+    replay_buffer_factory: Optional[
+        Callable[[int, Any, PRNGKey, int], replay_buffers.ReplayBuffer]
+    ] = replay_buffers.UniformSamplingQueue,
     n_critics: int = 2,
     n_heads: int = 1,
     progress_fn: Callable[[int, Metrics], None] = lambda *args: None,
@@ -337,17 +339,9 @@ def train(
                 qc_optimizer_state=qc_optimizer_state,
             )
         if len(params) >= 9 and use_rae:
-            logging.info("Restoring replay buffer state")
             buffer_state = params[-1]
             buffer_state = replay_buffers.ReplayBufferState(**buffer_state)
-            replay_buffer = RAEReplayBuffer(
-                max_replay_size=max_replay_size,
-                dummy_data_sample=dummy_transition,
-                sample_batch_size=batch_size * grad_updates_per_step,
-                offline_data_state=buffer_state,
-            )
-    if not restore_checkpoint_path or not use_rae:
-        replay_buffer = replay_buffers.UniformSamplingQueue(
+        replay_buffer = replay_buffer_factory(
             max_replay_size=max_replay_size,
             dummy_data_sample=dummy_transition,
             sample_batch_size=batch_size * grad_updates_per_step,

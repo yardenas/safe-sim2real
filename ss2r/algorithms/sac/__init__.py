@@ -7,6 +7,17 @@ from ss2r.algorithms.sac.q_transforms import (
     get_cost_q_transform,
     get_reward_q_transform,
 )
+from brax.training.replay_buffers import UniformSamplingQueue
+from ss2r.algorithms.sac.rae import RAEReplayBuffer
+
+
+def _get_replay_buffer(cfg):
+    if "replay_buffer" not in cfg.agent:
+        return UniformSamplingQueue
+    else:
+        return functools.partial(
+            RAEReplayBuffer, wandb_ids=cfg.agent.replay_buffer.wandb_ids
+        )
 
 
 def get_train_fn(cfg, checkpoint_path, restore_checkpoint_path):
@@ -59,6 +70,7 @@ def get_train_fn(cfg, checkpoint_path, restore_checkpoint_path):
     cost_q_transform = get_cost_q_transform(cfg)
     reward_q_transform = get_reward_q_transform(cfg)
     data_collection = get_collection_fn(cfg)
+    replay_buffer_factory = _get_replay_buffer(cfg.agent)
     train_fn = functools.partial(
         sac.train,
         **agent_cfg,
@@ -70,6 +82,7 @@ def get_train_fn(cfg, checkpoint_path, restore_checkpoint_path):
         penalizer=penalizer,
         penalizer_params=penalizer_params,
         get_experience_fn=data_collection,
+        replay_buffer_factory=replay_buffer_factory,
         restore_checkpoint_path=restore_checkpoint_path,
     )
     return train_fn

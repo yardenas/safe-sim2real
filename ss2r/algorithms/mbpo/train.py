@@ -162,7 +162,6 @@ def train(
     normalize_budget: bool = True,
     reset_on_eval: bool = True,
     store_buffer: bool = False,
-    use_rae: bool = False,
     optimism: float = 0.0,
     pessimism: float = 0.0,
     model_propagation: str = "nominal",
