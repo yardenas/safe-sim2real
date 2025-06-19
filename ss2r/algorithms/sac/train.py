@@ -337,7 +337,7 @@ def train(
     replay_buffer = replay_buffer_factory(  # type: ignore
         max_replay_size=max_replay_size,
         dummy_data_sample=dummy_transition,
-        sample_batch_size=batch_size * grad_updates_per_step,
+        sample_batch_size=batch_size,
     )
     buffer_state = replay_buffer.init(rb_key)
     alpha_loss, critic_loss, actor_loss = sac_losses.make_losses(
@@ -376,13 +376,14 @@ def train(
         extra_fields += ("disagreement",)  # type: ignore
 
     def sgd_step(
-        carry: Tuple[TrainingState, PRNGKey, int], transitions: Transition
-    ) -> Tuple[Tuple[TrainingState, PRNGKey, int], Metrics]:
-        training_state, key, count = carry
+        carry: Tuple[TrainingState, ReplayBufferState, PRNGKey, int], unused_t
+    ) -> Tuple[Tuple[TrainingState, ReplayBufferState, PRNGKey, int], Metrics]:
+        training_state, buffer_state, key, count = carry
 
         key, key_alpha, key_critic, key_cost_critic, key_actor = jax.random.split(
             key, 5
         )
+        new_buffer_state, transitions = replay_buffer.sample(buffer_state)
         transitions = float32(transitions)
         alpha_loss, alpha_params, alpha_optimizer_state = alpha_update(
             training_state.alpha_params,
@@ -499,7 +500,7 @@ def train(
             normalizer_params=training_state.normalizer_params,
             penalizer_params=new_penalizer_params,
         )  # type: ignore
-        return (new_training_state, key, count + 1), metrics
+        return (new_training_state, new_buffer_state, key, count + 1), metrics
 
     def run_experience_step(
         training_state: TrainingState,
@@ -532,17 +533,12 @@ def train(
         training_key: PRNGKey,
     ) -> Tuple[TrainingState, ReplayBufferState, Metrics]:
         """Runs the jittable training step after experience collection."""
-        buffer_state, transitions = replay_buffer.sample(buffer_state)
-        # Change the front dimension of transitions so 'update_step' is called
-        # grad_updates_per_step times by the scan.
-        transitions = jax.tree_util.tree_map(
-            lambda x: jnp.reshape(x, (grad_updates_per_step, -1) + x.shape[1:]),
-            transitions,
+        (training_state, buffer_state, *_), metrics = jax.lax.scan(
+            sgd_step,
+            (training_state, buffer_state, training_key, 0),
+            (),
+            length=grad_updates_per_step,
         )
-        (training_state, *_), metrics = jax.lax.scan(
-            sgd_step, (training_state, training_key, 0), transitions
-        )
-        metrics["buffer_current_size"] = replay_buffer.size(buffer_state)
         return training_state, buffer_state, metrics
 
     def training_step(
@@ -559,6 +555,7 @@ def train(
             training_state, buffer_state, training_key
         )
         training_metrics |= env_state.metrics
+        training_metrics["buffer_current_size"] = replay_buffer.size(buffer_state)
         return training_state, env_state, buffer_state, training_metrics
 
     def prefill_replay_buffer(
