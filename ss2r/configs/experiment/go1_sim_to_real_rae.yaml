@@ -16,7 +16,7 @@ training:
 agent:
   min_replay_size: 1000
   max_replay_size: 4194304
-  grad_updates_per_step: 5000
+  grad_updates_per_step: 2500
   num_critic_updates_per_actor_update: 20
   n_heads: 10
   n_critics: 1
@@ -28,3 +28,4 @@ agent:
   replay_buffer:
     wandb_ids:
       - m96xy7yo
+    mix: 0.75
