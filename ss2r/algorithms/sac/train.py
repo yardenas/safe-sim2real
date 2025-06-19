@@ -164,8 +164,8 @@ def train(
     network_factory: sac_networks.NetworkFactory[
         sac_networks.SafeSACNetworks
     ] = sac_networks.make_sac_networks,
-    replay_buffer_factory: Optional[
-        Callable[[int, Any, PRNGKey, int], replay_buffers.ReplayBuffer]
+    replay_buffer_factory: Callable[
+        [int, Any, PRNGKey, int], replay_buffers.ReplayBuffer
     ] = replay_buffers.UniformSamplingQueue,
     n_critics: int = 2,
     n_heads: int = 1,
@@ -183,7 +183,6 @@ def train(
     normalize_budget: bool = True,
     reset_on_eval: bool = True,
     store_buffer: bool = False,
-    use_rae: bool = False,
     schedule_lr: bool = False,
     init_lr: float = 0.0,
     actor_burnin: float = 0.0,
@@ -309,43 +308,38 @@ def train(
     local_key, rb_key, env_key, eval_key = jax.random.split(local_key, 4)
     if restore_checkpoint_path is not None:
         params = checkpoint.load(restore_checkpoint_path)
-        if finetune:
-            policy_optimizer_state = update_lr_schedule_count(
-                _restore_state(params[5], training_state.policy_optimizer_state), 0
-            )
-            alpha_optimizer_state = _restore_state(
-                params[6], training_state.alpha_optimizer_state
-            )
-            qr_optimizer_state = update_lr_schedule_count(
-                _restore_state(params[7], training_state.qr_optimizer_state), 0
-            )
-            if qc_optimizer is None:
-                qc_optimizer_state = None
-            else:
-                qc_optimizer_state = update_lr_schedule_count(
-                    _restore_state(params[8], training_state.qc_optimizer_state), 0
-                )
-            training_state = training_state.replace(  # type: ignore
-                normalizer_params=params[0],
-                policy_params=params[1],
-                penalizer_params=_restore_state(
-                    params[2], training_state.penalizer_params
-                ),
-                qr_params=params[3],
-                qc_params=params[4],
-                policy_optimizer_state=policy_optimizer_state,
-                alpha_optimizer_state=alpha_optimizer_state,
-                qr_optimizer_state=qr_optimizer_state,
-                qc_optimizer_state=qc_optimizer_state,
-            )
-        if len(params) >= 9 and use_rae:
-            buffer_state = params[-1]
-            buffer_state = replay_buffers.ReplayBufferState(**buffer_state)
-        replay_buffer = replay_buffer_factory(
-            max_replay_size=max_replay_size,
-            dummy_data_sample=dummy_transition,
-            sample_batch_size=batch_size * grad_updates_per_step,
+        del params[-1]
+        policy_optimizer_state = update_lr_schedule_count(
+            _restore_state(params[5], training_state.policy_optimizer_state), 0
         )
+        alpha_optimizer_state = _restore_state(
+            params[6], training_state.alpha_optimizer_state
+        )
+        qr_optimizer_state = update_lr_schedule_count(
+            _restore_state(params[7], training_state.qr_optimizer_state), 0
+        )
+        if qc_optimizer is None:
+            qc_optimizer_state = None
+        else:
+            qc_optimizer_state = update_lr_schedule_count(
+                _restore_state(params[8], training_state.qc_optimizer_state), 0
+            )
+        training_state = training_state.replace(  # type: ignore
+            normalizer_params=params[0],
+            policy_params=params[1],
+            penalizer_params=_restore_state(params[2], training_state.penalizer_params),
+            qr_params=params[3],
+            qc_params=params[4],
+            policy_optimizer_state=policy_optimizer_state,
+            alpha_optimizer_state=alpha_optimizer_state,
+            qr_optimizer_state=qr_optimizer_state,
+            qc_optimizer_state=qc_optimizer_state,
+        )
+    replay_buffer = replay_buffer_factory(  # type: ignore
+        max_replay_size=max_replay_size,
+        dummy_data_sample=dummy_transition,
+        sample_batch_size=batch_size * grad_updates_per_step,
+    )
     buffer_state = replay_buffer.init(rb_key)
     alpha_loss, critic_loss, actor_loss = sac_losses.make_losses(
         sac_network=sac_network,

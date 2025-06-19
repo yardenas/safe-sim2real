@@ -1,10 +1,10 @@
 from typing import Generic, Sequence, Tuple, TypeVar
 
-from brax.training.agents.sac import checkpoint
-from absl import logging
 import flax
 import jax
 import jax.numpy as jnp
+from absl import logging
+from brax.training.agents.sac import checkpoint
 from brax.training.replay_buffers import (
     ReplayBuffer,
     ReplayBufferState,
@@ -37,24 +37,20 @@ class RAEReplayBuffer(ReplayBuffer[RAEReplayBufferState, Sample], Generic[Sample
         self.online_buffer = UniformSamplingQueue(
             max_replay_size, dummy_data_sample, self.online_sample_size
         )
-        all_data = prepare_offline_data(wandb_ids)
-        max_size = all_data.shape[0]
-        self.offline_buffer = UniformSamplingQueue(
-            max_size,
-            dummy_data_sample,
-            self.offline_sample_size,
-        )
-        logging.info("Restoring replay buffer state with %d samples", max_size)
-        self._unflattened_data = self.offline_buffer._unflatten_fn(all_data)
+        self.offline_buffer = None
+        self.wandb_ids = wandb_ids
+        self._dummy_data_sample = dummy_data_sample
 
     def init(self, key: jax.Array) -> RAEReplayBufferState:
         """Initialize both buffers and load offline data from disk."""
-        key_online, key_offline, key_next = jax.random.split(key, 3)
+        key_online, key_next = jax.random.split(key, 2)
         online_state = self.online_buffer.init(key_online)
-        offline_state = self.offline_buffer.init(key_offline)
-        offline_state = self.offline_buffer.insert(
-            offline_state, self._unflattened_data
+        offline_state = prepare_offline_data(self.wandb_ids)
+        max_size = offline_state.data.shape[0]
+        self.offline_buffer = UniformSamplingQueue(
+            max_size, self._dummy_data_sample, self.offline_sample_size
         )
+        logging.info("Restoring replay buffer state with %d samples", max_size)
         return RAEReplayBufferState(
             online_state=online_state,  # type: ignore
             offline_state=offline_state,  # type: ignore
@@ -76,6 +72,7 @@ class RAEReplayBuffer(ReplayBuffer[RAEReplayBufferState, Sample], Generic[Sample
         self, state: RAEReplayBufferState
     ) -> Tuple[RAEReplayBufferState, Sample]:
         """Sample from both buffers and return merged batch."""
+        assert self.offline_buffer is not None
         key_online, key_offline, new_key = jax.random.split(state.key, 3)
         online_state, online_samples = self.online_buffer.sample(
             state.online_state.replace(key=key_online)
@@ -96,6 +93,7 @@ class RAEReplayBuffer(ReplayBuffer[RAEReplayBufferState, Sample], Generic[Sample
         return new_state, combined_samples
 
     def size(self, state: RAEReplayBufferState) -> int:
+        assert self.offline_buffer is not None
         return self.online_buffer.size(state.online_state) + self.offline_buffer.size(
             state.offline_state
         )
@@ -106,14 +104,23 @@ def prepare_offline_data(wandb_ids):
     for wandb_id in wandb_ids:
         checkpoint_path = get_wandb_checkpoint(wandb_id)
         params = checkpoint.load(checkpoint_path)
-        assert len(params) == 9
         replay_buffer_state = params[-1]
-        data.append(_find_first_nonzeros(replay_buffer_state.data))
-    concatenated_data = jnp.concatenate(data, axis=0)
-    return concatenated_data
+        data.append(_find_first_nonzeros(replay_buffer_state["data"]))
+    concatnated_data = jnp.concatenate(data, axis=0)
+    insert_position = jnp.array(concatnated_data.shape[0], dtype=jnp.int32)
+    key = replay_buffer_state["key"]
+    return ReplayBufferState(
+        data=concatnated_data,
+        insert_position=insert_position,
+        key=key,
+        sample_position=replay_buffer_state["sample_position"],
+    )
 
 
 def _find_first_nonzeros(x):
     zero_row_mask = jnp.all(x == 0, axis=1)
+    if jnp.all(~zero_row_mask):
+        # Replay buffer was full, argmax would retun 0
+        return x
     first_zero_row_index = jnp.argmax(zero_row_mask)
     return x[:first_zero_row_index]

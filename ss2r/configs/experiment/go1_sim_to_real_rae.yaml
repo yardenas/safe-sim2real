@@ -13,7 +13,6 @@ training:
   num_evals: 20
 
 agent:
-  use_rae: true
   min_replay_size: 5000
   max_replay_size: 4194304
   grad_updates_per_step: 500

@@ -1,5 +1,7 @@
 import functools
 
+from brax.training.replay_buffers import UniformSamplingQueue
+
 import ss2r.algorithms.sac.networks as sac_networks
 from ss2r.algorithms.penalizers import get_penalizer
 from ss2r.algorithms.sac.data import get_collection_fn
@@ -7,7 +9,6 @@ from ss2r.algorithms.sac.q_transforms import (
     get_cost_q_transform,
     get_reward_q_transform,
 )
-from brax.training.replay_buffers import UniformSamplingQueue
 from ss2r.algorithms.sac.rae import RAEReplayBuffer
 
 
@@ -56,6 +57,8 @@ def get_train_fn(cfg, checkpoint_path, restore_checkpoint_path):
         del agent_cfg["propagation"]
     if "data_collection" in agent_cfg:
         del agent_cfg["data_collection"]
+    if "replay_buffer" in agent_cfg:
+        del agent_cfg["replay_buffer"]
     value_obs_key = "privileged_state" if cfg.training.value_privileged else "state"
     policy_obs_key = "privileged_state" if cfg.training.policy_privileged else "state"
     network_factory = functools.partial(
@@ -70,7 +73,7 @@ def get_train_fn(cfg, checkpoint_path, restore_checkpoint_path):
     cost_q_transform = get_cost_q_transform(cfg)
     reward_q_transform = get_reward_q_transform(cfg)
     data_collection = get_collection_fn(cfg)
-    replay_buffer_factory = _get_replay_buffer(cfg.agent)
+    replay_buffer_factory = _get_replay_buffer(cfg)
     train_fn = functools.partial(
         sac.train,
         **agent_cfg,
