@@ -1,0 +1,1 @@
+Big acknowledgement to AATB: https://github.com/google-deepmind/mujoco_playground/pull/110/files
