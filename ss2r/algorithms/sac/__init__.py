@@ -17,7 +17,9 @@ def _get_replay_buffer(cfg):
         return UniformSamplingQueue
     else:
         return functools.partial(
-            RAEReplayBuffer, wandb_ids=cfg.agent.replay_buffer.wandb_ids
+            RAEReplayBuffer,
+            wandb_ids=cfg.agent.replay_buffer.wandb_ids,
+            mix=cfg.agent.replay_buffer.mix,
         )
 
 

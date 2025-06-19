@@ -30,9 +30,10 @@ class RAEReplayBuffer(ReplayBuffer[RAEReplayBufferState, Sample], Generic[Sample
         dummy_data_sample: Sample,
         sample_batch_size: int,
         wandb_ids: Sequence[str],
+        mix: float = 0.5,
     ):
         self.sample_batch_size = sample_batch_size
-        self.online_sample_size = sample_batch_size // 2
+        self.online_sample_size = int(sample_batch_size * mix)
         self.offline_sample_size = sample_batch_size - self.online_sample_size
         self.online_buffer = UniformSamplingQueue(
             max_replay_size, dummy_data_sample, self.online_sample_size
