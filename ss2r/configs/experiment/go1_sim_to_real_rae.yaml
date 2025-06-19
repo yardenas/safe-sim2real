@@ -23,5 +23,5 @@ agent:
   schedule_lr: true
   actor_burnin: 1.
   critic_burnin: 1.
-  actor_wait: 0.05
+  actor_wait: 0.025
   learning_rate: 8e-5
