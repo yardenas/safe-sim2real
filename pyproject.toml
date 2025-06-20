@@ -10,6 +10,7 @@ python = "^3.11.6,<3.12"
 mujoco = "^3.3.3"
 mujoco-mjx = "^3.3.3"
 jax = {version = "<0.6.0", extras = ["cuda12"]}
+playground = "^0.0.4"
 
 [[tool.poetry.source]]
 name = "PyPI"
