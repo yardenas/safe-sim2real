@@ -24,7 +24,7 @@ agent:
   actor_burnin: 1.
   critic_burnin: 1.
   actor_wait: 0.02
-  learning_rate: 8e-5
-  critic_learning_rate: 8e-5
+  learning_rate: 1e-5
+  critic_learning_rate: 1e-5
   replay_buffer:
     mix: 0.75
