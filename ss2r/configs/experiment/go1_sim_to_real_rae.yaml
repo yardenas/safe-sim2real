@@ -12,6 +12,7 @@ training:
   num_envs: 1
   num_timesteps: 25000
   num_evals: 20
+  num_eval_episodes: 1
 
 agent:
   min_replay_size: 1000
