@@ -9,6 +9,7 @@ readme = "README.md"
 python = "^3.11.6,<3.12"
 mujoco = "^3.3.3"
 mujoco-mjx = "^3.3.3"
+jax = {version = "<0.6.0", extras = ["cuda12"]}
 
 [[tool.poetry.source]]
 name = "PyPI"
@@ -34,9 +35,9 @@ hydra-submitit-launcher = "^1.2.0"
 
 [tool.poetry.group.onnx.dependencies]
 tf2onnx = "^1.16.1"
-tensorflow-cpu = "^2.18.0"
 onnxruntime = "^1.20.1"
-keras = "^3.9.0"
+tensorflow-cpu = "2.13.0"
+keras = ">=2.13.1"
 
 
 [tool.poetry.group.madrona_mjx.dependencies]
