@@ -38,6 +38,7 @@ from ss2r.algorithms.penalizers import Penalizer
 from ss2r.algorithms.sac import gradients
 from ss2r.algorithms.sac.data import collect_single_step
 from ss2r.algorithms.sac.q_transforms import QTransformation, SACBase, SACCost, UCBCost
+from ss2r.algorithms.sac.rae import RAEReplayBufferState
 from ss2r.algorithms.sac.types import (
     CollectDataFn,
     Metrics,
@@ -720,7 +721,10 @@ def train(
                 training_state.qc_optimizer_state,
             )
             if store_buffer:
-                params += (buffer_state,)
+                if isinstance(buffer_state, RAEReplayBufferState):
+                    params += (buffer_state.online_state,)
+                else:
+                    params += (buffer_state,)
             dummy_ckpt_config = config_dict.ConfigDict()
             checkpoint.save(checkpoint_logdir, current_step, params, dummy_ckpt_config)
 
@@ -746,6 +750,9 @@ def train(
         training_state.qc_optimizer_state,
     )
     if store_buffer:
-        params += (buffer_state,)
+        if isinstance(buffer_state, RAEReplayBufferState):
+            params += (buffer_state.online_state,)
+        else:
+            params += (buffer_state,)
     logging.info("total steps: %s", total_steps)
     return make_policy, params, metrics
