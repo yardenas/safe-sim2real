@@ -41,7 +41,6 @@ from ss2r.algorithms.ppo.wrappers import TrackOnlineCosts
 from ss2r.algorithms.sac import gradients
 from ss2r.algorithms.sac.data import collect_single_step
 from ss2r.algorithms.sac.q_transforms import QTransformation, SACBase, SACCost
-from ss2r.algorithms.sac.rae import RAEReplayBuffer
 from ss2r.algorithms.sac.types import (
     CollectDataFn,
     Metrics,
@@ -280,17 +279,7 @@ def train(
             qc_params=params[3],
             model_params=params[4],
         )
-        if len(params) >= 6 and use_rae:
-            logging.info("Restoring replay buffer state")
-            model_buffer_state = params[5]
-            model_buffer_state = replay_buffers.ReplayBufferState(**model_buffer_state)
-            model_replay_buffer = RAEReplayBuffer(
-                max_replay_size=max_replay_size,
-                dummy_data_sample=dummy_transition,
-                sample_batch_size=batch_size * model_grad_updates_per_step,
-                offline_data_state=model_buffer_state,
-            )
-    if not restore_checkpoint_path or not use_rae:
+    if not restore_checkpoint_path:
         model_replay_buffer = replay_buffers.UniformSamplingQueue(
             max_replay_size=max_replay_size,
             dummy_data_sample=dummy_transition,

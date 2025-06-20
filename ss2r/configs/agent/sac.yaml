@@ -4,6 +4,7 @@ defaults:
   - penalizer: crpo
   - propagation: null
   - data_collection: step
+  - replay_buffer: null
 
 name: sac
 learning_rate: 3e-4
@@ -31,7 +32,6 @@ use_bro: true
 normalize_budget: true
 reset_on_eval: true
 store_buffer: false
-use_rae: false
 n_critics: 2
 n_heads: 1
 schedule_lr: false

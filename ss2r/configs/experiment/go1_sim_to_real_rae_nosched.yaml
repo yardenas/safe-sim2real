@@ -10,21 +10,21 @@ training:
   safe: false
   wandb_id: gsy4lrxa
   num_envs: 1
-  num_timesteps: 25000
+  num_timesteps: 100000
   num_evals: 20
-  num_eval_episodes: 1
 
 agent:
   min_replay_size: 1000
-  max_replay_size: 25000
+  max_replay_size: 4194304
   grad_updates_per_step: 2500
   num_critic_updates_per_actor_update: 20
   n_heads: 10
   n_critics: 1
-  schedule_lr: true
+  schedule_lr: false
   actor_burnin: 1.
   critic_burnin: 1.
   actor_wait: 0.02
-  learning_rate: 8e-5
+  learning_rate: 4e-5
+  critic_learning_rate: 4e-5
   replay_buffer:
     mix: 0.75
