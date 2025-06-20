@@ -38,7 +38,7 @@ from ss2r.algorithms.penalizers import Penalizer
 from ss2r.algorithms.sac import gradients
 from ss2r.algorithms.sac.data import collect_single_step
 from ss2r.algorithms.sac.q_transforms import QTransformation, SACBase, SACCost, UCBCost
-from ss2r.algorithms.sac.rae import RAEReplayBuffer
+from ss2r.algorithms.sac.rae import RAEReplayBufferState
 from ss2r.algorithms.sac.types import (
     CollectDataFn,
     Metrics,
@@ -165,6 +165,9 @@ def train(
     network_factory: sac_networks.NetworkFactory[
         sac_networks.SafeSACNetworks
     ] = sac_networks.make_sac_networks,
+    replay_buffer_factory: Callable[
+        [int, Any, PRNGKey, int], replay_buffers.ReplayBuffer
+    ] = replay_buffers.UniformSamplingQueue,
     n_critics: int = 2,
     n_heads: int = 1,
     progress_fn: Callable[[int, Metrics], None] = lambda *args: None,
@@ -181,13 +184,11 @@ def train(
     normalize_budget: bool = True,
     reset_on_eval: bool = True,
     store_buffer: bool = False,
-    use_rae: bool = False,
     schedule_lr: bool = False,
     init_lr: float = 0.0,
     actor_burnin: float = 0.0,
     actor_wait: float = 0.0,
     critic_burnin: float = 0.0,
-    finetune: bool = False,
 ):
     if min_replay_size >= num_timesteps:
         raise ValueError(
@@ -307,51 +308,38 @@ def train(
     local_key, rb_key, env_key, eval_key = jax.random.split(local_key, 4)
     if restore_checkpoint_path is not None:
         params = checkpoint.load(restore_checkpoint_path)
-        if finetune:
-            policy_optimizer_state = update_lr_schedule_count(
-                _restore_state(params[5], training_state.policy_optimizer_state), 0
-            )
-            alpha_optimizer_state = _restore_state(
-                params[6], training_state.alpha_optimizer_state
-            )
-            qr_optimizer_state = update_lr_schedule_count(
-                _restore_state(params[7], training_state.qr_optimizer_state), 0
-            )
-            if qc_optimizer is None:
-                qc_optimizer_state = None
-            else:
-                qc_optimizer_state = update_lr_schedule_count(
-                    _restore_state(params[8], training_state.qc_optimizer_state), 0
-                )
-            training_state = training_state.replace(  # type: ignore
-                normalizer_params=params[0],
-                policy_params=params[1],
-                penalizer_params=_restore_state(
-                    params[2], training_state.penalizer_params
-                ),
-                qr_params=params[3],
-                qc_params=params[4],
-                policy_optimizer_state=policy_optimizer_state,
-                alpha_optimizer_state=alpha_optimizer_state,
-                qr_optimizer_state=qr_optimizer_state,
-                qc_optimizer_state=qc_optimizer_state,
-            )
-        if len(params) >= 9 and use_rae:
-            logging.info("Restoring replay buffer state")
-            buffer_state = params[-1]
-            buffer_state = replay_buffers.ReplayBufferState(**buffer_state)
-            replay_buffer = RAEReplayBuffer(
-                max_replay_size=max_replay_size,
-                dummy_data_sample=dummy_transition,
-                sample_batch_size=batch_size * grad_updates_per_step,
-                offline_data_state=buffer_state,
-            )
-    if not restore_checkpoint_path or not use_rae:
-        replay_buffer = replay_buffers.UniformSamplingQueue(
-            max_replay_size=max_replay_size,
-            dummy_data_sample=dummy_transition,
-            sample_batch_size=batch_size * grad_updates_per_step,
+        del params[-1]
+        policy_optimizer_state = update_lr_schedule_count(
+            _restore_state(params[5], training_state.policy_optimizer_state), 0
         )
+        alpha_optimizer_state = _restore_state(
+            params[6], training_state.alpha_optimizer_state
+        )
+        qr_optimizer_state = update_lr_schedule_count(
+            _restore_state(params[7], training_state.qr_optimizer_state), 0
+        )
+        if qc_optimizer is None:
+            qc_optimizer_state = None
+        else:
+            qc_optimizer_state = update_lr_schedule_count(
+                _restore_state(params[8], training_state.qc_optimizer_state), 0
+            )
+        training_state = training_state.replace(  # type: ignore
+            normalizer_params=params[0],
+            policy_params=params[1],
+            penalizer_params=_restore_state(params[2], training_state.penalizer_params),
+            qr_params=params[3],
+            qc_params=params[4],
+            policy_optimizer_state=policy_optimizer_state,
+            alpha_optimizer_state=alpha_optimizer_state,
+            qr_optimizer_state=qr_optimizer_state,
+            qc_optimizer_state=qc_optimizer_state,
+        )
+    replay_buffer = replay_buffer_factory(  # type: ignore
+        max_replay_size=max_replay_size,
+        dummy_data_sample=dummy_transition,
+        sample_batch_size=batch_size,
+    )
     buffer_state = replay_buffer.init(rb_key)
     alpha_loss, critic_loss, actor_loss = sac_losses.make_losses(
         sac_network=sac_network,
@@ -389,13 +377,15 @@ def train(
         extra_fields += ("disagreement",)  # type: ignore
 
     def sgd_step(
-        carry: Tuple[TrainingState, PRNGKey, int], transitions: Transition
-    ) -> Tuple[Tuple[TrainingState, PRNGKey, int], Metrics]:
-        training_state, key, count = carry
+        carry: Tuple[TrainingState, ReplayBufferState, PRNGKey, int], unused_t
+    ) -> Tuple[Tuple[TrainingState, ReplayBufferState, PRNGKey, int], Metrics]:
+        training_state, buffer_state, key, count = carry
 
         key, key_alpha, key_critic, key_cost_critic, key_actor = jax.random.split(
             key, 5
         )
+        new_buffer_state, transitions = replay_buffer.sample(buffer_state)
+        transitions = float32(transitions)
         alpha_loss, alpha_params, alpha_optimizer_state = alpha_update(
             training_state.alpha_params,
             training_state.policy_params,
@@ -511,7 +501,7 @@ def train(
             normalizer_params=training_state.normalizer_params,
             penalizer_params=new_penalizer_params,
         )  # type: ignore
-        return (new_training_state, key, count + 1), metrics
+        return (new_training_state, new_buffer_state, key, count + 1), metrics
 
     def run_experience_step(
         training_state: TrainingState,
@@ -538,26 +528,18 @@ def train(
         )
         return training_state, env_state, buffer_state, training_key
 
-    # TODO (yarden): remove the jit, change to another name
-    @jax.jit
     def training_step_jitted(
         training_state: TrainingState,
         buffer_state: ReplayBufferState,
         training_key: PRNGKey,
     ) -> Tuple[TrainingState, ReplayBufferState, Metrics]:
         """Runs the jittable training step after experience collection."""
-        buffer_state, transitions = replay_buffer.sample(buffer_state)
-        transitions = float32(transitions)
-        # Change the front dimension of transitions so 'update_step' is called
-        # grad_updates_per_step times by the scan.
-        transitions = jax.tree_util.tree_map(
-            lambda x: jnp.reshape(x, (grad_updates_per_step, -1) + x.shape[1:]),
-            transitions,
+        (training_state, buffer_state, *_), metrics = jax.lax.scan(
+            sgd_step,
+            (training_state, buffer_state, training_key, 0),
+            (),
+            length=grad_updates_per_step,
         )
-        (training_state, *_), metrics = jax.lax.scan(
-            sgd_step, (training_state, training_key, 0), transitions
-        )
-        metrics["buffer_current_size"] = replay_buffer.size(buffer_state)
         return training_state, buffer_state, metrics
 
     def training_step(
@@ -574,6 +556,7 @@ def train(
             training_state, buffer_state, training_key
         )
         training_metrics |= env_state.metrics
+        training_metrics["buffer_current_size"] = replay_buffer.size(buffer_state)
         return training_state, env_state, buffer_state, training_metrics
 
     def prefill_replay_buffer(
@@ -738,7 +721,10 @@ def train(
                 training_state.qc_optimizer_state,
             )
             if store_buffer:
-                params += (buffer_state,)
+                if isinstance(buffer_state, RAEReplayBufferState):
+                    params += (buffer_state.online_state,)
+                else:
+                    params += (buffer_state,)
             dummy_ckpt_config = config_dict.ConfigDict()
             checkpoint.save(checkpoint_logdir, current_step, params, dummy_ckpt_config)
 
@@ -764,6 +750,9 @@ def train(
         training_state.qc_optimizer_state,
     )
     if store_buffer:
-        params += (buffer_state,)
+        if isinstance(buffer_state, RAEReplayBufferState):
+            params += (buffer_state.online_state,)
+        else:
+            params += (buffer_state,)
     logging.info("total steps: %s", total_steps)
     return make_policy, params, metrics
