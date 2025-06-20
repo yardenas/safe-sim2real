@@ -49,8 +49,6 @@ class TrainingLogger:
                 self._writers.append(WeightAndBiasesWriter(config))
             elif writer == "jsonl":
                 self._writers.append(JsonlWriter(log_path))
-            elif writer == "tensorboard":
-                self._writers.append(TensorboardXWriter(log_path))
             elif writer == "stderr":
                 self._writers.append(StdErrWriter())
             else:
@@ -129,42 +127,6 @@ class JsonlWriter:
         fps: int | float = 30,
     ):
         pass
-
-    def log_artifact(
-        self,
-        path: str,
-        type: str,
-        name: str | None = None,
-        description: str | None = None,
-        metadata: dict[str, Any] | None = None,
-    ):
-        pass
-
-
-class TensorboardXWriter:
-    def __init__(self, log_dir) -> None:
-        import tensorboardX
-
-        self._writer = tensorboardX.SummaryWriter(log_dir)
-
-    def log(self, summary: dict[str, float], step: int):
-        for k, v in summary.items():
-            self._writer.add_scalar(k, float(v), step)
-
-    def log_video(
-        self,
-        images: npt.ArrayLike,
-        step: int,
-        name: str = "policy",
-        fps: int | float = 30,
-        flush: bool = False,
-    ):
-        images = np.array(images, copy=False)
-        if images.ndim == 4:
-            images = images[None]
-        self._writer.add_video(name, images, step, fps=fps)
-        if flush:
-            self._writer.flush()
 
     def log_artifact(
         self,
