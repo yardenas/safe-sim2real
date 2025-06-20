@@ -1,0 +1,9 @@
+# @package _global_
+defaults:
+  - override /environment: aloha_peg_insert
+  - _self_
+
+
+training:
+  train_domain_randomization: false
+  eval_domain_randomization: false
