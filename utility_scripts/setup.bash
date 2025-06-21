@@ -1,6 +1,6 @@
 export WANDB_API_KEY='<your-key>'
 export XLA_FLAGS=--xla_gpu_triton_gemm_any=true
-export WANDB_CACHE_DIR=/cluster/scratch/yardas/wandb
+export WANDB_CACHE_DIR=/cluster/scratch/<nethz-id>/wandb
 module load stack/2024-06
 module load gcc/12.2.0
 module load eth_proxy
