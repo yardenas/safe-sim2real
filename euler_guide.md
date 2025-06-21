@@ -1,6 +1,7 @@
 ## Using this repositoy on Euler (ETH Zürich)
 1. Use the provided `setup.bash` script via `source setup.bash`
-2. Install environment `poetry install`
+2. `poetry env activate`
+3. Install environment `poetry install`
 
 
 ## Installing Madrona-MJX on Euler
