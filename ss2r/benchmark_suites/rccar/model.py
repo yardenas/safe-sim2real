@@ -1,3 +1,4 @@
+import dataclasses
 from typing import Any
 
 import jax
@@ -21,27 +22,63 @@ class CarParams:
     c_m_1: max current of motor: [0.2 - 0.5] c_m_2: motor resistance due to shaft: [0.01 - 0.15]
     """
 
-    m: jax.Array = jnp.array(1.65)  # [0.04, 0.08]
-    i_com: jax.Array = jnp.array(2.78e-05)  # [1e-6, 5e-6]
-    l_f: jax.Array = jnp.array(0.13)  # [0.025, 0.05]
-    l_r: jax.Array = jnp.array(0.17)  # [0.025, 0.05]
-    g: jax.Array = jnp.array(9.81)
-    d_f: jax.Array = jnp.array(0.02)  # [0.015, 0.025]
-    c_f: jax.Array = jnp.array(1.2)  # [1.0, 2.0]
-    b_f: jax.Array = jnp.array(2.58)  # [2.0, 4.0]
-    d_r: jax.Array = jnp.array(0.017)  # [0.015, 0.025]
-    c_r: jax.Array = jnp.array(1.27)  # [1.0, 2.0]
-    b_r: jax.Array = jnp.array(3.39)  # [2.0, 4.0]
-    c_m_1: jax.Array = jnp.array(10.431917)  # [0.2, 0.5]
-    c_m_2: jax.Array = jnp.array(1.5003588)  # [0.00, 0.007]
-    c_d: jax.Array = jnp.array(0.0)  # [0.01, 0.1]
-    steering_limit: jax.Array = jnp.array(0.19989373)
-    use_blend: jax.Array = jnp.array(0.0)
+    m: jax.Array = dataclasses.field(
+        default_factory=lambda x=jnp.array(1.65): x  # type: ignore
+    )  # [0.04, 0.08]
+    i_com: jax.Array = dataclasses.field(
+        default_factory=lambda x=jnp.array(2.78e-05): x  # type: ignore
+    )  # [1e-6, 5e-6]
+    l_f: jax.Array = dataclasses.field(
+        default_factory=lambda x=jnp.array(0.13): x  # type: ignore
+    )  # [0.025, 0.05]
+    l_r: jax.Array = dataclasses.field(
+        default_factory=lambda x=jnp.array(0.17): x  # type: ignore
+    )  # [0.025, 0.05]
+    g: jax.Array = dataclasses.field(default_factory=lambda x=jnp.array(9.81): x)  # type: ignore
+    d_f: jax.Array = dataclasses.field(
+        default_factory=lambda x=jnp.array(0.02): x  # type: ignore
+    )  # [0.015, 0.025]
+    c_f: jax.Array = dataclasses.field(
+        default_factory=lambda x=jnp.array(1.2): x  # type: ignore
+    )  # [1.0, 2.0]
+    b_f: jax.Array = dataclasses.field(
+        default_factory=lambda x=jnp.array(2.58): x  # type: ignore
+    )  # [2.0, 4.0]
+    d_r: jax.Array = dataclasses.field(
+        default_factory=lambda x=jnp.array(0.017): x  # type: ignore
+    )  # [0.015, 0.025]
+    c_r: jax.Array = dataclasses.field(
+        default_factory=lambda x=jnp.array(1.27): x  # type: ignore
+    )  # [1.0, 2.0]
+    b_r: jax.Array = dataclasses.field(
+        default_factory=lambda x=jnp.array(3.39): x  # type: ignore
+    )  # [2.0, 4.0]
+    c_m_1: jax.Array = dataclasses.field(
+        default_factory=lambda x=jnp.array(10.431917): x  # type: ignore
+    )  # [0.2, 0.5]
+    c_m_2: jax.Array = dataclasses.field(
+        default_factory=lambda x=jnp.array(1.5003588): x  # type: ignore
+    )  # [0.00, 0.007]
+    c_d: jax.Array = dataclasses.field(
+        default_factory=lambda x=jnp.array(0.0): x  # type: ignore
+    )  # [0.01, 0.1]
+    steering_limit: jax.Array = dataclasses.field(
+        default_factory=lambda x=jnp.array(0.19989373): x  # type: ignore
+    )  # type: ignore
+    use_blend: jax.Array = dataclasses.field(default_factory=lambda x=jnp.array(0.0): x)  # type: ignore
     # parameters used to compute the blend ratio characteristics
-    blend_ratio_ub: jax.Array = jnp.array([0.5477225575])
-    blend_ratio_lb: jax.Array = jnp.array([0.4472135955])
-    angle_offset: jax.Array = jnp.array([0.02791893])
-    max_throttle: jax.Array = jnp.array([0.4])
+    blend_ratio_ub: jax.Array = dataclasses.field(
+        default_factory=lambda x=jnp.array([0.5477225575]): x  # type: ignore
+    )
+    blend_ratio_lb: jax.Array = dataclasses.field(
+        default_factory=lambda x=jnp.array([0.4472135955]): x  # type: ignore
+    )
+    angle_offset: jax.Array = dataclasses.field(
+        default_factory=lambda x=jnp.array([0.02791893]): x  # type: ignore
+    )
+    max_throttle: jax.Array = dataclasses.field(
+        default_factory=lambda x=jnp.array([0.4]): x  # type: ignore
+    )
 
 
 def rotate_vector(v, theta):
