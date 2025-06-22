@@ -56,10 +56,10 @@ tensorflow-cpu = "2.13.0"
 keras = ">=2.13.1"
 pyzmq = "^27.0.0"
 
-[tool.poetry.group.madrona_mjx]
+[tool.poetry.group.madrona-mjx]
 optional = true
 
-[tool.poetry.group.madrona_mjx.dependencies]
+[tool.poetry.group.madrona-mjx.dependencies]
 madrona-mjx = { path = "../madrona_mjx", develop = true }
 
 [build-system]
