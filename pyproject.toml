@@ -34,9 +34,6 @@ ipykernel = "^6.29.4"
 tueplots = "^0.0.17"
 ruff = "^0.9.6"
 
-[tool.poetry.group.wandb]
-optional = true
-
 [tool.poetry.group.wandb.dependencies]
 wandb = "^0.16.4"
 

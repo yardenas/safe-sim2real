@@ -1,6 +1,13 @@
 import numpy as np
-import tensorflow as tf
-import tf2onnx
+
+try:
+    import tensorflow as tf
+    import tf2onnx
+except ImportError:
+    tf = None
+    import logging
+
+    logging.warning("TensorFlow is not installed. Skipping conversion to ONNX.")
 from tensorflow.keras import layers  # type: ignore
 
 
