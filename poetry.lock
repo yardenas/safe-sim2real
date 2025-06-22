@@ -1775,7 +1775,7 @@ version = "0.0.1"
 description = ""
 optional = false
 python-versions = "*"
-groups = ["madrona_mjx"]
+groups = ["madrona-mjx"]
 files = []
 develop = true
 
@@ -4459,4 +4459,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.11.6,<3.12"
-content-hash = "b7b622dbeff3f444553ed5d7b08470573aba2f9451b44467803932f1734d2810"
+content-hash = "f7a17b09984756d5851944733d20c6e20cd6509b4b0bcc780cbc9372b796f329"
