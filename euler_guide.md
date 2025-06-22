@@ -12,5 +12,5 @@
 5. Load cmake `module load cmake 3.27.7`
 6. `mkdir build && cd build && cmake .. && cd ..`
 7. Compile on a compute node ` srun --ntasks=1 --cpus-per-task=20 --gpus=rtx_4090:1 --time=0:30:00 --mem-per-cpu=10240 make -j`
-8. `poetry install --with madrona_mjx`
+8. `poetry install --with madrona-mjx`
 9. Test `srun --ntasks=1 --cpus-per-task=20 --gpus=rtx_4090:1 --time=0:30:00 --mem-per-cpu=10240 python train_brax.py +experiment=cartpole_swingup_simple environment.task_params.vision=true`
