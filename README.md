@@ -3,7 +3,7 @@ A collection of algorithms and experiment tools for safe sim to real transfer in
 
 ## Requirements 🛠
 
-- Python == 3.10.2
+- Python == 3.11.6
 - Recommended environment managers: `venv` or `Poetry`
 
 ## Installation 🧩
