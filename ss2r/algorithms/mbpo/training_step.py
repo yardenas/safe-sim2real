@@ -47,6 +47,8 @@ def make_training_step(
     optimism,
     pessimism,
     model_to_real_data_ratio,
+    reward_termination,
+    use_termination,
 ):
     def critic_sgd_step(
         carry: Tuple[TrainingState, PRNGKey], transitions: Transition
@@ -245,13 +247,40 @@ def make_training_step(
         if safe:
             cost = cost.mean(0) + disagreement * pessimism
             transitions.extras["state_extras"]["cost"] = cost
+            if planning_env.qc_network is not None:
+                qc_pred = planning_env.qc_network.apply(
+                    normalizer_params,
+                    planning_env.qc_params,
+                    transitions.observation,
+                    transitions.action,
+                )
+                curr_discount = (
+                    transitions.observation["curr_discount"]
+                    * planning_env.cost_discount
+                )
+                expected_total_cost = (
+                    qc_pred.mean(axis=-1) * curr_discount
+                    + transitions.observation["cumulative_cost"]
+                )
+                discount = jnp.where(
+                    expected_total_cost > planning_env.safety_budget,
+                    jnp.zeros_like(cost, dtype=jnp.float32),
+                    jnp.ones_like(cost, dtype=jnp.float32),
+                )
+        else:
+            discount = transitions.discount
+        new_reward = jnp.where(
+            discount,
+            new_reward,
+            jnp.ones_like(new_reward) * reward_termination,
+        )
         next_obs_pred = jax.tree_map(lambda x: x.mean(0), next_obs_pred)
         return Transition(
             observation=transitions.observation,
             next_observation=next_obs_pred,
             action=transitions.action,
             reward=new_reward,
-            discount=transitions.discount,
+            discount=discount if use_termination else jnp.ones_like(new_reward),
             extras=transitions.extras,
         ), disagreement
 

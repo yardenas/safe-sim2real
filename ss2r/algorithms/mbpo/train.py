@@ -167,6 +167,7 @@ def train(
     pessimism: float = 0.0,
     model_propagation: str = "nominal",
     reward_termination: float = 0.0,
+    use_termination: bool = True,
 ):
     if min_replay_size >= num_timesteps:
         raise ValueError(
@@ -405,6 +406,7 @@ def train(
         cost_discount=safety_discounting,
         scaling_fn=budget_scaling_fun,
         reward_termination=reward_termination,
+        use_termination=use_termination,
     )
     training_step = make_training_step(
         env,
@@ -435,6 +437,8 @@ def train(
         optimism,
         pessimism,
         model_to_real_data_ratio,
+        reward_termination=reward_termination,
+        use_termination=use_termination,
     )
 
     def prefill_replay_buffer(

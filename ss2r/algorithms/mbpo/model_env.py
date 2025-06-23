@@ -24,6 +24,7 @@ class ModelBasedEnv(envs.Env):
         cost_discount=1.0,
         scaling_fn=lambda x: x,  # Function to scale costs
         reward_termination=0.0,  # Not used in this implementation
+        use_termination=True,
     ):
         super().__init__()
         self.model_network = model_network
@@ -39,6 +40,7 @@ class ModelBasedEnv(envs.Env):
         self.cost_discount = cost_discount
         self.scaling_fn = scaling_fn
         self.reward_termination = reward_termination
+        self.use_termination = use_termination
 
     def reset(self, rng: jax.Array) -> base.State:
         sample_key, model_key = jax.random.split(rng)
@@ -122,8 +124,9 @@ class ModelBasedEnv(envs.Env):
         state = state.replace(
             obs=next_obs,
             reward=reward,
-            # done=done,
-            done=jnp.zeros_like(reward, dtype=jnp.float32),
+            done=done
+            if self.use_termination
+            else jnp.zeros_like(reward, dtype=jnp.float32),
             info=state.info,
         )
         return state
@@ -155,6 +158,7 @@ def create_model_env(
     cost_discount=1.0,
     scaling_fn=lambda x: x,  # Function to scale costs
     reward_termination=0.0,
+    use_termination=True,
 ) -> ModelBasedEnv:
     """Factory function to create a model-based environment."""
     return ModelBasedEnv(
@@ -171,6 +175,7 @@ def create_model_env(
         cost_discount=cost_discount,
         scaling_fn=scaling_fn,
         reward_termination=reward_termination,
+        use_termination=use_termination,
     )
 
 
