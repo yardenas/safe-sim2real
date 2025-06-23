@@ -189,6 +189,7 @@ def train(
     actor_burnin: float = 0.0,
     actor_wait: float = 0.0,
     critic_burnin: float = 0.0,
+    entropy_bonus: bool = True,
 ):
     if min_replay_size >= num_timesteps:
         raise ValueError(
@@ -394,7 +395,10 @@ def train(
             key_alpha,
             optimizer_state=training_state.alpha_optimizer_state,
         )
-        alpha = jnp.exp(training_state.alpha_params) + min_alpha
+        if entropy_bonus:
+            alpha = jnp.exp(training_state.alpha_params) + min_alpha
+        else:
+            alpha = 0.0
         critic_loss, qr_params, qr_optimizer_state = critic_update(
             training_state.qr_params,
             training_state.policy_params,

@@ -10,7 +10,7 @@ training:
   safe: false
   wandb_id: gsy4lrxa
   num_envs: 1
-  num_timesteps: 40000
+  num_timesteps: 30000
   num_evals: 20
   num_eval_episodes: 1
 
@@ -25,6 +25,8 @@ agent:
   actor_burnin: 1.
   critic_burnin: 1.
   actor_wait: 0.02
-  learning_rate: 8e-5
+  learning_rate: 6e-5
+  critic_learning_rate: 6e-5
   replay_buffer:
     mix: 0.75
+  entropy_bonus: false
