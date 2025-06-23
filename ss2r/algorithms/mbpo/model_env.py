@@ -122,7 +122,8 @@ class ModelBasedEnv(envs.Env):
         state = state.replace(
             obs=next_obs,
             reward=reward,
-            done=done,
+            # done=done,
+            done=jnp.zeros_like(reward, dtype=jnp.float32),
             info=state.info,
         )
         return state
