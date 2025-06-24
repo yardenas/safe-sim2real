@@ -279,8 +279,8 @@ class CostEpisodeWrapper(brax_training.EpisodeWrapper):
         state = state.replace(reward=jp.sum(rewards, axis=0))
         if maybe_costs is not None:
             state.info["cost"] = jp.sum(maybe_costs, axis=0)
-        if "reward_eval" in state.info:
-            state.info["reward_eval"] = jp.sum(state.info["reward_eval"], axis=0)
+        if "eval_reward" in state.info:
+            state.info["eval_reward"] = jp.sum(state.info["eval_reward"], axis=0)
         steps = state.info["steps"] + self.action_repeat
         one = jp.ones_like(state.done)
         zero = jp.zeros_like(state.done)
