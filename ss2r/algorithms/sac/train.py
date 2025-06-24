@@ -411,7 +411,7 @@ def train(
             optimizer_state=training_state.qr_optimizer_state,
             params=training_state.qr_params,
         )
-        if safe and cost_q_transform is not None:
+        if safe and penalizer is not None:
             cost_critic_loss, qc_params, qc_optimizer_state = cost_critic_update(
                 training_state.qc_params,
                 training_state.policy_params,
