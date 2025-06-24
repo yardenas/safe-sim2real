@@ -509,11 +509,11 @@ class Saute(Wrapper):
         rng = state.info["prng"]
         rng, sample_rng = jax.random.split(rng)
         state.info["prng"] = rng
-        # terminate = jp.where(
-        #     terminate,
-        #     jax.random.bernoulli(sample_rng, 0.5).astype(jp.bool),
-        #     jp.zeros_like(terminate),
-        # )
+        terminate = jp.where(
+            terminate,
+            jax.random.bernoulli(sample_rng, 0.5).astype(jp.bool),
+            jp.zeros_like(terminate),
+        )
         saute_state = jp.where(terminate, ones, saute_state)
         nstate.info["saute_state"] = saute_state
         nstate.info["eval_reward"] = nstate.reward
