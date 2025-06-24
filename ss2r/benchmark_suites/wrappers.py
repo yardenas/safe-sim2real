@@ -486,7 +486,7 @@ class Saute(Wrapper):
             state = state.replace(obs=obs)
         state.metrics["saute_unsafe"] = jp.zeros_like(state.reward)
         state.metrics["saute_reward"] = state.reward
-        state.metrics["saute_terminate"] = jp.zeros_like(state.reward, dtype=jp.bool)
+        state.metrics["saute_terminate"] = jp.zeros_like(state.reward)
         return state
 
     def step(self, state, action):
@@ -519,7 +519,7 @@ class Saute(Wrapper):
         nstate.info["eval_reward"] = nstate.reward
         nstate.metrics["saute_reward"] = saute_reward
         nstate.metrics["saute_unsafe"] = (saute_state <= 0.0).astype(jp.float32)
-        nstate.metrics["saute_terminate"] = terminate
+        nstate.metrics["saute_terminate"] = terminate.astype(jp.float32)
         if isinstance(nstate.obs, jax.Array):
             obs = jp.hstack([nstate.obs, saute_state])
         else:
