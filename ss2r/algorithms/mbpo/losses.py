@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Soft Actor-Critic losses.
+"""MBP Losses.
 
-See: https://arxiv.org/pdf/1812.05905.pdf
+See: https://arxiv.org/abs/1906.08253
 """
 
 from typing import Any, TypeAlias

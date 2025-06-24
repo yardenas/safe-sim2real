@@ -47,7 +47,6 @@ def generate_safe_unroll(
 ) -> Tuple[envs.State, Transition]:
     """Collect trajectories of given unroll_length."""
 
-    @jax.jit
     def f(carry, unused_t):
         state, current_key = carry
         current_key, next_key = jax.random.split(current_key)
