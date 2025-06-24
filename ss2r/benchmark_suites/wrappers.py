@@ -486,7 +486,7 @@ class Saute(Wrapper):
             state = state.replace(obs=obs)
         state.metrics["saute_unsafe"] = jp.zeros_like(state.reward)
         state.metrics["saute_reward"] = state.reward
-        state.metrics["saute_terminate"] = jp.zeros_like(state.reward)
+        state.metrics["saute_terminate"] = jp.zeros_like(state.reward, dtype=jp.bool)
         return state
 
     def step(self, state, action):
@@ -510,7 +510,9 @@ class Saute(Wrapper):
         rng, sample_rng = jax.random.split(rng)
         state.info["prng"] = rng
         terminate = jp.where(
-            terminate, jax.random.bernoulli(sample_rng, 0.5), jp.zeros_like(terminate)
+            terminate,
+            jax.random.bernoulli(sample_rng, 0.5).astype(jp.bool),
+            jp.zeros_like(terminate),
         )
         saute_state = jp.where(terminate, ones, saute_state)
         nstate.info["saute_state"] = saute_state
