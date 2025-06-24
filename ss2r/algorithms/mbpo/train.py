@@ -310,9 +310,9 @@ def train(
             ts_normalizer_params = params[0]
         training_state = training_state.replace(  # type: ignore
             normalizer_params=ts_normalizer_params,
-            # policy_params=params[1], #FIXME (manu) revert after testing
+            policy_params=params[1],
             backup_policy_params=params[1],
-            # qr_params=params[3], #FIXME (manu) revert after testing
+            qr_params=params[3],
             qc_params=params[4] if safe else None,
         )
         if len(params) >= 5 and use_rae:

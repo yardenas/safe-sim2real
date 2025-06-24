@@ -14,7 +14,7 @@ training:
   safety_budget: 100
   num_envs: 10
   num_evals: 20
-  wandb_id: wp4wf3fk
+  wandb_id: eqmjtv0p # wp4wf3fk
   
 agent:
   batch_size: 512
