@@ -1,6 +1,7 @@
 from typing import Callable, Mapping, Optional, Tuple
 
 import jax
+import jax.nn as jnn
 from brax.base import System
 from brax.envs.base import Env, State, Wrapper
 from brax.envs.wrappers import training as brax_training
@@ -498,7 +499,7 @@ class Saute(Wrapper):
         cost += nstate.info.get("disagreement", 0.0)
         saute_state -= cost / self.budget
         # saute_reward = jp.where(saute_state <= 0.0, -self.penalty, nstate.reward)
-        saute_reward = jp.clip(saute_state, a_min=0.0) * nstate.reward
+        saute_reward = jnn.softplus(saute_state) * nstate.reward
         terminate = jp.where(
             ((saute_state <= 0.0) & self.terminate) | nstate.done.astype(jp.bool),
             True,
