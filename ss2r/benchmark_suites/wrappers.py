@@ -484,6 +484,7 @@ class Saute(Wrapper):
             }
             state = state.replace(obs=obs)
         state.metrics["saute_unsafe"] = jp.zeros_like(state.reward)
+        state.info["saute_reward"] = state.reward
         return state
 
     def step(self, state, action):
@@ -496,7 +497,8 @@ class Saute(Wrapper):
         cost = nstate.info.get("cost", jp.zeros_like(nstate.reward))
         cost += nstate.info.get("disagreement", 0.0)
         saute_state -= cost / self.budget
-        saute_reward = jp.where(saute_state <= 0.0, -self.penalty, nstate.reward)
+        # saute_reward = jp.where(saute_state <= 0.0, -self.penalty, nstate.reward)
+        saute_reward = jp.clip(saute_state, a_min=0.0) * nstate.reward
         terminate = jp.where(
             ((saute_state <= 0.0) & self.terminate) | nstate.done.astype(jp.bool),
             True,
@@ -505,6 +507,7 @@ class Saute(Wrapper):
         saute_state = jp.where(terminate, ones, saute_state)
         nstate.info["saute_state"] = saute_state
         nstate.info["eval_reward"] = nstate.reward
+        nstate.info["saute_reward"] = saute_reward
         nstate.metrics["saute_unsafe"] = (saute_state <= 0.0).astype(jp.float32)
         if isinstance(nstate.obs, jax.Array):
             obs = jp.hstack([nstate.obs, saute_state])
