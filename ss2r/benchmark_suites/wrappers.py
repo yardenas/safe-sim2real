@@ -483,7 +483,6 @@ class Saute(Wrapper):
                 for k, v in state.obs.items()
             }
             state = state.replace(obs=obs)
-        state.metrics["eval_reward"] = state.info["eval_reward"]
         state.metrics["saute_state"] = state.info["saute_state"]
         return state
 
@@ -506,7 +505,6 @@ class Saute(Wrapper):
         saute_state = jp.where(terminate, ones, saute_state)
         nstate.info["saute_state"] = saute_state
         nstate.info["eval_reward"] = nstate.reward
-        nstate.metrics["saute_reward"] = saute_reward
         nstate.metrics["saute_state"] = saute_state
         if isinstance(nstate.obs, jax.Array):
             obs = jp.hstack([nstate.obs, saute_state])

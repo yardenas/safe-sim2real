@@ -96,7 +96,7 @@ def get_wrap_env_fn(cfg):
             )
             return env
 
-        out = saute_train, saute_eval
+        return saute_train, saute_eval
     return out
 
 
