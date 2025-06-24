@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""MBP Losses.
+"""MBPO Losses.
 
 See: https://arxiv.org/abs/1906.08253
 """
