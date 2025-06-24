@@ -71,23 +71,23 @@ def make_training_step(
             params=training_state.qr_params,
         )
         if safe:
-            cost_critic_loss, qc_params, qc_optimizer_state = cost_critic_update(
-                training_state.qc_params,
-                training_state.backup_policy_params,
-                training_state.normalizer_params,
-                training_state.target_qc_params,
-                alpha,
-                transitions,
-                key_critic,
-                cost_q_transform,
-                True,
-                optimizer_state=training_state.qc_optimizer_state,
-                params=training_state.qc_params,
-            )
+            # cost_critic_loss, qc_params, qc_optimizer_state = cost_critic_update(
+            #     training_state.qc_params,
+            #     training_state.backup_policy_params,
+            #     training_state.normalizer_params,
+            #     training_state.target_qc_params,
+            #     alpha,
+            #     transitions,
+            #     key_critic,
+            #     cost_q_transform,
+            #     True,
+            #     optimizer_state=training_state.qc_optimizer_state,
+            #     params=training_state.qc_params,
+            # )
             qc_params = training_state.qc_params
             qc_optimizer_state = training_state.qc_optimizer_state
             cost_metrics = {
-                "cost_critic_loss": cost_critic_loss,
+                "cost_critic_loss": critic_loss,  # FIXME: (manu) change back
             }
         else:
             cost_metrics = {}
