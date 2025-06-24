@@ -50,6 +50,32 @@ from ss2r.algorithms.sac.types import (
 from ss2r.rl.evaluation import ConstraintsEvaluator, InterventionConstraintsEvaluator
 
 
+def get_dict_normalizer_params(params, ts_normalizer_params):
+    mean = {
+        "state": params[0].mean,
+        "cumulative_cost": ts_normalizer_params.mean["cumulative_cost"],
+        "curr_discount": ts_normalizer_params.mean["curr_discount"],
+    }
+    std = {
+        "state": params[0].std,
+        "cumulative_cost": ts_normalizer_params.std["cumulative_cost"],
+        "curr_discount": ts_normalizer_params.std["curr_discount"],
+    }
+    summed_var = {
+        "state": params[0].summed_variance,
+        "cumulative_cost": ts_normalizer_params.summed_variance["cumulative_cost"],
+        "curr_discount": ts_normalizer_params.summed_variance["curr_discount"],
+    }
+    count = params[0].count
+    ts_normalizer_params = ts_normalizer_params.replace(
+        mean=mean,
+        std=std,
+        count=count,
+        summed_variance=summed_var,
+    )
+    return ts_normalizer_params
+
+
 def _init_training_state(
     key: PRNGKey,
     obs_size: int,
@@ -280,29 +306,8 @@ def train(
         params = checkpoint.load(restore_checkpoint_path)
         ts_normalizer_params = training_state.normalizer_params
         if isinstance(ts_normalizer_params.mean, dict):
-            mean = {
-                "state": params[0].mean,
-                "cumulative_cost": ts_normalizer_params.mean["cumulative_cost"],
-                "curr_discount": ts_normalizer_params.mean["curr_discount"],
-            }
-            std = {
-                "state": params[0].std,
-                "cumulative_cost": ts_normalizer_params.std["cumulative_cost"],
-                "curr_discount": ts_normalizer_params.std["curr_discount"],
-            }
-            summed_var = {
-                "state": params[0].summed_variance,
-                "cumulative_cost": ts_normalizer_params.summed_variance[
-                    "cumulative_cost"
-                ],
-                "curr_discount": ts_normalizer_params.summed_variance["curr_discount"],
-            }
-            count = params[0].count
-            ts_normalizer_params = ts_normalizer_params.replace(
-                mean=mean,
-                std=std,
-                count=count,
-                summed_variance=summed_var,
+            ts_normalizer_params = get_dict_normalizer_params(
+                params, ts_normalizer_params
             )
         else:
             ts_normalizer_params = params[0]
@@ -571,7 +576,7 @@ def train(
         episode_length=episode_length,
         action_repeat=action_repeat,
         key=eval_key,
-        budget=safety_budget,
+        budget=episodic_safety_budget,
         num_episodes=num_eval_episodes,
     )
 
