@@ -268,7 +268,6 @@ def make_training_step(
                     jnp.zeros_like(cost, dtype=jnp.float32),
                     jnp.ones_like(cost, dtype=jnp.float32),
                 )
-
         new_reward = jnp.where(
             discount,
             new_reward,
