@@ -40,7 +40,6 @@ from ss2r.algorithms.mbpo.types import TrainingState
 from ss2r.algorithms.sac import gradients
 from ss2r.algorithms.sac.data import collect_single_step
 from ss2r.algorithms.sac.q_transforms import QTransformation, SACBase, SACCost
-from ss2r.algorithms.sac.rae import RAEReplayBuffer
 from ss2r.algorithms.sac.types import (
     CollectDataFn,
     Metrics,
@@ -162,7 +161,6 @@ def train(
     normalize_budget: bool = True,
     reset_on_eval: bool = True,
     store_buffer: bool = False,
-    use_rae: bool = False,
     optimism: float = 0.0,
     pessimism: float = 0.0,
     model_propagation: str = "nominal",
@@ -315,16 +313,6 @@ def train(
             qr_params=params[3],
             qc_params=params[4] if safe else None,
         )
-        if len(params) >= 5 and use_rae:
-            logging.info("Restoring replay buffer state")
-            model_buffer_state = params[5]
-            model_buffer_state = replay_buffers.ReplayBufferState(**model_buffer_state)
-            model_replay_buffer = RAEReplayBuffer(
-                max_replay_size=max_replay_size,
-                dummy_data_sample=dummy_transition,
-                sample_batch_size=batch_size * model_grad_updates_per_step,
-                offline_data_state=model_buffer_state,
-            )
 
     make_planning_policy = mbpo_networks.make_inference_fn(mbpo_network)
     if safe:
@@ -341,12 +329,11 @@ def train(
         make_rollout_policy = mbpo_networks.make_inference_fn(mbpo_network)
         get_rollout_policy_params = mbpo_networks.get_inference_policy_params(False)
 
-    if not restore_checkpoint_path or not use_rae:
-        model_replay_buffer = replay_buffers.UniformSamplingQueue(
-            max_replay_size=max_replay_size,
-            dummy_data_sample=dummy_transition,
-            sample_batch_size=batch_size * model_grad_updates_per_step,
-        )
+    model_replay_buffer = replay_buffers.UniformSamplingQueue(
+        max_replay_size=max_replay_size,
+        dummy_data_sample=dummy_transition,
+        sample_batch_size=batch_size * model_grad_updates_per_step,
+    )
     sac_replay_buffer = replay_buffers.UniformSamplingQueue(
         max_replay_size=max_replay_size,
         dummy_data_sample=dummy_transition,

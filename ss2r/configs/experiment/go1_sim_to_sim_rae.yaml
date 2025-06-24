@@ -2,17 +2,23 @@
 defaults:
   - go1_joystick
   - override /agent/penalizer: lagrangian
+  - override /agent/data_collection: episodic
+  - override /agent/replay_buffer: rae
   - _self_
 
 training:
   train_domain_randomization: true
   eval_domain_randomization: true
   safe: false
-  wandb_id: 9a3kb4n0
+  wandb_id: gsy4lrxa
+  num_envs: 1
+  num_timesteps: 3500000
+  num_evals: 20
+  hard_resets: false
 
 environment:
   train_params:
-    floor_friction: [0.15, 0.15]
+    floor_friction: [0.2, 0.2]
     scale_friction: [1., 1.]
     scale_armature: [1., 1.]
     jitter_mass: [0., 0.]
@@ -23,7 +29,7 @@ environment:
     Kp: [0.0, 0.0]
 
   eval_params:
-    floor_friction: [0.15, 0.15]
+    floor_friction: [0.2, 0.2]
     scale_friction: [1., 1.]
     scale_armature: [1., 1.]
     jitter_mass: [0., 0.]
@@ -32,3 +38,14 @@ environment:
     jitter_qpos0: [0., 0.]
     Kd: [0.0, 0.0]
     Kp: [0.0, 0.0]
+
+agent:
+  min_replay_size: 100000
+  max_replay_size: 4194304
+  grad_updates_per_step: 250
+  num_critic_updates_per_actor_update: 15
+  n_heads: 10
+  n_critics: 1
+  replay_buffer:
+    wandb_ids:
+      - gsy4lrxa

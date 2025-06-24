@@ -1,23 +1,17 @@
 import functools
 import logging
-import os
 from pathlib import Path
 
 import hydra
 import jax
-import wandb
 from omegaconf import OmegaConf
 
 from ss2r import benchmark_suites
 from ss2r.algorithms import mbpo, ppo, sac
 from ss2r.common.logging import TrainingLogger
+from ss2r.common.wandb import get_state_path, get_wandb_checkpoint
 
 _LOG = logging.getLogger(__name__)
-
-
-def get_state_path() -> str:
-    log_path = os.getcwd() + "/ckpt"
-    return log_path
 
 
 def locate_last_checkpoint() -> Path | None:
@@ -33,13 +27,6 @@ def locate_last_checkpoint() -> Path | None:
     # Sort by step number (converted from the directory name)
     latest_ckpt = max(checkpoints, key=lambda p: int(p.name))
     return latest_ckpt
-
-
-def get_wandb_checkpoint(run_id):
-    api = wandb.Api()
-    artifact = api.artifact(f"ss2r/checkpoint:{run_id}")
-    download_dir = artifact.download(f"{get_state_path()}/{run_id}")
-    return download_dir
 
 
 def get_train_fn(cfg):

@@ -1,7 +1,15 @@
 import numpy as np
-import tensorflow as tf
-import tf2onnx
-from tensorflow.keras import layers  # type: ignore
+
+try:
+    import tensorflow as tf
+    import tf2onnx
+    from tensorflow.keras import layers  # type: ignore
+except ImportError:
+    tf = None
+    layers = None
+    import logging
+
+    logging.warning("TensorFlow is not installed. Skipping conversion to ONNX.")
 
 
 class MLP(tf.keras.Model):
