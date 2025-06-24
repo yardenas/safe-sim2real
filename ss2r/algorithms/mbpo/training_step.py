@@ -244,10 +244,11 @@ def make_training_step(
             else next_obs_pred["state"].std(axis=0).mean(-1)
         )
         new_reward = reward.mean(0) + disagreement * optimism
+        discount = transitions.discount
         if safe:
             cost = cost.mean(0) + disagreement * pessimism
             transitions.extras["state_extras"]["cost"] = cost
-            if planning_env.qc_network is not None:
+            if (planning_env.qc_network is not None) and use_termination:
                 qc_pred = planning_env.qc_network.apply(
                     normalizer_params,
                     planning_env.qc_params,
@@ -267,8 +268,7 @@ def make_training_step(
                     jnp.zeros_like(cost, dtype=jnp.float32),
                     jnp.ones_like(cost, dtype=jnp.float32),
                 )
-        else:
-            discount = transitions.discount
+
         new_reward = jnp.where(
             discount,
             new_reward,
@@ -280,7 +280,7 @@ def make_training_step(
             next_observation=next_obs_pred,
             action=transitions.action,
             reward=new_reward,
-            discount=discount if use_termination else jnp.ones_like(new_reward),
+            discount=discount,
             extras=transitions.extras,
         ), disagreement
 
