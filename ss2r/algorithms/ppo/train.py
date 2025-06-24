@@ -19,7 +19,7 @@ See: https://arxiv.org/pdf/1707.06347.pdf
 
 import functools
 import time
-from typing import Callable, Optional, Tuple, Union
+from typing import Callable, Optional, Tuple
 
 import jax
 import jax.numpy as jnp
@@ -30,7 +30,6 @@ from brax import envs
 from brax.training import pmap, types
 from brax.training.acme import running_statistics, specs
 from brax.training.types import Params, PRNGKey
-from brax.v1 import envs as envs_v1
 from etils import epath
 from orbax import checkpoint as ocp
 
@@ -58,7 +57,7 @@ def _strip_weak_type(tree):
 
 
 def train(
-    environment: Union[envs_v1.Env, envs.Env],
+    environment: envs.Env,
     num_timesteps: int,
     episode_length: int,
     update_step_factory=ppo_training_step.update_fn,
@@ -98,12 +97,11 @@ def train(
     penalizer: Penalizer | None = None,
     penalizer_params: Params | None = None,
     safe: bool = False,
-    use_saute: bool = False,
     use_disagreement: bool = False,
     normalize_budget: bool = True,
 ):
     assert batch_size * num_minibatches % num_envs == 0
-    if not safe or use_saute:
+    if not safe:
         penalizer = None
         penalizer_params = None
     original_safety_budget = safety_budget
@@ -198,7 +196,6 @@ def train(
         clipping_epsilon=clipping_epsilon,
         normalize_advantage=normalize_advantage,
         safety_budget=safety_budget,
-        use_saute=use_saute,
         use_disagreement=use_disagreement,
     )
     training_step = update_step_factory(
@@ -218,7 +215,6 @@ def train(
         num_envs,
         env_step_per_training_step,
         safe,
-        use_saute,
         use_disagreement,
     )
 

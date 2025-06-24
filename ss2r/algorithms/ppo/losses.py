@@ -108,7 +108,6 @@ def make_losses(
     safety_budget,
     safety_discounting,
     safety_gae_lambda,
-    use_saute,
     use_disagreement,
 ):
     def compute_policy_loss(
@@ -130,8 +129,6 @@ def make_losses(
         terminal_obs = jax.tree_util.tree_map(lambda x: x[-1], data.next_observation)
         bootstrap_value = value_apply(normalizer_params, value_params, terminal_obs)
         rewards = data.reward * reward_scaling
-        if use_saute:
-            rewards = data.extras["state_extras"]["saute_reward"] * reward_scaling
         truncation = data.extras["state_extras"]["truncation"]
         termination = (1 - data.discount) * (1 - truncation)
         target_log_probs = parametric_action_distribution.log_prob(
@@ -217,8 +214,6 @@ def make_losses(
         terminal_obs = jax.tree_util.tree_map(lambda x: x[-1], data.next_observation)
         bootstrap_value = value_apply(normalizer_params, params, terminal_obs)
         rewards = data.reward * reward_scaling
-        if use_saute:
-            rewards = data.extras["state_extras"]["saute_reward"] * reward_scaling
         truncation = data.extras["state_extras"]["truncation"]
         termination = (1 - data.discount) * (1 - truncation)
         vs, _ = compute_gae(

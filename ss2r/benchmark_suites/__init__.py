@@ -4,7 +4,6 @@ import jax
 from brax import envs
 from mujoco_playground import locomotion
 
-from ss2r.algorithms.ppo.wrappers import Saute
 from ss2r.benchmark_suites import brax, mujoco_playground, safety_gym
 from ss2r.benchmark_suites.brax.ant import ant
 from ss2r.benchmark_suites.brax.cartpole import cartpole
@@ -25,6 +24,7 @@ from ss2r.benchmark_suites.utils import get_domain_name, get_task_config
 from ss2r.benchmark_suites.wrappers import (
     ActionObservationDelayWrapper,
     FrameActionStack,
+    Saute,
     SPiDR,
     wrap,
 )
