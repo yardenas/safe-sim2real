@@ -1,4 +1,5 @@
 import numpy as np
+from brax.training.types import Transition
 
 try:
     import tensorflow as tf
@@ -166,3 +167,24 @@ def convert_policy_to_onnx(params, cfg, act_size, obs_size):
         opset=11,
     )
     return model_proto
+
+
+def make_go1_policy(make_policy_fn, params, cfg):
+    del make_policy_fn
+    proto_model = convert_policy_to_onnx(params, cfg, 12, 48)
+    return proto_model.SerializeToString()
+
+
+def go1_postprocess_data(raw_data, extra_fields):
+    observation, action, reward, next_observation, done, info = raw_data
+    state_extras = {x: info[x] for x in extra_fields}
+    policy_extras = {}
+    transitions = Transition(
+        observation=observation,
+        action=action,
+        reward=reward,
+        discount=1 - done,
+        next_observation=next_observation,
+        extras={"policy_extras": policy_extras, "state_extras": state_extras},
+    )
+    return transitions
