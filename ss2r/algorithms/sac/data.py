@@ -6,9 +6,8 @@ from brax import envs
 from brax.training import acting
 from brax.training.acme import running_statistics
 from brax.training.replay_buffers import ReplayBuffer
-from brax.training.types import Params, PRNGKey, Transition
+from brax.training.types import Params, PRNGKey
 
-from ss2r.algorithms.sac.go1_sac_to_onnx import convert_policy_to_onnx
 from ss2r.algorithms.sac.types import CollectDataFn, ReplayBufferState, float16
 from ss2r.rl.online import OnlineEpisodeOrchestrator
 from ss2r.rl.types import MakePolicyFn, UnrollFn
@@ -44,18 +43,23 @@ def get_collection_fn(cfg):
     elif cfg.agent.data_collection.name == "hardware":
         data_collection_cfg = cfg.agent.data_collection
         if "Go1" in cfg.environment.task_name or "Go2" in data_collection_cfg.task_name:
+            from ss2r.algorithms.sac.go1_sac_to_onnx import (
+                go1_postprocess_data,
+                make_go1_policy,
+            )
+
             policy_translate_fn = functools.partial(make_go1_policy, cfg=cfg)
+            orchestrator = OnlineEpisodeOrchestrator(
+                policy_translate_fn,
+                cfg.training.episode_length,
+                cfg.environment.task_params.ctrl_dt,
+                go1_postprocess_data,
+                data_collection_cfg.address,
+            )
         else:
             raise ValueError(
                 f"Environment {cfg.environment.task_name} not supported for hardware data collection."
             )
-        orchestrator = OnlineEpisodeOrchestrator(
-            policy_translate_fn,
-            cfg.training.episode_length,
-            cfg.environment.task_params.ctrl_dt,
-            go1_postprocess_data,
-            data_collection_cfg.address,
-        )
         return make_collection_fn(orchestrator.request_data)
     else:
         raise ValueError(f"Unknown data collection {cfg.agent.data_collection.name}")
@@ -122,24 +126,3 @@ def make_collection_fn(unroll_fn: UnrollFn) -> CollectDataFn:
 
 
 collect_single_step = make_collection_fn(actor_step)
-
-
-def make_go1_policy(make_policy_fn, params, cfg):
-    del make_policy_fn
-    proto_model = convert_policy_to_onnx(params, cfg, 12, 48)
-    return proto_model.SerializeToString()
-
-
-def go1_postprocess_data(raw_data, extra_fields):
-    observation, action, reward, next_observation, done, info = raw_data
-    state_extras = {x: info[x] for x in extra_fields}
-    policy_extras = {}
-    transitions = Transition(
-        observation=observation,
-        action=action,
-        reward=reward,
-        discount=1 - done,
-        next_observation=next_observation,
-        extras={"policy_extras": policy_extras, "state_extras": state_extras},
-    )
-    return transitions
