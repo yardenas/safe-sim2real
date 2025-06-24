@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Model-Based Proximal Policy Optimization.
+"""Model-Based Policy Optimization.
 
 See: https://arxiv.org/abs/1906.08253
 """

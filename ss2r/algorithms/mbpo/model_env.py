@@ -19,11 +19,11 @@ class ModelBasedEnv(envs.Env):
         qc_network,
         qc_params,
         normalizer_params,
-        ensemble_selection="mean",  # "random", "mean", or "pessimistic"
+        ensemble_selection="mean",
         safety_budget=float("inf"),
         cost_discount=1.0,
-        scaling_fn=lambda x: x,  # Function to scale costs
-        reward_termination=0.0,  # Not used in this implementation
+        cost_scaling_fn=lambda x: x,
+        reward_termination=0.0,
         use_termination=True,
     ):
         super().__init__()
@@ -38,7 +38,7 @@ class ModelBasedEnv(envs.Env):
         self._action_size = action_size
         self.transitions = transitions
         self.cost_discount = cost_discount
-        self.scaling_fn = scaling_fn
+        self.cost_scaling_fn = cost_scaling_fn
         self.reward_termination = reward_termination
         self.use_termination = use_termination
 
@@ -86,7 +86,7 @@ class ModelBasedEnv(envs.Env):
             prev_cumulative_cost = state.obs["cumulative_cost"][0]
             curr_discount = state.obs["curr_discount"][0] * self.cost_discount
             expected_cost_for_traj = (
-                self.scaling_fn(prev_cumulative_cost)
+                self.cost_scaling_fn(prev_cumulative_cost)
                 + self.qc_network.apply(
                     self.normalizer_params,
                     self.qc_params,
@@ -117,16 +117,13 @@ class ModelBasedEnv(envs.Env):
                 obs = jax.tree_map(
                     lambda x, y: jnp.where(done, x, y), reset_state_obs, next_obs
                 )
-
                 return state, obs
 
             state, next_obs = reset_states(done, state, next_obs)
         state = state.replace(
             obs=next_obs,
             reward=reward,
-            done=done
-            if self.use_termination
-            else jnp.zeros_like(reward, dtype=jnp.float32),
+            done=done if self.use_termination else jnp.zeros_like(done),
             info=state.info,
         )
         return state
@@ -173,7 +170,7 @@ def create_model_env(
         ensemble_selection=ensemble_selection,
         safety_budget=safety_budget,
         cost_discount=cost_discount,
-        scaling_fn=scaling_fn,
+        cost_scaling_fn=scaling_fn,
         reward_termination=reward_termination,
         use_termination=use_termination,
     )
