@@ -437,6 +437,7 @@ def train(
         optimism,
         pessimism,
         model_to_real_data_ratio,
+        budget_scaling_fun,
         reward_termination=reward_termination,
         use_termination=use_termination,
     )
