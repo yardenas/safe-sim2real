@@ -480,6 +480,7 @@ class Saute(Wrapper):
         state = self.env.reset(rng)
         state.info["saute_state"] = jp.ones(())
         state.info["eval_reward"] = state.reward
+        state.info["prng"] = jax.random.split(rng, 2)[0]
         if isinstance(state.obs, jax.Array):
             state = state.replace(obs=jp.hstack([state.obs, state.info["saute_state"]]))
         else:
@@ -504,10 +505,19 @@ class Saute(Wrapper):
         cost += nstate.info.get("disagreement", 0.0)
         saute_state -= cost / self.budget
         saute_reward = jp.where(saute_state <= 0.0, -self.penalty, nstate.reward)
+        # saute_reward = jnn.softplus(saute_state) * nstate.reward
         terminate = jp.where(
             ((saute_state <= 0.0) & self.terminate) | nstate.done.astype(jp.bool),
             True,
             False,
+        )
+        rng = state.info["prng"]
+        rng, sample_rng = jax.random.split(rng)
+        state.info["prng"] = rng
+        terminate = jp.where(
+            terminate,
+            jax.random.bernoulli(sample_rng, 0.5).astype(jp.bool),
+            jp.zeros_like(terminate),
         )
         saute_state = jp.where(terminate, ones, saute_state)
         nstate.info["saute_state"] = saute_state
