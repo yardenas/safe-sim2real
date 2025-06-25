@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""SAC networks."""
+"""MBPO networks."""
 
-from typing import Any, Callable, Protocol, Sequence, TypeVar
+from typing import Any, Callable, Protocol, Sequence, Tuple, TypeVar
 
 import brax.training.agents.sac.networks as sac_networks
 import flax
@@ -22,8 +22,10 @@ import jax
 import jax.nn as jnn
 import jax.numpy as jnp
 from brax.training import distribution, networks, types
+from brax.training.types import PolicyParams, PRNGKey
 from flax import linen
 
+from ss2r.algorithms.mbpo.types import TrainingState
 from ss2r.algorithms.sac.networks import make_q_network
 
 ActivationFn = Callable[[jnp.ndarray], jnp.ndarray]
@@ -64,6 +66,7 @@ def make_world_model_ensemble(
     postprocess_observations_fn: types.PreprocessObservationFn = types.identity_observation_preprocessor,
     hidden_layer_sizes: Sequence[int] = (512, 512),
     activation: networks.ActivationFn = linen.swish,
+    obs_key: str = "state",
 ) -> networks.FeedForwardNetwork:
     """Creates a model network."""
 
@@ -94,17 +97,24 @@ def make_world_model_ensemble(
     model = MModule(obs_size=obs_size)
 
     def apply(preprocessor_params, params, obs, actions):
-        obs_processed = preprocess_observations_fn(obs, preprocessor_params)
-        raw_output = model.apply(params, obs_processed, actions)
+        obs = preprocess_observations_fn(obs, preprocessor_params)
+        obs_state = obs if isinstance(obs, jnp.ndarray) else obs[obs_key]
+        raw_output = model.apply(params, obs_state, actions)
         # Std devs also need to match the shape (B, E, feature_dim)
         diff_obs_raw, reward, cost = (
             raw_output[..., :obs_size],
             raw_output[..., obs_size],
             raw_output[..., obs_size + 1],
         )
-        obs = postprocess_observations_fn(
-            diff_obs_raw + obs_processed, preprocessor_params
-        )
+        if isinstance(obs, dict):
+            next_next_obs = {
+                "state": diff_obs_raw + obs_state,
+                "cumulative_cost": obs["cumulative_cost"],
+                "curr_discount": obs["curr_discount"],
+            }
+        else:
+            next_next_obs = diff_obs_raw + obs_state
+        obs = postprocess_observations_fn(next_next_obs, preprocessor_params)
         return obs, reward, cost
 
     dummy_obs = jnp.zeros((1, obs_size))
@@ -187,3 +197,83 @@ def make_mbpo_networks(
         model_network=model_network,
         parametric_action_distribution=parametric_action_distribution,
     )  # type: ignore
+
+
+def get_inference_policy_params(safe: bool, safety_budget=float("inf")) -> Any:
+    def get_params(training_state: TrainingState) -> Any:
+        if safe:
+            return (
+                training_state.policy_params,
+                training_state.qc_params,
+                safety_budget,
+            )
+        else:
+            return training_state.policy_params
+
+    return get_params
+
+
+def make_safe_inference_fn(
+    mbpo_networks: MBPONetworks,
+    inital_backup_policy_params,
+    initial_normalizer_params,
+    scaling_fn,
+) -> Callable[[Any, bool], types.Policy]:
+    """Creates params and inference function for the SAC agent."""
+    backup_policy = sac_networks.make_inference_fn(mbpo_networks)(
+        (initial_normalizer_params, inital_backup_policy_params), deterministic=True
+    )
+
+    def make_policy(
+        params: PolicyParams,
+        deterministic: bool = False,  # Policy params gave me a warning here
+    ) -> types.Policy:
+        (
+            normalizer_params,
+            (policy_params, qc_params, safety_budget),
+        ) = params
+
+        def policy(
+            observations: types.Observation, key_sample: PRNGKey
+        ) -> Tuple[types.Action, types.Extra]:
+            logits = mbpo_networks.policy_network.apply(
+                normalizer_params, policy_params, observations
+            )
+
+            mode_a = mbpo_networks.parametric_action_distribution.mode(logits)
+            if deterministic:
+                a = mode_a
+            else:
+                a = mbpo_networks.parametric_action_distribution.sample(
+                    logits, key_sample
+                )
+            if mbpo_networks.qc_network is not None:
+                qc = mbpo_networks.qc_network.apply(
+                    normalizer_params, qc_params, observations, a
+                ).mean(axis=-1)
+            else:
+                raise ValueError("QC network is not defined, cannot do shielding.")
+            accumulated_cost = observations["cumulative_cost"][:, 0]
+            curr_discount = observations["curr_discount"][:, 0]
+            expected_total_cost = scaling_fn(accumulated_cost) + qc * curr_discount
+            hat_a = backup_policy(observations, key_sample)[0]
+            safe = expected_total_cost[:, None] < safety_budget
+            sa = jnp.where(
+                safe,
+                a,
+                hat_a,
+            )
+            extras = {
+                "intervention": 1 - safe[:, 0].astype(jnp.float32),
+                "policy_distance": jnp.linalg.norm(mode_a - sa, axis=-1),
+                "safety_gap": jnp.maximum(
+                    expected_total_cost - safety_budget,
+                    jnp.zeros_like(expected_total_cost),
+                ),
+                "expected_total_cost": expected_total_cost,
+            }
+            return sa, extras
+
+        return policy
+
+    return make_policy

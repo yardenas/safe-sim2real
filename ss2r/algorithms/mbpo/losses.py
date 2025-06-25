@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Soft Actor-Critic losses.
+"""MBPO Losses.
 
-See: https://arxiv.org/pdf/1812.05905.pdf
+See: https://arxiv.org/abs/1906.08253
 """
 
 from typing import Any, TypeAlias
@@ -146,12 +146,17 @@ def make_losses(
         actor_loss += exploration_loss
         return actor_loss
 
-    def compute_model_loss(model_params, normalizer_params, data):
+    def compute_model_loss(model_params, normalizer_params, data, obs_key="state"):
         model_apply = jax.vmap(mbpo_network.model_network.apply, (None, 0, None, None))
         (next_obs_pred, reward_pred, cost_pred) = model_apply(
             normalizer_params, model_params, data.observation, data.action
         )
         next_obs_pred = normalize_fn(next_obs_pred, normalizer_params)
+        next_obs_pred = (
+            next_obs_pred
+            if isinstance(next_obs_pred, jax.Array)
+            else next_obs_pred[obs_key]
+        )
         concat_preds = jnp.concatenate(
             [next_obs_pred, reward_pred[..., None], cost_pred[..., None]], axis=-1
         )
@@ -159,6 +164,7 @@ def make_losses(
             x[None], (next_obs_pred.shape[0],) + (1,) * (x.ndim)
         )
         next_obs = normalize_fn(data.next_observation, normalizer_params)
+        next_obs = next_obs if isinstance(next_obs, jax.Array) else next_obs[obs_key]
         costs = data.extras["state_extras"].get("cost", jnp.zeros_like(data.reward))
         targets = jnp.concatenate(
             [next_obs, data.reward[..., None], costs[..., None]],
@@ -166,8 +172,8 @@ def make_losses(
         )
         targets = expand(targets)
         total_loss = optax.l2_loss(concat_preds, targets)
-        mask = expand(data.done)[..., None]
-        total_loss = total_loss * (1 - mask)
+        mask = expand(data.discount)[..., None]
+        total_loss = total_loss * mask
         total_loss = jnp.mean(total_loss)
         return total_loss
 

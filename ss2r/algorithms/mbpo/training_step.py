@@ -20,7 +20,9 @@ from ss2r.algorithms.sac.types import (
 
 def make_training_step(
     env,
-    make_policy,
+    make_planning_policy,
+    make_rollout_policy,
+    get_rollout_policy_params,
     make_model_env,
     model_replay_buffer,
     sac_replay_buffer,
@@ -45,6 +47,9 @@ def make_training_step(
     optimism,
     pessimism,
     model_to_real_data_ratio,
+    scaling_fn,
+    reward_termination,
+    use_termination,
 ):
     def critic_sgd_step(
         carry: Tuple[TrainingState, PRNGKey], transitions: Transition
@@ -68,7 +73,7 @@ def make_training_step(
         if safe:
             cost_critic_loss, qc_params, qc_optimizer_state = cost_critic_update(
                 training_state.qc_params,
-                training_state.policy_params,
+                training_state.backup_policy_params,
                 training_state.normalizer_params,
                 training_state.target_qc_params,
                 alpha,
@@ -79,6 +84,8 @@ def make_training_step(
                 optimizer_state=training_state.qc_optimizer_state,
                 params=training_state.qc_params,
             )
+            qc_params = training_state.qc_params
+            qc_optimizer_state = training_state.qc_optimizer_state
             cost_metrics = {
                 "cost_critic_loss": cost_critic_loss,
             }
@@ -86,6 +93,7 @@ def make_training_step(
             cost_metrics = {}
             qc_params = None
             qc_optimizer_state = None
+
         polyak = lambda target, new: jax.tree_util.tree_map(
             lambda x, y: x * (1 - tau) + y * tau, target, new
         )
@@ -96,6 +104,7 @@ def make_training_step(
             new_target_qc_params = None
         metrics = {
             "critic_loss": critic_loss,
+            "fraction_done": 1.0 - transitions.discount.mean(),
             **cost_metrics,
         }
         new_training_state = training_state.replace(  # type: ignore
@@ -178,8 +187,8 @@ def make_training_step(
         experience_key, training_key = jax.random.split(key)
         normalizer_params, env_state, buffer_state = get_experience_fn(
             env,
-            make_policy,
-            training_state.policy_params,
+            make_rollout_policy,
+            get_rollout_policy_params(training_state),
             training_state.normalizer_params,
             model_replay_buffer,
             env_state,
@@ -230,19 +239,49 @@ def make_training_step(
         next_obs_pred, reward, cost = vmap_pred_fn(
             normalizer_params, model_params, transitions.observation, transitions.action
         )
-        disagreement = next_obs_pred.std(axis=0).mean(-1)
+        disagreement = (
+            next_obs_pred.std(axis=0).mean(-1)
+            if isinstance(next_obs_pred, jax.Array)
+            else next_obs_pred["state"].std(axis=0).mean(-1)
+        )
         new_reward = reward.mean(0) + disagreement * optimism
+        discount = transitions.discount
         if safe:
             cost = cost.mean(0) + disagreement * pessimism
             transitions.extras["state_extras"]["cost"] = cost
-
-        next_obs_pred = next_obs_pred.mean(0)
+            if (planning_env.qc_network is not None) and use_termination:
+                qc_pred = planning_env.qc_network.apply(
+                    normalizer_params,
+                    planning_env.qc_params,
+                    transitions.observation,
+                    transitions.action,
+                )
+                curr_discount = (
+                    transitions.observation["curr_discount"]
+                    * planning_env.cost_discount
+                )
+                expected_total_cost = qc_pred.mean(
+                    axis=-1
+                ) * curr_discount.squeeze() + scaling_fn(
+                    transitions.observation["cumulative_cost"].squeeze()
+                )
+                discount = jnp.where(
+                    expected_total_cost > planning_env.safety_budget,
+                    jnp.zeros_like(cost, dtype=jnp.float32),
+                    jnp.ones_like(cost, dtype=jnp.float32),
+                )
+        new_reward = jnp.where(
+            discount,
+            new_reward,
+            jnp.ones_like(new_reward) * reward_termination,
+        )
+        next_obs_pred = jax.tree_map(lambda x: x.mean(0), next_obs_pred)
         return Transition(
             observation=transitions.observation,
             next_observation=next_obs_pred,
             action=transitions.action,
             reward=new_reward,
-            discount=transitions.discount,
+            discount=discount,
             extras=transitions.extras,
         ), disagreement
 
@@ -262,7 +301,7 @@ def make_training_step(
         ) = run_experience_step(training_state, env_state, model_buffer_state, key)
         model_buffer_state, transitions = model_replay_buffer.sample(model_buffer_state)
         assert (
-            num_model_rollouts <= transitions.observation.shape[0]
+            num_model_rollouts <= transitions.reward.shape[0]
         ), "num_model_rollouts must be less than or equal to the number of transitions"
         # Change the front dimension of transitions so 'update_step' is called
         # grad_updates_per_step times by the scan.
@@ -280,7 +319,7 @@ def make_training_step(
             transitions=transitions,
         )
         planning_env = VmapWrapper(planning_env)
-        policy = make_policy(
+        policy = make_planning_policy(
             (training_state.normalizer_params, training_state.policy_params)
         )
         # Rollout trajectories from the sampled transitions

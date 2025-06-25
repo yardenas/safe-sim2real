@@ -2,3 +2,4 @@ name: saute
 penalty: 0.
 terminate: false
 lambda_: 0.
+termination_probability: 1.

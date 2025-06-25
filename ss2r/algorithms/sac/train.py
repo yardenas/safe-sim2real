@@ -189,6 +189,7 @@ def train(
     actor_burnin: float = 0.0,
     actor_wait: float = 0.0,
     critic_burnin: float = 0.0,
+    entropy_bonus: bool = True,
 ):
     if min_replay_size >= num_timesteps:
         raise ValueError(
@@ -237,7 +238,7 @@ def train(
         observation_size=obs_size,
         action_size=action_size,
         preprocess_observations_fn=normalize_fn,
-        safe=safe,
+        safe=safe and penalizer is not None,
         use_bro=use_bro,
         n_critics=n_critics,
         n_heads=n_heads,
@@ -266,7 +267,7 @@ def train(
         make_optimizer(
             cost_critic_learning_rate, 1.0, int(num_grad_steps * critic_burnin)
         )
-        if safe
+        if safe and penalizer is not None
         else None
     )
     if isinstance(obs_size, Mapping):
@@ -394,7 +395,10 @@ def train(
             key_alpha,
             optimizer_state=training_state.alpha_optimizer_state,
         )
-        alpha = jnp.exp(training_state.alpha_params) + min_alpha
+        if entropy_bonus:
+            alpha = jnp.exp(training_state.alpha_params) + min_alpha
+        else:
+            alpha = 0.0
         critic_loss, qr_params, qr_optimizer_state = critic_update(
             training_state.qr_params,
             training_state.policy_params,
@@ -407,7 +411,7 @@ def train(
             optimizer_state=training_state.qr_optimizer_state,
             params=training_state.qr_params,
         )
-        if safe:
+        if safe and penalizer is not None:
             cost_critic_loss, qc_params, qc_optimizer_state = cost_critic_update(
                 training_state.qc_params,
                 training_state.policy_params,

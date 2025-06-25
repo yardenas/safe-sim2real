@@ -4,7 +4,7 @@ import jax
 from brax import envs
 from mujoco_playground import locomotion
 
-from ss2r.algorithms.ppo.wrappers import Saute
+from ss2r.algorithms.mbpo.wrappers import TrackOnlineCostsInObservation
 from ss2r.benchmark_suites import brax, mujoco_playground, safety_gym
 from ss2r.benchmark_suites.brax.ant import ant
 from ss2r.benchmark_suites.brax.cartpole import cartpole
@@ -26,6 +26,7 @@ from ss2r.benchmark_suites.utils import get_domain_name, get_task_config
 from ss2r.benchmark_suites.wrappers import (
     ActionObservationDelayWrapper,
     FrameActionStack,
+    Saute,
     SPiDR,
     wrap,
 )
@@ -83,6 +84,7 @@ def get_wrap_env_fn(cfg):
                 cfg.training.safety_budget,
                 cfg.agent.penalizer.penalty,
                 cfg.agent.penalizer.terminate,
+                cfg.agent.penalizer.termination_probability,
             )
             return env
 
@@ -97,7 +99,22 @@ def get_wrap_env_fn(cfg):
             )
             return env
 
-        out = saute_train, saute_eval
+        return saute_train, saute_eval
+
+    # TODO (manu): use another flag than safe because we
+    # might implement other baselines for safety
+    if cfg.agent.name == "mbpo" and cfg.training.safe:
+
+        def safe_mbpo_train(env):
+            env = TrackOnlineCostsInObservation(env, cfg.agent.safety_discounting)
+            return env
+
+        def safe_mbpo_eval(env):
+            env = TrackOnlineCostsInObservation(env, cfg.agent.safety_discounting)
+            return env
+
+        out = safe_mbpo_train, safe_mbpo_eval
+
     return out
 
 

@@ -11,6 +11,7 @@ class TrainingState:
 
     policy_optimizer_state: optax.OptState
     policy_params: Params
+    backup_policy_params: Params
     qr_optimizer_state: optax.OptState
     qr_params: Params
     qc_optimizer_state: optax.OptState | None
