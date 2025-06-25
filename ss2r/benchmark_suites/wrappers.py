@@ -458,7 +458,9 @@ class HardAutoResetWrapper(Wrapper):
 
 
 class Saute(Wrapper):
-    def __init__(self, env, discounting, budget, penalty, terminate):
+    def __init__(
+        self, env, discounting, budget, penalty, terminate, termination_probability
+    ):
         super().__init__(env)
         # Assumes that this is the budget for the undiscounted
         # episode.
@@ -466,6 +468,7 @@ class Saute(Wrapper):
         self.discounting = discounting
         self.terminate = terminate
         self.penalty = penalty
+        self.termination_probability = termination_probability
 
     @property
     def observation_size(self):
@@ -516,7 +519,9 @@ class Saute(Wrapper):
         state.info["prng"] = rng
         terminate = jp.where(
             terminate,
-            jax.random.bernoulli(sample_rng, 0.5).astype(jp.bool),
+            jax.random.bernoulli(sample_rng, self.termination_probability).astype(
+                jp.bool
+            ),
             jp.zeros_like(terminate),
         )
         saute_state = jp.where(terminate, ones, saute_state)

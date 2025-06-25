@@ -82,6 +82,7 @@ def get_wrap_env_fn(cfg):
                 cfg.training.safety_budget,
                 cfg.agent.penalizer.penalty,
                 cfg.agent.penalizer.terminate,
+                cfg.agent.penalizer.termination_probability,
             )
             return env
 
