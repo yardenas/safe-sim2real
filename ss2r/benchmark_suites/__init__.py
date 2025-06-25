@@ -2,14 +2,13 @@ import functools
 
 import jax
 from brax import envs
-from mujoco_playground import locomotion
+from mujoco_playground import locomotion, manipulation
 
 from ss2r.algorithms.mbpo.wrappers import TrackOnlineCostsInObservation
 from ss2r.benchmark_suites import brax, mujoco_playground, safety_gym
 from ss2r.benchmark_suites.brax.ant import ant
 from ss2r.benchmark_suites.brax.cartpole import cartpole
 from ss2r.benchmark_suites.brax.humanoid import humanoid
-from ss2r.benchmark_suites.mujoco_playground.aloha import aloha_vision
 from ss2r.benchmark_suites.mujoco_playground.cartpole import cartpole as dm_cartpole
 from ss2r.benchmark_suites.mujoco_playground.go1_joystick import go1_joystick
 from ss2r.benchmark_suites.mujoco_playground.go2_joystick import (
@@ -370,7 +369,12 @@ randomization_fns = {
     "CartpoleBalance": dm_cartpole.domain_randomization,
     "HumanoidWalk": dm_humanoid.domain_randomization,
     "SafeHumanoidWalk": dm_humanoid.domain_randomization,
-    "AlohaPegInsertionVision": aloha_vision.domain_randomize,
+    "AlohaPegInsertionDistill": manipulation.get_domain_randomizer(
+        "AlohaPegInsertionDistill"
+    ),
+    "AlohaSinglePegInsertion": manipulation.get_domain_randomizer(
+        "AlohaSinglePegInsertion"
+    ),
     "go_to_goal": go_to_goal.domain_randomization,
 }
 
@@ -422,6 +426,6 @@ render_fns = {
     "HumanoidWalk": mujoco_playground.render,
     "SafeHumanoidWalk": mujoco_playground.render,
     "AlohaSinglePegInsertion": mujoco_playground.render,
-    "AlohaPegInsertionVision": mujoco_playground.render,
+    "AlohaPegInsertionDistill": mujoco_playground.render,
     "go_to_goal": functools.partial(safety_gym.render, camera="fixedfar"),
 }
