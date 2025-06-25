@@ -14,7 +14,7 @@ training:
   safety_budget: 100
   num_envs: 10
   num_evals: 20
-  wandb_id: gaj7zb12 # wp4wf3fk, gaj7zb12,qzduhsm4,tiz6mkjy,ynnlcrmg,ahthsfee
+  wandb_id: 2kuue9y0 # wp4wf3fk, gaj7zb12,qzduhsm4,tiz6mkjy,ynnlcrmg,ahthsfee
   
 agent:
   batch_size: 512
@@ -25,7 +25,7 @@ agent:
   activation: swish
   critic_grad_updates_per_step: 100
   model_grad_updates_per_step: 100
-  learning_rate: 1e-3
+  learning_rate: 3e-4
   critic_learning_rate: 3e-4
   model_learning_rate: 3e-4
   pessimism: 0
