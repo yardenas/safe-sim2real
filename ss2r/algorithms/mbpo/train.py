@@ -318,9 +318,9 @@ def train(
             ts_normalizer_params = params[0]
         training_state = training_state.replace(  # type: ignore
             normalizer_params=ts_normalizer_params,
-            # policy_params=params[1],
+            policy_params=params[1],
             backup_policy_params=params[1],
-            # qr_params=params[3],
+            qr_params=params[3],
             qc_params=params[4] if safe else None,
         )
 
@@ -331,10 +331,9 @@ def train(
             training_state.backup_policy_params,
             training_state.normalizer_params,
             budget_scaling_fun,
-            online_budget,
         )
         get_rollout_policy_params = get_inference_policy_params(
-            True, safety_budget=safety_budget
+            True, safety_budget=online_budget
         )
     else:
         make_rollout_policy = mbpo_networks.make_inference_fn(mbpo_network)
@@ -400,7 +399,7 @@ def train(
         action_size=action_size,
         observation_size=obs_size,
         ensemble_selection=model_propagation,
-        safety_budget=safety_budget,
+        safety_budget=online_budget,
         cost_discount=safety_discounting,
         scaling_fn=budget_scaling_fun,
         reward_termination=reward_termination,
