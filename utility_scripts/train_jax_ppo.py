@@ -23,7 +23,6 @@ from datetime import datetime
 
 import jax
 import jax.numpy as jp
-import mediapy as media
 import mujoco
 import mujoco_playground
 import wandb
@@ -33,6 +32,7 @@ from brax.training.agents.ppo import networks_vision as ppo_networks_vision
 from brax.training.agents.ppo import train as ppo
 from etils import epath
 from ml_collections import config_dict
+from moviepy.editor import ImageSequenceClip
 from mujoco_playground import registry, wrapper
 from mujoco_playground.config import (
     dm_control_suite_params,
@@ -486,7 +486,8 @@ def main(argv):
     scene_option.flags[mujoco.mjtVisFlag.mjVIS_CONTACTFORCE] = False
 
     frames = eval_env.render(traj, height=480, width=640, scene_option=scene_option)
-    media.write_video("rollout.mp4", frames, fps=fps)
+    clip = ImageSequenceClip(frames, fps=fps)
+    clip.write_videofile("rollout.mp4", codec="libx264")
     print("Rollout video saved as 'rollout.mp4'.")
 
 
