@@ -317,6 +317,9 @@ def train(
             backup_policy_params=params[1],
             qr_params=params[3],
             qc_params=params[4] if safe else None,
+            policy_optimizer_state=params[5],
+            qr_optimizer_state=params[7],
+            qc_optimizer_state=params[8] if safe else None,
         )
 
     make_planning_policy = mbpo_networks.make_inference_fn(mbpo_network)
