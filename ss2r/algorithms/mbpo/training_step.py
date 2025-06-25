@@ -50,6 +50,8 @@ def make_training_step(
     scaling_fn,
     reward_termination,
     use_termination,
+    penalizer,
+    penalizer_params,
 ):
     def critic_sgd_step(
         carry: Tuple[TrainingState, PRNGKey], transitions: Transition
@@ -84,15 +86,34 @@ def make_training_step(
                 optimizer_state=training_state.qc_optimizer_state,
                 params=training_state.qc_params,
             )
-            qc_params = training_state.qc_params
-            qc_optimizer_state = training_state.qc_optimizer_state
             cost_metrics = {
-                "cost_critic_loss": cost_critic_loss,
+                "backup_cost_critic_loss": cost_critic_loss,
             }
+            if penalizer is not None:
+                (
+                    behavior_cost_critic_loss,
+                    behavior_qc_params,
+                    behavior_qc_optimizer_state,
+                ) = cost_critic_update(
+                    training_state.behavior_qc_params,
+                    training_state.policy_params,
+                    training_state.normalizer_params,
+                    training_state.behavior_target_qc_params,
+                    alpha,
+                    transitions,
+                    key_critic,
+                    cost_q_transform,
+                    True,
+                    optimizer_state=training_state.behavior_qc_optimizer_state,
+                    params=training_state.behavior_qc_params,
+                )
+                cost_metrics["behavior_cost_critic_loss"] = behavior_cost_critic_loss
         else:
             cost_metrics = {}
             qc_params = None
             qc_optimizer_state = None
+            behavior_qc_params = None
+            behavior_qc_optimizer_state = None
 
         polyak = lambda target, new: jax.tree_util.tree_map(
             lambda x, y: x * (1 - tau) + y * tau, target, new
@@ -100,8 +121,13 @@ def make_training_step(
         new_target_qr_params = polyak(training_state.target_qr_params, qr_params)
         if safe:
             new_target_qc_params = polyak(training_state.target_qc_params, qc_params)
+            if penalizer is not None:
+                new_behavior_target_qc_params = polyak(
+                    training_state.behavior_target_qc_params, behavior_qc_params
+                )
         else:
             new_target_qc_params = None
+            new_behavior_target_qc_params = None
         metrics = {
             "critic_loss": critic_loss,
             "fraction_done": 1.0 - transitions.discount.mean(),
@@ -115,6 +141,9 @@ def make_training_step(
             target_qr_params=new_target_qr_params,
             target_qc_params=new_target_qc_params,
             gradient_steps=training_state.gradient_steps + 1,
+            behavior_qc_params=behavior_qc_params,
+            behavior_target_qc_params=new_behavior_target_qc_params,
+            behavior_qc_optimizer_state=behavior_qc_optimizer_state,
         )
         return (new_training_state, key), metrics
 

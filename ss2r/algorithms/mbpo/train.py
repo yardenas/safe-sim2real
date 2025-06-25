@@ -37,6 +37,7 @@ import ss2r.algorithms.mbpo.networks as mbpo_networks
 from ss2r.algorithms.mbpo.model_env import create_model_env
 from ss2r.algorithms.mbpo.training_step import make_training_step
 from ss2r.algorithms.mbpo.types import TrainingState
+from ss2r.algorithms.penalizers import Params, Penalizer
 from ss2r.algorithms.sac import gradients
 from ss2r.algorithms.sac.data import collect_single_step
 from ss2r.algorithms.sac.q_transforms import QTransformation, SACBase, SACCost
@@ -86,6 +87,7 @@ def _init_training_state(
     qc_optimizer: optax.GradientTransformation,
     model_optimizer: optax.GradientTransformation,
     model_ensemble_size: int,
+    penalizer_params: Params | None,
 ) -> TrainingState:
     """Inits the training state and replicates it over devices."""
     key_policy, key_qr, key_model = jax.random.split(key, 3)
@@ -130,6 +132,7 @@ def _init_training_state(
         alpha_optimizer_state=alpha_optimizer_state,
         alpha_params=log_alpha,
         normalizer_params=normalizer_params,
+        penalizer_params=penalizer_params,
     )  #  type: ignore
     return training_state
 
@@ -181,6 +184,8 @@ def train(
     eval_env: Optional[envs.Env] = None,
     safe: bool = False,
     safety_budget: float = float("inf"),
+    penalizer: Penalizer | None = None,
+    penalizer_params: Params | None = None,
     reward_q_transform: QTransformation = SACBase(),
     cost_q_transform: QTransformation = SACCost(),
     use_bro: bool = True,
