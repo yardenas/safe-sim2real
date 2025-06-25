@@ -35,6 +35,10 @@ from ml_collections import config_dict
 import ss2r.algorithms.mbpo.losses as mbpo_losses
 import ss2r.algorithms.mbpo.networks as mbpo_networks
 from ss2r.algorithms.mbpo.model_env import create_model_env
+from ss2r.algorithms.mbpo.safe_rollout import (
+    get_inference_policy_params,
+    make_safe_inference_fn,
+)
 from ss2r.algorithms.mbpo.training_step import make_training_step
 from ss2r.algorithms.mbpo.types import TrainingState
 from ss2r.algorithms.sac import gradients
@@ -313,29 +317,26 @@ def train(
             ts_normalizer_params = params[0]
         training_state = training_state.replace(  # type: ignore
             normalizer_params=ts_normalizer_params,
-            policy_params=params[1],
+            # policy_params=params[1],
             backup_policy_params=params[1],
-            qr_params=params[3],
+            # qr_params=params[3],
             qc_params=params[4] if safe else None,
-            policy_optimizer_state=params[5],
-            qr_optimizer_state=params[7],
-            qc_optimizer_state=params[8] if safe else None,
         )
 
     make_planning_policy = mbpo_networks.make_inference_fn(mbpo_network)
     if safe:
-        make_rollout_policy = mbpo_networks.make_safe_inference_fn(
+        make_rollout_policy = make_safe_inference_fn(
             mbpo_network,
             training_state.backup_policy_params,
             training_state.normalizer_params,
-            budget_scaling_fun,
+            action_repeat,
         )
-        get_rollout_policy_params = mbpo_networks.get_inference_policy_params(
+        get_rollout_policy_params = get_inference_policy_params(
             True, safety_budget=safety_budget
         )
     else:
         make_rollout_policy = mbpo_networks.make_inference_fn(mbpo_network)
-        get_rollout_policy_params = mbpo_networks.get_inference_policy_params(False)
+        get_rollout_policy_params = get_inference_policy_params(False)
 
     model_replay_buffer = replay_buffers.UniformSamplingQueue(
         max_replay_size=max_replay_size,
@@ -399,7 +400,7 @@ def train(
         ensemble_selection=model_propagation,
         safety_budget=safety_budget,
         cost_discount=safety_discounting,
-        scaling_fn=budget_scaling_fun,
+        action_repeat=action_repeat,
         reward_termination=reward_termination,
         use_termination=use_termination,
     )
@@ -432,7 +433,7 @@ def train(
         optimism,
         pessimism,
         model_to_real_data_ratio,
-        budget_scaling_fun,
+        action_repeat,
         reward_termination=reward_termination,
         use_termination=use_termination,
     )
