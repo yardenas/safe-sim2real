@@ -44,3 +44,4 @@ pessimism: 0.
 model_propagation: random
 reward_termination: 0
 use_termination: true
+termination_prob: 1.

@@ -231,6 +231,7 @@ def make_training_step(
     def relabel_transitions(
         planning_env: ModelBasedEnv,
         transitions: Transition,
+        key: PRNGKey,
     ) -> Transition:
         pred_fn = planning_env.model_network.apply
         model_params = planning_env.model_params
@@ -266,7 +267,13 @@ def make_training_step(
                     transitions.observation["cumulative_cost"].squeeze()
                 )
                 discount = jnp.where(
-                    expected_total_cost > planning_env.safety_budget,
+                    expected_total_cost
+                    > planning_env.safety_budget
+                    & jax.random.bernoulli(
+                        key,
+                        p=planning_env.termination_prob,
+                        shape=expected_total_cost.shape,
+                    ),
                     jnp.zeros_like(cost, dtype=jnp.float32),
                     jnp.ones_like(cost, dtype=jnp.float32),
                 )
@@ -346,7 +353,9 @@ def make_training_step(
             lambda x: jnp.reshape(x, (critic_grad_updates_per_step, -1) + x.shape[1:]),
             transitions,
         )
-        transitions, disagreement = relabel_transitions(planning_env, transitions)
+        transitions, disagreement = relabel_transitions(
+            planning_env, transitions, training_key
+        )
         (training_state, _), critic_metrics = jax.lax.scan(
             critic_sgd_step, (training_state, training_key), transitions
         )

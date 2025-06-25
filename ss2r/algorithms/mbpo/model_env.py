@@ -25,6 +25,7 @@ class ModelBasedEnv(envs.Env):
         scaling_fn=lambda x: x,
         reward_termination=0.0,
         use_termination=True,
+        termination_prob=1,
     ):
         super().__init__()
         self.model_network = model_network
@@ -41,6 +42,7 @@ class ModelBasedEnv(envs.Env):
         self.scaling_fn = scaling_fn
         self.reward_termination = reward_termination
         self.use_termination = use_termination
+        self.termination_prob = termination_prob
 
     def reset(self, rng: jax.Array) -> base.State:
         sample_key, model_key = jax.random.split(rng)
@@ -96,12 +98,20 @@ class ModelBasedEnv(envs.Env):
                 * curr_discount
             )
             done = jnp.where(
-                expected_cost_for_traj > self.safety_budget,
+                expected_cost_for_traj
+                > self.safety_budget
+                & jax.random.bernoulli(
+                    key, p=self.termination_prob, shape=expected_cost_for_traj.shape
+                ),
                 jnp.ones_like(done),
                 done,
             )
             reward = jnp.where(
-                expected_cost_for_traj > self.safety_budget,
+                expected_cost_for_traj
+                > self.safety_budget
+                & jax.random.bernoulli(
+                    key, p=self.termination_prob, shape=expected_cost_for_traj.shape
+                ),
                 jnp.ones_like(reward) * self.reward_termination,
                 reward,
             )
@@ -156,6 +166,7 @@ def create_model_env(
     scaling_fn=lambda x: x,
     reward_termination=0.0,
     use_termination=True,
+    termination_prob=1.0,
 ) -> ModelBasedEnv:
     """Factory function to create a model-based environment."""
     return ModelBasedEnv(
@@ -173,6 +184,7 @@ def create_model_env(
         scaling_fn=scaling_fn,
         reward_termination=reward_termination,
         use_termination=use_termination,
+        termination_prob=termination_prob,
     )
 
 

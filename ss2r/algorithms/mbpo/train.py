@@ -197,6 +197,7 @@ def train(
     reward_termination: float = 0.0,
     use_termination: bool = True,
     online_budget: float = float("inf"),
+    termination_prob: float = 1.0,
 ):
     if min_replay_size >= num_timesteps:
         raise ValueError(
@@ -404,6 +405,7 @@ def train(
         scaling_fn=budget_scaling_fun,
         reward_termination=reward_termination,
         use_termination=use_termination,
+        termination_prob=termination_prob,
     )
     training_step = make_training_step(
         env,
