@@ -267,13 +267,12 @@ def make_training_step(
                     transitions.observation["cumulative_cost"].squeeze()
                 )
                 discount = jnp.where(
-                    expected_total_cost
-                    > planning_env.safety_budget
-                    & jax.random.bernoulli(
-                        key,
-                        p=planning_env.termination_prob,
-                        shape=expected_total_cost.shape,
-                    ),
+                    expected_total_cost > planning_env.safety_budget,
+                    # & jax.random.bernoulli(
+                    #     key,
+                    #     p=planning_env.termination_prob,
+                    #     shape=expected_total_cost.shape,
+                    # ),
                     jnp.zeros_like(cost, dtype=jnp.float32),
                     jnp.ones_like(cost, dtype=jnp.float32),
                 )
