@@ -98,8 +98,7 @@ class ModelBasedEnv(envs.Env):
                 * curr_discount
             )
             done = jnp.where(
-                expected_cost_for_traj
-                > self.safety_budget
+                (expected_cost_for_traj > self.safety_budget)
                 & jax.random.bernoulli(
                     key, p=self.termination_prob, shape=expected_cost_for_traj.shape
                 ),
@@ -107,8 +106,7 @@ class ModelBasedEnv(envs.Env):
                 done,
             )
             reward = jnp.where(
-                expected_cost_for_traj
-                > self.safety_budget
+                (expected_cost_for_traj > self.safety_budget)
                 & jax.random.bernoulli(
                     key, p=self.termination_prob, shape=expected_cost_for_traj.shape
                 ),
