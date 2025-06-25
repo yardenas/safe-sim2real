@@ -7,14 +7,14 @@ defaults:
 
 training:
   num_timesteps: 1000000
-  action_repeat: 1
+  action_repeat: 4
   safe: true
   train_domain_randomization: false
   eval_domain_randomization: false
   safety_budget: 100
   num_envs: 10
   num_evals: 20
-  wandb_id: 2kuue9y0 # wp4wf3fk, gaj7zb12,qzduhsm4,tiz6mkjy,ynnlcrmg,ahthsfee
+  wandb_id: gaj7zb12 # wp4wf3fk, ;action_repeat4:gaj7zb12,qzduhsm4,tiz6mkjy,ynnlcrmg,ahthsfee; action_repeat1:2kuue9y0,kfoucmxz,1spzfwyt,jlwdg84c,z4o8dmbg
   
 agent:
   batch_size: 512
@@ -31,3 +31,4 @@ agent:
   pessimism: 0
   optimism: 10
   reward_termination: 0
+  online_budget: 75

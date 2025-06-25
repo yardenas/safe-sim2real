@@ -22,7 +22,7 @@ class ModelBasedEnv(envs.Env):
         ensemble_selection="mean",
         safety_budget=float("inf"),
         cost_discount=1.0,
-        action_repeat=1,
+        scaling_fn=lambda x: x,
         reward_termination=0.0,
         use_termination=True,
     ):
@@ -38,7 +38,7 @@ class ModelBasedEnv(envs.Env):
         self._action_size = action_size
         self.transitions = transitions
         self.cost_discount = cost_discount
-        self.action_repeat = action_repeat
+        self.scaling_fn = scaling_fn
         self.reward_termination = reward_termination
         self.use_termination = use_termination
 
@@ -86,7 +86,7 @@ class ModelBasedEnv(envs.Env):
             prev_cumulative_cost = state.obs["cumulative_cost"][0]
             curr_discount = state.obs["curr_discount"][0] * self.cost_discount
             expected_cost_for_traj = (
-                prev_cumulative_cost * self.action_repeat
+                self.scaling_fn(prev_cumulative_cost)
                 + self.qc_network.apply(
                     self.normalizer_params,
                     self.qc_params,
@@ -153,7 +153,7 @@ def create_model_env(
     ensemble_selection="random",
     safety_budget=float("inf"),
     cost_discount=1.0,
-    action_repeat=1,  # Function to scale costs
+    scaling_fn=lambda x: x,
     reward_termination=0.0,
     use_termination=True,
 ) -> ModelBasedEnv:
@@ -170,7 +170,7 @@ def create_model_env(
         ensemble_selection=ensemble_selection,
         safety_budget=safety_budget,
         cost_discount=cost_discount,
-        action_repeat=action_repeat,
+        scaling_fn=scaling_fn,
         reward_termination=reward_termination,
         use_termination=use_termination,
     )

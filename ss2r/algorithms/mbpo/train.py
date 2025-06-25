@@ -196,6 +196,7 @@ def train(
     model_propagation: str = "nominal",
     reward_termination: float = 0.0,
     use_termination: bool = True,
+    online_budget: float = float("inf"),
 ):
     if min_replay_size >= num_timesteps:
         raise ValueError(
@@ -317,9 +318,9 @@ def train(
             ts_normalizer_params = params[0]
         training_state = training_state.replace(  # type: ignore
             normalizer_params=ts_normalizer_params,
-            policy_params=params[1],
+            # policy_params=params[1],
             backup_policy_params=params[1],
-            qr_params=params[3],
+            # qr_params=params[3],
             qc_params=params[4] if safe else None,
         )
 
@@ -329,7 +330,8 @@ def train(
             mbpo_network,
             training_state.backup_policy_params,
             training_state.normalizer_params,
-            action_repeat,
+            budget_scaling_fun,
+            online_budget,
         )
         get_rollout_policy_params = get_inference_policy_params(
             True, safety_budget=safety_budget
@@ -400,7 +402,7 @@ def train(
         ensemble_selection=model_propagation,
         safety_budget=safety_budget,
         cost_discount=safety_discounting,
-        action_repeat=action_repeat,
+        scaling_fn=budget_scaling_fun,
         reward_termination=reward_termination,
         use_termination=use_termination,
     )
@@ -433,7 +435,7 @@ def train(
         optimism,
         pessimism,
         model_to_real_data_ratio,
-        action_repeat,
+        budget_scaling_fun,
         reward_termination=reward_termination,
         use_termination=use_termination,
     )

@@ -55,6 +55,6 @@ class TrackOnlineCostsInObservation(Wrapper):
         next_state = self.env.step(state, action)
         state = state.replace(obs=old_obs)
         cost = state.info.get("cost", jnp.zeros_like(state.reward))
-        next_cumulative_cost = cumulative_cost + cost * curr_discount
+        next_cumulative_cost = cumulative_cost + cost
         next_state = self.augment_obs(next_state, next_cumulative_cost, curr_discount)
         return next_state

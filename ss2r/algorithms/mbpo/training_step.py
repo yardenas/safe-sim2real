@@ -47,7 +47,7 @@ def make_training_step(
     optimism,
     pessimism,
     model_to_real_data_ratio,
-    action_repeat,
+    scaling_fn,
     reward_termination,
     use_termination,
 ):
@@ -262,8 +262,8 @@ def make_training_step(
                 )
                 expected_total_cost = qc_pred.mean(
                     axis=-1
-                ) * curr_discount.squeeze() + (
-                    transitions.observation["cumulative_cost"].squeeze() * action_repeat
+                ) * curr_discount.squeeze() + scaling_fn(
+                    transitions.observation["cumulative_cost"].squeeze()
                 )
                 discount = jnp.where(
                     expected_total_cost > planning_env.safety_budget,
