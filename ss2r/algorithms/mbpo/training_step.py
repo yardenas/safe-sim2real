@@ -347,9 +347,9 @@ def make_training_step(
             transitions,
         )
         transitions, disagreement = relabel_transitions(planning_env, transitions)
-        (training_state, _), critic_metrics = jax.lax.scan(
-            critic_sgd_step, (training_state, training_key), transitions
-        )
+        # (training_state, _), critic_metrics = jax.lax.scan(
+        #     critic_sgd_step, (training_state, training_key), transitions
+        # )
         num_actor_updates = -(
             -critic_grad_updates_per_step // num_critic_updates_per_actor_update
         )
@@ -363,7 +363,8 @@ def make_training_step(
             transitions,
             length=num_actor_updates,
         )
-        metrics = {**model_metrics, **critic_metrics, **actor_metrics}
+        metrics = {**model_metrics, **actor_metrics}
+        # metrics = {**model_metrics, **critic_metrics, **actor_metrics}
         metrics["buffer_current_size"] = model_replay_buffer.size(model_buffer_state)
         metrics |= env_state.metrics
         metrics["disagreement"] = disagreement
