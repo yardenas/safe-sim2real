@@ -9,7 +9,6 @@ from brax.training.replay_buffers import ReplayBuffer
 from brax.training.types import Params, PRNGKey
 
 from ss2r.algorithms.sac.types import CollectDataFn, ReplayBufferState, float16
-from ss2r.rl.online import OnlineEpisodeOrchestrator
 from ss2r.rl.types import MakePolicyFn, UnrollFn
 
 
@@ -47,6 +46,7 @@ def get_collection_fn(cfg):
                 go1_postprocess_data,
                 make_go1_policy,
             )
+            from ss2r.rl.online import OnlineEpisodeOrchestrator
 
             policy_translate_fn = functools.partial(make_go1_policy, cfg=cfg)
             orchestrator = OnlineEpisodeOrchestrator(
