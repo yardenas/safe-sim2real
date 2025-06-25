@@ -1,0 +1,35 @@
+# @package _global_
+defaults:
+  - override /environment: cartpole
+  - override /agent: mbpo
+  - _self_
+
+training:
+  num_timesteps: 150000
+  num_envs: 10
+  safe: true
+  safety_budget: 75
+  train_domain_randomization: true
+  eval_domain_randomization: true
+  wandb_id: 1bfmnt25
+
+agent:
+  min_replay_size: 5000
+  sac_batch_size: 512
+  critic_grad_updates_per_step: 40
+  model_grad_updates_per_step: 40
+  learning_rate: 6e-4
+  critic_learning_rate: 3e-4
+  model_learning_rate: 6e-4
+  pessimism: 0
+  optimism: 0
+  
+
+environment:
+  train_params:
+    gain: [0, 0]
+    gear: [0., 300.]
+
+  eval_params:
+    gain: [0, 0]
+    gear: [0., 300.]
