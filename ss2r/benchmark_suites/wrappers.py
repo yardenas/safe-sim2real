@@ -273,12 +273,17 @@ class CostEpisodeWrapper(brax_training.EpisodeWrapper):
         def f(state, _):
             nstate = self.env.step(state, action)
             maybe_cost = nstate.info.get("cost", None)
-            return nstate, (nstate.reward, maybe_cost)
+            maybe_eval_reward = nstate.info.get("eval_reward", None)
+            return nstate, (nstate.reward, maybe_cost, maybe_eval_reward)
 
-        state, (rewards, maybe_costs) = jax.lax.scan(f, state, (), self.action_repeat)
+        state, (rewards, maybe_costs, maybe_eval_rewards) = jax.lax.scan(
+            f, state, (), self.action_repeat
+        )
         state = state.replace(reward=jp.sum(rewards, axis=0))
         if maybe_costs is not None:
             state.info["cost"] = jp.sum(maybe_costs, axis=0)
+        if maybe_eval_rewards is not None:
+            state.info["eval_reward"] = jp.sum(maybe_eval_rewards, axis=0)
         steps = state.info["steps"] + self.action_repeat
         one = jp.ones_like(state.done)
         zero = jp.zeros_like(state.done)
@@ -450,3 +455,88 @@ class HardAutoResetWrapper(Wrapper):
         new_data = jax.tree.map(where_done, maybe_reset_data, state_data)
         obs = jax.tree.map(where_done, maybe_reset.obs, state.obs)
         return state.replace(**{data_name: new_data, "obs": obs})
+
+
+class Saute(Wrapper):
+    def __init__(
+        self, env, discounting, budget, penalty, terminate, termination_probability
+    ):
+        super().__init__(env)
+        # Assumes that this is the budget for the undiscounted
+        # episode.
+        self.budget = budget
+        self.discounting = discounting
+        self.terminate = terminate
+        self.penalty = penalty
+        self.termination_probability = termination_probability
+
+    @property
+    def observation_size(self):
+        observation_size = self.env.observation_size
+        if isinstance(observation_size, dict):
+            observation_size = {k: v + 1 for k, v in observation_size.items()}
+        else:
+            observation_size += 1
+        return observation_size
+
+    def reset(self, rng):
+        state = self.env.reset(rng)
+        state.info["saute_state"] = jp.ones(())
+        state.info["eval_reward"] = state.reward
+        state.info["prng"] = jax.random.split(rng, 2)[0]
+        if isinstance(state.obs, jax.Array):
+            state = state.replace(obs=jp.hstack([state.obs, state.info["saute_state"]]))
+        else:
+            obs = {
+                k: jp.hstack([v, state.info["saute_state"]])
+                for k, v in state.obs.items()
+            }
+            state = state.replace(obs=obs)
+        state.metrics["saute_unsafe"] = jp.zeros_like(state.reward)
+        state.metrics["saute_reward"] = state.reward
+        state.metrics["saute_terminate"] = jp.zeros_like(state.reward)
+        return state
+
+    def step(self, state, action):
+        saute_state = state.info["saute_state"]
+        ones = jp.ones_like(saute_state)
+        saute_state = jp.where(
+            state.info.get("truncation", jp.zeros_like(state.done)), ones, saute_state
+        )
+        nstate = self.env.step(state, action)
+        cost = nstate.info.get("cost", jp.zeros_like(nstate.reward))
+        cost += nstate.info.get("disagreement", 0.0)
+        saute_state -= cost / self.budget
+        saute_reward = jp.where(saute_state <= 0.0, -self.penalty, nstate.reward)
+        # saute_reward = jnn.softplus(saute_state) * nstate.reward
+        terminate = jp.where(
+            ((saute_state <= 0.0) & self.terminate) | nstate.done.astype(jp.bool),
+            True,
+            False,
+        )
+        rng = state.info["prng"]
+        rng, sample_rng = jax.random.split(rng)
+        state.info["prng"] = rng
+        terminate = jp.where(
+            terminate,
+            jax.random.bernoulli(sample_rng, self.termination_probability).astype(
+                jp.bool
+            ),
+            jp.zeros_like(terminate),
+        )
+        saute_state = jp.where(terminate, ones, saute_state)
+        nstate.info["saute_state"] = saute_state
+        nstate.info["eval_reward"] = nstate.reward
+        nstate.metrics["saute_reward"] = saute_reward
+        nstate.metrics["saute_unsafe"] = (saute_state <= 0.0).astype(jp.float32)
+        nstate.metrics["saute_terminate"] = terminate.astype(jp.float32)
+        if isinstance(nstate.obs, jax.Array):
+            obs = jp.hstack([nstate.obs, saute_state])
+        else:
+            obs = {k: jp.hstack([v, saute_state]) for k, v in nstate.obs.items()}
+        nstate = nstate.replace(
+            obs=obs,
+            done=terminate.astype(jp.float32),
+            reward=saute_reward,
+        )
+        return nstate

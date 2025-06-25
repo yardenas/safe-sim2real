@@ -96,11 +96,4 @@ def get_train_fn(cfg, checkpoint_path, restore_checkpoint_path):
         penalizer=penalizer,
         penalizer_params=penalizer_params,
     )
-    # FIXME (yarden): that's a hack for now. Need to think of a
-    # better way to implement this.
-    if "penalizer" in cfg.agent and cfg.agent.penalizer.name == "saute":
-        train_fn = functools.partial(
-            train_fn,
-            use_saute=cfg.training.safe,
-        )
     return train_fn
