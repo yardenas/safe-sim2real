@@ -28,7 +28,7 @@ def make_safe_inference_fn(
     inital_backup_policy_params,
     initial_normalizer_params,
     scaling_fn,
-    qc_bias: float = 0.0,
+    qc_scale: float = 0.0,
 ) -> Callable[[Any, bool], types.Policy]:
     """Creates params and inference function for the SAC agent."""
     backup_policy = sac_networks.make_inference_fn(mbpo_networks)(
@@ -67,7 +67,7 @@ def make_safe_inference_fn(
             accumulated_cost = observations["cumulative_cost"][:, 0]
             current_discount = observations["curr_discount"][:, 0]
             expected_total_cost = (
-                scaling_fn(accumulated_cost) + qc * current_discount + qc_bias
+                scaling_fn(accumulated_cost) + qc * current_discount * qc_scale
             )
             backup_action = backup_policy(observations, key_sample)[0]
             safe = expected_total_cost[:, None] < safety_budget
