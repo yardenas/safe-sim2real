@@ -65,9 +65,9 @@ def make_safe_inference_fn(
             else:
                 raise ValueError("QC network is not defined, cannot do shielding.")
             accumulated_cost = observations["cumulative_cost"][:, 0]
-            current_discount = observations["curr_discount"][:, 0]
+            # current_discount = observations["curr_discount"][:, 0]
             expected_total_cost = (
-                scaling_fn(accumulated_cost) + qc * current_discount * qc_scale
+                scaling_fn(accumulated_cost) + qc  # * current_discount * qc_scale
             )
             backup_action = backup_policy(observations, key_sample)[0]
             safe = expected_total_cost[:, None] < safety_budget
