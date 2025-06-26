@@ -84,8 +84,8 @@ def make_training_step(
                 optimizer_state=training_state.qc_optimizer_state,
                 params=training_state.qc_params,
             )
-            qc_params = training_state.qc_params
-            qc_optimizer_state = training_state.qc_optimizer_state
+            qc_params = qc_params
+            qc_optimizer_state = qc_optimizer_state
             cost_metrics = {
                 "cost_critic_loss": cost_critic_loss,
             }
