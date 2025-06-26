@@ -29,7 +29,6 @@ def update_fn(
     num_envs,
     env_step_per_training_step,
     safe,
-    use_saute,
     use_disagreement,
 ):
     policy_gradient_update_fn = gradients.gradient_update_fn(
@@ -142,8 +141,6 @@ def update_fn(
         extra_fields = ("truncation",)
         if safe:
             extra_fields += ("cost", "cumulative_cost")  # type: ignore
-        if use_saute:
-            extra_fields += ("saute_reward", "saute_state")  # type: ignore
         if use_disagreement:
             extra_fields += ("disagreement",)  # type: ignore
 
@@ -201,8 +198,6 @@ def update_fn(
         )  # type: ignore
         if use_disagreement:
             aux["disagreement"] = jnp.mean(data.extras["state_extras"]["disagreement"])
-        if use_saute:
-            aux["saute_state"] = jnp.mean(data.extras["state_extras"]["saute_state"])
         return (new_training_state, state, new_key), aux
 
     return training_step

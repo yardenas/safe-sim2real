@@ -33,7 +33,11 @@ class ConstraintEvalWrapper(EvalWrapper):
             raise ValueError(f"Incorrect type for state_metrics: {type(state_metrics)}")
         del state.info["eval_metrics"]
         nstate = self.env.step(state, action)
-        nstate.metrics["reward"] = nstate.reward
+        if "eval_reward" in nstate.info:
+            reward = nstate.info["eval_reward"]
+        else:
+            reward = nstate.reward
+        nstate.metrics["reward"] = reward
         nstate.metrics["cost"] = nstate.info.get("cost", jnp.zeros_like(nstate.reward))
         episode_steps = jnp.where(
             state_metrics.active_episodes,

@@ -31,7 +31,9 @@ def locate_last_checkpoint() -> Path | None:
 
 def get_train_fn(cfg):
     if cfg.training.wandb_id:
-        restore_checkpoint_path = get_wandb_checkpoint(cfg.training.wandb_id)
+        restore_checkpoint_path = get_wandb_checkpoint(
+            cfg.training.wandb_id, cfg.wandb.entity
+        )
     else:
         restore_checkpoint_path = None
     if cfg.agent.name == "sac":

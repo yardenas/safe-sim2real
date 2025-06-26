@@ -30,6 +30,7 @@ class RAEReplayBuffer(ReplayBuffer[RAEReplayBufferState, Sample], Generic[Sample
         dummy_data_sample: Sample,
         sample_batch_size: int,
         wandb_ids: Sequence[str],
+        wandb_entity: str | None,
         mix: float = 0.5,
     ):
         self.sample_batch_size = sample_batch_size
@@ -40,13 +41,14 @@ class RAEReplayBuffer(ReplayBuffer[RAEReplayBufferState, Sample], Generic[Sample
         )
         self.offline_buffer = None
         self.wandb_ids = wandb_ids
+        self.wandb_entity = wandb_entity
         self._dummy_data_sample = dummy_data_sample
 
     def init(self, key: jax.Array) -> RAEReplayBufferState:
         """Initialize both buffers and load offline data from disk."""
         key_online, key_next = jax.random.split(key, 2)
         online_state = self.online_buffer.init(key_online)
-        offline_state = prepare_offline_data(self.wandb_ids)
+        offline_state = prepare_offline_data(self.wandb_ids, self.wandb_entity)
         max_size = offline_state.data.shape[0]
         self.offline_buffer = UniformSamplingQueue(
             max_size, self._dummy_data_sample, self.offline_sample_size
@@ -100,10 +102,10 @@ class RAEReplayBuffer(ReplayBuffer[RAEReplayBufferState, Sample], Generic[Sample
         )
 
 
-def prepare_offline_data(wandb_ids):
+def prepare_offline_data(wandb_ids, wandb_entity):
     data = []
     for wandb_id in wandb_ids:
-        checkpoint_path = get_wandb_checkpoint(wandb_id)
+        checkpoint_path = get_wandb_checkpoint(wandb_id, wandb_entity)
         params = checkpoint.load(checkpoint_path)
         replay_buffer_state = params[-1]
         data.append(_find_first_nonzeros(replay_buffer_state["data"]))
