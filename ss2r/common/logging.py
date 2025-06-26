@@ -151,7 +151,6 @@ class WeightAndBiasesWriter:
         config_dict = omegaconf.OmegaConf.to_container(config, resolve=True)
         assert isinstance(config_dict, dict)
         wandb.init(
-            entity=config.wandb.entity,
             project="ss2r",
             resume=True,
             config=config_dict,
