@@ -19,6 +19,7 @@ def _get_replay_buffer(cfg):
         return functools.partial(
             RAEReplayBuffer,
             wandb_ids=cfg.agent.replay_buffer.wandb_ids,
+            wandb_entity=cfg.wandb.entity,
             mix=cfg.agent.replay_buffer.mix,
         )
 
