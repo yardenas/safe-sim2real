@@ -3,8 +3,8 @@ import os
 import wandb
 
 
-def get_wandb_checkpoint(run_id):
-    api = wandb.Api()
+def get_wandb_checkpoint(run_id, entity):
+    api = wandb.Api(overrides={"entity": entity})
     artifact = api.artifact(f"ss2r/checkpoint:{run_id}")
     download_dir = artifact.download(f"{get_state_path()}/{run_id}")
     return download_dir
