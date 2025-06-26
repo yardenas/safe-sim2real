@@ -200,7 +200,6 @@ def train(
     optimism: float = 0.0,
     pessimism: float = 0.0,
     model_propagation: str = "nominal",
-    reward_termination: float = 0.0,
     use_termination: bool = True,
     online_budget: float = float("inf"),
     termination_prob: float = 1.0,
@@ -341,7 +340,7 @@ def train(
             budget_scaling_fun,
         )
         get_rollout_policy_params = get_inference_policy_params(
-            True, safety_budget=online_budget
+            True, safety_budget=safety_budget
         )
     else:
         make_rollout_policy = mbpo_networks.make_inference_fn(mbpo_network)
@@ -406,7 +405,7 @@ def train(
         action_size=action_size,
         observation_size=obs_size,
         ensemble_selection=model_propagation,
-        safety_budget=online_budget,
+        safety_budget=safety_budget,
         cost_discount=safety_discounting,
         scaling_fn=budget_scaling_fun,
         use_termination=use_termination,
