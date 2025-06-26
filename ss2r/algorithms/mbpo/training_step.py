@@ -276,10 +276,10 @@ def make_training_step(
                     transitions.observation["curr_discount"]
                     * planning_env.cost_discount
                 )
-                expected_total_cost = (
-                    qc_pred.mean(axis=-1) * curr_discount.squeeze()
-                    + scaling_fn(transitions.observation["cumulative_cost"].squeeze())
-                    + planning_env.qc_bias
+                expected_total_cost = qc_pred.mean(
+                    axis=-1
+                ) * curr_discount.squeeze() * planning_env.qc_scale + scaling_fn(
+                    transitions.observation["cumulative_cost"].squeeze()
                 )
                 discount = jnp.where(
                     (expected_total_cost > planning_env.safety_budget)

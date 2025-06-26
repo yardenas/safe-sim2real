@@ -201,7 +201,7 @@ def train(
     pessimism: float = 0.0,
     model_propagation: str = "nominal",
     use_termination: bool = True,
-    qc_bias: float = 0.0,
+    qc_scale: float = 0.0,
     termination_prob: float = 1.0,
 ):
     if min_replay_size >= num_timesteps:
@@ -338,7 +338,7 @@ def train(
             training_state.backup_policy_params,
             training_state.normalizer_params,
             budget_scaling_fun,
-            qc_bias,
+            qc_scale,
         )
         get_rollout_policy_params = get_inference_policy_params(
             True, safety_budget=safety_budget
@@ -411,7 +411,7 @@ def train(
         scaling_fn=budget_scaling_fun,
         use_termination=use_termination,
         termination_prob=termination_prob,
-        qc_bias=qc_bias,
+        qc_scale=qc_scale,
     )
     training_step = make_training_step(
         env,
