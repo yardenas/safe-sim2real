@@ -113,14 +113,14 @@ def make_training_step(
                 )
                 cost_metrics["behavior_cost_critic_loss"] = behavior_cost_critic_loss
             else:
-                behavior_qc_params = None
-                behavior_qc_optimizer_state = None
+                behavior_qc_params = training_state.behavior_qc_params
+                behavior_qc_optimizer_state = training_state.behavior_qc_optimizer_state
         else:
             cost_metrics = {}
-            backup_qc_params = None
-            backup_qc_optimizer_state = None
-            behavior_qc_params = None
-            behavior_qc_optimizer_state = None
+            backup_qc_params = training_state.backup_qc_params
+            backup_qc_optimizer_state = training_state.backup_qc_optimizer_state
+            behavior_qc_params = training_state.behavior_qc_params
+            behavior_qc_optimizer_state = training_state.behavior_qc_optimizer_state
 
         polyak = lambda target, new: jax.tree_util.tree_map(
             lambda x, y: x * (1 - tau) + y * tau, target, new
@@ -137,10 +137,10 @@ def make_training_step(
                     training_state.behavior_target_qc_params, behavior_qc_params
                 )
             else:
-                new_behavior_target_qc_params = None
+                new_behavior_target_qc_params = training_state.behavior_target_qc_params
         else:
-            new_backup_target_qc_params = None
-            new_behavior_target_qc_params = None
+            new_backup_target_qc_params = training_state.backup_target_qc_params
+            new_behavior_target_qc_params = training_state.behavior_target_qc_params
         metrics = {
             "critic_loss": critic_loss,
             "fraction_done": 1.0 - transitions.discount.mean(),
