@@ -325,7 +325,6 @@ def train(
             behavior_policy_params=params[1],
             backup_policy_params=params[1],
             behavior_qr_params=params[3],
-            backup_qr_params=params[3],
             behavior_qc_params=params[4] if safe else None,
             backup_qc_params=params[4] if safe else None,
         )
