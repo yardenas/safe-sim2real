@@ -112,6 +112,9 @@ def make_training_step(
                     params=training_state.behavior_qc_params,
                 )
                 cost_metrics["behavior_cost_critic_loss"] = behavior_cost_critic_loss
+            else:
+                behavior_qc_params = None
+                behavior_qc_optimizer_state = None
         else:
             cost_metrics = {}
             backup_qc_params = None
