@@ -165,7 +165,7 @@ def make_losses(
             aux["penalizer_params"] = penalizer_params
             aux |= penalizer_aux
         actor_loss += exploration_loss
-        return actor_loss
+        return actor_loss, aux
 
     def compute_model_loss(model_params, normalizer_params, data, obs_key="state"):
         model_apply = jax.vmap(mbpo_network.model_network.apply, (None, 0, None, None))
