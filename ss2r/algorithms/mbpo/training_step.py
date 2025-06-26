@@ -51,7 +51,7 @@ def make_training_step(
     reward_termination,
     use_termination,
     penalizer,
-    penalizer_params,
+    safety_budget,
 ):
     def critic_sgd_step(
         carry: Tuple[TrainingState, PRNGKey], transitions: Transition
@@ -60,34 +60,38 @@ def make_training_step(
         key, key_critic = jax.random.split(key)
         transitions = float32(transitions)
         alpha = jnp.exp(training_state.alpha_params) + min_alpha
-        critic_loss, qr_params, qr_optimizer_state = critic_update(
-            training_state.qr_params,
-            training_state.policy_params,
+        critic_loss, behavior_qr_params, behavior_qr_optimizer_state = critic_update(
+            training_state.behavior_qr_params,
+            training_state.behavior_policy_params,
             training_state.normalizer_params,
-            training_state.target_qr_params,
+            training_state.behavior_target_qr_params,
             alpha,
             transitions,
             key_critic,
             reward_q_transform,
-            optimizer_state=training_state.qr_optimizer_state,
-            params=training_state.qr_params,
+            optimizer_state=training_state.behavior_qr_optimizer_state,
+            params=training_state.behavior_qr_params,
         )
         if safe:
-            cost_critic_loss, qc_params, qc_optimizer_state = cost_critic_update(
-                training_state.qc_params,
+            (
+                backup_cost_critic_loss,
+                backup_qc_params,
+                backup_qc_optimizer_state,
+            ) = cost_critic_update(
+                training_state.backup_qc_params,
                 training_state.backup_policy_params,
                 training_state.normalizer_params,
-                training_state.target_qc_params,
+                training_state.backup_target_qc_params,
                 alpha,
                 transitions,
                 key_critic,
                 cost_q_transform,
                 True,
-                optimizer_state=training_state.qc_optimizer_state,
-                params=training_state.qc_params,
+                optimizer_state=training_state.backup_qc_optimizer_state,
+                params=training_state.backup_qc_params,
             )
             cost_metrics = {
-                "backup_cost_critic_loss": cost_critic_loss,
+                "backup_cost_critic_loss": backup_cost_critic_loss,
             }
             if penalizer is not None:
                 (
@@ -96,7 +100,7 @@ def make_training_step(
                     behavior_qc_optimizer_state,
                 ) = cost_critic_update(
                     training_state.behavior_qc_params,
-                    training_state.policy_params,
+                    training_state.behavior_policy_params,
                     training_state.normalizer_params,
                     training_state.behavior_target_qc_params,
                     alpha,
@@ -110,23 +114,27 @@ def make_training_step(
                 cost_metrics["behavior_cost_critic_loss"] = behavior_cost_critic_loss
         else:
             cost_metrics = {}
-            qc_params = None
-            qc_optimizer_state = None
+            backup_qc_params = None
+            backup_qc_optimizer_state = None
             behavior_qc_params = None
             behavior_qc_optimizer_state = None
 
         polyak = lambda target, new: jax.tree_util.tree_map(
             lambda x, y: x * (1 - tau) + y * tau, target, new
         )
-        new_target_qr_params = polyak(training_state.target_qr_params, qr_params)
+        new_behavior_target_qr_params = polyak(
+            training_state.behavior_target_qr_params, behavior_qr_params
+        )
         if safe:
-            new_target_qc_params = polyak(training_state.target_qc_params, qc_params)
+            new_backup_target_qc_params = polyak(
+                training_state.backup_target_qc_params, backup_qc_params
+            )
             if penalizer is not None:
                 new_behavior_target_qc_params = polyak(
                     training_state.behavior_target_qc_params, behavior_qc_params
                 )
         else:
-            new_target_qc_params = None
+            new_backup_target_qc_params = None
             new_behavior_target_qc_params = None
         metrics = {
             "critic_loss": critic_loss,
@@ -134,16 +142,16 @@ def make_training_step(
             **cost_metrics,
         }
         new_training_state = training_state.replace(  # type: ignore
-            qr_optimizer_state=qr_optimizer_state,
-            qr_params=qr_params,
-            qc_optimizer_state=qc_optimizer_state,
-            qc_params=qc_params,
-            target_qr_params=new_target_qr_params,
-            target_qc_params=new_target_qc_params,
-            gradient_steps=training_state.gradient_steps + 1,
-            behavior_qc_params=behavior_qc_params,
-            behavior_target_qc_params=new_behavior_target_qc_params,
+            behavior_qr_optimizer_state=behavior_qr_optimizer_state,
             behavior_qc_optimizer_state=behavior_qc_optimizer_state,
+            behavior_qr_params=behavior_qr_params,
+            behavior_qc_params=behavior_qc_params,
+            behavior_target_qr_params=new_behavior_target_qr_params,
+            behavior_target_qc_params=new_behavior_target_qc_params,
+            backup_qc_optimizer_state=backup_qc_optimizer_state,
+            backup_qc_params=backup_qc_params,
+            backup_target_qc_params=new_backup_target_qc_params,
+            gradient_steps=training_state.gradient_steps + 1,
         )
         return (new_training_state, key), metrics
 
@@ -155,33 +163,47 @@ def make_training_step(
         transitions = float32(transitions)
         alpha_loss, alpha_params, alpha_optimizer_state = alpha_update(
             training_state.alpha_params,
-            training_state.policy_params,
+            training_state.behavior_policy_params,
             training_state.normalizer_params,
             transitions,
             key_alpha,
             optimizer_state=training_state.alpha_optimizer_state,
         )
         alpha = jnp.exp(training_state.alpha_params) + min_alpha
-        actor_loss, policy_params, policy_optimizer_state = actor_update(
-            training_state.policy_params,
+        (actor_loss, aux), policy_params, policy_optimizer_state = actor_update(
+            training_state.behavior_policy_params,
             training_state.normalizer_params,
-            training_state.qr_params,
+            training_state.behavior_qr_params,
+            training_state.behavior_qc_params,
             alpha,
             transitions,
             key_actor,
-            optimizer_state=training_state.policy_optimizer_state,
-            params=training_state.policy_params,
+            safety_budget,
+            penalizer,
+            training_state.penalizer_params,
+            optimizer_state=training_state.behavior_policy_optimizer_state,
+            params=training_state.behavior_policy_params,
         )
+        if aux:
+            new_penalizer_params = aux.pop("penalizer_params")
+            additional_metrics = {
+                **aux,
+            }
+        else:
+            new_penalizer_params = training_state.penalizer_params
+            additional_metrics = {}
         metrics = {
             "actor_loss": actor_loss,
             "alpha_loss": alpha_loss,
             "alpha": jnp.exp(alpha_params),
+            **additional_metrics,
         }
         new_training_state = training_state.replace(  # type: ignore
-            policy_optimizer_state=policy_optimizer_state,
-            policy_params=policy_params,
+            behavior_policy_optimizer_state=policy_optimizer_state,
+            behavior_policy_params=policy_params,
             alpha_optimizer_state=alpha_optimizer_state,
             alpha_params=alpha_params,
+            penalizer_params=new_penalizer_params,
         )
         return (new_training_state, key), metrics
 
@@ -281,7 +303,7 @@ def make_training_step(
             if (planning_env.qc_network is not None) and use_termination:
                 qc_pred = planning_env.qc_network.apply(
                     normalizer_params,
-                    planning_env.qc_params,
+                    planning_env.backup_qc_params,
                     transitions.observation,
                     transitions.action,
                 )
@@ -343,13 +365,13 @@ def make_training_step(
         )
         planning_env = make_model_env(
             model_params=training_state.model_params,
-            qc_params=training_state.qc_params,
+            backup_qc_params=training_state.backup_qc_params,
             normalizer_params=training_state.normalizer_params,
             transitions=transitions,
         )
         planning_env = VmapWrapper(planning_env)
         policy = make_planning_policy(
-            (training_state.normalizer_params, training_state.policy_params)
+            (training_state.normalizer_params, training_state.behavior_policy_params)
         )
         # Rollout trajectories from the sampled transitions
         sac_buffer_state = generate_model_data(

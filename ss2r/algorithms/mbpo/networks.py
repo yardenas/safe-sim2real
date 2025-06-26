@@ -203,12 +203,12 @@ def get_inference_policy_params(safe: bool, safety_budget=float("inf")) -> Any:
     def get_params(training_state: TrainingState) -> Any:
         if safe:
             return (
-                training_state.policy_params,
-                training_state.qc_params,
+                training_state.behavior_policy_params,
+                training_state.backup_qc_params,
                 safety_budget,
             )
         else:
-            return training_state.policy_params
+            return training_state.behavior_policy_params
 
     return get_params
 

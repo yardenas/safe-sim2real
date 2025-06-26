@@ -17,7 +17,7 @@ class ModelBasedEnv(envs.Env):
         model_network,
         model_params,
         qc_network,
-        qc_params,
+        backup_qc_params,
         normalizer_params,
         ensemble_selection="mean",
         safety_budget=float("inf"),
@@ -30,7 +30,7 @@ class ModelBasedEnv(envs.Env):
         self.model_network = model_network
         self.model_params = model_params
         self.qc_network = qc_network
-        self.qc_params = qc_params
+        self.backup_qc_params = backup_qc_params
         self.normalizer_params = normalizer_params
         self.ensemble_selection = ensemble_selection
         self.safety_budget = safety_budget
@@ -89,7 +89,7 @@ class ModelBasedEnv(envs.Env):
                 self.cost_scaling_fn(prev_cumulative_cost)
                 + self.qc_network.apply(
                     self.normalizer_params,
-                    self.qc_params,
+                    self.backup_qc_params,
                     state.obs,
                     action,
                 ).mean(axis=-1)
@@ -165,7 +165,7 @@ def create_model_env(
         action_size=action_size,
         model_params=model_params,
         qc_network=qc_network,
-        qc_params=qc_params,
+        backup_qc_params=qc_params,
         normalizer_params=normalizer_params,
         ensemble_selection=ensemble_selection,
         safety_budget=safety_budget,

@@ -26,6 +26,7 @@ from brax.training import types
 from brax.training.types import Params, PRNGKey
 
 from ss2r.algorithms.mbpo.networks import MBPONetworks
+from ss2r.algorithms.penalizers import Penalizer
 from ss2r.algorithms.sac.q_transforms import QTransformation
 
 Transition: TypeAlias = types.Transition
@@ -45,6 +46,7 @@ def make_losses(
     target_entropy = -0.5 * action_size if init_alpha is None else init_alpha
     policy_network = mbpo_network.policy_network
     qr_network = mbpo_network.qr_network
+    qc_network = mbpo_network.qc_network
     parametric_action_distribution = mbpo_network.parametric_action_distribution
 
     def alpha_loss(
@@ -122,9 +124,13 @@ def make_losses(
         policy_params: Params,
         normalizer_params: Any,
         qr_params: Params,
+        qc_params: Params | None,
         alpha: jnp.ndarray,
         transitions: Transition,
         key: PRNGKey,
+        safety_budget: float,
+        penalizer: Penalizer | None,
+        penalizer_params: Any,
     ) -> jnp.ndarray:
         dist_params = policy_network.apply(
             normalizer_params, policy_params, transitions.observation
@@ -143,6 +149,21 @@ def make_losses(
             qr = jnp.min(qr_action, axis=-1)
         actor_loss = -qr.mean()
         exploration_loss = (alpha * log_prob).mean()
+        aux = {}
+        if penalizer is not None:
+            assert qc_network is not None
+            qc_action = qc_network.apply(
+                normalizer_params, qc_params, transitions.observation, action
+            )
+            mean_qc = jnp.mean(qc_action, axis=-1)
+            constraint = safety_budget - mean_qc.mean() / cost_scaling
+            actor_loss, penalizer_aux, penalizer_params = penalizer(
+                actor_loss, constraint, jax.lax.stop_gradient(penalizer_params)
+            )
+            aux["constraint_estimate"] = constraint
+            aux["cost"] = mean_qc.mean() / cost_scaling
+            aux["penalizer_params"] = penalizer_params
+            aux |= penalizer_aux
         actor_loss += exploration_loss
         return actor_loss
 
