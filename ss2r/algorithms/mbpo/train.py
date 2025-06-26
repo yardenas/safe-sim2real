@@ -107,9 +107,13 @@ def _init_training_state(
         qc_params = mbpo_network.qc_network.init(key_qr)
         assert qc_optimizer is not None
         qc_optimizer_state = qc_optimizer.init(qc_params)
+        backup_qr_params = qr_params
+        backup_qr_optimizer_state = qr_optimizer_state
     else:
         qc_params = None
         qc_optimizer_state = None
+        backup_qr_params = None
+        backup_qr_optimizer_state = None
     if isinstance(obs_size, Mapping):
         obs_shape = {
             k: specs.Array(v, jnp.dtype("float32")) for k, v in obs_size.items()
@@ -123,6 +127,8 @@ def _init_training_state(
         backup_policy_params=policy_params,
         qr_optimizer_state=qr_optimizer_state,
         qr_params=qr_params,
+        backup_qr_optimizer_state=backup_qr_optimizer_state,
+        backup_qr_params=backup_qr_params,
         qc_optimizer_state=qc_optimizer_state,
         qc_params=qc_params,
         target_qr_params=qr_params,
@@ -322,6 +328,7 @@ def train(
             policy_params=params[1],
             backup_policy_params=params[1],
             qr_params=params[3],
+            backup_qr_params=params[3],
             qc_params=params[4] if safe else None,
         )
 
@@ -395,15 +402,13 @@ def train(
 
     make_model_env = functools.partial(
         create_model_env,
-        model_network=mbpo_network.model_network,
-        qc_network=mbpo_network.qc_network,
+        mbpo_network=mbpo_network,
         action_size=action_size,
         observation_size=obs_size,
         ensemble_selection=model_propagation,
         safety_budget=online_budget,
         cost_discount=safety_discounting,
         scaling_fn=budget_scaling_fun,
-        reward_termination=reward_termination,
         use_termination=use_termination,
         termination_prob=termination_prob,
     )
@@ -437,7 +442,6 @@ def train(
         pessimism,
         model_to_real_data_ratio,
         budget_scaling_fun,
-        reward_termination=reward_termination,
         use_termination=use_termination,
     )
 

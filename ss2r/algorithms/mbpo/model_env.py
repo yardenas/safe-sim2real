@@ -14,25 +14,25 @@ class ModelBasedEnv(envs.Env):
         transitions,
         observation_size,
         action_size,
-        model_network,
-        model_params,
-        qc_network,
-        qc_params,
-        normalizer_params,
+        mbpo_network,
+        training_state,
         ensemble_selection="mean",
         safety_budget=float("inf"),
         cost_discount=1.0,
         scaling_fn=lambda x: x,
-        reward_termination=0.0,
         use_termination=True,
         termination_prob=1,
     ):
         super().__init__()
-        self.model_network = model_network
-        self.model_params = model_params
-        self.qc_network = qc_network
-        self.qc_params = qc_params
-        self.normalizer_params = normalizer_params
+        self.model_network = mbpo_network.model_network
+        self.model_params = training_state.model_params
+        self.qc_network = mbpo_network.qc_network
+        self.qc_params = training_state.qc_params
+        self.qr_network = mbpo_network.qr_network
+        self.backup_qr_params = training_state.backup_qr_params
+        self.policy_network = mbpo_network.policy_network
+        self.backup_policy_params = training_state.backup_policy_params
+        self.normalizer_params = training_state.normalizer_params
         self.ensemble_selection = ensemble_selection
         self.safety_budget = safety_budget
         self._observation_size = observation_size
@@ -40,7 +40,6 @@ class ModelBasedEnv(envs.Env):
         self.transitions = transitions
         self.cost_discount = cost_discount
         self.scaling_fn = scaling_fn
-        self.reward_termination = reward_termination
         self.use_termination = use_termination
         self.termination_prob = termination_prob
 
@@ -105,12 +104,22 @@ class ModelBasedEnv(envs.Env):
                 jnp.ones_like(done),
                 done,
             )
+            pred_backup_action = self.policy_network.apply
+            backup_policy_params = self.backup_policy_params
+            backup_action = pred_backup_action(
+                self.normalizer_params, backup_policy_params, state.obs
+            )[0]
+            pred_qr = self.qr_network.apply
+            backup_qr_params = self.backup_qr_params
+            pessimistic_qr_pred = pred_qr(
+                self.normalizer_params, backup_qr_params, state.obs, backup_action[None]
+            ).mean(axis=-1)
             reward = jnp.where(
                 (expected_cost_for_traj > self.safety_budget)
                 & jax.random.bernoulli(
                     key, p=self.termination_prob, shape=expected_cost_for_traj.shape
                 ),
-                jnp.ones_like(reward) * self.reward_termination,
+                pessimistic_qr_pred,
                 reward,
             )
 
@@ -151,36 +160,28 @@ class ModelBasedEnv(envs.Env):
 
 def create_model_env(
     transitions,
-    model_network,
-    model_params,
-    qc_network,
-    qc_params,
+    mbpo_network,
+    training_state,
     observation_size,
     action_size,
-    normalizer_params,
     ensemble_selection="random",
     safety_budget=float("inf"),
     cost_discount=1.0,
     scaling_fn=lambda x: x,
-    reward_termination=0.0,
     use_termination=True,
     termination_prob=1.0,
 ) -> ModelBasedEnv:
     """Factory function to create a model-based environment."""
     return ModelBasedEnv(
         transitions=transitions,
-        model_network=model_network,
+        mbpo_network=mbpo_network,
+        training_state=training_state,
         observation_size=observation_size,
         action_size=action_size,
-        model_params=model_params,
-        qc_network=qc_network,
-        qc_params=qc_params,
-        normalizer_params=normalizer_params,
         ensemble_selection=ensemble_selection,
         safety_budget=safety_budget,
         cost_discount=cost_discount,
         scaling_fn=scaling_fn,
-        reward_termination=reward_termination,
         use_termination=use_termination,
         termination_prob=termination_prob,
     )

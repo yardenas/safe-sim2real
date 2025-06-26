@@ -48,7 +48,6 @@ def make_training_step(
     pessimism,
     model_to_real_data_ratio,
     scaling_fn,
-    reward_termination,
     use_termination,
 ):
     def critic_sgd_step(
@@ -240,6 +239,22 @@ def make_training_step(
         next_obs_pred, reward, cost = vmap_pred_fn(
             normalizer_params, model_params, transitions.observation, transitions.action
         )
+
+        pred_backup_action = planning_env.policy_network.apply
+        backup_policy_params = planning_env.backup_policy_params
+        backup_action = pred_backup_action(
+            normalizer_params, backup_policy_params, transitions.observation
+        )[:, :, 0]
+
+        pred_qr = planning_env.qr_network.apply
+        backup_qr_params = planning_env.backup_qr_params
+        pessimistic_qr_pred = pred_qr(
+            normalizer_params,
+            backup_qr_params,
+            transitions.observation,
+            backup_action[:, :, None],
+        ).mean(axis=-1)
+
         disagreement = (
             next_obs_pred.std(axis=0).mean(-1)
             if isinstance(next_obs_pred, jax.Array)
@@ -279,7 +294,7 @@ def make_training_step(
         new_reward = jnp.where(
             discount,
             new_reward,
-            jnp.ones_like(new_reward) * reward_termination,
+            pessimistic_qr_pred,
         )
         next_obs_pred = jax.tree_map(lambda x: x.mean(0), next_obs_pred)
         return Transition(
@@ -319,9 +334,7 @@ def make_training_step(
             model_sgd_step, (training_state, training_key), tmp_transitions
         )
         planning_env = make_model_env(
-            model_params=training_state.model_params,
-            qc_params=training_state.qc_params,
-            normalizer_params=training_state.normalizer_params,
+            training_state=training_state,
             transitions=transitions,
         )
         planning_env = VmapWrapper(planning_env)
