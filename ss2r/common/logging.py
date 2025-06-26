@@ -150,7 +150,13 @@ class WeightAndBiasesWriter:
         config.wandb.name = name
         config_dict = omegaconf.OmegaConf.to_container(config, resolve=True)
         assert isinstance(config_dict, dict)
-        wandb.init(project="ss2r", resume=True, config=config_dict, **config.wandb)
+        wandb.init(
+            entity=config.wandb.entity,
+            project="ss2r",
+            resume=True,
+            config=config_dict,
+            **config.wandb,
+        )
         self._handle = wandb
 
     def log(self, summary: dict[str, float], step: int):

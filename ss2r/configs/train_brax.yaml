@@ -29,6 +29,7 @@ wandb:
   group: null
   notes: null
   name: ${hydra:job.override_dirname}
+  entity: null
 
 jit: true
 
