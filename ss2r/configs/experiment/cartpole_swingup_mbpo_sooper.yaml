@@ -30,5 +30,4 @@ agent:
   model_learning_rate: 3e-4
   pessimism: 0
   optimism: 10
-  reward_termination: 0
   online_budget: 75
