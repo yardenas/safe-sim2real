@@ -136,6 +136,8 @@ def make_training_step(
                 new_behavior_target_qc_params = polyak(
                     training_state.behavior_target_qc_params, behavior_qc_params
                 )
+            else:
+                new_behavior_target_qc_params = None
         else:
             new_backup_target_qc_params = None
             new_behavior_target_qc_params = None
