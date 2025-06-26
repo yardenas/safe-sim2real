@@ -201,7 +201,7 @@ def train(
     pessimism: float = 0.0,
     model_propagation: str = "nominal",
     use_termination: bool = True,
-    online_budget: float = float("inf"),
+    qc_bias: float = 0.0,
     termination_prob: float = 1.0,
 ):
     if min_replay_size >= num_timesteps:
@@ -214,10 +214,7 @@ def train(
         budget_scaling_fun = (
             lambda x: x / episode_length / (1.0 - safety_discounting) * action_repeat
         )
-        if online_budget < float("inf"):
-            safety_budget = budget_scaling_fun(online_budget)
-        else:
-            safety_budget = budget_scaling_fun(episodic_safety_budget)
+        safety_budget = budget_scaling_fun(episodic_safety_budget)
     logging.info(f"Episode safety budget: {safety_budget}")
     if max_replay_size is None:
         max_replay_size = num_timesteps
@@ -341,6 +338,7 @@ def train(
             training_state.backup_policy_params,
             training_state.normalizer_params,
             budget_scaling_fun,
+            qc_bias,
         )
         get_rollout_policy_params = get_inference_policy_params(
             True, safety_budget=safety_budget
@@ -413,6 +411,7 @@ def train(
         scaling_fn=budget_scaling_fun,
         use_termination=use_termination,
         termination_prob=termination_prob,
+        qc_bias=qc_bias,
     )
     training_step = make_training_step(
         env,

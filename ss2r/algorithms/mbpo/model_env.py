@@ -22,6 +22,7 @@ class ModelBasedEnv(envs.Env):
         scaling_fn=lambda x: x,
         use_termination=True,
         termination_prob=1,
+        qc_bias=0,
     ):
         super().__init__()
         self.model_network = mbpo_network.model_network
@@ -42,6 +43,7 @@ class ModelBasedEnv(envs.Env):
         self.scaling_fn = scaling_fn
         self.use_termination = use_termination
         self.termination_prob = termination_prob
+        self.qc_bias = qc_bias
 
     def reset(self, rng: jax.Array) -> base.State:
         sample_key, model_key = jax.random.split(rng)
@@ -95,6 +97,7 @@ class ModelBasedEnv(envs.Env):
                     action,
                 ).mean(axis=-1)
                 * curr_discount
+                + self.qc_bias
             )
             done = jnp.where(
                 (expected_cost_for_traj > self.safety_budget)
@@ -170,6 +173,7 @@ def create_model_env(
     scaling_fn=lambda x: x,
     use_termination=True,
     termination_prob=1.0,
+    qc_bias=0,
 ) -> ModelBasedEnv:
     """Factory function to create a model-based environment."""
     return ModelBasedEnv(
@@ -184,6 +188,7 @@ def create_model_env(
         scaling_fn=scaling_fn,
         use_termination=use_termination,
         termination_prob=termination_prob,
+        qc_bias=qc_bias,
     )
 
 
