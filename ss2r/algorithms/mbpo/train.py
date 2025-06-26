@@ -400,7 +400,7 @@ def train(
     make_model_env = functools.partial(
         create_model_env,
         model_network=mbpo_network.model_network,
-        qc_network=mbpo_network.qc_network,
+        qc_network=mbpo_network.qc_network if safe and penalizer is not None else None,
         action_size=action_size,
         observation_size=obs_size,
         ensemble_selection=model_propagation,

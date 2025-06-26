@@ -259,7 +259,6 @@ def make_training_step(
         sac_replay_buffer_state: ReplayBufferState,
         key: PRNGKey,
     ) -> ReplayBufferState:
-        key_generate_unroll, cost_key, model_key, key_perm = jax.random.split(key, 4)
         keys = jax.random.split(key, num_model_rollouts + 2)
         key = keys[0]
         key_generate_unroll = keys[1]
