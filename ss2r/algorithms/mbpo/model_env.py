@@ -89,14 +89,15 @@ class ModelBasedEnv(envs.Env):
             prev_cumulative_cost = state.obs["cumulative_cost"][0]
             curr_discount = state.obs["curr_discount"][0] * self.cost_discount
             expected_cost_for_traj = (
-                self.scaling_fn(prev_cumulative_cost)
-                + self.qc_network.apply(
-                    self.normalizer_params,
-                    self.qc_params,
-                    state.obs,
-                    action,
-                ).mean(axis=-1)
-                * curr_discount
+                prev_cumulative_cost
+                + self.scaling_fn(
+                    self.qc_network.apply(
+                        self.normalizer_params,
+                        self.qc_params,
+                        state.obs,
+                        action,
+                    ).mean(axis=-1)
+                )
                 * self.qc_scale
             )
             done = jnp.where(

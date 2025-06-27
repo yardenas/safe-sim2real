@@ -212,9 +212,8 @@ def train(
     budget_scaling_fun = lambda x: x
     if safety_discounting != 1.0 and normalize_budget:
         budget_scaling_fun = (
-            lambda x: x / episode_length / (1.0 - safety_discounting) * action_repeat
+            lambda x: x * episode_length * (1.0 - safety_discounting) / action_repeat
         )
-        safety_budget = budget_scaling_fun(episodic_safety_budget)
     logging.info(f"Episode safety budget: {safety_budget}")
     if max_replay_size is None:
         max_replay_size = num_timesteps

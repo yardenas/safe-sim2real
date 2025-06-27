@@ -30,4 +30,4 @@ agent:
   model_learning_rate: 3e-4
   pessimism: 100
   optimism: 10
-  qc_scale: 4.0
+  qc_scale: 1.0
