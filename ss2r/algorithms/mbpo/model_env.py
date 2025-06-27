@@ -14,32 +14,31 @@ class ModelBasedEnv(envs.Env):
         transitions,
         observation_size,
         action_size,
-        model_network,
-        model_params,
-        qc_network,
-        backup_qc_params,
-        normalizer_params,
+        mbpo_network,
+        training_state,
         ensemble_selection="mean",
         safety_budget=float("inf"),
         cost_discount=1.0,
-        cost_scaling_fn=lambda x: x,
-        reward_termination=0.0,
+        scaling_fn=lambda x: x,
         use_termination=True,
     ):
         super().__init__()
-        self.model_network = model_network
-        self.model_params = model_params
-        self.qc_network = qc_network
-        self.backup_qc_params = backup_qc_params
-        self.normalizer_params = normalizer_params
+        self.model_network = mbpo_network.model_network
+        self.model_params = training_state.model_params
+        self.qc_network = mbpo_network.qc_network
+        self.qc_params = training_state.backup_qc_params
+        self.qr_network = mbpo_network.qr_network
+        self.backup_qr_params = training_state.backup_qr_params
+        self.policy_network = mbpo_network.policy_network
+        self.backup_policy_params = training_state.backup_policy_params
+        self.normalizer_params = training_state.normalizer_params
         self.ensemble_selection = ensemble_selection
         self.safety_budget = safety_budget
         self._observation_size = observation_size
         self._action_size = action_size
         self.transitions = transitions
         self.cost_discount = cost_discount
-        self.cost_scaling_fn = cost_scaling_fn
-        self.reward_termination = reward_termination
+        self.scaling_fn = scaling_fn
         self.use_termination = use_termination
 
     def reset(self, rng: jax.Array) -> base.State:
@@ -84,25 +83,32 @@ class ModelBasedEnv(envs.Env):
         state.info["truncation"] = truncation
         if self.qc_network is not None:
             prev_cumulative_cost = state.obs["cumulative_cost"][0]
-            curr_discount = state.obs["curr_discount"][0] * self.cost_discount
-            expected_cost_for_traj = (
-                self.cost_scaling_fn(prev_cumulative_cost)
-                + self.qc_network.apply(
+            expected_cost_for_traj = prev_cumulative_cost + self.scaling_fn(
+                self.qc_network.apply(
                     self.normalizer_params,
                     self.backup_qc_params,
                     state.obs,
                     action,
                 ).mean(axis=-1)
-                * curr_discount
             )
             done = jnp.where(
                 expected_cost_for_traj > self.safety_budget,
                 jnp.ones_like(done),
                 done,
             )
+            pred_backup_action = self.policy_network.apply
+            backup_policy_params = self.backup_policy_params
+            backup_action = pred_backup_action(
+                self.normalizer_params, backup_policy_params, state.obs
+            )[0]
+            pred_qr = self.qr_network.apply
+            backup_qr_params = self.backup_qr_params
+            pessimistic_qr_pred = pred_qr(
+                self.normalizer_params, backup_qr_params, state.obs, backup_action[None]
+            ).mean(axis=-1)
             reward = jnp.where(
                 expected_cost_for_traj > self.safety_budget,
-                jnp.ones_like(reward) * self.reward_termination,
+                pessimistic_qr_pred,
                 reward,
             )
 
@@ -110,9 +116,7 @@ class ModelBasedEnv(envs.Env):
                 """Reset the state if done."""
                 key, reset_keys = jax.random.split(state.info["key"])
                 state.info["key"] = key
-                next_obs["cumulative_cost"] = (
-                    state.obs["cumulative_cost"] + cost * curr_discount
-                )
+                next_obs["cumulative_cost"] = state.obs["cumulative_cost"] + cost
                 reset_state_obs = self.reset(reset_keys).obs
                 obs = jax.tree_map(
                     lambda x, y: jnp.where(done, x, y), reset_state_obs, next_obs
@@ -143,35 +147,27 @@ class ModelBasedEnv(envs.Env):
 
 def create_model_env(
     transitions,
-    model_network,
-    model_params,
-    qc_network,
-    backup_qc_params,
+    mbpo_network,
+    training_state,
     observation_size,
     action_size,
-    normalizer_params,
     ensemble_selection="random",
     safety_budget=float("inf"),
     cost_discount=1.0,
-    scaling_fn=lambda x: x,  # Function to scale costs
-    reward_termination=0.0,
+    scaling_fn=lambda x: x,
     use_termination=True,
 ) -> ModelBasedEnv:
     """Factory function to create a model-based environment."""
     return ModelBasedEnv(
         transitions=transitions,
-        model_network=model_network,
+        mbpo_network=mbpo_network,
+        training_state=training_state,
         observation_size=observation_size,
         action_size=action_size,
-        model_params=model_params,
-        qc_network=qc_network,
-        backup_qc_params=backup_qc_params,
-        normalizer_params=normalizer_params,
         ensemble_selection=ensemble_selection,
         safety_budget=safety_budget,
         cost_discount=cost_discount,
-        cost_scaling_fn=scaling_fn,
-        reward_termination=reward_termination,
+        scaling_fn=scaling_fn,
         use_termination=use_termination,
     )
 

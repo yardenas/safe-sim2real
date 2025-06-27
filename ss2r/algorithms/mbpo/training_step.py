@@ -48,7 +48,6 @@ def make_training_step(
     pessimism,
     model_to_real_data_ratio,
     scaling_fn,
-    reward_termination,
     use_termination,
     penalizer,
     safety_budget,
@@ -294,6 +293,21 @@ def make_training_step(
         next_obs_pred, reward, cost = vmap_pred_fn(
             normalizer_params, model_params, transitions.observation, transitions.action
         )
+
+        pred_backup_action = planning_env.policy_network.apply
+        backup_policy_params = planning_env.backup_policy_params
+        backup_action = pred_backup_action(
+            normalizer_params, backup_policy_params, transitions.observation
+        )[:, :, 0]
+
+        pred_qr = planning_env.qr_network.apply
+        backup_qr_params = planning_env.backup_qr_params
+        pessimistic_qr_pred = pred_qr(
+            normalizer_params,
+            backup_qr_params,
+            transitions.observation,
+            backup_action[:, :, None],
+        ).mean(axis=-1)
         disagreement = (
             next_obs_pred.std(axis=0).mean(-1)
             if isinstance(next_obs_pred, jax.Array)
@@ -311,14 +325,9 @@ def make_training_step(
                     transitions.observation,
                     transitions.action,
                 )
-                curr_discount = (
-                    transitions.observation["curr_discount"]
-                    * planning_env.cost_discount
-                )
-                expected_total_cost = qc_pred.mean(
-                    axis=-1
-                ) * curr_discount.squeeze() + scaling_fn(
-                    transitions.observation["cumulative_cost"].squeeze()
+                expected_total_cost = (
+                    scaling_fn(qc_pred.mean(axis=-1))
+                    + transitions.observation["cumulative_cost"].squeeze()
                 )
                 discount = jnp.where(
                     expected_total_cost > planning_env.safety_budget,
@@ -328,7 +337,7 @@ def make_training_step(
         new_reward = jnp.where(
             discount,
             new_reward,
-            jnp.ones_like(new_reward) * reward_termination,
+            pessimistic_qr_pred,
         )
         next_obs_pred = jax.tree_map(lambda x: x.mean(0), next_obs_pred)
         return Transition(
