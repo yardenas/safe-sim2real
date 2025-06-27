@@ -253,7 +253,6 @@ def make_training_step(
             transitions.observation,
             backup_action[:, :, None],
         ).mean(axis=-1)
-
         disagreement = (
             next_obs_pred.std(axis=0).mean(-1)
             if isinstance(next_obs_pred, jax.Array)
