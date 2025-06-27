@@ -26,7 +26,7 @@ class ModelBasedEnv(envs.Env):
         self.model_network = mbpo_network.model_network
         self.model_params = training_state.model_params
         self.qc_network = mbpo_network.qc_network
-        self.qc_params = training_state.backup_qc_params
+        self.backup_qc_params = training_state.backup_qc_params
         self.qr_network = mbpo_network.qr_network
         self.backup_qr_params = training_state.backup_qr_params
         self.policy_network = mbpo_network.policy_network

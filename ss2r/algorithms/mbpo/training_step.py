@@ -377,9 +377,7 @@ def make_training_step(
             model_sgd_step, (training_state, training_key), tmp_transitions
         )
         planning_env = make_model_env(
-            model_params=training_state.model_params,
-            backup_qc_params=training_state.backup_qc_params,
-            normalizer_params=training_state.normalizer_params,
+            training_state=training_state,
             transitions=transitions,
         )
         planning_env = VmapWrapper(planning_env)

@@ -106,11 +106,11 @@ def _init_training_state(
         backup_qc_params = mbpo_network.qc_network.init(key_qr)
         assert qc_optimizer is not None
         backup_qc_optimizer_state = qc_optimizer.init(backup_qc_params)
+        backup_qr_params = qr_params
     else:
         backup_qc_params = None
         backup_qc_optimizer_state = None
         backup_qr_params = None
-        backup_qr_optimizer_state = None
     if isinstance(obs_size, Mapping):
         obs_shape = {
             k: specs.Array(v, jnp.dtype("float32")) for k, v in obs_size.items()
@@ -124,7 +124,6 @@ def _init_training_state(
         backup_policy_params=policy_params,
         behavior_qr_optimizer_state=qr_optimizer_state,
         behavior_qr_params=qr_params,
-        backup_qr_optimizer_state=backup_qr_optimizer_state,
         backup_qr_params=backup_qr_params,
         behavior_qc_optimizer_state=backup_qc_optimizer_state,
         behavior_qc_params=backup_qc_params,
@@ -409,7 +408,7 @@ def train(
         safety_budget=safety_budget,
         cost_discount=safety_discounting,
         scaling_fn=budget_scaling_fun,
-        use_termination=use_termination,
+        use_termination=penalizer is not None and use_termination,
     )
     training_step = make_training_step(
         env,
