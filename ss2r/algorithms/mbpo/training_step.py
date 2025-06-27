@@ -230,7 +230,6 @@ def make_training_step(
     def relabel_transitions(
         planning_env: ModelBasedEnv,
         transitions: Transition,
-        key: PRNGKey,
     ) -> Transition:
         pred_fn = planning_env.model_network.apply
         model_params = planning_env.model_params
@@ -355,9 +354,7 @@ def make_training_step(
             lambda x: jnp.reshape(x, (critic_grad_updates_per_step, -1) + x.shape[1:]),
             transitions,
         )
-        transitions, disagreement = relabel_transitions(
-            planning_env, transitions, training_key
-        )
+        transitions, disagreement = relabel_transitions(planning_env, transitions)
         (training_state, _), critic_metrics = jax.lax.scan(
             critic_sgd_step, (training_state, training_key), transitions
         )
