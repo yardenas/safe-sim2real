@@ -31,3 +31,4 @@ agent:
   pessimism: 0
   optimism: 0
   qc_scale: 4.0
+  init_alpha: 0.3
