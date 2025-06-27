@@ -112,9 +112,6 @@ def make_world_model_ensemble(
         else:
             next_next_obs = diff_obs_raw + obs_state
         obs = postprocess_observations_fn(next_next_obs, preprocessor_params)
-        # Ensure reward and cost are positive
-        reward = jnp.maximum(reward, 0)
-        cost = jnp.maximum(cost, 0)
         return obs, reward, cost
 
     dummy_obs = jnp.zeros((1, obs_size))
