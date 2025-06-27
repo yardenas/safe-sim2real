@@ -28,7 +28,6 @@ def make_safe_inference_fn(
     inital_backup_policy_params,
     initial_normalizer_params,
     scaling_fn,
-    qc_scale: float = 0.0,
 ) -> Callable[[Any, bool], types.Policy]:
     """Creates params and inference function for the SAC agent."""
     backup_policy = sac_networks.make_inference_fn(mbpo_networks)(
@@ -65,7 +64,7 @@ def make_safe_inference_fn(
             else:
                 raise ValueError("QC network is not defined, cannot do shielding.")
             accumulated_cost = observations["cumulative_cost"][:, 0]
-            expected_total_cost = accumulated_cost + scaling_fn(qc) * qc_scale
+            expected_total_cost = accumulated_cost + scaling_fn(qc)
             backup_action = backup_policy(observations, key_sample)[0]
             safe = expected_total_cost[:, None] < safety_budget
             safe_action = jnp.where(

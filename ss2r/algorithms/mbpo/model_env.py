@@ -83,17 +83,13 @@ class ModelBasedEnv(envs.Env):
         state.info["truncation"] = truncation
         if self.qc_network is not None:
             prev_cumulative_cost = state.obs["cumulative_cost"][0]
-            expected_cost_for_traj = (
-                prev_cumulative_cost
-                + self.scaling_fn(
-                    self.qc_network.apply(
-                        self.normalizer_params,
-                        self.qc_params,
-                        state.obs,
-                        action,
-                    ).mean(axis=-1)
-                )
-                * self.qc_scale
+            expected_cost_for_traj = prev_cumulative_cost + self.scaling_fn(
+                self.qc_network.apply(
+                    self.normalizer_params,
+                    self.qc_params,
+                    state.obs,
+                    action,
+                ).mean(axis=-1)
             )
             done = jnp.where(
                 expected_cost_for_traj > self.safety_budget,
