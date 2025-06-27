@@ -87,7 +87,6 @@ class ModelBasedEnv(envs.Env):
         state.info["truncation"] = truncation
         if self.qc_network is not None:
             prev_cumulative_cost = state.obs["cumulative_cost"][0]
-            curr_discount = state.obs["curr_discount"][0] * self.cost_discount
             expected_cost_for_traj = (
                 prev_cumulative_cost
                 + self.scaling_fn(
@@ -131,9 +130,7 @@ class ModelBasedEnv(envs.Env):
                 """Reset the state if done."""
                 key, reset_keys = jax.random.split(state.info["key"])
                 state.info["key"] = key
-                next_obs["cumulative_cost"] = (
-                    state.obs["cumulative_cost"] + cost * curr_discount
-                )
+                next_obs["cumulative_cost"] = state.obs["cumulative_cost"] + cost
                 reset_state_obs = self.reset(reset_keys).obs
                 obs = jax.tree_map(
                     lambda x, y: jnp.where(done, x, y), reset_state_obs, next_obs
