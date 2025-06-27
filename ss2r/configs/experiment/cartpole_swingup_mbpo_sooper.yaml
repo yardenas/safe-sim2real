@@ -4,7 +4,6 @@ defaults:
   - override /agent: mbpo
   - _self_
 
-
 training:
   num_timesteps: 1000000
   action_repeat: 4
@@ -14,8 +13,8 @@ training:
   safety_budget: 100
   num_envs: 10
   num_evals: 20
-  wandb_id: eqmjtv0p # wp4wf3fk
-  
+  wandb_id: gaj7zb12
+
 agent:
   batch_size: 512
   max_replay_size: 4194304
@@ -23,11 +22,10 @@ agent:
   policy_hidden_layer_sizes: [256, 256, 256]
   value_hidden_layer_sizes: [512, 512]
   activation: swish
-  critic_grad_updates_per_step: 100
-  model_grad_updates_per_step: 100
-  learning_rate: 1e-3
-  critic_learning_rate: 3e-4
+  critic_grad_updates_per_step: 10
+  model_grad_updates_per_step: 50
+  learning_rate: 1e-4
+  critic_learning_rate: 1e-4
   model_learning_rate: 3e-4
-  pessimism: 0
+  pessimism: 100
   optimism: 10
-  reward_termination: 0

@@ -35,8 +35,13 @@ from ml_collections import config_dict
 import ss2r.algorithms.mbpo.losses as mbpo_losses
 import ss2r.algorithms.mbpo.networks as mbpo_networks
 from ss2r.algorithms.mbpo.model_env import create_model_env
+from ss2r.algorithms.mbpo.safe_rollout import (
+    get_inference_policy_params,
+    make_safe_inference_fn,
+)
 from ss2r.algorithms.mbpo.training_step import make_training_step
 from ss2r.algorithms.mbpo.types import TrainingState
+from ss2r.algorithms.penalizers import Params, Penalizer
 from ss2r.algorithms.sac import gradients
 from ss2r.algorithms.sac.data import collect_single_step
 from ss2r.algorithms.sac.q_transforms import QTransformation, SACBase, SACCost
@@ -54,17 +59,14 @@ def get_dict_normalizer_params(params, ts_normalizer_params):
     mean = {
         "state": params[0].mean,
         "cumulative_cost": ts_normalizer_params.mean["cumulative_cost"],
-        "curr_discount": ts_normalizer_params.mean["curr_discount"],
     }
     std = {
         "state": params[0].std,
         "cumulative_cost": ts_normalizer_params.std["cumulative_cost"],
-        "curr_discount": ts_normalizer_params.std["curr_discount"],
     }
     summed_var = {
         "state": params[0].summed_variance,
         "cumulative_cost": ts_normalizer_params.summed_variance["cumulative_cost"],
-        "curr_discount": ts_normalizer_params.summed_variance["curr_discount"],
     }
     count = params[0].count
     ts_normalizer_params = ts_normalizer_params.replace(
@@ -86,6 +88,7 @@ def _init_training_state(
     qc_optimizer: optax.GradientTransformation,
     model_optimizer: optax.GradientTransformation,
     model_ensemble_size: int,
+    penalizer_params: Params | None,
 ) -> TrainingState:
     """Inits the training state and replicates it over devices."""
     key_policy, key_qr, key_model = jax.random.split(key, 3)
@@ -100,12 +103,14 @@ def _init_training_state(
     model_params = init_model_ensemble(model_keys)
     model_optimizer_state = model_optimizer.init(model_params)
     if mbpo_network.qc_network is not None:
-        qc_params = mbpo_network.qc_network.init(key_qr)
+        backup_qc_params = mbpo_network.qc_network.init(key_qr)
         assert qc_optimizer is not None
-        qc_optimizer_state = qc_optimizer.init(qc_params)
+        backup_qc_optimizer_state = qc_optimizer.init(backup_qc_params)
+        backup_qr_params = qr_params
     else:
-        qc_params = None
-        qc_optimizer_state = None
+        backup_qc_params = None
+        backup_qc_optimizer_state = None
+        backup_qr_params = None
     if isinstance(obs_size, Mapping):
         obs_shape = {
             k: specs.Array(v, jnp.dtype("float32")) for k, v in obs_size.items()
@@ -114,15 +119,19 @@ def _init_training_state(
         obs_shape = specs.Array((obs_size,), jnp.dtype("float32"))
     normalizer_params = running_statistics.init_state(obs_shape)
     training_state = TrainingState(
-        policy_optimizer_state=policy_optimizer_state,
-        policy_params=policy_params,
+        behavior_policy_optimizer_state=policy_optimizer_state,
+        behavior_policy_params=policy_params,
         backup_policy_params=policy_params,
-        qr_optimizer_state=qr_optimizer_state,
-        qr_params=qr_params,
-        qc_optimizer_state=qc_optimizer_state,
-        qc_params=qc_params,
-        target_qr_params=qr_params,
-        target_qc_params=qc_params,
+        behavior_qr_optimizer_state=qr_optimizer_state,
+        behavior_qr_params=qr_params,
+        backup_qr_params=backup_qr_params,
+        behavior_qc_optimizer_state=backup_qc_optimizer_state,
+        behavior_qc_params=backup_qc_params,
+        behavior_target_qr_params=qr_params,
+        behavior_target_qc_params=backup_qc_params,
+        backup_qc_params=backup_qc_params,
+        backup_qc_optimizer_state=backup_qc_optimizer_state,
+        backup_target_qc_params=backup_qc_params,
         model_params=model_params,
         model_optimizer_state=model_optimizer_state,
         gradient_steps=jnp.zeros(()),
@@ -130,6 +139,7 @@ def _init_training_state(
         alpha_optimizer_state=alpha_optimizer_state,
         alpha_params=log_alpha,
         normalizer_params=normalizer_params,
+        penalizer_params=penalizer_params,
     )  #  type: ignore
     return training_state
 
@@ -181,6 +191,8 @@ def train(
     eval_env: Optional[envs.Env] = None,
     safe: bool = False,
     safety_budget: float = float("inf"),
+    penalizer: Penalizer | None = None,
+    penalizer_params: Params | None = None,
     reward_q_transform: QTransformation = SACBase(),
     cost_q_transform: QTransformation = SACCost(),
     use_bro: bool = True,
@@ -190,7 +202,6 @@ def train(
     optimism: float = 0.0,
     pessimism: float = 0.0,
     model_propagation: str = "nominal",
-    reward_termination: float = 0.0,
     use_termination: bool = True,
 ):
     if min_replay_size >= num_timesteps:
@@ -201,9 +212,8 @@ def train(
     budget_scaling_fun = lambda x: x
     if safety_discounting != 1.0 and normalize_budget:
         budget_scaling_fun = (
-            lambda x: x / episode_length / (1.0 - safety_discounting) * action_repeat
+            lambda x: x * episode_length * (1.0 - safety_discounting) / action_repeat
         )
-        safety_budget = budget_scaling_fun(episodic_safety_budget)
     logging.info(f"Episode safety budget: {safety_budget}")
     if max_replay_size is None:
         max_replay_size = num_timesteps
@@ -297,6 +307,7 @@ def train(
         qc_optimizer=qc_optimizer,
         model_optimizer=model_optimizer,
         model_ensemble_size=model_ensemble_size,
+        penalizer_params=penalizer_params,
     )
     del global_key
     local_key, model_rb_key, actor_critic_rb_key, env_key, eval_key = jax.random.split(
@@ -313,26 +324,27 @@ def train(
             ts_normalizer_params = params[0]
         training_state = training_state.replace(  # type: ignore
             normalizer_params=ts_normalizer_params,
-            policy_params=params[1],
+            behavior_policy_params=params[1],
             backup_policy_params=params[1],
-            qr_params=params[3],
-            qc_params=params[4] if safe else None,
+            behavior_qr_params=params[3],
+            backup_qr_params=params[3],
+            behavior_qc_params=params[4] if safe else None,
+            backup_qc_params=params[4] if safe else None,
         )
-
     make_planning_policy = mbpo_networks.make_inference_fn(mbpo_network)
     if safe:
-        make_rollout_policy = mbpo_networks.make_safe_inference_fn(
+        make_rollout_policy = make_safe_inference_fn(
             mbpo_network,
             training_state.backup_policy_params,
             training_state.normalizer_params,
             budget_scaling_fun,
         )
-        get_rollout_policy_params = mbpo_networks.get_inference_policy_params(
+        get_rollout_policy_params = get_inference_policy_params(
             True, safety_budget=safety_budget
         )
     else:
         make_rollout_policy = mbpo_networks.make_inference_fn(mbpo_network)
-        get_rollout_policy_params = mbpo_networks.get_inference_policy_params(False)
+        get_rollout_policy_params = get_inference_policy_params(False)
 
     model_replay_buffer = replay_buffers.UniformSamplingQueue(
         max_replay_size=max_replay_size,
@@ -380,7 +392,7 @@ def train(
     )
     actor_update = (
         gradients.gradient_update_fn(  # pytype: disable=wrong-arg-types  # jax-ndarray
-            actor_loss, policy_optimizer, pmap_axis_name=None
+            actor_loss, policy_optimizer, pmap_axis_name=None, has_aux=True
         )
     )
     extra_fields = ("truncation",)
@@ -389,16 +401,14 @@ def train(
 
     make_model_env = functools.partial(
         create_model_env,
-        model_network=mbpo_network.model_network,
-        qc_network=mbpo_network.qc_network,
+        mbpo_network=mbpo_network,
         action_size=action_size,
         observation_size=obs_size,
         ensemble_selection=model_propagation,
         safety_budget=safety_budget,
         cost_discount=safety_discounting,
         scaling_fn=budget_scaling_fun,
-        reward_termination=reward_termination,
-        use_termination=use_termination,
+        use_termination=penalizer is not None and use_termination,
     )
     training_step = make_training_step(
         env,
@@ -430,8 +440,9 @@ def train(
         pessimism,
         model_to_real_data_ratio,
         budget_scaling_fun,
-        reward_termination=reward_termination,
-        use_termination=use_termination,
+        use_termination,
+        penalizer,
+        safety_budget,
     )
 
     def prefill_replay_buffer(
@@ -632,9 +643,9 @@ def train(
             # Save current policy.
             params = (
                 training_state.normalizer_params,
-                training_state.policy_params,
-                training_state.qr_params,
-                training_state.qc_params,
+                training_state.behavior_policy_params,
+                training_state.behavior_qr_params,
+                training_state.backup_qc_params,
                 training_state.model_params,
             )
             if store_buffer:
@@ -657,9 +668,9 @@ def train(
     assert total_steps >= num_timesteps
     params = (
         training_state.normalizer_params,
-        training_state.policy_params,
-        training_state.qr_params,
-        training_state.qc_params,
+        training_state.behavior_policy_params,
+        training_state.behavior_qr_params,
+        training_state.backup_qc_params,
         training_state.model_params,
     )
     if store_buffer:

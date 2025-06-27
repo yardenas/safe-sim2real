@@ -155,6 +155,8 @@ def update_lagrange_multiplier(
 
 
 def get_penalizer(cfg):
+    if "penalizer" not in cfg.agent:
+        return None, None
     if cfg.agent.penalizer.name == "lagrangian":
         penalizer = AugmentedLagrangian(cfg.agent.penalizer.penalty_multiplier_factor)
         penalizer_state = AugmentedLagrangianParams(
