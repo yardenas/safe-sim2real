@@ -3,6 +3,7 @@ defaults:
   - reward_robustness: null
   - propagation: null
   - data_collection: step
+  - penalizer: null
 
 name: mbpo
 learning_rate: 3e-4

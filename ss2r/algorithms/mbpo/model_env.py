@@ -26,7 +26,7 @@ class ModelBasedEnv(envs.Env):
         self.model_network = mbpo_network.model_network
         self.model_params = training_state.model_params
         self.qc_network = mbpo_network.qc_network
-        self.qc_params = training_state.qc_params
+        self.backup_qc_params = training_state.backup_qc_params
         self.qr_network = mbpo_network.qr_network
         self.backup_qr_params = training_state.backup_qr_params
         self.policy_network = mbpo_network.policy_network
@@ -86,7 +86,7 @@ class ModelBasedEnv(envs.Env):
             expected_cost_for_traj = prev_cumulative_cost + self.scaling_fn(
                 self.qc_network.apply(
                     self.normalizer_params,
-                    self.qc_params,
+                    self.backup_qc_params,
                     state.obs,
                     action,
                 ).mean(axis=-1)
