@@ -76,12 +76,10 @@ def make_safe_inference_fn(
             extras = {
                 "intervention": 1 - safe[:, 0].astype(jnp.float32),
                 "policy_distance": jnp.linalg.norm(mode_a - safe_action, axis=-1),
-                # "safety_gap": jnp.maximum(
-                #     expected_total_cost - safety_budget,
-                #     jnp.zeros_like(expected_total_cost),
-                # ),
-                "safety_gap": safe[:, 0].astype(jnp.float32)
-                * observations["curr_discount"][:, 0],
+                "safety_gap": jnp.maximum(
+                    expected_total_cost - safety_budget,
+                    jnp.zeros_like(expected_total_cost),
+                ),
                 "expected_total_cost": expected_total_cost,
             }
             return safe_action, extras

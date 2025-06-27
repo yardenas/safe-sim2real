@@ -108,7 +108,6 @@ def make_world_model_ensemble(
             next_next_obs = {
                 "state": diff_obs_raw + obs_state,
                 "cumulative_cost": obs["cumulative_cost"],
-                "curr_discount": obs["curr_discount"],
             }
         else:
             next_next_obs = diff_obs_raw + obs_state

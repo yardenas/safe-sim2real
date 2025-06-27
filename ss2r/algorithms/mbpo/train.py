@@ -58,17 +58,14 @@ def get_dict_normalizer_params(params, ts_normalizer_params):
     mean = {
         "state": params[0].mean,
         "cumulative_cost": ts_normalizer_params.mean["cumulative_cost"],
-        "curr_discount": ts_normalizer_params.mean["curr_discount"],
     }
     std = {
         "state": params[0].std,
         "cumulative_cost": ts_normalizer_params.std["cumulative_cost"],
-        "curr_discount": ts_normalizer_params.std["curr_discount"],
     }
     summed_var = {
         "state": params[0].summed_variance,
         "cumulative_cost": ts_normalizer_params.summed_variance["cumulative_cost"],
-        "curr_discount": ts_normalizer_params.summed_variance["curr_discount"],
     }
     count = params[0].count
     ts_normalizer_params = ts_normalizer_params.replace(
