@@ -35,6 +35,10 @@ from ml_collections import config_dict
 import ss2r.algorithms.mbpo.losses as mbpo_losses
 import ss2r.algorithms.mbpo.networks as mbpo_networks
 from ss2r.algorithms.mbpo.model_env import create_model_env
+from ss2r.algorithms.mbpo.safe_rollout import (
+    get_inference_policy_params,
+    make_safe_inference_fn,
+)
 from ss2r.algorithms.mbpo.training_step import make_training_step
 from ss2r.algorithms.mbpo.types import TrainingState
 from ss2r.algorithms.sac import gradients
@@ -54,17 +58,14 @@ def get_dict_normalizer_params(params, ts_normalizer_params):
     mean = {
         "state": params[0].mean,
         "cumulative_cost": ts_normalizer_params.mean["cumulative_cost"],
-        "curr_discount": ts_normalizer_params.mean["curr_discount"],
     }
     std = {
         "state": params[0].std,
         "cumulative_cost": ts_normalizer_params.std["cumulative_cost"],
-        "curr_discount": ts_normalizer_params.std["curr_discount"],
     }
     summed_var = {
         "state": params[0].summed_variance,
         "cumulative_cost": ts_normalizer_params.summed_variance["cumulative_cost"],
-        "curr_discount": ts_normalizer_params.summed_variance["curr_discount"],
     }
     count = params[0].count
     ts_normalizer_params = ts_normalizer_params.replace(
@@ -103,9 +104,13 @@ def _init_training_state(
         qc_params = mbpo_network.qc_network.init(key_qr)
         assert qc_optimizer is not None
         qc_optimizer_state = qc_optimizer.init(qc_params)
+        backup_qr_params = qr_params
+        backup_qr_optimizer_state = qr_optimizer_state
     else:
         qc_params = None
         qc_optimizer_state = None
+        backup_qr_params = None
+        backup_qr_optimizer_state = None
     if isinstance(obs_size, Mapping):
         obs_shape = {
             k: specs.Array(v, jnp.dtype("float32")) for k, v in obs_size.items()
@@ -119,6 +124,8 @@ def _init_training_state(
         backup_policy_params=policy_params,
         qr_optimizer_state=qr_optimizer_state,
         qr_params=qr_params,
+        backup_qr_optimizer_state=backup_qr_optimizer_state,
+        backup_qr_params=backup_qr_params,
         qc_optimizer_state=qc_optimizer_state,
         qc_params=qc_params,
         target_qr_params=qr_params,
@@ -190,7 +197,6 @@ def train(
     optimism: float = 0.0,
     pessimism: float = 0.0,
     model_propagation: str = "nominal",
-    reward_termination: float = 0.0,
     use_termination: bool = True,
 ):
     if min_replay_size >= num_timesteps:
@@ -201,9 +207,8 @@ def train(
     budget_scaling_fun = lambda x: x
     if safety_discounting != 1.0 and normalize_budget:
         budget_scaling_fun = (
-            lambda x: x / episode_length / (1.0 - safety_discounting) * action_repeat
+            lambda x: x * episode_length * (1.0 - safety_discounting) / action_repeat
         )
-        safety_budget = budget_scaling_fun(episodic_safety_budget)
     logging.info(f"Episode safety budget: {safety_budget}")
     if max_replay_size is None:
         max_replay_size = num_timesteps
@@ -316,23 +321,24 @@ def train(
             policy_params=params[1],
             backup_policy_params=params[1],
             qr_params=params[3],
+            backup_qr_params=params[3],
             qc_params=params[4] if safe else None,
         )
 
     make_planning_policy = mbpo_networks.make_inference_fn(mbpo_network)
     if safe:
-        make_rollout_policy = mbpo_networks.make_safe_inference_fn(
+        make_rollout_policy = make_safe_inference_fn(
             mbpo_network,
             training_state.backup_policy_params,
             training_state.normalizer_params,
             budget_scaling_fun,
         )
-        get_rollout_policy_params = mbpo_networks.get_inference_policy_params(
+        get_rollout_policy_params = get_inference_policy_params(
             True, safety_budget=safety_budget
         )
     else:
         make_rollout_policy = mbpo_networks.make_inference_fn(mbpo_network)
-        get_rollout_policy_params = mbpo_networks.get_inference_policy_params(False)
+        get_rollout_policy_params = get_inference_policy_params(False)
 
     model_replay_buffer = replay_buffers.UniformSamplingQueue(
         max_replay_size=max_replay_size,
@@ -389,15 +395,13 @@ def train(
 
     make_model_env = functools.partial(
         create_model_env,
-        model_network=mbpo_network.model_network,
-        qc_network=mbpo_network.qc_network,
+        mbpo_network=mbpo_network,
         action_size=action_size,
         observation_size=obs_size,
         ensemble_selection=model_propagation,
         safety_budget=safety_budget,
         cost_discount=safety_discounting,
         scaling_fn=budget_scaling_fun,
-        reward_termination=reward_termination,
         use_termination=use_termination,
     )
     training_step = make_training_step(
@@ -430,7 +434,6 @@ def train(
         pessimism,
         model_to_real_data_ratio,
         budget_scaling_fun,
-        reward_termination=reward_termination,
         use_termination=use_termination,
     )
 
