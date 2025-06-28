@@ -5,7 +5,7 @@ import jax.numpy as jnp
 from brax.training import types
 from brax.training.types import PolicyParams, PRNGKey
 
-from ss2r.algorithms.mbpo.networks import MBPONetworks
+from ss2r.algorithms.mbpo.networks import MBPONetworks, make_inference_fn
 from ss2r.algorithms.mbpo.types import TrainingState
 
 
@@ -23,7 +23,7 @@ def get_inference_policy_params(safe: bool, safety_budget=float("inf")) -> Any:
     return get_params
 
 
-def make_safe_inference_fn(
+def make_sooper_filter_fn(
     mbpo_networks: MBPONetworks,
     inital_backup_policy_params,
     initial_normalizer_params,
@@ -49,7 +49,6 @@ def make_safe_inference_fn(
             logits = mbpo_networks.policy_network.apply(
                 normalizer_params, policy_params, observations
             )
-
             mode_a = mbpo_networks.parametric_action_distribution.mode(logits)
             if deterministic:
                 behavioral_action = mode_a
@@ -86,3 +85,23 @@ def make_safe_inference_fn(
         return policy
 
     return make_policy
+
+
+def make(
+    name: str | None,
+    mbpo_network: MBPONetworks,
+    training_state: TrainingState,
+    safety_budget: float,
+    budget_scaling_fn: Callable[[jnp.ndarray], jnp.ndarray],
+) -> Tuple[Callable[[Any, bool], types.Policy], Callable[[TrainingState], Any]]:
+    if name is None:
+        return make_inference_fn(mbpo_network), get_inference_policy_params(False)
+    if name == "sooper":
+        return make_sooper_filter_fn(
+            mbpo_network,
+            training_state.backup_policy_params,
+            training_state.normalizer_params,
+            budget_scaling_fn,
+        ), get_inference_policy_params(True, safety_budget)
+    else:
+        raise ValueError(f"Unknown safety filter {name}")
