@@ -34,11 +34,8 @@ from ml_collections import config_dict
 
 import ss2r.algorithms.mbpo.losses as mbpo_losses
 import ss2r.algorithms.mbpo.networks as mbpo_networks
+from ss2r.algorithms.mbpo import safety_filters
 from ss2r.algorithms.mbpo.model_env import create_model_env
-from ss2r.algorithms.mbpo.safe_rollout import (
-    get_inference_policy_params,
-    make_safe_inference_fn,
-)
 from ss2r.algorithms.mbpo.training_step import make_training_step
 from ss2r.algorithms.mbpo.types import TrainingState
 from ss2r.algorithms.penalizers import Params, Penalizer
@@ -203,15 +200,16 @@ def train(
     pessimism: float = 0.0,
     model_propagation: str = "nominal",
     use_termination: bool = True,
+    safety_filter: str | None = None,
 ):
     if min_replay_size >= num_timesteps:
         raise ValueError(
             "No training will happen because min_replay_size >= num_timesteps"
         )
     episodic_safety_budget = safety_budget
-    budget_scaling_fun = lambda x: x
+    budget_scaling_fn = lambda x: x
     if safety_discounting != 1.0 and normalize_budget:
-        budget_scaling_fun = (
+        budget_scaling_fn = (
             lambda x: x * episode_length * (1.0 - safety_discounting) / action_repeat
         )
     logging.info(f"Episode safety budget: {safety_budget}")
@@ -332,20 +330,9 @@ def train(
             backup_qc_params=params[4] if safe else None,
         )
     make_planning_policy = mbpo_networks.make_inference_fn(mbpo_network)
-    if safe:
-        make_rollout_policy = make_safe_inference_fn(
-            mbpo_network,
-            training_state.backup_policy_params,
-            training_state.normalizer_params,
-            budget_scaling_fun,
-        )
-        get_rollout_policy_params = get_inference_policy_params(
-            True, safety_budget=safety_budget
-        )
-    else:
-        make_rollout_policy = mbpo_networks.make_inference_fn(mbpo_network)
-        get_rollout_policy_params = get_inference_policy_params(False)
-
+    make_rollout_policy, get_rollout_policy_params = safety_filters.make(
+        safety_filter, mbpo_network, training_state, safety_budget, budget_scaling_fn
+    )
     model_replay_buffer = replay_buffers.UniformSamplingQueue(
         max_replay_size=max_replay_size,
         dummy_data_sample=dummy_transition,
@@ -407,7 +394,7 @@ def train(
         ensemble_selection=model_propagation,
         safety_budget=safety_budget,
         cost_discount=safety_discounting,
-        scaling_fn=budget_scaling_fun,
+        scaling_fn=budget_scaling_fn,
         use_termination=penalizer is not None and use_termination,
     )
     training_step = make_training_step(
@@ -439,7 +426,7 @@ def train(
         optimism,
         pessimism,
         model_to_real_data_ratio,
-        budget_scaling_fun,
+        budget_scaling_fn,
         use_termination,
         penalizer,
         safety_budget,

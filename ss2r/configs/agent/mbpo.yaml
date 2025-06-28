@@ -44,3 +44,4 @@ optimism: 0.
 pessimism: 0.
 model_propagation: random
 use_termination: true
+safety_filter: null
