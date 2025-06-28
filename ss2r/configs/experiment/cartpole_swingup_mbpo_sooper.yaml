@@ -29,3 +29,4 @@ agent:
   model_learning_rate: 3e-4
   pessimism: 100
   optimism: 10
+  safety_filter: sooper
