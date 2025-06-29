@@ -265,7 +265,7 @@ class RCCar(Env):
         # Use delayed action for simulation step
         dynamics_state = state.pipeline_state[0]
         next_dynamics_state, step_info = self.dynamics_model.step(
-            dynamics_state, delayed_action, self.sys
+            dynamics_state, action, self.sys
         )
         key = state.pipeline_state[1]
         nkey, key = jax.random.split(key, 2)
