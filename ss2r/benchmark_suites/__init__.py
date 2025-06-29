@@ -144,8 +144,22 @@ def make_rccar_envs(cfg, train_wrap_env_fn, eval_wrap_env_fn):
     eval_car_params = task_cfg.pop("eval_params")
     train_key, eval_key = jax.random.split(jax.random.PRNGKey(cfg.training.seed))
 
+    action_delay = cfg.environment.action_delay
+    observation_delay = cfg.environment.observation_delay
+    sliding_window = cfg.environment.sliding_window
+
+    task_cfg.pop("action_delay", None)
+    task_cfg.pop("observation_delay", None)
+    task_cfg.pop("sliding_window", None)
+
     # Create train environment with built-in features
-    train_env = rccar.RCCar(train_car_params["nominal"], **task_cfg)
+    train_env = rccar.RCCar(
+        train_car_params["nominal"],
+        action_delay=action_delay,
+        observation_delay=observation_delay,
+        sliding_window=sliding_window,
+        **task_cfg,
+    )
     train_env = train_wrap_env_fn(train_env)
 
     train_randomization_fn = (
@@ -167,7 +181,13 @@ def make_rccar_envs(cfg, train_wrap_env_fn, eval_wrap_env_fn):
     )
 
     # Create eval environment with built-in features
-    eval_env = rccar.RCCar(eval_car_params["nominal"], **task_cfg)
+    eval_env = rccar.RCCar(
+        eval_car_params["nominal"],
+        action_delay=action_delay,
+        observation_delay=observation_delay,
+        sliding_window=sliding_window,
+        **task_cfg,
+    )
     eval_env = eval_wrap_env_fn(eval_env)
 
     eval_randomization_fn = (
