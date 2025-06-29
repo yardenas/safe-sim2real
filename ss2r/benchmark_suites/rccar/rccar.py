@@ -147,7 +147,6 @@ class RCCar(Env):
             RaceCarDynamics(dt=dt) if hardware is None else hardware
         )
         self.sys = CarParams(**car_model_params)
-        # self.action_size = 2
 
     def _obs(self, state: jnp.array) -> jnp.array:
         """Adds observation noise to the state"""
@@ -162,17 +161,17 @@ class RCCar(Env):
 
     def _init_delay_buffers(self, state):
         # Initialize the action and observation buffers as part of the state.info
-        zero_action = jnp.zeros(self.env.action_size)
+        zero_action = jnp.zeros(self.action_size)
         action_buffer = jnp.tile(zero_action[None], (self.action_delay + 1, 1))
-        obs_buffer = jnp.tile(state.obs[None], (self.obs_delay + 1, 1))
+        obs_buffer = jnp.tile(self._obs(state)[None], (self.observation_delay + 1, 1))
         # Store buffers in the state info for later access
-        return action_buffer, obs_buffer
+        return obs_buffer, action_buffer
 
     def _init_stack_buffers(self, state):
         # Initialize the observation and action stacks for sliding window
-        zero_action = jnp.zeros(self.env.action_size)
+        zero_action = jnp.zeros(self.action_size)
         action_stack = jnp.tile(zero_action[None], (self.sliding_window, 1))
-        obs_stack = jnp.tile(state.obs[None], (self.sliding_window, 1))
+        obs_stack = jnp.tile(self._obs(state)[None], (self.sliding_window, 1))
         return obs_stack, action_stack
 
     def reset(self, rng: jax.Array) -> State:
@@ -221,10 +220,10 @@ class RCCar(Env):
             init_state = jnp.concatenate([init_pos, init_theta, init_vel])
         init_obs = self._obs(init_state)
 
-        action_buffer, obs_buffer = self._init_delay_buffers(init_state)
+        obs_buffer, action_buffer = self._init_delay_buffers(init_state)
 
         if self.sliding_window > 0:
-            obs_stack, action_stack = self._init_stack_buffers(init_obs)
+            obs_stack, action_stack = self._init_stack_buffers(init_state)
             stacked_obs = self._get_stacked_obs(obs_stack, action_stack)
         else:
             obs_stack = None
@@ -318,7 +317,9 @@ class RCCar(Env):
                 )
             return jnp.where(done, initial_stacks, stacks)
 
-        init_obs_buffer, init_action_buffer = self._init_delay_buffers(next_obs)
+        init_obs_buffer, init_action_buffer = self._init_delay_buffers(
+            next_dynamics_state
+        )
         new_obs_buffer = reset_stacks_on_done(done, new_obs_buffer, init_obs_buffer)
         new_action_buffer = reset_stacks_on_done(
             done, new_action_buffer, init_action_buffer
@@ -340,7 +341,7 @@ class RCCar(Env):
                 return jnp.where(done, x, y)
 
             stacked_obs = self._get_stacked_obs(new_obs_stack, new_action_stack)
-            init_action_stack, init_obs_stack = self._init_stack_buffers(
+            init_obs_stack, init_action_stack = self._init_stack_buffers(
                 next_dynamics_state
             )
             new_obs_stack = where_done(new_obs_stack, init_obs_stack)
