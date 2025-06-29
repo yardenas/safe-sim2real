@@ -268,7 +268,7 @@ class RCCar(Env):
         dynamics_state = state.pipeline_state[0]
         next_dynamics_state, step_info = self.dynamics_model.step(
             dynamics_state,
-            action,
+            delayed_action,
             self.sys,
         )
         key = state.pipeline_state[1]
@@ -279,13 +279,14 @@ class RCCar(Env):
         goal_achieved = jnp.less_equal(goal_dist, 0.35)
         reward += goal_achieved.astype(jnp.float32)
         reward -= (
-            jnp.linalg.norm(action) * self.control_penalty_scale
+            jnp.linalg.norm(delayed_action) * self.control_penalty_scale
         )  # FIXME double control penalty
         last_act = state.info["last_act"]
         reward -= (
-            jnp.sum(jnp.square(action - last_act)) * self.last_action_penalty_scale
+            jnp.sum(jnp.square(delayed_action - last_act))
+            * self.last_action_penalty_scale
         )
-        reward -= jnp.linalg.norm(action) * self.control_penalty_scale
+        reward -= jnp.linalg.norm(delayed_action) * self.control_penalty_scale
         cost = cost_fn(dynamics_state[..., :2], self.obstacles)
         if not isinstance(self.dynamics_model, HardwareDynamics):
             negative_vel = -dynamics_state[..., 3:5]
