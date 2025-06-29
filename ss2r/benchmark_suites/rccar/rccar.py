@@ -311,11 +311,11 @@ class RCCar(Env):
             new_obs_buffer = jnp.roll(state.info["obs_buffer"], shift=-1, axis=0)
             new_obs_buffer = new_obs_buffer.at[-1].set(next_obs)
             delayed_obs = new_obs_buffer[0]  # Use the oldest observation in buffer
-            init_obs_buffer, init_action_buffer = self._init_delay_buffers(
-                self._obs(state.info["first_pipeline_state"][0])
-            )
-            new_obs_buffer = where_done(done, init_obs_buffer, new_obs_buffer)
-            new_action_buffer = where_done(done, init_action_buffer, new_action_buffer)
+            # init_obs_buffer, init_action_buffer = self._init_delay_buffers(
+            #     self._obs(state.info["first_pipeline_state"][0])
+            # )
+            # new_obs_buffer = where_done(done, init_obs_buffer, new_obs_buffer)
+            # new_action_buffer = where_done(done, init_action_buffer, new_action_buffer)
         else:
             new_obs_buffer = None
             delayed_obs = next_obs
@@ -329,11 +329,11 @@ class RCCar(Env):
             new_action_stack = jnp.roll(action_stack, shift=-1, axis=0)
             new_action_stack = new_action_stack.at[-1].set(delayed_action)
 
-            init_obs_stack, init_action_stack = self._init_stack_buffers(
-                self._obs(state.info["first_pipeline_state"][0])
-            )
-            new_obs_stack = where_done(done, init_obs_stack, new_obs_stack)
-            new_action_stack = where_done(done, init_action_stack, new_action_stack)
+            # init_obs_stack, init_action_stack = self._init_stack_buffers(
+            #     self._obs(state.info["first_pipeline_state"][0])
+            # )
+            # new_obs_stack = where_done(done, init_obs_stack, new_obs_stack)
+            # new_action_stack = where_done(done, init_action_stack, new_action_stack)
             stacked_obs = self._get_stacked_obs(new_obs_stack, new_action_stack)
 
             info = {
@@ -388,11 +388,8 @@ class RCCar(Env):
         self, obs_stack: jax.Array, action_stack: jax.Array
     ) -> jax.Array:
         """Combine the observation and action stacks into a single observation."""
-        # Flatten the observation stack
         flat_obs = obs_stack.reshape(-1)
-        # Flatten the action stack
         flat_actions = action_stack.reshape(-1)
-        # Concatenate them
         return jnp.concatenate([flat_obs, flat_actions])
 
 
