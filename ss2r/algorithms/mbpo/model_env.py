@@ -100,11 +100,11 @@ class ModelBasedEnv(envs.Env):
             backup_policy_params = self.backup_policy_params
             backup_action = pred_backup_action(
                 self.normalizer_params, backup_policy_params, state.obs
-            )[0]
+            )[0 : self._action_size]
             pred_qr = self.qr_network.apply
             backup_qr_params = self.backup_qr_params
             pessimistic_qr_pred = pred_qr(
-                self.normalizer_params, backup_qr_params, state.obs, backup_action[None]
+                self.normalizer_params, backup_qr_params, state.obs, backup_action
             ).mean(axis=-1)
             reward = jnp.where(
                 expected_cost_for_traj > self.safety_budget,

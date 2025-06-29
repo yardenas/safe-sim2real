@@ -23,8 +23,6 @@ from ss2r.benchmark_suites.rccar import rccar
 from ss2r.benchmark_suites.safety_gym import go_to_goal
 from ss2r.benchmark_suites.utils import get_domain_name, get_task_config
 from ss2r.benchmark_suites.wrappers import (
-    ActionObservationDelayWrapper,
-    FrameActionStack,
     Saute,
     SPiDR,
     wrap,
@@ -145,19 +143,11 @@ def make_rccar_envs(cfg, train_wrap_env_fn, eval_wrap_env_fn):
     train_car_params = task_cfg.pop("train_params")
     eval_car_params = task_cfg.pop("eval_params")
     train_key, eval_key = jax.random.split(jax.random.PRNGKey(cfg.training.seed))
-    action_delay, obs_delay = (
-        task_cfg.pop("action_delay"),
-        task_cfg.pop("observation_delay"),
-    )
-    sliding_window = task_cfg.pop("sliding_window")
+
+    # Create train environment with built-in features
     train_env = rccar.RCCar(train_car_params["nominal"], **task_cfg)
     train_env = train_wrap_env_fn(train_env)
-    if action_delay > 0 or obs_delay > 0:
-        train_env = ActionObservationDelayWrapper(
-            train_env, action_delay=action_delay, obs_delay=obs_delay
-        )
-    if sliding_window > 0:
-        train_env = FrameActionStack(train_env, num_stack=sliding_window)
+
     train_randomization_fn = (
         prepare_randomization_fn(
             train_key,
@@ -175,14 +165,11 @@ def make_rccar_envs(cfg, train_wrap_env_fn, eval_wrap_env_fn):
         randomization_fn=train_randomization_fn,
         augment_state=False,
     )
+
+    # Create eval environment with built-in features
     eval_env = rccar.RCCar(eval_car_params["nominal"], **task_cfg)
     eval_env = eval_wrap_env_fn(eval_env)
-    if action_delay > 0 or obs_delay > 0:
-        eval_env = ActionObservationDelayWrapper(
-            eval_env, action_delay=action_delay, obs_delay=obs_delay
-        )
-    if sliding_window > 0:
-        eval_env = FrameActionStack(eval_env, num_stack=sliding_window)
+
     eval_randomization_fn = (
         prepare_randomization_fn(
             eval_key,

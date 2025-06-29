@@ -124,6 +124,9 @@ class RCCar(Env):
         sample_init_pose: bool = True,
         control_penalty_scale: float = 0.0,
         last_action_penalty_scale: float = 0.0,
+        action_delay: int = 0,  # Parameter for action delay
+        observation_delay: int = 0,  # Parameter for observation delay
+        sliding_window: int = 0,  # New parameter for frame stacking (0 means no stacking)
         *,
         hardware: HardwareDynamics | None = None,
     ):
@@ -133,6 +136,9 @@ class RCCar(Env):
         self.sample_init_pose = sample_init_pose
         self.control_penalty_scale = control_penalty_scale
         self.last_action_penalty_scale = last_action_penalty_scale
+        self.action_delay = action_delay
+        self.observation_delay = observation_delay
+        self.sliding_window = sliding_window  # Store the sliding window size
         self.angle_idx = 2
         self.dim_action = (2,)
         self.encode_angle = True
@@ -141,16 +147,23 @@ class RCCar(Env):
             RaceCarDynamics(dt=dt) if hardware is None else hardware
         )
         self.sys = CarParams(**car_model_params)
+        # self.action_size = 2
 
-    def _obs(self, state: jnp.array) -> jnp.array:
-        """Adds observation noise to the state"""
+    def _obs(self, state: jnp.array, action_history=None) -> jnp.array:
+        """Adds observation noise to the state and includes action history if provided"""
         assert state.shape[-1] == 6
         # add observation noise
         if self.encode_angle:
             obs = encode_angles(state, self.angle_idx)
+
         assert (obs.shape[-1] == 7 and self.encode_angle) or (
             obs.shape[-1] == 6 and not self.encode_angle
         )
+
+        # If action history is provided, include it in the observation
+        if action_history is not None:
+            obs = jnp.concatenate([obs, action_history])
+
         return obs
 
     def reset(self, rng: jax.Array) -> State:
@@ -197,22 +210,62 @@ class RCCar(Env):
                 [0.005, 0.005, 0.02]
             ) * jax.random.normal(key_vel, shape=(3,))
             init_state = jnp.concatenate([init_pos, init_theta, init_vel])
-        init_obs = self._obs(init_state)
+            init_obs = self._obs(init_state)
+
+        # Initialize action buffer for delay
+        action_buffer = jnp.zeros((max(1, self.action_delay + 1), self.action_size))
+        # Initialize observation buffer for delay
+        obs_buffer = jnp.tile(init_obs[None], (max(1, self.observation_delay + 1), 1))
+
+        # Initialize sliding window buffers (if enabled)
+        if self.sliding_window > 0:
+            # For observations - fill with initial observation
+            obs_stack = jnp.tile(init_obs[None], (self.sliding_window, 1))
+            # For actions - fill with zeros
+            action_stack = jnp.zeros((self.sliding_window, self.action_size))
+
+            # Create stacked observation if sliding window is enabled
+            stacked_obs = self._get_stacked_obs(obs_stack, action_stack)
+        else:
+            obs_stack = None
+            action_stack = None
+            stacked_obs = init_obs
+
         return State(
             pipeline_state=(init_state, key_pos, jnp.linalg.norm(init_pos)),
-            obs=init_obs,
+            obs=stacked_obs,  # Use stacked observation if sliding window is enabled
             reward=jnp.array(0.0),
             done=jnp.array(0.0),
-            info={"cost": jnp.array(0.0), "last_act": jnp.zeros((self.action_size))},
+            info={
+                "cost": jnp.array(0.0),
+                "last_act": jnp.zeros((self.action_size)),
+                "action_buffer": action_buffer,  # Buffer for action delay
+                "obs_buffer": obs_buffer,  # Buffer for observation delay
+                "obs_stack": obs_stack,  # Buffer for observation history (sliding window)
+                "action_stack": action_stack,  # Buffer for action history (sliding window)
+            },
         )
 
     def step(self, state: State, action: jax.Array) -> State:
         assert action.shape[-1:] == self.dim_action
         action = jnp.clip(action, -1.0, 1.0)
         action = action.at[1].set(self.sys.max_throttle * action[1])
+
+        # Handle action delay - update buffer and get delayed action
+        if self.action_delay > 0:
+            action_buffer = jnp.roll(state.info["action_buffer"], shift=-1, axis=0)
+            action_buffer = action_buffer.at[-1].set(action)
+            delayed_action = action_buffer[0]  # Use the oldest action in buffer
+        else:
+            action_buffer = state.info.get(
+                "action_buffer", jnp.zeros((1, self.action_size))
+            )
+            delayed_action = action
+
+        # Use delayed action for simulation step
         dynamics_state = state.pipeline_state[0]
         next_dynamics_state, step_info = self.dynamics_model.step(
-            dynamics_state, action, self.sys
+            dynamics_state, delayed_action, self.sys
         )
         key = state.pipeline_state[1]
         nkey, key = jax.random.split(key, 2)
@@ -246,28 +299,95 @@ class RCCar(Env):
         vx, vy = dynamics_state[..., 3:5]
         energy = 0.5 * self.sys.m * (vx**2 + vy**2)
         done = 1.0 - in_arena(next_obs[..., :2], 2.0)
-        info = {
-            **state.info,
-            "cost": jnp.where(cost > 0.0, energy, 0.0),
-            **step_info,
-            "last_act": action,
-        }
-        next_state = State(
+
+        # Get observation from simulation
+        next_obs = self._obs(next_dynamics_state)
+
+        # Handle observation delay
+        if self.observation_delay > 0:
+            obs_buffer = jnp.roll(state.info["obs_buffer"], shift=-1, axis=0)
+            obs_buffer = obs_buffer.at[-1].set(next_obs)
+            delayed_obs = obs_buffer[0]  # Use the oldest observation in buffer
+        else:
+            obs_buffer = state.info.get("obs_buffer", jnp.zeros((1, next_obs.shape[0])))
+            delayed_obs = next_obs
+
+        # Handle sliding window (frame stacking) if enabled
+        if self.sliding_window > 0:
+            # Get current stacks
+            obs_stack = state.info["obs_stack"]
+            action_stack = state.info["action_stack"]
+
+            # Update observation stack with delayed observation
+            new_obs_stack = jnp.roll(obs_stack, shift=-1, axis=0)
+            new_obs_stack = new_obs_stack.at[-1].set(delayed_obs)
+
+            # Update action stack
+            new_action_stack = jnp.roll(action_stack, shift=-1, axis=0)
+            new_action_stack = new_action_stack.at[-1].set(
+                action
+            )  # Using the applied action
+
+            # Create the stacked observation
+            stacked_obs = self._get_stacked_obs(new_obs_stack, new_action_stack)
+
+            # Handle reset on done states (similar to the wrapper's where_done functionality)
+            def reset_stacks_on_done(done, stacks, initial_stacks):
+                if done.shape:
+                    done = jnp.reshape(
+                        done, [stacks.shape[0]] + [1] * (len(stacks.shape) - 1)
+                    )
+                return jnp.where(done, initial_stacks, stacks)
+
+            init_action_stack = jnp.zeros((self.sliding_window, self.action_size))
+            init_obs_stack = jnp.tile(delayed_obs[None], (self.sliding_window, 1))
+            new_obs_stack = reset_stacks_on_done(done, new_obs_stack, init_obs_stack)
+            new_action_stack = reset_stacks_on_done(
+                done, new_action_stack, init_action_stack
+            )
+
+            # Update info with stacks
+            info = {
+                **state.info,
+                "cost": jnp.where(cost > 0.0, energy, 0.0),
+                **step_info,
+                "last_act": delayed_action,
+                "action_buffer": action_buffer,
+                "obs_buffer": obs_buffer,
+                "obs_stack": new_obs_stack,
+                "action_stack": new_action_stack,
+            }
+
+            # Use stacked observation
+            final_obs = stacked_obs
+        else:
+            # Without sliding window, just use delayed observation
+            info = {
+                **state.info,
+                "cost": jnp.where(cost > 0.0, energy, 0.0),
+                **step_info,
+                "last_act": delayed_action,
+                "action_buffer": action_buffer,
+                "obs_buffer": obs_buffer,
+            }
+            final_obs = delayed_obs
+
+        return State(
             pipeline_state=(next_dynamics_state, nkey, goal_dist),
-            obs=next_obs,
+            obs=final_obs,
             reward=reward,
             done=done,
             metrics=state.metrics,
             info=info,
         )
-        return next_state
 
     @property
     def observation_size(self) -> int:
-        if self.encode_angle:
-            return 7
-        else:
-            return 6
+        base_size = 7 if self.encode_angle else 6
+        if self.sliding_window > 0:
+            # If sliding window is enabled, multiply by window size and add action history
+            return self.sliding_window * (base_size + self.action_size)
+        return base_size
 
     @property
     def action_size(self) -> int:
@@ -276,6 +396,17 @@ class RCCar(Env):
 
     def backend(self) -> str:
         return "positional"
+
+    def _get_stacked_obs(
+        self, obs_stack: jax.Array, action_stack: jax.Array
+    ) -> jax.Array:
+        """Combine the observation and action stacks into a single observation."""
+        # Flatten the observation stack
+        flat_obs = obs_stack.reshape(-1)
+        # Flatten the action stack
+        flat_actions = action_stack.reshape(-1)
+        # Concatenate them
+        return jnp.concatenate([flat_obs, flat_actions])
 
 
 def render(env, policy, steps, rng):
