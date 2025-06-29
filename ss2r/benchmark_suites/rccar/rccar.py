@@ -329,12 +329,13 @@ class RCCar(Env):
             new_action_stack = jnp.roll(action_stack, shift=-1, axis=0)
             new_action_stack = new_action_stack.at[-1].set(delayed_action)
 
+            stacked_obs = self._get_stacked_obs(new_obs_stack, new_action_stack)
+
             init_obs_stack, init_action_stack = self._init_stack_buffers(
                 self._obs(state.info["first_pipeline_state"][0])
             )
             new_obs_stack = where_done(done, init_obs_stack, new_obs_stack)
             new_action_stack = where_done(done, init_action_stack, new_action_stack)
-            stacked_obs = self._get_stacked_obs(new_obs_stack, new_action_stack)
 
             info = {
                 **state.info,
