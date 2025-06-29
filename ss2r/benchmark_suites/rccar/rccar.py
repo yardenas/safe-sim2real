@@ -311,11 +311,11 @@ class RCCar(Env):
             new_obs_buffer = jnp.roll(state.info["obs_buffer"], shift=-1, axis=0)
             new_obs_buffer = new_obs_buffer.at[-1].set(next_obs)
             delayed_obs = new_obs_buffer[0]  # Use the oldest observation in buffer
-            # init_obs_buffer, init_action_buffer = self._init_delay_buffers(
-            #     self._obs(state.info["first_pipeline_state"][0])
-            # )
-            # new_obs_buffer = where_done(done, init_obs_buffer, new_obs_buffer)
-            # new_action_buffer = where_done(done, init_action_buffer, new_action_buffer)
+            init_obs_buffer, init_action_buffer = self._init_delay_buffers(
+                self._obs(state.info["first_pipeline_state"][0])
+            )
+            new_obs_buffer = where_done(done, init_obs_buffer, new_obs_buffer)
+            new_action_buffer = where_done(done, init_action_buffer, new_action_buffer)
         else:
             new_obs_buffer = None
             delayed_obs = next_obs
