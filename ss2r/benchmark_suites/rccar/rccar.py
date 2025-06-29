@@ -318,12 +318,6 @@ class RCCar(Env):
             )
             delayed_obs = next_obs
 
-        init_obs_buffer, init_action_buffer = self._init_delay_buffers(
-            next_dynamics_state
-        )
-        new_obs_buffer = where_done(done, new_obs_buffer, init_obs_buffer)
-        new_action_buffer = where_done(done, new_action_buffer, init_action_buffer)
-
         # Handle sliding window (frame stacking) if enabled
         if self.sliding_window > 0:
             new_obs_stack = jnp.roll(obs_stack, shift=-1, axis=0)
@@ -334,11 +328,6 @@ class RCCar(Env):
             new_action_stack = new_action_stack.at[-1].set(delayed_action)
 
             stacked_obs = self._get_stacked_obs(new_obs_stack, new_action_stack)
-            init_obs_stack, init_action_stack = self._init_stack_buffers(
-                next_dynamics_state
-            )
-            new_obs_stack = where_done(done, new_obs_stack, init_obs_stack)
-            new_action_stack = where_done(done, new_action_stack, init_action_stack)
 
             info = {
                 **state.info,
