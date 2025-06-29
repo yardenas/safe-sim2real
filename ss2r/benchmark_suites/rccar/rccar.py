@@ -219,7 +219,6 @@ class RCCar(Env):
             ) * jax.random.normal(key_vel, shape=(3,))
             init_state = jnp.concatenate([init_pos, init_theta, init_vel])
         init_obs = self._obs(init_state)
-
         obs_buffer, action_buffer = self._init_delay_buffers(init_state)
 
         if self.sliding_window > 0:
@@ -237,7 +236,7 @@ class RCCar(Env):
             done=jnp.array(0.0),
             info={
                 "cost": jnp.array(0.0),
-                "last_act": jnp.zeros((self.action_size)),
+                "last_act": jnp.zeros((self.action_size)),  # Last action taken
                 "action_buffer": action_buffer,  # Buffer for action delay
                 "obs_buffer": obs_buffer,  # Buffer for observation delay
                 "obs_stack": obs_stack,  # Buffer for observation history (sliding window)
@@ -246,6 +245,11 @@ class RCCar(Env):
         )
 
     def step(self, state: State, action: jax.Array) -> State:
+        def where_done(done, x, y):
+            if done.shape:
+                done = jnp.reshape(done, [x.shape[0]] + [1] * (len(x.shape) - 1))
+            return jnp.where(done, x, y)
+
         assert action.shape[-1:] == self.dim_action
         action = jnp.clip(action, -1.0, 1.0)
         action = action.at[1].set(self.sys.max_throttle * action[1])
@@ -263,6 +267,8 @@ class RCCar(Env):
                 "action_buffer", jnp.zeros((1, self.action_size))
             )
             delayed_action = action
+
+        # Environment step
         dynamics_state = state.pipeline_state[0]
         next_dynamics_state, step_info = self.dynamics_model.step(
             dynamics_state, delayed_action, self.sys
@@ -274,7 +280,9 @@ class RCCar(Env):
         reward = prev_goal_dist - goal_dist
         goal_achieved = jnp.less_equal(goal_dist, 0.35)
         reward += goal_achieved.astype(jnp.float32)
-        reward -= jnp.linalg.norm(action) * self.control_penalty_scale
+        reward -= (
+            jnp.linalg.norm(action) * self.control_penalty_scale
+        )  # FIXME double control penalty
         last_act = state.info["last_act"]
         reward -= (
             jnp.sum(jnp.square(action - last_act)) * self.last_action_penalty_scale
@@ -310,20 +318,11 @@ class RCCar(Env):
             )
             delayed_obs = next_obs
 
-        def reset_stacks_on_done(done, stacks, initial_stacks):
-            if done.shape:
-                done = jnp.reshape(
-                    done, [stacks.shape[0]] + [1] * (len(stacks.shape) - 1)
-                )
-            return jnp.where(done, initial_stacks, stacks)
-
         init_obs_buffer, init_action_buffer = self._init_delay_buffers(
             next_dynamics_state
         )
-        new_obs_buffer = reset_stacks_on_done(done, new_obs_buffer, init_obs_buffer)
-        new_action_buffer = reset_stacks_on_done(
-            done, new_action_buffer, init_action_buffer
-        )
+        new_obs_buffer = where_done(done, new_obs_buffer, init_obs_buffer)
+        new_action_buffer = where_done(done, new_action_buffer, init_action_buffer)
 
         # Handle sliding window (frame stacking) if enabled
         if self.sliding_window > 0:
@@ -334,18 +333,12 @@ class RCCar(Env):
             new_action_stack = jnp.roll(action_stack, shift=-1, axis=0)
             new_action_stack = new_action_stack.at[-1].set(delayed_action)
 
-            def where_done(x, y):
-                done = state.done
-                if done.shape:
-                    done = jnp.reshape(done, [x.shape[0]] + [1] * (len(x.shape) - 1))
-                return jnp.where(done, x, y)
-
             stacked_obs = self._get_stacked_obs(new_obs_stack, new_action_stack)
             init_obs_stack, init_action_stack = self._init_stack_buffers(
                 next_dynamics_state
             )
-            new_obs_stack = where_done(new_obs_stack, init_obs_stack)
-            new_action_stack = where_done(new_action_stack, init_action_stack)
+            new_obs_stack = where_done(done, new_obs_stack, init_obs_stack)
+            new_action_stack = where_done(done, new_action_stack, init_action_stack)
 
             info = {
                 **state.info,
