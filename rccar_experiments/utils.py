@@ -71,7 +71,19 @@ def make_env(cfg, controller=None):
         dynamics = hardware.HardwareDynamics(controller=controller)
     else:
         dynamics = None
-    env = rccar.RCCar(train_car_params["nominal"], **task_cfg, hardware=dynamics)
+    action_delay, observation_delay = (
+        task_cfg.pop("action_delay"),
+        task_cfg.pop("observation_delay"),
+    )
+    sliding_window = task_cfg.pop("sliding_window")
+    env = rccar.RCCar(
+        train_car_params["nominal"],
+        action_delay=action_delay,
+        observation_delay=observation_delay,
+        sliding_window=sliding_window,
+        **task_cfg,
+        hardware=dynamics,
+    )
     env = EpisodeWrapper(env, cfg.episode_length, cfg.action_repeat)
     env = ConstraintEvalWrapper(env)
     return env
