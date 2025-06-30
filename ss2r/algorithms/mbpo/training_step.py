@@ -363,9 +363,6 @@ def make_training_step(
             training_key,
         ) = run_experience_step(training_state, env_state, model_buffer_state, key)
         model_buffer_state, transitions = model_replay_buffer.sample(model_buffer_state)
-        # assert (  # FIXME (manu) ignore for testing large model rollouts
-        #     num_model_rollouts <= transitions.reward.shape[0]
-        # ), "num_model_rollouts must be less than or equal to the number of transitions"
         # Change the front dimension of transitions so 'update_step' is called
         # grad_updates_per_step times by the scan.
         tmp_transitions = jax.tree_util.tree_map(
