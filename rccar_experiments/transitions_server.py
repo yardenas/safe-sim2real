@@ -70,26 +70,35 @@ class TransitionsServer:
 
 
 def flatten_trajectories(trajectories):
-    observations = {
-        key: np.array(
-            [t.observation[key] for traj in trajectories for t in traj],
+    if isinstance(trajectories[0][0], dict):
+        observations = {
+            key: np.array(
+                [t.observation[key] for traj in trajectories for t in traj],
+                dtype=np.float32,
+            )
+            for key in trajectories[0][0].observation
+        }
+        next_observations = {
+            key: np.array(
+                [t.next_observation[key] for traj in trajectories for t in traj],
+                dtype=np.float32,
+            )
+            for key in trajectories[0][0].next_observation
+        }
+    else:
+        observations = np.array(
+            [t.observation for traj in trajectories for t in traj], dtype=np.float32
+        )
+        next_observations = np.array(
+            [t.next_observation for traj in trajectories for t in traj],
             dtype=np.float32,
         )
-        for key in trajectories[0][0].observation
-    }
     actions = np.array(
         [t.action for traj in trajectories for t in traj], dtype=np.float32
     )
     rewards = np.array(
         [t.reward for traj in trajectories for t in traj], dtype=np.float32
     )
-    next_observations = {
-        key: np.array(
-            [t.next_observation[key] for traj in trajectories for t in traj],
-            dtype=np.float32,
-        )
-        for key in trajectories[0][0].next_observation
-    }
     dones = np.array([t.done for traj in trajectories for t in traj], dtype=np.float32)
     infos = {
         key: np.array(
