@@ -100,11 +100,11 @@ class ModelBasedEnv(envs.Env):
             backup_policy_params = self.backup_policy_params
             backup_action = pred_backup_action(
                 self.normalizer_params, backup_policy_params, state.obs
-            )[0]
+            )[: self.action_size]
             pred_qr = self.qr_network.apply
             backup_qr_params = self.backup_qr_params
             pessimistic_qr_pred = pred_qr(
-                self.normalizer_params, backup_qr_params, state.obs, backup_action[None]
+                self.normalizer_params, backup_qr_params, state.obs, backup_action
             ).mean(axis=-1)
             reward = jnp.where(
                 expected_cost_for_traj > self.safety_budget,
@@ -132,14 +132,17 @@ class ModelBasedEnv(envs.Env):
         )
         return state
 
+    @property
     def observation_size(self) -> int:
         """Return the size of the observation space."""
         return self._observation_size
 
+    @property
     def action_size(self) -> int:
         """Return the size of the action space."""
         return self._action_size
 
+    @property
     def backend(self) -> str:
         """Return the backend used by the environment."""
         return "model_based"
