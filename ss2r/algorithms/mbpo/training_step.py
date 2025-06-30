@@ -299,15 +299,6 @@ def make_training_step(
         backup_action = pred_backup_action(
             normalizer_params, backup_policy_params, transitions.observation
         )[..., : planning_env.action_size]
-
-        pred_qr = planning_env.qr_network.apply
-        backup_qr_params = planning_env.backup_qr_params
-        pessimistic_qr_pred = pred_qr(
-            normalizer_params,
-            backup_qr_params,
-            transitions.observation,
-            backup_action,
-        ).mean(axis=-1)
         disagreement = (
             next_obs_pred.std(axis=0).mean(-1)
             if isinstance(next_obs_pred, jax.Array)
@@ -334,11 +325,19 @@ def make_training_step(
                     jnp.zeros_like(cost, dtype=jnp.float32),
                     jnp.ones_like(cost, dtype=jnp.float32),
                 )
-        new_reward = jnp.where(
-            discount,
-            new_reward,
-            pessimistic_qr_pred,
-        )
+            pred_qr = planning_env.qr_network.apply
+            backup_qr_params = planning_env.backup_qr_params
+            pessimistic_qr_pred = pred_qr(
+                normalizer_params,
+                backup_qr_params,
+                transitions.observation,
+                backup_action,
+            ).mean(axis=-1)
+            new_reward = jnp.where(
+                discount,
+                new_reward,
+                pessimistic_qr_pred,
+            )
         next_obs_pred = jax.tree_map(lambda x: x.mean(0), next_obs_pred)
         return Transition(
             observation=transitions.observation,
