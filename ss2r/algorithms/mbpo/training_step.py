@@ -425,7 +425,8 @@ def make_training_step(
             transitions,
             length=num_actor_updates,
         )
-        metrics = {**model_metrics, **critic_metrics, **actor_metrics}
+        metrics = {**model_metrics}
+        # metrics = {**model_metrics, **critic_metrics, **actor_metrics}
         metrics["buffer_current_size"] = model_replay_buffer.size(model_buffer_state)
         metrics |= env_state.metrics
         metrics["disagreement"] = disagreement
