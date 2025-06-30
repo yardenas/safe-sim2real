@@ -298,7 +298,7 @@ def make_training_step(
         backup_policy_params = planning_env.backup_policy_params
         backup_action = pred_backup_action(
             normalizer_params, backup_policy_params, transitions.observation
-        )[:, :, 0 : planning_env._action_size]
+        )[..., : planning_env.action_size]
 
         pred_qr = planning_env.qr_network.apply
         backup_qr_params = planning_env.backup_qr_params
