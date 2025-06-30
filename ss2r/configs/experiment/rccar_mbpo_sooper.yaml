@@ -25,7 +25,6 @@ training:
 agent:
   batch_size: 512
   sac_batch_size: 512
-  unroll_length: 2
   min_replay_size: 500
   max_replay_size: 1048576
   policy_hidden_layer_sizes: [64, 64]
