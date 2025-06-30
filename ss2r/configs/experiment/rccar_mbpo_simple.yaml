@@ -22,11 +22,12 @@ training:
 
 agent:
   batch_size: 256
-  min_replay_size: 100
+  min_replay_size: 8192
   max_replay_size: 1048576
   policy_hidden_layer_sizes: [64, 64]
-  model_grad_updates_per_step: 64
-  critic_grad_updates_per_step: 64
-  critic_learning_rate: 1e-4
+  model_grad_updates_per_step: 128
+  critic_grad_updates_per_step: 128
+  unroll_length: 2
+  model_learning_rate: 1e-3
 
 
