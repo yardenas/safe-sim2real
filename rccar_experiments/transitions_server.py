@@ -20,19 +20,19 @@ class TransitionsServer:
                 socket.bind(self.address)
                 while True:
                     message = socket.recv()
-                    policy, num_steps = pickle.loads(message)
+                    policy_bytes, num_steps = pickle.loads(message)
                     if num_steps < self.experiment_driver.trajectory_length:
                         _LOG.error("Invalid num_steps: {}".format(num_steps))
-                    trials = self.run(policy, num_steps)
+                    trials = self.run(policy_bytes, num_steps)
                     if trials is None:
                         continue
                     socket.send(pickle.dumps(trials))
 
-    def run(self, policy, num_steps):
+    def run(self, policy_bytes, num_steps):
         trials = []
         num_transitions = 0
         while num_transitions < num_steps:
-            trial = self.do_trial(policy)
+            trial = self.do_trial(policy_bytes)
             new_num_transitions = len(trial)
             if num_transitions + new_num_transitions > num_steps:
                 trial = trial[: num_steps - num_transitions]
@@ -47,38 +47,26 @@ class TransitionsServer:
         ), f"Expected {num_steps} transitions, got {len(transitions)}"
         return transitions
 
-    def do_trial(self, policy):
+    def do_trial(self, policy_bytes):
         _LOG.info("Starting sampling")
         if self.safe_mode:
-            while not self.experiment_driver.running:
-                _LOG.info("Waiting for command to start sampling...")
-                time.sleep(2.5)
+            while True:
+                answer = input("Press Y/y when ready to collect trajectory\n")
+                if not (answer == "Y" or answer == "y"):
+                    _LOG.info("Skipping trajectory")
+                    continue
         else:
-            time.sleep(2.5)
             while not self.experiment_driver.robot_ok:
                 _LOG.info("Waiting the robot to be ready...")
                 time.sleep(2.5)
-            self.load_policy(policy)
-            self.experiment_driver.start_sampling_callback(req, res)
-        while self.experiment_driver.running:
-            time.sleep(0.1)
+            policy_fn = self.parse_policy(policy_bytes)
+            trajectory = self.experiment_driver.sample_trajectory(policy_fn)
         _LOG.info("Sampling finished")
-        trajectory = self.experiment_driver.get_trajectory()
         return trajectory
 
-    def load_policy(self, policy):
-        with open(_ONNX_SAVE_PATH, "wb") as f:
-            f.write(policy)
-        while True:
-            while not self.experiment_driver.fsm_state == 2:
-                _LOG.info("Waiting for robot to be in walking state...")
-                time.sleep(2.5)
-            success = self.experiment_driver.update_policy(_ONNX_SAVE_PATH)
-            if not success:
-                _LOG.error("Failed to update policy")
-                time.sleep(2.5)
-            else:
-                return
+    def parse_policy(self, policy_bytes):
+        # TODO (yarden): parse the policy
+        return policy_bytes
 
 
 def flatten_trajectories(trajectories):

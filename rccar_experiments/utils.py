@@ -1,57 +1,35 @@
-import time
-from typing import NamedTuple
-
 import jax
-import numpy as np
 from brax.envs.wrappers.training import EpisodeWrapper
-from brax.training.types import Metrics, Policy
+from brax.training.types import Metrics, Policy, Transition
 
 from ss2r.benchmark_suites.rccar import hardware, rccar
 from ss2r.benchmark_suites.utils import get_task_config
-from ss2r.benchmark_suites.wrappers import (
-    ActionObservationDelayWrapper,
-    FrameActionStack,
-)
 from ss2r.rl.evaluation import ConstraintEvalWrapper
-
-
-class Trajectory(NamedTuple):
-    observation: list[jax.Array]
-    action: list[jax.Array]
-    reward: list[jax.Array]
-    cost: list[jax.Array]
 
 
 def collect_trajectory(
     env: rccar.RCCar, policy: Policy, rng: jax.Array
-) -> tuple[Metrics, Trajectory]:
-    t = time.time()
-    trajectory = Trajectory([], [], [], [])
-    elapsed = []
-    delay = []
+) -> tuple[Metrics, Transition]:
     state = env.reset(rng)
+    transitions: list[Transition] = []
     while not state.done:
-        trajectory.observation.append(state.obs)
         rng, key = jax.random.split(rng)
-        tp = time.time()
         action, _ = policy(state.obs, key)
-        delay.append(time.time() - tp)
-        trajectory.action.append(action)
+        obs = state.obs
         state = env.step(state, action)
-        trajectory.reward.append(state.reward)
-        trajectory.cost.append(state.info["cost"])
-        elapsed.append(state.info.get("elapsed_time", 0.0))
-    trajectory.observation.append(state.obs)
-    epoch_eval_time = time.time() - t
-    eval_metrics = state.info["eval_metrics"].episode_metrics
-    metrics = {
-        "eval/walltime": epoch_eval_time,
-        **eval_metrics,
-        "eval/average_time": np.mean(elapsed),
-        "eval/average_delay": np.mean(delay),
-    }
+        next_obs = state.obs
+        transition = Transition(
+            obs,
+            action,
+            state.reward,
+            1 - state.done,
+            next_obs,
+            {"cost": state.info["cost"]},
+        )
+        transitions.append(transition)
+    metrics = state.info["eval_metrics"].episode_metrics
     metrics = {key: float(value) for key, value in metrics.items()}
-    return metrics, trajectory
+    return metrics, transitions
 
 
 class DummyPolicy:
@@ -75,18 +53,7 @@ def make_env(cfg, controller=None):
         dynamics = hardware.HardwareDynamics(controller=controller)
     else:
         dynamics = None
-    action_delay, obs_delay = (
-        task_cfg.pop("action_delay"),
-        task_cfg.pop("observation_delay"),
-    )
-    sliding_window = task_cfg.pop("sliding_window")
     env = rccar.RCCar(train_car_params["nominal"], **task_cfg, hardware=dynamics)
-    if action_delay > 0 or obs_delay > 0:
-        env = ActionObservationDelayWrapper(
-            env, action_delay=action_delay, obs_delay=obs_delay
-        )
-    if sliding_window > 0:
-        env = FrameActionStack(env, num_stack=sliding_window)
     env = EpisodeWrapper(env, cfg.episode_length, cfg.action_repeat)
     env = ConstraintEvalWrapper(env)
     return env
