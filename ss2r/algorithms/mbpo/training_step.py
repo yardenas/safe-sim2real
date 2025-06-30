@@ -212,9 +212,10 @@ def make_training_step(
         return (new_training_state, key), metrics
 
     def model_sgd_step(
-        carry: Tuple[TrainingState, PRNGKey], transitions: Transition
-    ) -> Tuple[Tuple[TrainingState, PRNGKey], Metrics]:
-        training_state, key = carry
+        carry: Tuple[TrainingState, ReplayBufferState, PRNGKey], unused_t
+    ) -> Tuple[Tuple[TrainingState, ReplayBufferState, PRNGKey], Metrics]:
+        training_state, model_buffer_state, key = carry
+        model_buffer_state, transitions = model_replay_buffer.sample(model_buffer_state)
         # TODO (yarden): can remove this
         key, _ = jax.random.split(key)
         transitions = float32(transitions)
@@ -230,7 +231,7 @@ def make_training_step(
             model_params=model_params,
         )
         metrics = {"model_loss": model_loss}
-        return (new_training_state, key), metrics
+        return (new_training_state, model_buffer_state, key), metrics
 
     def run_experience_step(
         training_state: TrainingState,
@@ -363,22 +364,26 @@ def make_training_step(
             model_buffer_state,
             training_key,
         ) = run_experience_step(training_state, env_state, model_buffer_state, key)
-        model_buffer_state, transitions = model_replay_buffer.sample(model_buffer_state)
-        assert (
-            num_model_rollouts <= transitions.reward.shape[0]
-        ), "num_model_rollouts must be less than or equal to the number of transitions"
-        # Change the front dimension of transitions so 'update_step' is called
-        # grad_updates_per_step times by the scan.
-        tmp_transitions = jax.tree_util.tree_map(
-            lambda x: jnp.reshape(x, (model_grad_updates_per_step, -1) + x.shape[1:]),
-            transitions,
-        )
         (training_state, _), model_metrics = jax.lax.scan(
-            model_sgd_step, (training_state, training_key), tmp_transitions
+            model_sgd_step,
+            (training_state, training_key),
+            (),
+            length=model_grad_updates_per_step,
+        )
+        model_buffer_state, transitions = model_replay_buffer.sample(model_buffer_state)
+        num_transitions = transitions.reward.shape[0]
+        all_transitions = [transitions]
+        while num_transitions < num_model_rollouts:
+            model_buffer_state, transitions = model_replay_buffer.sample(
+                model_buffer_state
+            )
+            all_transitions.append(transitions)
+            num_transitions += transitions.reward.shape[0]
+        transitions = jax.tree_util.tree_map(
+            lambda *x: jnp.concatenate(x, axis=0)[:num_model_rollouts], *all_transitions
         )
         planning_env = make_model_env(
-            training_state=training_state,
-            transitions=transitions,
+            training_state=training_state, transitions=transitions
         )
         planning_env = VmapWrapper(planning_env)
         policy = make_planning_policy(

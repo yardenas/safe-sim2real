@@ -336,7 +336,7 @@ def train(
     model_replay_buffer = replay_buffers.UniformSamplingQueue(
         max_replay_size=max_replay_size,
         dummy_data_sample=dummy_transition,
-        sample_batch_size=batch_size * model_grad_updates_per_step,
+        sample_batch_size=batch_size,
     )
     sac_replay_buffer = replay_buffers.UniformSamplingQueue(
         max_replay_size=max_replay_size,
