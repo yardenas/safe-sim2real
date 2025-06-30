@@ -27,8 +27,9 @@ agent:
   min_replay_size: 500
   max_replay_size: 1048576
   policy_hidden_layer_sizes: [64, 64]
-  critic_grad_updates_per_step: 64
-  model_grad_updates_per_step: 128
+  critic_grad_updates_per_step: 4000
+  model_grad_updates_per_step: 4000
+  num_model_rollouts: 100000
   learning_rate: 3e-4
   critic_learning_rate: 1e-4
   model_learning_rate: 3e-4
