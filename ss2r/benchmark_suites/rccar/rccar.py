@@ -312,7 +312,7 @@ class RCCar(Env):
             new_obs_buffer = new_obs_buffer.at[-1].set(next_obs)
             delayed_obs = new_obs_buffer[0]  # Use the oldest observation in buffer
             init_obs_buffer, init_action_buffer = self._init_delay_buffers(
-                self._obs(state.info["first_pipeline_state"][0])
+                jnp.zeros_like(next_obs)
             )
             new_obs_buffer = where_done(done, init_obs_buffer, new_obs_buffer)
             new_action_buffer = where_done(done, init_action_buffer, new_action_buffer)
@@ -332,7 +332,7 @@ class RCCar(Env):
             stacked_obs = self._get_stacked_obs(new_obs_stack, new_action_stack)
 
             init_obs_stack, init_action_stack = self._init_stack_buffers(
-                self._obs(state.info["first_pipeline_state"][0])
+                jnp.zeros_like(next_obs)
             )
             new_obs_stack = where_done(done, init_obs_stack, new_obs_stack)
             new_action_stack = where_done(done, init_action_stack, new_action_stack)

@@ -32,4 +32,4 @@ agent:
     penalty_multiplier: 0.001
     penalty_multiplier_factor: 1e-4
   propagation:
-    lambda_: 50.
+    lambda_: 100.
