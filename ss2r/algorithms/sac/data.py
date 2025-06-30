@@ -56,6 +56,16 @@ def get_collection_fn(cfg):
                 go1_postprocess_data,
                 data_collection_cfg.address,
             )
+        elif "rccar" in data_collection_cfg.task_name:
+            import cloudpickle
+
+            policy_translate_fn = lambda pi: cloudpickle.dumps(pi)
+            orchestrator = OnlineEpisodeOrchestrator(
+                policy_translate_fn,
+                cfg.training.episode_length,
+                cfg.environment.dt,
+                address=data_collection_cfg.address,
+            )
         else:
             raise ValueError(
                 f"Environment {cfg.environment.task_name} not supported for hardware data collection."
