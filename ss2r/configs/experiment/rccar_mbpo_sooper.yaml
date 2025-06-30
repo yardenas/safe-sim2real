@@ -1,6 +1,6 @@
 # @package _global_
 defaults:
-  - override /environment: rccar
+  - override /environment: rccar_real
   - override /agent: mbpo
   - _self_
 
