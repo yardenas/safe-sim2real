@@ -62,7 +62,9 @@ def get_collection_fn(cfg):
 
             from ss2r.rl.online import OnlineEpisodeOrchestrator
 
-            policy_translate_fn = lambda pi: cloudpickle.dumps(pi)
+            policy_translate_fn = lambda make_policy_fn, params: cloudpickle.dumps(
+                make_policy_fn(params)
+            )
             orchestrator = OnlineEpisodeOrchestrator(
                 policy_translate_fn,
                 cfg.training.episode_length,
