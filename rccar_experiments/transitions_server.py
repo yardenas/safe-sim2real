@@ -101,12 +101,14 @@ def flatten_trajectories(trajectories):
     rewards = np.array(
         [t.reward for traj in trajectories for t in traj], dtype=np.float32
     )
-    dones = np.array([t.done for traj in trajectories for t in traj], dtype=np.float32)
+    dones = np.array(
+        [1 - t.discount for traj in trajectories for t in traj], dtype=np.float32
+    )
     infos = {
         key: np.array(
             [t.info[key] for traj in trajectories for t in traj], dtype=np.float32
         )
-        for key in trajectories[0][0].info
+        for key in trajectories[0][0].extras
     }
     return (
         observations,
