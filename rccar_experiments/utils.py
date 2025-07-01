@@ -27,8 +27,10 @@ def collect_trajectory(
             next_obs,
             {
                 "policy_extras": {},
-                "state_extras": {"cost": state.info["cost"]},
-                "truncation": state.info["truncation"],
+                "state_extras": {
+                    "cost": state.info["cost"],
+                    "truncation": state.info["truncation"],
+                },
             },
         )
         transitions.append(transition)
