@@ -36,7 +36,7 @@ class ExperimentDriver:
         self.key, key = jax.random.split(self.key)
         with hardware.start(self.hardware_handle):
             _, trajectory = collect_trajectory(self.env, policy, key)
-        self.summarize_trial()
+        self.summarize_trial(trajectory)
         return trajectory
 
     def summarize_trial(self, transitions):
