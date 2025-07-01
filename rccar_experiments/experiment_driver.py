@@ -12,7 +12,7 @@ _LOG = logging.getLogger(__name__)
 
 
 class ExperimentDriver:
-    def __init__(self, cfg, hardware_handle, rollout_policy_fn):
+    def __init__(self, cfg, hardware_handle, rollout_policy_fn, params_getter):
         self.session = Session(filename=cfg.session_id, directory="experiment_sessions")
         num_steps = len(self.session.steps)
         if num_steps != 0:
@@ -26,6 +26,7 @@ class ExperimentDriver:
         self.hardware_handle = hardware_handle
         self.env = make_env(cfg, self.hardware_handle)
         self.rollout_policy_fn = rollout_policy_fn
+        self.params_getter = params_getter
         _LOG.info("Experiment driver initialized.")
 
     def run(self):

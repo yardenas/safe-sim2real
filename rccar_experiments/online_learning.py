@@ -43,9 +43,13 @@ def fetch_wandb_policy(cfg):
         )
         return safety_filters.make_sooper_filter_fn(
             network, backup_policy_params, normalizer_params, budget_scaling_fn
+        ), safety_filters.get_inference_policy_params(
+            True, run_config["training"]["safety_budget"]
         )
     else:
-        return safety_filters.make_inference_fn(network)
+        return safety_filters.make_inference_fn(
+            network
+        ), safety_filters.get_inference_policy_params(False)
 
 
 @hydra.main(
@@ -62,8 +66,8 @@ def main(cfg):
         ) as controller,
         jax.disable_jit(),
     ):
-        policy_factory = fetch_wandb_policy(cfg)
-        driver = ExperimentDriver(cfg, controller, policy_factory)
+        policy_factory, params_getter = fetch_wandb_policy(cfg)
+        driver = ExperimentDriver(cfg, controller, policy_factory, params_getter)
         driver.run()
 
 
