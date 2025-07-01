@@ -65,8 +65,7 @@ class TransitionsServer:
         return trajectory
 
     def parse_policy(self, policy_params):
-        params = self.experiment_driver.params_getter(policy_params)
-        return self.experiment_driver.rollout_policy_fn(params, True)
+        return self.experiment_driver.rollout_policy_fn(policy_params, True)
 
 
 def flatten_trajectories(trajectories):
