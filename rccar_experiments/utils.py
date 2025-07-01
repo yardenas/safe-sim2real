@@ -67,7 +67,7 @@ def make_env(cfg, controller=None):
         **task_cfg,
         hardware=dynamics,
     )
-    if "accumulate_cost" in cfg and cfg.accumulate_cost:
+    if cfg.safety_filter == "sooper":
         env = TrackOnlineCostsInObservation(env)
     env = CostEpisodeWrapper(env, cfg.episode_length, cfg.action_repeat)
     env = ConstraintEvalWrapper(env)

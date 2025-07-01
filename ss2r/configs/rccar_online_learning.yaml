@@ -39,6 +39,5 @@ trajectory_length: 250
 car_id: 2
 port_number: 4
 control_frequency: 120.
-accumulate_cost: true
 safety_filter: sooper
 wandb_id: null
