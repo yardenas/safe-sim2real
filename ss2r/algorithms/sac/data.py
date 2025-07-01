@@ -56,6 +56,7 @@ def get_collection_fn(cfg):
                 go1_postprocess_data,
                 data_collection_cfg.address,
             )
+            return make_collection_fn(orchestrator.request_data)
         elif "rccar" in cfg.environment.task_name:
             import cloudpickle
 
@@ -66,11 +67,11 @@ def get_collection_fn(cfg):
                 cfg.environment.dt,
                 address=data_collection_cfg.address,
             )
+            return make_collection_fn(orchestrator.request_data)
         else:
             raise ValueError(
                 f"Environment {cfg.environment.task_name} not supported for hardware data collection."
             )
-        return make_collection_fn(orchestrator.request_data)
     else:
         raise ValueError(f"Unknown data collection {cfg.agent.data_collection.name}")
 
