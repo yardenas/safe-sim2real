@@ -26,6 +26,7 @@ def fetch_wandb_policy(cfg):
         observation_size=7,
         action_size=2,
         policy_hidden_layer_sizes=run_config["agent"]["policy_hidden_layer_sizes"],
+        value_hidden_layer_sizes=run_config["agent"]["value_hidden_layer_sizes"],
         activation=jnn.swish,
         preprocess_observations_fn=normalize,
         safe=cfg.safe,
