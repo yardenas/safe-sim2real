@@ -75,14 +75,7 @@ def send_request(address="tcp://localhost:5555"):
     response = socket.recv()
     print("Received response from server...")
     transitions = pickle.loads(response)
-    observation, action, reward, discount, next_observation, info = transitions
-    for i, t in enumerate(transitions):
-        print(f"\nTransition {i + 1}:")
-        print(f"Observation: {observation}")
-        print(f"Action: {action}")
-        print(f"Reward: {reward}")
-        print(f"Discount: {discount}")
-        print(f"Next Observation: {next_observation}")
+    print(f"Received {len(transitions)} transitions...")
 
     socket.close()
     context.term()
