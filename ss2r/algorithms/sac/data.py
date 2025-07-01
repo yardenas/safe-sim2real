@@ -56,7 +56,7 @@ def get_collection_fn(cfg):
                 go1_postprocess_data,
                 data_collection_cfg.address,
             )
-        elif "rccar" in data_collection_cfg.task_name:
+        elif "rccar" in cfg.environment.task_name:
             import cloudpickle
 
             policy_translate_fn = lambda pi: cloudpickle.dumps(pi)

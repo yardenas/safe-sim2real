@@ -1,5 +1,4 @@
 import jax
-from brax.envs.wrappers.training import EpisodeWrapper
 from brax.training.types import Metrics, Policy, Transition
 
 from ss2r.algorithms.mbpo.wrappers import TrackOnlineCostsInObservation
