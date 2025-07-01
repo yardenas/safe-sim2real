@@ -67,7 +67,8 @@ def main(cfg):
         ) as controller,
         jax.disable_jit(),
     ):
-        driver = ExperimentDriver(cfg, controller)
+        policy_factory = fetch_wandb_policy(cfg)
+        driver = ExperimentDriver(cfg, controller, policy_factory)
         driver.run()
 
 
