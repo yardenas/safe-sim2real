@@ -1,18 +1,23 @@
+from typing import Mapping
+
 import hydra
 import jax
 import jax.nn as jnn
+import jax.numpy as jnp
 import wandb
-from brax.training.acme import running_statistics
+from brax.training.acme import running_statistics, specs
 from brax.training.agents.sac import checkpoint
 
 import ss2r.algorithms.mbpo.networks as mbpo_networks
 from rccar_experiments.experiment_driver import ExperimentDriver
+from rccar_experiments.utils import make_env
 from ss2r.algorithms.mbpo import safety_filters
+from ss2r.algorithms.mbpo.train import get_dict_normalizer_params
 from ss2r.benchmark_suites.rccar import hardware
 from ss2r.common.wandb import get_wandb_checkpoint
 
 
-def fetch_wandb_policy(cfg):
+def fetch_wandb_policy(cfg, env):
     api = wandb.Api(overrides={"entity": cfg.wandb.entity})
     run = api.run(f"ss2r/{cfg.wandb_id}")
     run_config = run.config
@@ -33,6 +38,15 @@ def fetch_wandb_policy(cfg):
     )
     if cfg.safety_filter == "sooper":
         normalizer_params = params[0]
+        obs_size = env.observation_size
+        if isinstance(obs_size, Mapping):
+            obs_shape = {
+                k: specs.Array(v, jnp.dtype("float32")) for k, v in obs_size.items()
+            }
+        else:
+            obs_shape = specs.Array((obs_size,), jnp.dtype("float32"))
+        normalizer_params = running_statistics.init_state(obs_shape)
+        normalizer_params = get_dict_normalizer_params(params[0], normalizer_params)
         backup_policy_params = params[1]
         budget_scaling_fn = (
             lambda x: x
@@ -61,7 +75,8 @@ def main(cfg):
         ) as controller,
         jax.disable_jit(),
     ):
-        policy_factory = fetch_wandb_policy(cfg)
+        env = make_env(cfg, controller)
+        policy_factory = fetch_wandb_policy(cfg, env)
         driver = ExperimentDriver(cfg, controller, policy_factory)
         driver.run()
 

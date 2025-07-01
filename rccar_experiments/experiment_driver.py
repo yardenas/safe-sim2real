@@ -5,14 +5,14 @@ import jax
 
 from rccar_experiments.session import Session
 from rccar_experiments.transitions_server import TransitionsServer
-from rccar_experiments.utils import collect_trajectory, make_env
+from rccar_experiments.utils import collect_trajectory
 from ss2r.benchmark_suites.rccar import hardware
 
 _LOG = logging.getLogger(__name__)
 
 
 class ExperimentDriver:
-    def __init__(self, cfg, hardware_handle, rollout_policy_fn):
+    def __init__(self, cfg, hardware_handle, rollout_policy_fn, env):
         self.session = Session(filename=cfg.session_id, directory="experiment_sessions")
         num_steps = len(self.session.steps)
         if num_steps != 0:
@@ -24,7 +24,7 @@ class ExperimentDriver:
         self.trajectory_length = cfg.trajectory_length
         self.transitions_server = TransitionsServer(self)
         self.hardware_handle = hardware_handle
-        self.env = make_env(cfg, self.hardware_handle)
+        self.env = env
         self.rollout_policy_fn = rollout_policy_fn
         _LOG.info("Experiment driver initialized.")
 
