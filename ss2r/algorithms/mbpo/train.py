@@ -331,7 +331,11 @@ def train(
         )
     make_planning_policy = mbpo_networks.make_inference_fn(mbpo_network)
     make_rollout_policy, get_rollout_policy_params = safety_filters.make(
-        safety_filter, mbpo_network, training_state, safety_budget, budget_scaling_fn
+        safety_filter if safe else None,
+        mbpo_network,
+        training_state,
+        safety_budget,
+        budget_scaling_fn,
     )
     model_replay_buffer = replay_buffers.UniformSamplingQueue(
         max_replay_size=max_replay_size,
