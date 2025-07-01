@@ -2,6 +2,7 @@ import logging
 import time
 
 import cloudpickle as pickle
+import jax
 import numpy as np
 import zmq
 
@@ -122,6 +123,15 @@ def flatten_trajectories(trajectories):
         "policy_extras": policy_extras,
         "state_extras": state_extras,
     }
+    out = (
+        observations,
+        actions,
+        rewards,
+        next_observations,
+        discount,
+        infos,
+    )
+    out = jax.tree_map(lambda x: x[:, None], out)
     return (
         observations,
         actions,
