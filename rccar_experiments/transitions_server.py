@@ -104,11 +104,23 @@ def flatten_trajectories(trajectories):
     dones = np.array(
         [1 - t.discount for traj in trajectories for t in traj], dtype=np.float32
     )
-    infos = {
+    policy_extras = {
         key: np.array(
-            [t.extras[key] for traj in trajectories for t in traj], dtype=np.float32
+            [t.extras["policy_extras"][key] for traj in trajectories for t in traj],
+            dtype=np.float32,
         )
-        for key in trajectories[0][0].extras
+        for key in trajectories[0][0].extras["policy_extras"]
+    }
+    state_extras = {
+        key: np.array(
+            [t.extras["state_extras"][key] for traj in trajectories for t in traj],
+            dtype=np.float32,
+        )
+        for key in trajectories[0][0].extras["state_extras"]
+    }
+    infos = {
+        "policy_extras": policy_extras,
+        "state_extras": state_extras,
     }
     return (
         observations,
