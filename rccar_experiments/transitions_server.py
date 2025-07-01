@@ -1,7 +1,7 @@
 import logging
-import pickle
 import time
 
+import cloudpickle as pickle
 import numpy as np
 import zmq
 
@@ -20,19 +20,19 @@ class TransitionsServer:
                 socket.bind(self.address)
                 while True:
                     message = socket.recv()
-                    policy_params, num_steps = pickle.loads(message)
+                    policy_bytes, num_steps = pickle.loads(message)
                     if num_steps < self.experiment_driver.trajectory_length:
                         _LOG.error("Invalid num_steps: {}".format(num_steps))
-                    trials = self.run(policy_params, num_steps)
+                    trials = self.run(policy_bytes, num_steps)
                     if trials is None:
                         continue
                     socket.send(pickle.dumps(trials))
 
-    def run(self, policy_params, num_steps):
+    def run(self, policy_bytes, num_steps):
         trials = []
         num_transitions = 0
         while num_transitions < num_steps:
-            trial = self.do_trial(policy_params)
+            trial = self.do_trial(policy_bytes)
             new_num_transitions = len(trial)
             if num_transitions + new_num_transitions > num_steps:
                 trial = trial[: num_steps - num_transitions]
@@ -47,7 +47,7 @@ class TransitionsServer:
         ), f"Expected {num_steps} transitions, got {len(transitions)}"
         return transitions
 
-    def do_trial(self, policy_params):
+    def do_trial(self, policy_bytes):
         _LOG.info("Starting sampling")
         if self.safe_mode:
             while True:
@@ -59,12 +59,14 @@ class TransitionsServer:
             while not self.experiment_driver.robot_ok:
                 _LOG.info("Waiting the robot to be ready...")
                 time.sleep(2.5)
-            policy_fn = self.parse_policy(policy_params)
+            policy_fn = self.parse_policy(policy_bytes)
             trajectory = self.experiment_driver.sample_trajectory(policy_fn)
         _LOG.info("Sampling finished")
         return trajectory
 
-    def parse_policy(self, policy_params):
+    def parse_policy(self, policy_bytes):
+        print("Policy params:", policy_bytes)
+        policy_params = pickle.loads(policy_bytes)
         return self.experiment_driver.rollout_policy_fn(policy_params, True)
 
 
