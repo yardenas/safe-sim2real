@@ -65,7 +65,8 @@ class TransitionsServer:
         return trajectory
 
     def parse_policy(self, policy_bytes):
-        return pickle.loads(policy_bytes)
+        params = pickle.loads(policy_bytes)
+        return self.experiment_driver.rollout_policy_fn(params, True)
 
 
 def flatten_trajectories(trajectories):
