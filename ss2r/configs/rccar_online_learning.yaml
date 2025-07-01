@@ -36,6 +36,7 @@ episode_length: 250
 action_repeat: 1
 safety_budget: 1
 safe: false
+trajectory_length: 250
 car_id: 2
 port_number: 4
 control_frequency: 120.
