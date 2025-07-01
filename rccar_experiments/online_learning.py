@@ -16,7 +16,7 @@ def fetch_wandb_policy(cfg):
     api = wandb.Api(overrides={"entity": cfg.wandb.entity})
     run = api.run(f"ss2r/{cfg.wandb_id}")
     run_config = run.config
-    restore_checkpoint_path = get_wandb_checkpoint(cfg.wandb_id, cfg.entity)
+    restore_checkpoint_path = get_wandb_checkpoint(cfg.wandb_id, cfg.wandb.entity)
     params = checkpoint.load(restore_checkpoint_path)
     if run_config["agent"]["normalize_observations"]:
         normalize = running_statistics.normalize
