@@ -72,7 +72,7 @@ class TransitionsServer:
 
 
 def flatten_trajectories(trajectories):
-    if isinstance(trajectories[0][0], dict):
+    if isinstance(trajectories[0][0].observation, dict):
         observations = {
             key: np.array(
                 [t.observation[key] for traj in trajectories for t in traj],
