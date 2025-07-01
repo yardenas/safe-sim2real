@@ -51,7 +51,7 @@ class ExperimentDriver:
         )
         table_data["cost"] = sum(info["cost"] for info in infos)
         table_data["terminated"] = (
-            transitions[-1].done and not transitions[-1].info["truncation"]
+            1 - transitions[-1].discount and not transitions[-1].info["truncation"]
         )
         _LOG.info(
             f"Total reward: {table_data['reward']}\nTotal cost: {table_data['cost']}\n{_format_reward_summary(table_data)}"
