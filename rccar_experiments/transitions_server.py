@@ -106,7 +106,7 @@ def flatten_trajectories(trajectories):
     )
     infos = {
         key: np.array(
-            [t.info[key] for traj in trajectories for t in traj], dtype=np.float32
+            [t.extras[key] for traj in trajectories for t in traj], dtype=np.float32
         )
         for key in trajectories[0][0].extras
     }
