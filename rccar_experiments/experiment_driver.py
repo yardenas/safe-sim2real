@@ -34,8 +34,11 @@ class ExperimentDriver:
     def sample_trajectory(self, policy):
         _LOG.info(f"Starting trajectory sampling... Run id: {self.run_id}")
         self.key, key = jax.random.split(self.key)
+        policy = jax.jit(policy)
         with hardware.start(self.hardware_handle):
-            _, trajectory = collect_trajectory(self.env, policy, key)
+            _, trajectory = collect_trajectory(
+                self.env, policy, key, self.episode_length
+            )
         self.summarize_trial(trajectory)
         return trajectory
 

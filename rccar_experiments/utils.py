@@ -4,16 +4,15 @@ from brax.training.types import Metrics, Policy, Transition
 from ss2r.algorithms.mbpo.wrappers import TrackOnlineCostsInObservation
 from ss2r.benchmark_suites.rccar import hardware, rccar
 from ss2r.benchmark_suites.utils import get_task_config
-from ss2r.benchmark_suites.wrappers import CostEpisodeWrapper
 from ss2r.rl.evaluation import ConstraintEvalWrapper
 
 
 def collect_trajectory(
-    env: rccar.RCCar, policy: Policy, rng: jax.Array
+    env: rccar.RCCar, policy: Policy, rng: jax.Array, episode_length: int
 ) -> tuple[Metrics, Transition]:
     state = env.reset(rng)
     transitions: list[Transition] = []
-    while not state.done:
+    while not state.done and len(transitions) < episode_length:
         rng, key = jax.random.split(rng)
         action, policy_extras = policy(state.obs, key)
         obs = state.obs
@@ -75,6 +74,5 @@ def make_env(cfg, controller=None):
     )
     if cfg.safety_filter == "sooper":
         env = TrackOnlineCostsInObservation(env)
-    env = CostEpisodeWrapper(env, cfg.episode_length, cfg.action_repeat)
     env = ConstraintEvalWrapper(env)
     return env
