@@ -62,17 +62,17 @@ def make_sooper_filter_fn(
                 ).mean(axis=-1)
             else:
                 raise ValueError("QC network is not defined, cannot do shielding.")
-            accumulated_cost = observations["cumulative_cost"][:, 0]
+            accumulated_cost = observations["cumulative_cost"][..., 0]
             expected_total_cost = accumulated_cost + scaling_fn(qc)
             backup_action = backup_policy(observations, key_sample)[0]
-            safe = expected_total_cost[:, None] < safety_budget
+            safe = expected_total_cost[..., None] < safety_budget
             safe_action = jnp.where(
                 safe,
                 behavioral_action,
                 backup_action,
             )
             extras = {
-                "intervention": 1 - safe[:, 0].astype(jnp.float32),
+                "intervention": 1 - safe[..., 0].astype(jnp.float32),
                 "policy_distance": jnp.linalg.norm(mode_a - safe_action, axis=-1),
                 "safety_gap": jnp.maximum(
                     expected_total_cost - safety_budget,

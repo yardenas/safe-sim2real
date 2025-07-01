@@ -1,0 +1,42 @@
+defaults:
+  - environment: rccar_real
+  - _self_
+
+hydra:
+  run:
+    dir: ${log_dir}/hardware_rccar/${now:%Y-%m-%d}/${now:%H-%M-%S}
+  job:
+    config:
+      override_dirname:
+        exclude_keys:
+          - log_dir
+          - training.seed
+          - wandb
+    chdir: true
+
+log_dir: outputs
+
+writers:
+  - wandb
+  - jsonl
+  - stderr
+
+wandb:
+  group: null
+  notes: null
+  name: ${hydra:job.override_dirname}
+  entity: null
+
+environment:
+  sliding_window: 5
+
+seed: 0
+session_id: rccar_online_learning
+safe: true
+episode_length: 250
+car_id: 2
+port_number: 4
+control_frequency: 120.
+safety_filter: sooper
+wandb_id: null
+action_repeat: 1

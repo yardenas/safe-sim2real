@@ -21,7 +21,7 @@ class OnlineEpisodeOrchestrator:
         self,
         translate_policy_to_binary_fn,
         num_steps,
-        sec_per_step,
+        wait_time_sec,
         data_postprocess_fn=lambda x, y: x,
         address="tcp://localhost:5555",
     ):
@@ -42,7 +42,7 @@ class OnlineEpisodeOrchestrator:
         self._translate_policy_to_binary_fn = translate_policy_to_binary_fn
         self._data_postprocess_fn = data_postprocess_fn
         self.num_steps = num_steps
-        self.sec_per_step = sec_per_step
+        self.wait_time_sec = wait_time_sec
         self._address = address
 
     def request_data(
@@ -85,7 +85,7 @@ class OnlineEpisodeOrchestrator:
             retries_left = _REQUEST_RETRIES
             print("Requesting data...")
             # Send data
-            wait = self.num_steps * self.sec_per_step * 10 * 1000
+            wait = self.wait_time_sec * 1000
             try:
                 socket.send(pickle.dumps((policy_bytes, self.num_steps)))
                 while True:
