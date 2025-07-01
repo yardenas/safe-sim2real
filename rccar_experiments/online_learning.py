@@ -46,7 +46,7 @@ def fetch_wandb_policy(cfg, env):
         else:
             obs_shape = specs.Array((obs_size,), jnp.dtype("float32"))
         normalizer_params = running_statistics.init_state(obs_shape)
-        normalizer_params = get_dict_normalizer_params(params[0], normalizer_params)
+        normalizer_params = get_dict_normalizer_params(params, normalizer_params)
         backup_policy_params = params[1]
         budget_scaling_fn = (
             lambda x: x
@@ -77,7 +77,7 @@ def main(cfg):
     ):
         env = make_env(cfg, controller)
         policy_factory = fetch_wandb_policy(cfg, env)
-        driver = ExperimentDriver(cfg, controller, policy_factory)
+        driver = ExperimentDriver(cfg, controller, policy_factory, env)
         driver.run()
 
 
