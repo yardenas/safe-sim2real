@@ -59,8 +59,8 @@ class TransitionsServer:
             while not self.experiment_driver.robot_ok:
                 _LOG.info("Waiting the robot to be ready...")
                 time.sleep(2.5)
-            policy_fn = self.parse_policy(policy_bytes)
-            trajectory = self.experiment_driver.sample_trajectory(policy_fn)
+        policy_fn = self.parse_policy(policy_bytes)
+        trajectory = self.experiment_driver.sample_trajectory(policy_fn)
         _LOG.info("Sampling finished")
         return trajectory
 
