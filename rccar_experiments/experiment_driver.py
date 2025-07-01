@@ -46,8 +46,13 @@ class ExperimentDriver:
             for key, value in info.items():
                 table_data[key] += value
         table_data["steps"] = len(infos)
-        table_data["reward"] = sum(transition.reward for transition in transitions)
+        table_data["reward"] = float(
+            sum(transition.reward for transition in transitions)
+        )
         table_data["cost"] = sum(info["cost"] for info in infos)
+        table_data["terminated"] = (
+            transitions[-1].done and not transitions[-1].info["truncation"]
+        )
         _LOG.info(
             f"Total reward: {table_data['reward']}\nTotal cost: {table_data['cost']}\n{_format_reward_summary(table_data)}"
         )
