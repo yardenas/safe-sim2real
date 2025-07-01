@@ -26,16 +26,11 @@ def fetch_wandb_policy(cfg):
         observation_size=7,
         action_size=2,
         policy_hidden_layer_sizes=run_config["agent"]["policy_hidden_layer_sizes"],
-        value_hidden_layer_sizes=run_config["agent"]["value_hidden_layer_sizes"],
-        model_hidden_layer_sizes=run_config["agent"]["model_hidden_layer_sizes"],
         activation=jnn.swish,
         value_obs_key=jax.random.PRNGKey(0),
         policy_obs_key=jax.random.PRNGKey(0),
         preprocess_observations_fn=normalize,
         safe=cfg.safe,
-        use_bro=True,
-        n_critics=2,
-        n_heads=1,
     )
     if cfg.safety_filter == "sooper":
         normalizer_params = params[0]
