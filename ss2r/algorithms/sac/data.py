@@ -6,7 +6,7 @@ from brax import envs
 from brax.training import acting
 from brax.training.acme import running_statistics
 from brax.training.replay_buffers import ReplayBuffer
-from brax.training.types import Params, PRNGKey
+from brax.training.types import Params, PRNGKey, Transition
 
 from ss2r.algorithms.sac.types import CollectDataFn, ReplayBufferState, float16
 from ss2r.rl.types import MakePolicyFn, UnrollFn
@@ -67,6 +67,7 @@ def get_collection_fn(cfg):
                 policy_translate_fn,
                 cfg.training.episode_length,
                 data_collection_cfg.wait_time_sec,
+                lambda data: Transition(*data),
                 address=data_collection_cfg.address,
             )
             return make_collection_fn(orchestrator.request_data)
