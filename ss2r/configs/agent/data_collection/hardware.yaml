@@ -1,2 +1,3 @@
 name: hardware
 address: "tcp://localhost:5555"
+weight_time_sec: 

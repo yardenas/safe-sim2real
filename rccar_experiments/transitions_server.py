@@ -20,19 +20,19 @@ class TransitionsServer:
                 socket.bind(self.address)
                 while True:
                     message = socket.recv()
-                    policy_bytes, num_steps = pickle.loads(message)
+                    policy_params, num_steps = pickle.loads(message)
                     if num_steps < self.experiment_driver.trajectory_length:
                         _LOG.error("Invalid num_steps: {}".format(num_steps))
-                    trials = self.run(policy_bytes, num_steps)
+                    trials = self.run(policy_params, num_steps)
                     if trials is None:
                         continue
                     socket.send(pickle.dumps(trials))
 
-    def run(self, policy_bytes, num_steps):
+    def run(self, policy_params, num_steps):
         trials = []
         num_transitions = 0
         while num_transitions < num_steps:
-            trial = self.do_trial(policy_bytes)
+            trial = self.do_trial(policy_params)
             new_num_transitions = len(trial)
             if num_transitions + new_num_transitions > num_steps:
                 trial = trial[: num_steps - num_transitions]
@@ -47,7 +47,7 @@ class TransitionsServer:
         ), f"Expected {num_steps} transitions, got {len(transitions)}"
         return transitions
 
-    def do_trial(self, policy_bytes):
+    def do_trial(self, policy_params):
         _LOG.info("Starting sampling")
         if self.safe_mode:
             while True:
@@ -59,13 +59,13 @@ class TransitionsServer:
             while not self.experiment_driver.robot_ok:
                 _LOG.info("Waiting the robot to be ready...")
                 time.sleep(2.5)
-            policy_fn = self.parse_policy(policy_bytes)
+            policy_fn = self.parse_policy(policy_params)
             trajectory = self.experiment_driver.sample_trajectory(policy_fn)
         _LOG.info("Sampling finished")
         return trajectory
 
-    def parse_policy(self, policy_bytes):
-        params = pickle.loads(policy_bytes)
+    def parse_policy(self, policy_params):
+        params = pickle.loads(policy_params)
         return self.experiment_driver.rollout_policy_fn(params, True)
 
 
