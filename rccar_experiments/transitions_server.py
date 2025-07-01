@@ -126,8 +126,8 @@ def flatten_trajectories(trajectories):
         observations,
         actions,
         rewards,
+        discount,
         next_observations,
-        discount[..., None],
         infos,
     )
     return out
