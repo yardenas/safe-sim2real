@@ -72,7 +72,7 @@ def make_sooper_filter_fn(
                 backup_action,
             )
             extras = {
-                "intervention": 1 - safe[:, 0].astype(jnp.float32),
+                "intervention": 1 - safe[..., 0].astype(jnp.float32),
                 "policy_distance": jnp.linalg.norm(mode_a - safe_action, axis=-1),
                 "safety_gap": jnp.maximum(
                     expected_total_cost - safety_budget,
