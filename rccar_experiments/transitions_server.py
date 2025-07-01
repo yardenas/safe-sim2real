@@ -101,8 +101,8 @@ def flatten_trajectories(trajectories):
     rewards = np.array(
         [t.reward for traj in trajectories for t in traj], dtype=np.float32
     )
-    dones = np.array(
-        [1 - t.discount for traj in trajectories for t in traj], dtype=np.float32
+    discount = np.array(
+        [t.discount for traj in trajectories for t in traj], dtype=np.float32
     )
     policy_extras = {
         key: np.array(
@@ -127,6 +127,6 @@ def flatten_trajectories(trajectories):
         actions,
         rewards,
         next_observations,
-        dones,
+        discount,
         infos,
     )
