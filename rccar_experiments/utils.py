@@ -15,7 +15,7 @@ def collect_trajectory(
     transitions: list[Transition] = []
     while not state.done:
         rng, key = jax.random.split(rng)
-        action, _ = policy(state.obs, key)
+        action, policy_extras = policy(state.obs, key)
         obs = state.obs
         state = env.step(state, action)
         next_obs = state.obs
@@ -26,7 +26,7 @@ def collect_trajectory(
             1 - state.done,
             next_obs,
             {
-                "policy_extras": {},
+                "policy_extras": policy_extras,
                 "state_extras": {
                     "cost": state.info["cost"],
                     "truncation": state.info["truncation"],
