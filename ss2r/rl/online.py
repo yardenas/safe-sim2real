@@ -85,7 +85,7 @@ class OnlineEpisodeOrchestrator:
             retries_left = _REQUEST_RETRIES
             print("Requesting data...")
             # Send data
-            wait = self.wait_time_sec
+            wait = self.wait_time_sec * 1000
             try:
                 socket.send(pickle.dumps((policy_bytes, self.num_steps)))
                 while True:
