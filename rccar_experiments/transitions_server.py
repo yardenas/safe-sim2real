@@ -36,7 +36,7 @@ class TransitionsServer:
             new_num_transitions = len(trial)
             if num_transitions + new_num_transitions > num_steps:
                 trial = trial[: num_steps - num_transitions]
-                trial[-1].info["truncation"] = True
+                trial[-1].extras["state_extras"]["truncation"] = True
                 _LOG.info("Truncating trajectory")
             num_transitions += len(trial)
             trials.append(trial)
