@@ -41,7 +41,7 @@ def get_collection_fn(cfg):
         return make_collection_fn(generate_episodic_unroll)
     elif cfg.agent.data_collection.name == "hardware":
         data_collection_cfg = cfg.agent.data_collection
-        if "Go1" in cfg.environment.task_name or "Go2" in data_collection_cfg.task_name:
+        if "Go1" in cfg.environment.task_name or "Go2" in cfg.environment.task_name:
             from ss2r.algorithms.sac.go1_sac_to_onnx import (
                 go1_postprocess_data,
                 make_go1_policy,
