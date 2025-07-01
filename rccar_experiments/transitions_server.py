@@ -55,6 +55,8 @@ class TransitionsServer:
                 if not (answer == "Y" or answer == "y"):
                     _LOG.info("Skipping trajectory")
                     continue
+                else:
+                    break
         else:
             while not self.experiment_driver.robot_ok:
                 _LOG.info("Waiting the robot to be ready...")
