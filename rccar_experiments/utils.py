@@ -1,3 +1,5 @@
+import time
+
 import jax
 from brax.training.types import Metrics, Policy, Transition
 
@@ -14,6 +16,7 @@ def collect_trajectory(
     transitions: list[Transition] = []
     while not state.done and len(transitions) < episode_length:
         rng, key = jax.random.split(rng)
+        start = time.time()
         action, policy_extras = policy(state.obs, key)
         obs = state.obs
         state = env.step(state, action)
@@ -28,10 +31,12 @@ def collect_trajectory(
                 "policy_extras": policy_extras,
                 "state_extras": {
                     "cost": state.info["cost"],
-                    "truncation": state.info["truncation"],
+                    "truncation": state.info.get("truncation", False),
                 },
             },
         )
+        end = time.time()
+        transition.extras["state_extras"]["time"] = end - start
         transitions.append(transition)
     metrics = state.info["eval_metrics"].episode_metrics
     metrics = {key: float(value) for key, value in metrics.items()}
