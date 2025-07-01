@@ -25,7 +25,7 @@ def collect_trajectory(
             state.reward,
             1 - state.done,
             next_obs,
-            {"cost": state.info["cost"]},
+            {"policy_extras": {}, "state_extras": {"cost": state.info["cost"]}},
         )
         transitions.append(transition)
     metrics = state.info["eval_metrics"].episode_metrics

@@ -40,7 +40,7 @@ class ExperimentDriver:
         return trajectory
 
     def summarize_trial(self, transitions):
-        infos = [transition.info for transition in transitions]
+        infos = [transition.extras["state_extras"] for transition in transitions]
         table_data = defaultdict(float)
         for info in infos:
             for key, value in info.items():
