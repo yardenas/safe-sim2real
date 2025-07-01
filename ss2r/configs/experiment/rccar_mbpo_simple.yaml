@@ -1,9 +1,7 @@
 # @package _global_
 defaults:
   - override /environment: rccar_real
-  - override /agent/cost_robustness: ucb_cost
-  - override /agent/propagation: spidr
-  - override /agent/penalizer: lagrangian
+  - override /agent: mbpo
   - _self_
 
 environment:
@@ -17,19 +15,19 @@ training:
   num_envs: 4096
   num_timesteps: 50000000
   episode_length: 250
-  train_domain_randomization: true
-  eval_domain_randomization: true
-  safety_budget: 15.
+  train_domain_randomization: false
+  eval_domain_randomization: false
+  safety_budget: 5.0
+  num_eval_episodes: 1
 
 agent:
-  grad_updates_per_step: 64
   batch_size: 256
   min_replay_size: 100
   max_replay_size: 1048576
   policy_hidden_layer_sizes: [64, 64]
-  penalizer:
-    lagrange_multiplier: 0.1
-    penalty_multiplier: 0.001
-    penalty_multiplier_factor: 1e-4
-  propagation:
-    lambda_: 250.
+  model_grad_updates_per_step: 64
+  critic_grad_updates_per_step: 128
+  unroll_length: 2
+  model_learning_rate: 3e-4
+
+
