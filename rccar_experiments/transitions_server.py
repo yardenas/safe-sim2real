@@ -132,11 +132,4 @@ def flatten_trajectories(trajectories):
         infos,
     )
     out = jax.tree_map(lambda x: x[:, None], out)
-    return (
-        observations,
-        actions,
-        rewards,
-        next_observations,
-        discount,
-        infos,
-    )
+    return out
