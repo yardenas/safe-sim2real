@@ -33,7 +33,6 @@ environment:
 seed: 0
 session_id: rccar_online_learning
 num_trajectories: 100
-episode_length: 250
 safe: true
 trajectory_length: 250
 car_id: 2
