@@ -58,13 +58,9 @@ def get_collection_fn(cfg):
             )
             return make_collection_fn(orchestrator.request_data)
         elif "rccar" in cfg.environment.task_name:
-            import cloudpickle
-
             from ss2r.rl.online import OnlineEpisodeOrchestrator
 
-            policy_translate_fn = lambda make_policy_fn, params: cloudpickle.dumps(
-                make_policy_fn(params)
-            )
+            policy_translate_fn = lambda _, params: params
             orchestrator = OnlineEpisodeOrchestrator(
                 policy_translate_fn,
                 cfg.training.episode_length,
