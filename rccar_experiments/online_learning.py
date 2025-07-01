@@ -50,7 +50,7 @@ def fetch_wandb_policy(cfg, env):
         backup_policy_params = params[1]
         budget_scaling_fn = (
             lambda x: x
-            * cfg.trajectory_length
+            * cfg.episode_length
             * (1.0 - run_config["agent"]["safety_discounting"])
             / run_config["training"]["action_repeat"]
         )

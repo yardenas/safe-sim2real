@@ -21,7 +21,7 @@ class TransitionsServer:
                 while True:
                     message = socket.recv()
                     policy_bytes, num_steps = pickle.loads(message)
-                    if num_steps < self.experiment_driver.trajectory_length:
+                    if num_steps < self.experiment_driver.episode_length:
                         _LOG.error("Invalid num_steps: {}".format(num_steps))
                     trials = self.run(policy_bytes, num_steps)
                     if trials is None:

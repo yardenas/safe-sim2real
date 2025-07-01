@@ -34,7 +34,7 @@ seed: 0
 session_id: rccar_online_learning
 num_trajectories: 100
 safe: true
-trajectory_length: 250
+episode_length: 250
 car_id: 2
 port_number: 4
 control_frequency: 120.

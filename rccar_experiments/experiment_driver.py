@@ -21,7 +21,7 @@ class ExperimentDriver:
             seed = cfg.seed
         self.run_id = num_steps
         self.key = jax.random.PRNGKey(seed)
-        self.trajectory_length = cfg.trajectory_length
+        self.episode_length = cfg.episode_length
         self.transitions_server = TransitionsServer(self, safe_mode=True)
         self.hardware_handle = hardware_handle
         self.env = env
