@@ -65,8 +65,7 @@ class TransitionsServer:
         return trajectory
 
     def parse_policy(self, policy_bytes):
-        # TODO (yarden): parse the policy
-        return policy_bytes
+        return pickle.loads(policy_bytes)
 
 
 def flatten_trajectories(trajectories):
