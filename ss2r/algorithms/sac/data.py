@@ -52,7 +52,7 @@ def get_collection_fn(cfg):
             orchestrator = OnlineEpisodeOrchestrator(
                 policy_translate_fn,
                 cfg.training.episode_length,
-                cfg.environment.task_params.ctrl_dt,
+                data_collection_cfg.wait_time_sec,
                 go1_postprocess_data,
                 data_collection_cfg.address,
             )
@@ -64,7 +64,7 @@ def get_collection_fn(cfg):
             orchestrator = OnlineEpisodeOrchestrator(
                 policy_translate_fn,
                 cfg.training.episode_length,
-                cfg.environment.dt,
+                data_collection_cfg.wait_time_sec,
                 address=data_collection_cfg.address,
             )
             return make_collection_fn(orchestrator.request_data)
