@@ -5,6 +5,7 @@ from brax.training.types import Metrics, Policy, Transition
 from ss2r.algorithms.mbpo.wrappers import TrackOnlineCostsInObservation
 from ss2r.benchmark_suites.rccar import hardware, rccar
 from ss2r.benchmark_suites.utils import get_task_config
+from ss2r.benchmark_suites.wrappers import CostEpisodeWrapper
 from ss2r.rl.evaluation import ConstraintEvalWrapper
 
 
@@ -69,6 +70,6 @@ def make_env(cfg, controller=None):
     )
     if "accumulate_cost" in cfg and cfg.accumulate_cost:
         env = TrackOnlineCostsInObservation(env)
-    env = EpisodeWrapper(env, cfg.episode_length, cfg.action_repeat)
+    env = CostEpisodeWrapper(env, cfg.episode_length, cfg.action_repeat)
     env = ConstraintEvalWrapper(env)
     return env

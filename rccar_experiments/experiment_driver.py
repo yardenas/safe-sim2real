@@ -17,10 +17,11 @@ class ExperimentDriver:
         num_steps = len(self.session.steps)
         if num_steps != 0:
             seed = num_steps
+        else:
+            seed = cfg.seed
         self.run_id = num_steps
         self.key = jax.random.PRNGKey(seed)
         self.trajectory_length = cfg.trajectory_length
-        self.running = False
         self.transitions_server = TransitionsServer(self)
         self.hardware_handle = hardware_handle
         self.env = make_env(cfg, self.hardware_handle)

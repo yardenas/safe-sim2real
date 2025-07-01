@@ -30,6 +30,7 @@ environment:
   sliding_window: 5
 
 seed: 0
+session_id: rccar_online_learning
 num_trajectories: 100
 episode_length: 250
 action_repeat: 1
