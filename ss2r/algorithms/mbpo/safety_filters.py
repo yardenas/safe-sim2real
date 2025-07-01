@@ -65,7 +65,7 @@ def make_sooper_filter_fn(
             accumulated_cost = observations["cumulative_cost"][..., 0]
             expected_total_cost = accumulated_cost + scaling_fn(qc)
             backup_action = backup_policy(observations, key_sample)[0]
-            safe = expected_total_cost[:, None] < safety_budget
+            safe = expected_total_cost[..., None] < safety_budget
             safe_action = jnp.where(
                 safe,
                 behavioral_action,
