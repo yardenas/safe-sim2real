@@ -13,7 +13,7 @@ from ss2r.common.wandb import get_wandb_checkpoint
 
 
 def fetch_wandb_policy(cfg):
-    api = wandb.Api(overrides={"entity": cfg.entity})
+    api = wandb.Api(overrides={"entity": cfg.wandb.entity})
     run = api.run(f"ss2r/{cfg.wadb_id}")
     run_config = run.config
     restore_checkpoint_path = get_wandb_checkpoint(cfg.wandb_id, cfg.entity)
