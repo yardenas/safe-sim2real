@@ -246,10 +246,10 @@ class RCCar(Env):
                 "action_stack": action_stack,  # Buffer for action history (sliding window)
             },
             metrics={
-                "reward/get_close_reward": jnp.array(0.0),
-                "reward/goal_achieved": jnp.array(0.0),
-                "reward/action_magnitude_cost": jnp.array(0.0),
-                "reward/action_jitter_cost": jnp.array(0.0),
+                "get_close_reward": jnp.array(0.0),
+                "goal_achieved": jnp.array(0.0),
+                "action_magnitude_cost": jnp.array(0.0),
+                "action_jitter_cost": jnp.array(0.0),
             },
         )
 
@@ -373,10 +373,10 @@ class RCCar(Env):
                 "obs_buffer": new_obs_buffer,
             }
             final_obs = delayed_obs
-        state.metrics["reward/get_close_reward"] = get_close_reward
-        state.metrics["reward/goal_achieved"] = goal_achieved
-        state.metrics["reward/action_magnitude_cost"] = action_magnitude_cost
-        state.metrics["reward/action_jitter_cost"] = action_jitter_cost
+        state.metrics["get_close_reward"] = get_close_reward
+        state.metrics["goal_achieved"] = goal_achieved
+        state.metrics["action_magnitude_cost"] = action_magnitude_cost
+        state.metrics["action_jitter_cost"] = action_jitter_cost
         return State(
             pipeline_state=(next_dynamics_state, nkey, goal_dist),
             obs=final_obs,
