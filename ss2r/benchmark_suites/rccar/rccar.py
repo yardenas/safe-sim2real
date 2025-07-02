@@ -289,7 +289,7 @@ class RCCar(Env):
         goal_achieved = jnp.less_equal(goal_dist, 0.35).astype(jnp.float32)
         action_magnitude_cost = -(
             jnp.linalg.norm(delayed_action) * self.control_penalty_scale
-        )  # FIXME double control penalty
+        )
         last_act = state.info["last_act"]
         action_jitter_cost = -(
             jnp.sum(jnp.square(delayed_action - last_act))
