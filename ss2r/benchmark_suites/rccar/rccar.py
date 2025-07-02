@@ -286,7 +286,7 @@ class RCCar(Env):
         goal_dist = jnp.linalg.norm(next_dynamics_state[:2])
         prev_goal_dist = state.pipeline_state[2]
         get_close_reward = prev_goal_dist - goal_dist
-        goal_achieved = jnp.less_equal(goal_dist, 0.35)
+        goal_achieved = jnp.less_equal(goal_dist, 0.35).astype(jnp.float32)
         action_magnitude_cost = -(
             jnp.linalg.norm(delayed_action) * self.control_penalty_scale
         )  # FIXME double control penalty
