@@ -354,7 +354,6 @@ class Saute(Wrapper):
         cost += nstate.info.get("disagreement", 0.0)
         saute_state -= cost / self.budget
         saute_reward = jp.where(saute_state <= 0.0, -self.penalty, nstate.reward)
-        # saute_reward = jnn.softplus(saute_state) * nstate.reward
         terminate = jp.where(
             ((saute_state <= 0.0) & self.terminate) | nstate.done.astype(jp.bool),
             True,
