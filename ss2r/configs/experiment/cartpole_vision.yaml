@@ -1,0 +1,30 @@
+# @package _global_
+defaults:
+  - mujoco_playground_dm_control_vision
+  - override /environment: cartpole_swingup
+  - _self_
+
+environment:
+  task_params:
+    vision: true
+    ctrl_dt: 0.04
+    episode_length: 400
+    vision_config:
+      render_batch_size: 128
+      render_width: 64
+      render_height: 64
+      enabled_geom_groups: [0, 1, 2] 
+      use_rasterize: false
+      history: 3
+
+
+training:
+  num_timesteps: 5000000
+  safe: false
+  train_domain_randomization: false
+  eval_domain_randomization: false
+  num_eval_episodes: 1
+  episode_length: 400
+
+agent:
+  activation: swish

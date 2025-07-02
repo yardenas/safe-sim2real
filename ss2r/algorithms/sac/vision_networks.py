@@ -17,7 +17,7 @@ _HIDDEN_DIM = 50
 
 
 def make_q_vision_network(
-    vision_ecoder: networks.VisionEncoder,
+    vision_ecoder: networks.VisionMLP,
     observation_size: Mapping[str, Tuple[int, ...]],
     action_size: int,
     preprocess_observations_fn: types.PreprocessObservationFn = types.identity_observation_preprocessor,
@@ -69,7 +69,7 @@ def make_q_vision_network(
 
 
 def make_policy_vision_network(
-    vision_ecoder: networks.VisionEncoder,
+    vision_ecoder: networks.VisionMLP,
     param_size: int,
     observation_size: Mapping[str, Tuple[int, ...]],
     preprocess_observations_fn: types.PreprocessObservationFn = types.identity_observation_preprocessor,
