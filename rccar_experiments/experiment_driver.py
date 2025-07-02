@@ -35,8 +35,10 @@ class ExperimentDriver:
     def sample_trajectory(self, policy):
         _LOG.info(f"Starting trajectory sampling... Run id: {self.run_id}")
         self.key, key = jax.random.split(self.key)
-        dummy_obs = jax.tree_map(lambda x: jnp.zeros(x.shape), self.env.reset(key).obs)
-        jitted_policy = jax.jit(policy)(dummy_obs, key)[0].block_until_ready()
+        dummy_obs = jax.tree_map(lambda x: jnp.zeros(x), self.env.observation_size)
+        jitted_policy = jax.jit(policy)
+        # JIT now
+        jitted_policy(dummy_obs, key)
         with hardware.start(self.hardware_handle):
             _, trajectory = collect_trajectory(
                 self.env, jitted_policy, key, self.episode_length

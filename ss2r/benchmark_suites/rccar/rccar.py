@@ -245,6 +245,12 @@ class RCCar(Env):
                 "obs_stack": obs_stack,  # Buffer for observation history (sliding window)
                 "action_stack": action_stack,  # Buffer for action history (sliding window)
             },
+            metrics={
+                "reward/get_close_reward": jnp.array(0.0),
+                "reward/goal_achieved": jnp.array(0.0),
+                "reward/action_magnitude_cost": jnp.array(0.0),
+                "reward/action_jitter_cost": jnp.array(0.0),
+            },
         )
 
     def step(self, state: State, action: jax.Array) -> State:
@@ -279,18 +285,22 @@ class RCCar(Env):
         nkey, key = jax.random.split(key, 2)
         goal_dist = jnp.linalg.norm(next_dynamics_state[:2])
         prev_goal_dist = state.pipeline_state[2]
-        reward = prev_goal_dist - goal_dist
+        get_close_reward = prev_goal_dist - goal_dist
         goal_achieved = jnp.less_equal(goal_dist, 0.35)
-        reward += goal_achieved.astype(jnp.float32)
-        reward -= (
+        action_magnitude_cost = -(
             jnp.linalg.norm(delayed_action) * self.control_penalty_scale
         )  # FIXME double control penalty
         last_act = state.info["last_act"]
-        reward -= (
+        action_jitter_cost = -(
             jnp.sum(jnp.square(delayed_action - last_act))
             * self.last_action_penalty_scale
         )
-        reward -= jnp.linalg.norm(delayed_action) * self.control_penalty_scale
+        reward = (
+            get_close_reward
+            + action_magnitude_cost
+            + action_jitter_cost
+            + goal_achieved
+        )
         cost = cost_fn(dynamics_state[..., :2], self.obstacles)
         if not isinstance(self.dynamics_model, HardwareDynamics):
             negative_vel = -dynamics_state[..., 3:5]
@@ -363,7 +373,10 @@ class RCCar(Env):
                 "obs_buffer": new_obs_buffer,
             }
             final_obs = delayed_obs
-
+        state.metrics["reward/get_close_reward"] = get_close_reward
+        state.metrics["reward/goal_achieved"] = goal_achieved
+        state.metrics["reward/action_magnitude_cost"] = action_magnitude_cost
+        state.metrics["reward/action_jitter_cost"] = action_jitter_cost
         return State(
             pipeline_state=(next_dynamics_state, nkey, goal_dist),
             obs=final_obs,
