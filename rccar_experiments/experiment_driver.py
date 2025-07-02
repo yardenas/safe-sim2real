@@ -2,6 +2,7 @@ import logging
 from collections import defaultdict
 
 import jax
+import jax.numpy as jnp
 
 from rccar_experiments.session import Session
 from rccar_experiments.transitions_server import TransitionsServer
@@ -34,10 +35,11 @@ class ExperimentDriver:
     def sample_trajectory(self, policy):
         _LOG.info(f"Starting trajectory sampling... Run id: {self.run_id}")
         self.key, key = jax.random.split(self.key)
-        policy = jax.jit(policy)
+        dummy_obs = jax.tree_map(lambda x: jnp.zeros(x.shape), self.env.reset(key).obs)
+        jitted_policy = jax.jit(policy)(dummy_obs, key).block_until_ready()
         with hardware.start(self.hardware_handle):
             _, trajectory = collect_trajectory(
-                self.env, policy, key, self.episode_length
+                self.env, jitted_policy, key, self.episode_length
             )
         self.summarize_trial(trajectory)
         return trajectory
