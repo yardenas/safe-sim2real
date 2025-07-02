@@ -268,6 +268,7 @@ def make_mujoco_playground_envs(cfg, train_wrap_env_fn, eval_wrap_env_fn):
         if cfg.training.train_domain_randomization
         else None
     )
+    vision = "use_vision" in cfg.agent and cfg.agent.use_vision
     train_env = wrap_for_brax_training(
         train_env,
         randomization_fn=train_randomization_fn,
@@ -275,6 +276,8 @@ def make_mujoco_playground_envs(cfg, train_wrap_env_fn, eval_wrap_env_fn):
         action_repeat=cfg.training.action_repeat,
         augment_state=False,
         hard_resets=cfg.training.hard_resets,
+        vision=vision,
+        num_vision_envs=cfg.training.num_envs,
     )
     eval_randomization_fn = (
         prepare_randomization_fn(
