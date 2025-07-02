@@ -29,6 +29,21 @@ def locate_last_checkpoint() -> Path | None:
     return latest_ckpt
 
 
+def _validate_madrona_args(
+    num_envs: int,
+    num_eval_envs: int,
+    action_repeat: int,
+):
+    """Validates arguments for Madrona-MJX."""
+    if num_eval_envs != num_envs:
+        raise ValueError("Madrona-MJX requires a fixed batch size")
+    if action_repeat != 1:
+        raise ValueError(
+            "Implement action_repeat using PipelineEnv's _n_frames to avoid"
+            " unnecessary rendering!"
+        )
+
+
 def get_train_fn(cfg):
     if cfg.training.wandb_id:
         restore_checkpoint_path = get_wandb_checkpoint(
@@ -82,6 +97,13 @@ def main(cfg):
     train_env, eval_env = benchmark_suites.make(
         cfg, train_env_wrap_fn, eval_env_wrap_fn
     )
+    if "use_vision" in cfg.agent and cfg.agent.use_vision:
+        _validate_madrona_args(
+            cfg.environment.num_envs,
+            cfg.environment.num_eval_envs,
+            cfg.environment.action_repeat,
+        )
+        eval_env = train_env
     steps = Counter()
     with jax.disable_jit(not cfg.jit):
         make_policy, params, _ = train_fn(
