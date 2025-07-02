@@ -219,13 +219,13 @@ class RCCar(Env):
             ) * jax.random.normal(key_vel, shape=(3,))
             init_state = jnp.concatenate([init_pos, init_theta, init_vel])
         init_obs = self._obs(init_state)
-        obs_buffer, action_buffer = self._init_delay_buffers(init_obs)
+        obs_buffer, action_buffer = self._init_delay_buffers(jnp.zeros_like(init_obs))
         if self.observation_delay == 0:
             obs_buffer = None
         if self.action_delay == 0:
             action_buffer = None
         if self.sliding_window > 0:
-            obs_stack, action_stack = self._init_stack_buffers(init_obs)
+            obs_stack, action_stack = self._init_stack_buffers(jnp.zeros_like(init_obs))
             stacked_obs = self._get_stacked_obs(obs_stack, action_stack)
         else:
             obs_stack = None
