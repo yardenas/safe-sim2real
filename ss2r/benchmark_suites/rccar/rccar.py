@@ -286,7 +286,7 @@ class RCCar(Env):
         action_magnitude_cost = -self._action_magnitude_cost(action)
         last_act = state.info["last_act"]
         action_jitter_cost = -self._action_jitter_cost(action, last_act)
-        get_close_reward = self._get_close_reward(next_dynamics_state)
+        get_close_reward = self._goal_reward(next_dynamics_state)
         reward = get_close_reward + action_magnitude_cost + action_jitter_cost
         cost = cost_fn(dynamics_state[..., :2], self.obstacles)
         if not isinstance(self.dynamics_model, HardwareDynamics):
