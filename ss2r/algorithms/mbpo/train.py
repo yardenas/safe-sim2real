@@ -603,6 +603,14 @@ def train(
     )
     replay_size = jnp.sum(model_replay_buffer.size(model_buffer_state))
     logging.info("replay size after prefill %s", replay_size)
+    training_state, env_state, model_buffer_state, sac_buffer_state, _ = training_step(
+        training_state,
+        env_state,
+        model_buffer_state,
+        sac_buffer_state,
+        local_key,
+        only_model=True,
+    )
     assert replay_size >= min_replay_size
     training_walltime = time.time() - t
 

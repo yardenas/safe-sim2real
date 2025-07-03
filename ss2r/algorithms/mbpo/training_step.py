@@ -354,16 +354,19 @@ def make_training_step(
         model_buffer_state: ReplayBufferState,
         sac_buffer_state: ReplayBufferState,
         key: PRNGKey,
+        *,
+        only_model: bool = False,
     ) -> Tuple[
         TrainingState, envs.State, ReplayBufferState, ReplayBufferState, Metrics
     ]:
         """Splits training into experience collection and a jitted training step."""
-        (
-            training_state,
-            env_state,
-            model_buffer_state,
-            training_key,
-        ) = run_experience_step(training_state, env_state, model_buffer_state, key)
+        if not only_model:
+            (
+                training_state,
+                env_state,
+                model_buffer_state,
+                training_key,
+            ) = run_experience_step(training_state, env_state, model_buffer_state, key)
         model_buffer_state, transitions = model_replay_buffer.sample(model_buffer_state)
         # Change the front dimension of transitions so 'update_step' is called
         # grad_updates_per_step times by the scan.
@@ -374,6 +377,14 @@ def make_training_step(
         (training_state, _), model_metrics = jax.lax.scan(
             model_sgd_step, (training_state, training_key), tmp_transitions
         )
+        if only_model:
+            return (
+                training_state,
+                env_state,
+                model_buffer_state,
+                sac_buffer_state,
+                model_metrics,
+            )
         planning_env = make_model_env(
             training_state=training_state,
             transitions=transitions,
