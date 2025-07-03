@@ -99,9 +99,9 @@ def main(cfg):
     )
     if "use_vision" in cfg.agent and cfg.agent.use_vision:
         _validate_madrona_args(
-            cfg.environment.num_envs,
-            cfg.environment.num_eval_envs,
-            cfg.environment.action_repeat,
+            cfg.training.num_envs,
+            cfg.training.num_eval_envs,
+            cfg.training.action_repeat,
         )
         eval_env = train_env
     steps = Counter()
