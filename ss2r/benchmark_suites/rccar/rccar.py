@@ -8,6 +8,7 @@ from omegaconf import OmegaConf
 
 from ss2r.benchmark_suites.rccar.hardware import HardwareDynamics
 from ss2r.benchmark_suites.rccar.model import CarParams, RaceCarDynamics
+from ss2r.benchmark_suites.rewards import tolerance
 from ss2r.rl.utils import rollout
 
 X_LIM = (-0.3, 3.0)
@@ -233,7 +234,7 @@ class RCCar(Env):
             stacked_obs = init_obs
 
         return State(
-            pipeline_state=(init_state, key_pos, jnp.linalg.norm(init_pos)),
+            pipeline_state=(init_state, key_pos),
             obs=stacked_obs,  # Use stacked observation if sliding window is enabled
             reward=jnp.array(0.0),
             done=jnp.array(0.0),
@@ -247,7 +248,6 @@ class RCCar(Env):
             },
             metrics={
                 "get_close_reward": jnp.array(0.0),
-                "goal_achieved": jnp.array(0.0),
                 "action_magnitude": jnp.array(0.0),
                 "action_jitter": jnp.array(0.0),
             },
@@ -283,24 +283,11 @@ class RCCar(Env):
         )
         key = state.pipeline_state[1]
         nkey, key = jax.random.split(key, 2)
-        goal_dist = jnp.linalg.norm(next_dynamics_state[:2])
-        prev_goal_dist = state.pipeline_state[2]
-        get_close_reward = prev_goal_dist - goal_dist
-        goal_achieved = jnp.less_equal(goal_dist, 0.35).astype(jnp.float32)
-        action_magnitude_cost = -(
-            jnp.linalg.norm(delayed_action) * self.control_penalty_scale
-        )
+        action_magnitude_cost = -self._action_magnitude_cost(action)
         last_act = state.info["last_act"]
-        action_jitter_cost = -(
-            jnp.sum(jnp.square(delayed_action - last_act))
-            * self.last_action_penalty_scale
-        )
-        reward = (
-            get_close_reward
-            + action_magnitude_cost
-            + action_jitter_cost
-            + goal_achieved
-        )
+        action_jitter_cost = -self._action_jitter_cost(action, last_act)
+        get_close_reward = self._get_close_reward(next_dynamics_state)
+        reward = get_close_reward + action_magnitude_cost + action_jitter_cost
         cost = cost_fn(dynamics_state[..., :2], self.obstacles)
         if not isinstance(self.dynamics_model, HardwareDynamics):
             negative_vel = -dynamics_state[..., 3:5]
@@ -374,17 +361,32 @@ class RCCar(Env):
             }
             final_obs = delayed_obs
         state.metrics["get_close_reward"] = get_close_reward
-        state.metrics["goal_achieved"] = goal_achieved
         state.metrics["action_magnitude"] = action_magnitude_cost
         state.metrics["action_jitter"] = action_jitter_cost
         return State(
-            pipeline_state=(next_dynamics_state, nkey, goal_dist),
+            pipeline_state=(next_dynamics_state, nkey),
             obs=final_obs,
             reward=reward,
             done=done,
             metrics=state.metrics,
             info=info,
         )
+
+    def _goal_reward(self, dynamics_state: jax.Array) -> jax.Array:
+        goal_distance = jnp.linalg.norm(dynamics_state[..., :2] - self.goal[:2])
+        return tolerance(
+            goal_distance,
+            bounds=(0, 0.2),
+            margin=20.0 * 0.2,
+            value_at_margin=0.1,
+            sigmoid="long_tail",
+        )
+
+    def _action_magnitude_cost(self, action: jax.Array) -> jax.Array:
+        return jnp.linalg.norm(action) * self.control_penalty_scale
+
+    def _action_jitter_cost(self, action: jax.Array, last_act: jax.Array) -> jax.Array:
+        return jnp.sum(jnp.square(action - last_act)) * self.last_action_penalty_scale
 
     @property
     def observation_size(self) -> int:

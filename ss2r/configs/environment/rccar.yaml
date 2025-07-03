@@ -1,6 +1,6 @@
 domain_name: rccar
 task_name: rccar
-dt: 0.033
+dt: 0.013333
 obstacles:
   - [0.75, -0.55, 0.25]
   - [0.75, -0.15, 0.25]
