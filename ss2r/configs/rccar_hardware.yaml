@@ -31,7 +31,7 @@ environment:
 
 seed: 0
 num_trajectories: 100
-episode_length: 250
+episode_length: 500
 action_repeat: 1
 safety_budget: 1
 safe: false
