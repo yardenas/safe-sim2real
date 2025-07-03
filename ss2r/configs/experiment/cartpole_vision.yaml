@@ -16,6 +16,7 @@ environment:
       enabled_geom_groups: [0, 1, 2] 
       use_rasterize: false
       history: 3
+      gpu_id: 0
 
 
 training:
