@@ -22,15 +22,13 @@ class TrackOnlineCostsInObservation(Wrapper):
             }
         return observation_size
 
-    def augment_obs(self, state: State, cumulative_cost) -> State:
+    def augment_obs(self, state: State, cumulative_cost: jax.Array) -> State:
         if isinstance(state.obs, Mapping):
             obs = {
                 **state.obs,
                 "cumulative_cost": cumulative_cost,
             }
         else:
-            # Append the cumulative cost to state.obs
-            # state_obs = jnp.concatenate([state.obs, cumulative_cost], axis=-1)
             obs = {
                 "state": state.obs,
                 "cumulative_cost": cumulative_cost,
@@ -39,7 +37,7 @@ class TrackOnlineCostsInObservation(Wrapper):
 
     def reset(self, rng: jax.Array) -> State:
         reset_state = self.env.reset(rng)
-        cummulative_cost = jnp.zeros_like(reset_state.reward)[None]
+        cummulative_cost = jnp.zeros_like(reset_state.reward, dtype=jnp.float32)[None]
         return self.augment_obs(reset_state, cummulative_cost)
 
     def step(self, state: State, action: jax.Array) -> State:
@@ -48,7 +46,7 @@ class TrackOnlineCostsInObservation(Wrapper):
         state = state.replace(obs=state.obs["state"])
         next_state = self.env.step(state, action)
         state = state.replace(obs=old_obs)
-        cost = state.info.get("cost", jnp.zeros_like(state.reward))
+        cost = state.info.get("cost", jnp.zeros_like(state.reward, dtype=jnp.float32))
         next_cumulative_cost = cumulative_cost + cost
         next_state = self.augment_obs(next_state, next_cumulative_cost)
         return next_state

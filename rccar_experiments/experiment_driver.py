@@ -2,6 +2,7 @@ import logging
 from collections import defaultdict
 
 import jax
+import jax.numpy as jnp
 
 from rccar_experiments.session import Session
 from rccar_experiments.transitions_server import TransitionsServer
@@ -34,17 +35,25 @@ class ExperimentDriver:
     def sample_trajectory(self, policy):
         _LOG.info(f"Starting trajectory sampling... Run id: {self.run_id}")
         self.key, key = jax.random.split(self.key)
+        dummy_obs = jax.tree_map(lambda x: jnp.zeros(x), self.env.observation_size)
+        jitted_policy = jax.jit(policy)
+        # JIT now
+        jitted_policy(dummy_obs, key)
         with hardware.start(self.hardware_handle):
-            _, trajectory = collect_trajectory(self.env, policy, key)
-        self.summarize_trial(trajectory)
+            metrics, trajectory = collect_trajectory(
+                self.env, jitted_policy, key, self.episode_length
+            )
+        self.summarize_trial(trajectory, metrics)
         return trajectory
 
-    def summarize_trial(self, transitions):
+    def summarize_trial(self, transitions, metrics):
         infos = [transition.extras["state_extras"] for transition in transitions]
         table_data = defaultdict(float)
         for info in infos:
             for key, value in info.items():
                 table_data[key] += value
+        for key, value in metrics.items():
+            table_data[key] += float(value)
         table_data["steps"] = len(infos)
         table_data["reward"] = float(
             sum(transition.reward for transition in transitions)
@@ -53,6 +62,7 @@ class ExperimentDriver:
         table_data["terminated"] = (
             1 - transitions[-1].discount and not infos[-1]["truncation"]
         )
+
         _LOG.info(
             f"Total reward: {table_data['reward']}\nTotal cost: {table_data['cost']}\n{_format_reward_summary(table_data)}"
         )

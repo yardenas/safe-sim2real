@@ -175,7 +175,11 @@ class RCCar(Env):
         """Resets the environment to a random initial state close to the initial pose"""
         key_pos, key_vel, key_obs = jax.random.split(rng, 3)
         if isinstance(self.dynamics_model, HardwareDynamics):
-            init_state = self.dynamics_model.mocap_state()
+            for _ in range(2):
+                self.dynamics_model.step(
+                    jnp.zeros(self.dim_state), jnp.zeros(self.dim_action), self.sys
+                )
+                init_state = self.dynamics_model.mocap_state()
             init_pos = init_state[:2]
         else:
 
@@ -215,13 +219,13 @@ class RCCar(Env):
             ) * jax.random.normal(key_vel, shape=(3,))
             init_state = jnp.concatenate([init_pos, init_theta, init_vel])
         init_obs = self._obs(init_state)
-        obs_buffer, action_buffer = self._init_delay_buffers(init_obs)
+        obs_buffer, action_buffer = self._init_delay_buffers(jnp.zeros_like(init_obs))
         if self.observation_delay == 0:
             obs_buffer = None
         if self.action_delay == 0:
             action_buffer = None
         if self.sliding_window > 0:
-            obs_stack, action_stack = self._init_stack_buffers(init_obs)
+            obs_stack, action_stack = self._init_stack_buffers(jnp.zeros_like(init_obs))
             stacked_obs = self._get_stacked_obs(obs_stack, action_stack)
         else:
             obs_stack = None
@@ -240,6 +244,12 @@ class RCCar(Env):
                 "obs_buffer": obs_buffer,  # Buffer for observation delay
                 "obs_stack": obs_stack,  # Buffer for observation history (sliding window)
                 "action_stack": action_stack,  # Buffer for action history (sliding window)
+            },
+            metrics={
+                "get_close_reward": jnp.array(0.0),
+                "goal_achieved": jnp.array(0.0),
+                "action_magnitude": jnp.array(0.0),
+                "action_jitter": jnp.array(0.0),
             },
         )
 
@@ -275,18 +285,22 @@ class RCCar(Env):
         nkey, key = jax.random.split(key, 2)
         goal_dist = jnp.linalg.norm(next_dynamics_state[:2])
         prev_goal_dist = state.pipeline_state[2]
-        reward = prev_goal_dist - goal_dist
-        goal_achieved = jnp.less_equal(goal_dist, 0.35)
-        reward += goal_achieved.astype(jnp.float32)
-        reward -= (
+        get_close_reward = prev_goal_dist - goal_dist
+        goal_achieved = jnp.less_equal(goal_dist, 0.35).astype(jnp.float32)
+        action_magnitude_cost = -(
             jnp.linalg.norm(delayed_action) * self.control_penalty_scale
-        )  # FIXME double control penalty
+        )
         last_act = state.info["last_act"]
-        reward -= (
+        action_jitter_cost = -(
             jnp.sum(jnp.square(delayed_action - last_act))
             * self.last_action_penalty_scale
         )
-        reward -= jnp.linalg.norm(delayed_action) * self.control_penalty_scale
+        reward = (
+            get_close_reward
+            + action_magnitude_cost
+            + action_jitter_cost
+            + goal_achieved
+        )
         cost = cost_fn(dynamics_state[..., :2], self.obstacles)
         if not isinstance(self.dynamics_model, HardwareDynamics):
             negative_vel = -dynamics_state[..., 3:5]
@@ -359,7 +373,10 @@ class RCCar(Env):
                 "obs_buffer": new_obs_buffer,
             }
             final_obs = delayed_obs
-
+        state.metrics["get_close_reward"] = get_close_reward
+        state.metrics["goal_achieved"] = goal_achieved
+        state.metrics["action_magnitude"] = action_magnitude_cost
+        state.metrics["action_jitter"] = action_jitter_cost
         return State(
             pipeline_state=(next_dynamics_state, nkey, goal_dist),
             obs=final_obs,
