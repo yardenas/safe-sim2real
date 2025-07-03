@@ -2,7 +2,6 @@
 defaults:
   - override /environment: rccar_real
   - override /agent: mbpo
-  - override /agent/data_collection: episodic
   - _self_
 
 environment:
@@ -27,13 +26,12 @@ agent:
   min_replay_size: 500
   max_replay_size: 1048576
   policy_hidden_layer_sizes: [64, 64]
-  critic_grad_updates_per_step: 4000
-  model_grad_updates_per_step: 4000
-  num_model_rollouts: 100000
-  learning_rate: 1e-5
-  critic_learning_rate: 1e-5
+  critic_grad_updates_per_step: 100
+  model_grad_updates_per_step: 100
+  learning_rate: 1e-4
+  critic_learning_rate: 1e-4
   model_learning_rate: 3e-4
-  pessimism: 30
-  optimism: 10
+  pessimism: 0
+  optimism: 0
   safety_filter: sooper
 
