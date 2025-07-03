@@ -9,13 +9,13 @@ environment:
   action_delay: 1
   observation_delay: 0
   sliding_window: 5
-  dt: 0.03333333
+  dt: 0.022222
   sample_init_pose: false
 
 training:
   num_envs: 1
   num_timesteps: 50000
-  episode_length: 250
+  episode_length: 500
   safe: true
   train_domain_randomization: false
   eval_domain_randomization: false

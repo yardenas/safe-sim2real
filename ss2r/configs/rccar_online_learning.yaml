@@ -33,7 +33,7 @@ environment:
 seed: 0
 session_id: rccar_online_learning
 safe: true
-episode_length: 250
+episode_length: 500
 car_id: 2
 port_number: 4
 control_frequency: 120.
