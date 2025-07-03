@@ -26,6 +26,7 @@ agent:
   min_replay_size: 500
   max_replay_size: 1048576
   policy_hidden_layer_sizes: [64, 64]
+  model_to_real_data_ratio: 1.0
   critic_grad_updates_per_step: 10
   model_grad_updates_per_step: 500
   learning_rate: 1e-5
