@@ -1,1 +1,2 @@
 name: pytree
+store_pixels_in_cpu: true
