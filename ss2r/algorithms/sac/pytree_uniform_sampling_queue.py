@@ -29,7 +29,10 @@ class PytreeUniformSamplingQueue(ReplayBuffer[PytreeReplayBufferState, Transitio
     ):
         # Create per-field data arrays with shapes [max_replay_size, ...]
         self._data_template = jax.tree_util.tree_map(
-            lambda x: jnp.zeros((max_replay_size,) + x.shape, x.dtype),
+            lambda x: jax.ShapeDtypeStruct(
+                shape=(max_replay_size,) + x.shape,
+                dtype=x.dtype,
+            ),
             dummy_data_sample,
         )
         self._max_replay_size = max_replay_size
@@ -37,8 +40,11 @@ class PytreeUniformSamplingQueue(ReplayBuffer[PytreeReplayBufferState, Transitio
         self._size = 0
 
     def init(self, key: jax.random.PRNGKey) -> PytreeReplayBufferState:
+        data = jax.tree_util.tree_map(
+            lambda x: jnp.zeros(x.shape, x.dtype), self._data_template
+        )
         return PytreeReplayBufferState(  # type: ignore
-            data=self._data_template,
+            data=data,
             insert_position=jnp.zeros((), jnp.int32),
             sample_position=jnp.zeros((), jnp.int32),
             key=key,
