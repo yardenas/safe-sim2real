@@ -138,31 +138,31 @@ def make_sac_vision_networks(
     safe: bool = False,
 ) -> SafeSACNetworks:
     """Make SAC networks."""
-    encoder = networks.VisionMLP(
+    parametric_action_distribution = distribution.NormalTanhDistribution(
+        event_size=action_size
+    )
+    policy_network = networks.make_policy_network_vision(
+        observation_size=observation_size,
+        output_size=parametric_action_distribution.param_size,
+        preprocess_observations_fn=preprocess_observations_fn,
+        hidden_layer_sizes=policy_hidden_layer_sizes,
+        activation=activation,
+        state_obs_key=state_obs_key,
+        layer_norm=layer_norm,
+    )
+    critic_encoder = networks.VisionMLP(
         layer_sizes=[_HIDDEN_DIM],  # NatureCNN followed by a hidden of 50
         activation=activation,
         kernel_init=kernel_init,
         # FIXME
         # normalise_channels=normalise_channels,
-        normalise_channels=True,
         state_obs_key=state_obs_key,
         layer_norm=layer_norm,
         activate_final=False,
         policy_head=True,
     )
-    parametric_action_distribution = distribution.NormalTanhDistribution(
-        event_size=action_size
-    )
-    policy_network = make_policy_vision_network(
-        vision_ecoder=encoder,
-        param_size=parametric_action_distribution.param_size,
-        observation_size=observation_size,
-        preprocess_observations_fn=preprocess_observations_fn,
-        hidden_layer_sizes=policy_hidden_layer_sizes,
-        activation=activation,
-    )
     qr_network = make_q_vision_network(
-        vision_ecoder=encoder,
+        vision_ecoder=critic_encoder,
         observation_size=observation_size,
         action_size=action_size,
         preprocess_observations_fn=preprocess_observations_fn,
@@ -174,7 +174,7 @@ def make_sac_vision_networks(
     )
     if safe:
         qc_network = make_q_vision_network(
-            vision_ecoder=encoder,
+            vision_ecoder=critic_encoder,
             observation_size=observation_size,
             action_size=action_size,
             preprocess_observations_fn=preprocess_observations_fn,

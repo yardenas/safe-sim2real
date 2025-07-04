@@ -19,7 +19,7 @@ See: https://arxiv.org/pdf/1812.05905.pdf
 
 import functools
 import time
-from typing import Any, Callable, Mapping, Optional, Tuple, Union
+from typing import Any, Callable, Mapping, Optional, Tuple
 
 import jax
 import jax.numpy as jnp
