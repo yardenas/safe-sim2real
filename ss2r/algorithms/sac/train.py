@@ -401,11 +401,12 @@ def train(
         new_buffer_state, transitions = replay_buffer.sample(buffer_state)
         transitions = float32(transitions)
         if augment_pixels:
-            key, key_obs = jax.random.split(key)
+            key, key_obs, key_next_obs = jax.random.split(key, 3)
             observations = _random_translate_pixels(transitions.observation, key_obs)
             next_observations = _random_translate_pixels(
-                transitions.next_observation, key_obs
+                transitions.next_observation, key_next_obs
             )
+            # FIXME notice here the next_obs key
             # observations = _random_translate_pixels(
             #     dequantize_images(transitions.observation), key_obs
             # )
