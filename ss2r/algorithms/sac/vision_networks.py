@@ -58,7 +58,7 @@ def make_q_vision_network(
                 obs[state_obs_key],
                 networks.normalizer_select(processor_params, state_obs_key),
             )
-        obs = {**obs, state_obs_key: state_obs}
+            obs = {**obs, state_obs_key: state_obs}
         return q_module.apply(params, obs)
 
     dummy_obs = {
@@ -104,7 +104,7 @@ def make_policy_vision_network(
                 obs[state_obs_key],
                 networks.normalizer_select(processor_params, state_obs_key),
             )
-        obs = {**obs, state_obs_key: state_obs}
+            obs = {**obs, state_obs_key: state_obs}
         return pi_module.apply(params, obs)
 
     dummy_obs = {
