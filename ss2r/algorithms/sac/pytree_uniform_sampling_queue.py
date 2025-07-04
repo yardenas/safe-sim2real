@@ -66,6 +66,8 @@ class PytreeUniformSamplingQueue(ReplayBuffer[PytreeReplayBufferState, Transitio
             gpu = jax.devices("cpu")[0]
         else:
             gpu = gpus[0]
+        if not self.store_pixels_in_cpu:
+            cpu = gpu
         data = init_data_split_by_device(
             self._data_template, pixel_device=cpu, non_pixel_device=gpu
         )
