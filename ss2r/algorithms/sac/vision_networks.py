@@ -39,7 +39,6 @@ def make_q_vision_network(
             hidden = activation(hidden)
             hidden = linen.Dense(_HIDDEN_DIM)(hidden)
             hidden = linen.LayerNorm()(hidden)
-            hidden = jnn.tanh(hidden)
             hidden = jnp.concatenate([hidden, actions], axis=-1)
             res = []
             net = BroNet if use_bro else networks.MLP
@@ -93,7 +92,6 @@ def make_policy_vision_network(
             hidden = jax.lax.stop_gradient(hidden)
             hidden = linen.Dense(_HIDDEN_DIM)(hidden)
             hidden = linen.LayerNorm()(hidden)
-            hidden = jnn.tanh(hidden)
             head = networks.MLP(
                 layer_sizes=list(hidden_layer_sizes) + [param_size],
                 activation=activation,
