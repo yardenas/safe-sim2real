@@ -11,4 +11,4 @@ agent:
   policy_hidden_layer_sizes: [256, 256, 256]
   value_hidden_layer_sizes: [512, 512]
   activation: relu
-  use_vision: true
+  augment_pixels: true
