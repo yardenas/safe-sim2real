@@ -36,6 +36,9 @@ def make_q_vision_network(
         @linen.compact
         def __call__(self, obs, actions):
             hidden = self.encoder(obs)
+            hidden = activation(hidden)
+            hidden = linen.Dense(_HIDDEN_DIM)(hidden)
+            hidden = linen.LayerNorm()(hidden)
             hidden = jnn.tanh(hidden)
             hidden = jnp.concatenate([hidden, actions], axis=-1)
             res = []
@@ -85,8 +88,11 @@ def make_policy_vision_network(
         @linen.compact
         def __call__(self, obs):
             hidden = self.encoder(obs)
+            hidden = activation(hidden)
             # Don't backprop through the policy
             hidden = jax.lax.stop_gradient(hidden)
+            hidden = linen.Dense(_HIDDEN_DIM)(hidden)
+            hidden = linen.LayerNorm()(hidden)
             hidden = jnn.tanh(hidden)
             head = networks.MLP(
                 layer_sizes=list(hidden_layer_sizes) + [param_size],
@@ -141,6 +147,7 @@ def make_sac_vision_networks(
         state_obs_key=state_obs_key,
         layer_norm=layer_norm,
         activate_final=False,
+        policy_head=True,
     )
     parametric_action_distribution = distribution.NormalTanhDistribution(
         event_size=action_size
