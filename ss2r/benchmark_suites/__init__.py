@@ -254,14 +254,13 @@ def make_brax_envs(cfg, train_wrap_env_fn, eval_wrap_env_fn):
 
 def _prepare_vision_env(cfg):
     # https://github.com/shacklettbp/madrona_mjx/issues/39
-    from ml_collections import config_dict
     from mujoco_playground import registry
 
     task_cfg = get_task_config(cfg)
-    task_params = config_dict.ConfigDict(task_cfg.task_params)
-    task_params["use_vision"] = False
-    print("task_params", task_params)
-    train_env = registry.load(task_cfg.task_name, config=task_params)
+    config_overrides = {
+        "vision": False,
+    }
+    train_env = registry.load(task_cfg.task_name, config_overrides=config_overrides)
     dummy_state = train_env.reset(jax.random.PRNGKey(0))
     train_env.step(dummy_state, jnp.zeros(train_env.action_size))
 
