@@ -28,7 +28,9 @@ from absl import logging
 from brax import envs
 from brax.training import replay_buffers
 from brax.training.acme import running_statistics, specs
-from brax.training.agents.ppo.train import _random_translate_pixels
+from brax.training.agents.ppo.train import (
+    _random_translate_pixels as batch_random_translate_pixels,
+)
 from brax.training.agents.sac import checkpoint
 from brax.training.types import Params, PRNGKey
 from ml_collections import config_dict
@@ -58,6 +60,12 @@ def _restore_state(tree, target_example):
         jax.tree_util.tree_structure(target_example), jax.tree_util.tree_leaves(tree)
     )
     return state
+
+
+def _random_translate_pixels(x, rng):
+    x = jax.tree_map(lambda x: x[None], x)
+    y = batch_random_translate_pixels(x, rng)
+    return jax.tree_map(lambda x: x[0], y)
 
 
 def update_lr_schedule_count(opt_state, new_count):
@@ -395,10 +403,10 @@ def train(
         if augment_pixels:
             key, key_obs = jax.random.split(key)
             observations = _random_translate_pixels(
-                dequantize_images(transitions.observation)[None], key_obs
+                dequantize_images(transitions.observation), key_obs
             )[0]
             next_observations = _random_translate_pixels(
-                dequantize_images(transitions.next_observation)[None], key_obs
+                dequantize_images(transitions.next_observation), key_obs
             )[0]
             transitions = transitions._replace(
                 observation=observations, next_observation=next_observations
