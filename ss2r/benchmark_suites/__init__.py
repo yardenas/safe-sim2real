@@ -1,3 +1,4 @@
+import copy
 import functools
 
 import jax
@@ -254,7 +255,7 @@ def make_brax_envs(cfg, train_wrap_env_fn, eval_wrap_env_fn):
 
 def _preinitialize_vision_env(task_name, task_params, registry):
     # https://github.com/shacklettbp/madrona_mjx/issues/39
-    new_params = task_params.copy()
+    new_params = copy.deepcopy(task_params)
     new_params["vision"] = False
     train_env = registry.load(task_name, config=new_params)
     dummy_state = train_env.reset(jax.random.PRNGKey(0))
