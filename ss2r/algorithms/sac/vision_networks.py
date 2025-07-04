@@ -154,7 +154,7 @@ def make_sac_vision_networks(
     )
     policy_network = networks.make_policy_network_vision(
         observation_size=observation_size,
-        event_size=parametric_action_distribution.param_size,
+        output_size=parametric_action_distribution.param_size,
         preprocess_observations_fn=preprocess_observations_fn,
         hidden_layer_sizes=policy_hidden_layer_sizes,
         activation=activation,
@@ -179,9 +179,7 @@ def make_sac_vision_networks(
         preprocess_observations_fn=preprocess_observations_fn,
         hidden_layer_sizes=value_hidden_layer_sizes,
         activation=activation,
-        # use_bro=use_bro,
-        # FIXME
-        use_bro=False,
+        use_bro=use_bro,
         n_critics=n_critics,
         n_heads=n_heads,
     )
