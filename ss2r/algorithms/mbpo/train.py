@@ -206,6 +206,8 @@ def train(
         raise ValueError(
             "No training will happen because min_replay_size >= num_timesteps"
         )
+    if init_alpha is not None and init_alpha > 0.0:
+        raise ValueError("init_alpha must be negative if not None")
     episodic_safety_budget = safety_budget
     budget_scaling_fn = lambda x: x
     if safety_discounting != 1.0 and normalize_budget:
