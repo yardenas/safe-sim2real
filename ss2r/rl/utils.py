@@ -35,8 +35,8 @@ def quantize_images(observations):
     out = {}
     for k, v in observations.items():
         if k.startswith("pixels/"):
-            observations = jnp.round(v * 255).astype(jnp.uint8)
-            out[k] = observations
+            quantized = jnp.round(v * 255).astype(jnp.uint8)
+            out[k] = quantized
         else:
             out[k] = v
     return out
@@ -48,8 +48,8 @@ def dequantize_images(observations):
     out = {}
     for k, v in observations.items():
         if k.startswith("pixels/"):
-            observations = v.astype(jnp.float32) / 255
-            out[k] = observations
+            unquantized = v.astype(jnp.float32) / 255
+            out[k] = unquantized
         else:
             out[k] = v
     return out
