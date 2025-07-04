@@ -260,6 +260,7 @@ def _prepare_vision_env(cfg):
     task_cfg = get_task_config(cfg)
     task_params = config_dict.ConfigDict(task_cfg.task_params)
     task_params["use_vision"] = False
+    print("task_params", task_params)
     train_env = registry.load(task_cfg.task_name, config=task_params)
     dummy_state = train_env.reset(jax.random.PRNGKey(0))
     train_env.step(dummy_state, jnp.zeros(train_env.action_size))
