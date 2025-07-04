@@ -158,7 +158,7 @@ def make_sac_vision_networks(
         preprocess_observations_fn=preprocess_observations_fn,
         hidden_layer_sizes=policy_hidden_layer_sizes,
         activation=activation,
-        obs_key=state_obs_key,
+        state_obs_key=state_obs_key,
         layer_norm=layer_norm,
     )
     critic_encoder = networks.VisionMLP(
