@@ -10,6 +10,7 @@ from brax.training.types import Params, PRNGKey, Transition
 
 from ss2r.algorithms.sac.types import CollectDataFn, ReplayBufferState, float16
 from ss2r.rl.types import MakePolicyFn, UnrollFn
+from ss2r.rl.utils import quantize_images
 
 
 def get_collection_fn(cfg):
@@ -133,7 +134,12 @@ def make_collection_fn(unroll_fn: UnrollFn) -> CollectDataFn:
         normalizer_params = running_statistics.update(
             normalizer_params, transitions.observation
         )
-        buffer_state = replay_buffer.insert(buffer_state, float16(transitions))
+        transitions = float16(transitions)
+        transitions = transitions._replace(
+            observation=quantize_images(transitions.observation),
+            next_observation=quantize_images(transitions.next_observation),
+        )
+        buffer_state = replay_buffer.insert(buffer_state, transitions)
         return normalizer_params, env_state, buffer_state
 
     return collect_data

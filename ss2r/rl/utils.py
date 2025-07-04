@@ -1,6 +1,7 @@
 from functools import partial
 
 import jax
+import jax.numpy as jnp
 from brax.envs import Env, State
 from brax.training.types import Policy
 
@@ -25,3 +26,12 @@ def rollout(
 
     (final_state, _), data = jax.lax.scan(f, (state, rng), (), length=steps)
     return final_state, data
+
+
+def quantize_images(x):
+    out = {}
+    for k, v in x.items():
+        if k.startswith("pixels/"):
+            x = jnp.round(v * 255).astype(jnp.uint8)
+            out[k] = x
+    return {**x, **out}
