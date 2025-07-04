@@ -73,53 +73,6 @@ def make_q_vision_network(
     )
 
 
-def make_policy_vision_network(
-    vision_ecoder: networks.VisionMLP,
-    param_size: int,
-    observation_size: Mapping[str, Tuple[int, ...]],
-    preprocess_observations_fn: types.PreprocessObservationFn = types.identity_observation_preprocessor,
-    hidden_layer_sizes: Sequence[int] = (256, 256),
-    activation: ActivationFn = linen.swish,
-    state_obs_key: str = "",
-):
-    class PolicyModule(linen.Module):
-        encoder: networks.VisionMLP
-
-        @linen.compact
-        def __call__(self, obs):
-            hidden = self.encoder(obs)
-            hidden = activation(hidden)
-            # Don't backprop through the policy
-            hidden = jax.lax.stop_gradient(hidden)
-            hidden = linen.Dense(_HIDDEN_DIM)(hidden)
-            hidden = linen.LayerNorm()(hidden)
-            head = networks.MLP(
-                layer_sizes=list(hidden_layer_sizes) + [param_size],
-                activation=activation,
-                kernel_init=jax.nn.initializers.lecun_uniform(),
-            )
-            out = head(hidden)
-            return out
-
-    pi_module = PolicyModule(encoder=vision_ecoder)
-
-    def apply(processor_params, params, obs):
-        if state_obs_key:
-            state_obs = preprocess_observations_fn(
-                obs[state_obs_key],
-                networks.normalizer_select(processor_params, state_obs_key),
-            )
-            obs = {**obs, state_obs_key: state_obs}
-        return pi_module.apply(params, obs)
-
-    dummy_obs = {
-        key: jnp.zeros((1,) + shape) for key, shape in observation_size.items()
-    }
-    return networks.FeedForwardNetwork(
-        init=lambda key: pi_module.init(key, dummy_obs), apply=apply
-    )
-
-
 def make_sac_vision_networks(
     observation_size: Mapping[str, Tuple[int, ...]],
     action_size: int,
