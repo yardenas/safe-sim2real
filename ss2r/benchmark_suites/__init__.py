@@ -1,6 +1,8 @@
+import copy
 import functools
 
 import jax
+import jax.numpy as jnp
 from brax import envs
 from mujoco_playground import locomotion, manipulation
 
@@ -136,7 +138,9 @@ def prepare_randomization_fn(key, num_envs, cfg, task_name):
     return vf_randomization_fn
 
 
-def make_rccar_envs(cfg, train_wrap_env_fn, eval_wrap_env_fn):
+def make_rccar_envs(cfg, train_wrap_env_fn, eval_wrap_env_fn, use_vision=False):
+    if "use_vision" in cfg.agent and cfg.agent.use_vision:
+        raise ValueError("RCCar does not support vision.")
     task_cfg = dict(get_task_config(cfg))
     task_cfg.pop("domain_name")
     task_cfg.pop("task_name")
@@ -186,7 +190,6 @@ def make_rccar_envs(cfg, train_wrap_env_fn, eval_wrap_env_fn):
         **task_cfg,
     )
     eval_env = eval_wrap_env_fn(eval_env)
-
     eval_randomization_fn = (
         prepare_randomization_fn(
             eval_key,
@@ -208,15 +211,13 @@ def make_rccar_envs(cfg, train_wrap_env_fn, eval_wrap_env_fn):
 
 
 def make_brax_envs(cfg, train_wrap_env_fn, eval_wrap_env_fn):
+    if "use_vision" in cfg.agent and cfg.agent.use_vision:
+        raise ValueError("RCCar does not support vision.")
     task_cfg = get_task_config(cfg)
     train_env = envs.get_environment(
         task_cfg.task_name, backend=cfg.environment.backend, **task_cfg.task_params
     )
     train_env = train_wrap_env_fn(train_env)
-    eval_env = envs.get_environment(
-        task_cfg.task_name, backend=cfg.environment.backend, **task_cfg.task_params
-    )
-    eval_env = eval_wrap_env_fn(eval_env)
     train_key, eval_key = jax.random.split(jax.random.PRNGKey(cfg.training.seed))
     train_randomization_fn = (
         prepare_randomization_fn(
@@ -233,6 +234,10 @@ def make_brax_envs(cfg, train_wrap_env_fn, eval_wrap_env_fn):
         augment_state=False,
         hard_resets=cfg.training.hard_resets,
     )
+    eval_env = envs.get_environment(
+        task_cfg.task_name, backend=cfg.environment.backend, **task_cfg.task_params
+    )
+    eval_env = eval_wrap_env_fn(eval_env)
     eval_randomization_fn = prepare_randomization_fn(
         eval_key, cfg.training.num_eval_envs, task_cfg.eval_params, task_cfg.task_name
     )
@@ -248,6 +253,15 @@ def make_brax_envs(cfg, train_wrap_env_fn, eval_wrap_env_fn):
     return train_env, eval_env
 
 
+def _preinitialize_vision_env(task_name, task_params, registry):
+    # https://github.com/shacklettbp/madrona_mjx/issues/39
+    new_params = copy.deepcopy(task_params)
+    new_params["vision"] = False
+    train_env = registry.load(task_name, config=new_params)
+    dummy_state = train_env.reset(jax.random.PRNGKey(0))
+    train_env.step(dummy_state, jnp.zeros(train_env.action_size))
+
+
 def make_mujoco_playground_envs(cfg, train_wrap_env_fn, eval_wrap_env_fn):
     from ml_collections import config_dict
     from mujoco_playground import registry
@@ -256,10 +270,11 @@ def make_mujoco_playground_envs(cfg, train_wrap_env_fn, eval_wrap_env_fn):
 
     task_cfg = get_task_config(cfg)
     task_params = config_dict.ConfigDict(task_cfg.task_params)
+    vision = "use_vision" in cfg.agent and cfg.agent.use_vision
+    if vision:
+        _preinitialize_vision_env(task_cfg.task_name, task_params, registry)
     train_env = registry.load(task_cfg.task_name, config=task_params)
     train_env = train_wrap_env_fn(train_env)
-    eval_env = registry.load(task_cfg.task_name, config=task_params)
-    eval_env = eval_wrap_env_fn(eval_env)
     train_key, eval_key = jax.random.split(jax.random.PRNGKey(cfg.training.seed))
     train_randomization_fn = (
         prepare_randomization_fn(
@@ -275,7 +290,13 @@ def make_mujoco_playground_envs(cfg, train_wrap_env_fn, eval_wrap_env_fn):
         action_repeat=cfg.training.action_repeat,
         augment_state=False,
         hard_resets=cfg.training.hard_resets,
+        vision=vision,
+        num_vision_envs=cfg.training.num_envs,
     )
+    if vision:
+        return train_env, train_env
+    eval_env = registry.load(task_cfg.task_name, config=task_params)
+    eval_env = eval_wrap_env_fn(eval_env)
     eval_randomization_fn = (
         prepare_randomization_fn(
             eval_key,

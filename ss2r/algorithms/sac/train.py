@@ -28,6 +28,9 @@ from absl import logging
 from brax import envs
 from brax.training import replay_buffers
 from brax.training.acme import running_statistics, specs
+from brax.training.agents.ppo.train import (
+    _random_translate_pixels as batch_random_translate_pixels,
+)
 from brax.training.agents.sac import checkpoint
 from brax.training.types import Params, PRNGKey
 from ml_collections import config_dict
@@ -49,6 +52,7 @@ from ss2r.algorithms.sac.types import (
     float32,
 )
 from ss2r.rl.evaluation import ConstraintsEvaluator
+from ss2r.rl.utils import dequantize_images, quantize_images
 
 
 def _restore_state(tree, target_example):
@@ -56,6 +60,12 @@ def _restore_state(tree, target_example):
         jax.tree_util.tree_structure(target_example), jax.tree_util.tree_leaves(tree)
     )
     return state
+
+
+def _random_translate_pixels(x, rng):
+    x = jax.tree_map(lambda x: x[:, None], x)
+    y = batch_random_translate_pixels(x, rng)
+    return jax.tree_map(lambda y: y[:, 0], y)
 
 
 def update_lr_schedule_count(opt_state, new_count):
@@ -190,6 +200,7 @@ def train(
     actor_wait: float = 0.0,
     critic_burnin: float = 0.0,
     entropy_bonus: bool = True,
+    augment_pixels: bool = False,
 ):
     if min_replay_size >= num_timesteps:
         raise ValueError(
@@ -294,6 +305,10 @@ def train(
         extras=extras,
     )
     dummy_transition = float16(dummy_transition)
+    dummy_transition = dummy_transition._replace(
+        observation=quantize_images(dummy_transition.observation),
+        next_observation=quantize_images(dummy_transition.next_observation),
+    )
     global_key, local_key = jax.random.split(rng)
     training_state = _init_training_state(
         key=global_key,
@@ -382,11 +397,20 @@ def train(
     ) -> Tuple[Tuple[TrainingState, ReplayBufferState, PRNGKey, int], Metrics]:
         training_state, buffer_state, key, count = carry
 
-        key, key_alpha, key_critic, key_cost_critic, key_actor = jax.random.split(
-            key, 5
-        )
+        key, key_alpha, key_critic, key_actor = jax.random.split(key, 4)
         new_buffer_state, transitions = replay_buffer.sample(buffer_state)
         transitions = float32(transitions)
+        if augment_pixels:
+            key, key_obs = jax.random.split(key)
+            observations = _random_translate_pixels(
+                dequantize_images(transitions.observation), key_obs
+            )
+            next_observations = _random_translate_pixels(
+                dequantize_images(transitions.next_observation), key_obs
+            )
+            transitions = transitions._replace(
+                observation=observations, next_observation=next_observations
+            )
         alpha_loss, alpha_params, alpha_optimizer_state = alpha_update(
             training_state.alpha_params,
             training_state.policy_params,

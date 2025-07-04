@@ -4,6 +4,7 @@ from pathlib import Path
 
 import hydra
 import jax
+from brax import envs
 from omegaconf import OmegaConf
 
 from ss2r import benchmark_suites
@@ -27,6 +28,26 @@ def locate_last_checkpoint() -> Path | None:
     # Sort by step number (converted from the directory name)
     latest_ckpt = max(checkpoints, key=lambda p: int(p.name))
     return latest_ckpt
+
+
+def _validate_madrona_args(
+    train_env: envs.Env,
+    eval_env: envs.Env,
+    num_envs: int,
+    num_eval_envs: int,
+    action_repeat: int,
+    num_render_envs: int,
+):
+    """Validates arguments for Madrona-MJX."""
+    if train_env != eval_env:
+        raise ValueError("Madrona-MJX requires a fixed environment")
+    if num_eval_envs != num_envs != num_render_envs:
+        raise ValueError("Madrona-MJX requires a fixed batch size")
+    if action_repeat != 1:
+        raise ValueError(
+            "Implement action_repeat using PipelineEnv's _n_frames to avoid"
+            " unnecessary rendering!"
+        )
 
 
 def get_train_fn(cfg):
@@ -79,9 +100,19 @@ def main(cfg):
     logger = TrainingLogger(cfg)
     train_fn = get_train_fn(cfg)
     train_env_wrap_fn, eval_env_wrap_fn = benchmark_suites.get_wrap_env_fn(cfg)
+    use_vision = "use_vision" in cfg.agent and cfg.agent.use_vision
     train_env, eval_env = benchmark_suites.make(
         cfg, train_env_wrap_fn, eval_env_wrap_fn
     )
+    if use_vision:
+        _validate_madrona_args(
+            train_env,
+            eval_env,
+            cfg.training.num_envs,
+            cfg.training.num_eval_envs,
+            cfg.training.action_repeat,
+            cfg.environment.task_params.vision_config.render_batch_size,
+        )
     steps = Counter()
     with jax.disable_jit(not cfg.jit):
         make_policy, params, _ = train_fn(

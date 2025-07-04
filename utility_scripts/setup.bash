@@ -1,6 +1,8 @@
 export WANDB_API_KEY='<your-key>'
 export XLA_FLAGS=--xla_gpu_triton_gemm_any=true
 export WANDB_CACHE_DIR=/cluster/scratch/<nethz-id>/wandb
+export MADRONA_DISABLE_CUDA_HEAP_SIZE=1
+export MADRONA_MWGPU_KERNEL_CACHE=<cache-folder>
 module load stack/2024-06
 module load gcc/12.2.0
 module load eth_proxy
