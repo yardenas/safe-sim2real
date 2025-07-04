@@ -36,6 +36,9 @@ def make_q_vision_network(
         @linen.compact
         def __call__(self, obs, actions):
             hidden = self.encoder(obs)
+            hidden = activation(hidden)
+            hidden = linen.Dense(_HIDDEN_DIM)(hidden)
+            hidden = linen.LayerNorm()(hidden)
             hidden = jnp.concatenate([hidden, actions], axis=-1)
             res = []
             net = BroNet if use_bro else networks.MLP
