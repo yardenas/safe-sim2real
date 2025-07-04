@@ -305,10 +305,10 @@ def train(
         extras=extras,
     )
     dummy_transition = float16(dummy_transition)
-    dummy_transition = dummy_transition._replace(
-        observation=quantize_images(dummy_transition.observation),
-        next_observation=quantize_images(dummy_transition.next_observation),
-    )
+    # dummy_transition = dummy_transition._replace(
+    #     observation=quantize_images(dummy_transition.observation),
+    #     next_observation=quantize_images(dummy_transition.next_observation),
+    # )
     global_key, local_key = jax.random.split(rng)
     training_state = _init_training_state(
         key=global_key,
@@ -402,12 +402,16 @@ def train(
         transitions = float32(transitions)
         if augment_pixels:
             key, key_obs = jax.random.split(key)
-            observations = _random_translate_pixels(
-                dequantize_images(transitions.observation), key_obs
-            )
+            observations = _random_translate_pixels(transitions.observation, key_obs)
             next_observations = _random_translate_pixels(
-                dequantize_images(transitions.next_observation), key_obs
+                transitions.next_observation, key_obs
             )
+            # observations = _random_translate_pixels(
+            #     dequantize_images(transitions.observation), key_obs
+            # )
+            # next_observations = _random_translate_pixels(
+            #     dequantize_images(transitions.next_observation), key_obs
+            # )
             transitions = transitions._replace(
                 observation=observations, next_observation=next_observations
             )

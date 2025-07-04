@@ -135,10 +135,10 @@ def make_collection_fn(unroll_fn: UnrollFn) -> CollectDataFn:
             normalizer_params, transitions.observation
         )
         transitions = float16(transitions)
-        transitions = transitions._replace(
-            observation=quantize_images(transitions.observation),
-            next_observation=quantize_images(transitions.next_observation),
-        )
+        # transitions = transitions._replace(
+        #     observation=quantize_images(transitions.observation),
+        #     next_observation=quantize_images(transitions.next_observation),
+        # )
         buffer_state = replay_buffer.insert(buffer_state, transitions)
         return normalizer_params, env_state, buffer_state
 
