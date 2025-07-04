@@ -39,4 +39,3 @@ port_number: 4
 control_frequency: 120.
 safety_filter: sooper
 wandb_id: null
-action_repeat: 1

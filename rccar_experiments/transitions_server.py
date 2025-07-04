@@ -117,6 +117,7 @@ def flatten_trajectories(trajectories):
             dtype=np.float32,
         )
         for key in trajectories[0][0].extras["state_extras"]
+        if key != "time"
     }
     infos = {
         "policy_extras": policy_extras,

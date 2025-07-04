@@ -1,7 +1,6 @@
 from typing import Mapping
 
 import hydra
-import jax
 import jax.nn as jnn
 import jax.numpy as jnp
 import wandb
@@ -73,7 +72,6 @@ def main(cfg):
             port_number=cfg.port_number,
             control_frequency=cfg.control_frequency,
         ) as controller,
-        jax.disable_jit(),
     ):
         env = make_env(cfg, controller)
         policy_factory = fetch_wandb_policy(cfg, env)

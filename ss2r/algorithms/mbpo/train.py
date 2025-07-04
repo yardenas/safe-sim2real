@@ -348,7 +348,7 @@ def train(
         sample_batch_size=sac_batch_size * critic_grad_updates_per_step,
     )
     model_buffer_state = model_replay_buffer.init(model_rb_key)
-    sac_buffer_state = model_replay_buffer.init(actor_critic_rb_key)
+    sac_buffer_state = sac_replay_buffer.init(actor_critic_rb_key)
     alpha_loss, critic_loss, actor_loss, model_loss = mbpo_losses.make_losses(
         mbpo_network=mbpo_network,
         reward_scaling=reward_scaling,
@@ -482,7 +482,7 @@ def train(
         def f(carry, unused_t):
             ts, es, mbs, acbs, k = carry
             k, new_key = jax.random.split(k)
-            ts, es, mbs, metrics = training_step(ts, es, mbs, acbs, k)
+            ts, es, mbs, acbs, metrics = training_step(ts, es, mbs, acbs, k)
             return (ts, es, mbs, acbs, new_key), metrics
 
         (
