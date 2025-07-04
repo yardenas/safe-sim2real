@@ -101,7 +101,7 @@ def main(cfg):
     train_env_wrap_fn, eval_env_wrap_fn = benchmark_suites.get_wrap_env_fn(cfg)
     use_vision = "use_vision" in cfg.agent and cfg.agent.use_vision
     train_env, eval_env = benchmark_suites.make(
-        cfg, train_env_wrap_fn, eval_env_wrap_fn, use_vision
+        cfg, train_env_wrap_fn, eval_env_wrap_fn
     )
     if use_vision:
         _validate_madrona_args(
