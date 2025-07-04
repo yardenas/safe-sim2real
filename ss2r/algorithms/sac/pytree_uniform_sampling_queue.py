@@ -65,7 +65,7 @@ class PytreeUniformSamplingQueue(ReplayBuffer[PytreeReplayBufferState, Transitio
 
         data = jax.lax.cond(
             roll,
-            lambda data: jax.tree_util.tree_map(roll_one_field, data),
+            lambda: jax.tree_util.tree_map(roll_one_field, data),
             lambda: data,
         )
         position = position + roll
