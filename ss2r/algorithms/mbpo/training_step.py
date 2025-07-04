@@ -309,22 +309,22 @@ def make_training_step(
         if safe:
             cost = cost.mean(0) + disagreement * pessimism
             transitions.extras["state_extras"]["cost"] = cost
-            # if (planning_env.qc_network is not None) and use_termination:
-            #     qc_pred = planning_env.qc_network.apply(
-            #         normalizer_params,
-            #         planning_env.backup_qc_params,
-            #         transitions.observation,
-            #         transitions.action,
-            #     )
-            #     expected_total_cost = (
-            #         scaling_fn(qc_pred.mean(axis=-1))
-            #         + transitions.observation["cumulative_cost"].squeeze()
-            #     )
-            #     discount = jnp.where(
-            #         expected_total_cost > planning_env.safety_budget,
-            #         jnp.zeros_like(cost, dtype=jnp.float32),
-            #         jnp.ones_like(cost, dtype=jnp.float32),
-            #     )
+            if (planning_env.qc_network is not None) and use_termination:
+                qc_pred = planning_env.qc_network.apply(
+                    normalizer_params,
+                    planning_env.backup_qc_params,
+                    transitions.observation,
+                    transitions.action,
+                )
+                expected_total_cost = (
+                    scaling_fn(qc_pred.mean(axis=-1))
+                    + transitions.observation["cumulative_cost"].squeeze()
+                )
+                discount = jnp.where(
+                    expected_total_cost > planning_env.safety_budget,
+                    jnp.zeros_like(cost, dtype=jnp.float32),
+                    jnp.ones_like(cost, dtype=jnp.float32),
+                )
             pred_qr = planning_env.qr_network.apply
             backup_qr_params = planning_env.backup_qr_params
             pessimistic_qr_pred = pred_qr(
@@ -341,7 +341,7 @@ def make_training_step(
         next_obs_pred = jax.tree_map(lambda x: x.mean(0), next_obs_pred)
         return Transition(
             observation=transitions.observation,
-            next_observation=transitions.next_observation,
+            next_observation=next_obs_pred,
             action=transitions.action,
             reward=new_reward,
             discount=discount,
