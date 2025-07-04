@@ -132,7 +132,7 @@ def make_collection_fn(unroll_fn: UnrollFn) -> CollectDataFn:
             extra_fields=extra_fields,
         )
         normalizer_params = running_statistics.update(
-            normalizer_params, remove_pixels(transitions).observation
+            normalizer_params, remove_pixels(transitions.observation)
         )
         transitions = float16(transitions)
         # transitions = transitions._replace(
