@@ -86,13 +86,12 @@ def make_policy_vision_network(
             # Don't backprop through the policy
             hidden = jax.lax.stop_gradient(hidden)
             hidden = jnn.tanh(hidden)
-            policy_network = networks.make_policy_network(
-                param_size,
-                _HIDDEN_DIM,
-                hidden_layer_sizes=hidden_layer_sizes,
+            head = networks.MLP(
+                layer_sizes=list(hidden_layer_sizes) + [param_size],
                 activation=activation,
+                kernel_init=jax.nn.initializers.lecun_uniform(),
             )
-            out = policy_network(hidden)
+            out = head(hidden)
             return out
 
     pi_module = PolicyModule(encoder=vision_ecoder)
