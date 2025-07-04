@@ -16,3 +16,4 @@ agent:
   activation: relu
   augment_pixels: true
   use_vision: true
+  normalize_channels: true
