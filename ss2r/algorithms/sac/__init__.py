@@ -6,6 +6,7 @@ import ss2r.algorithms.sac.networks as sac_networks
 import ss2r.algorithms.sac.vision_networks as sac_vision_networks
 from ss2r.algorithms.penalizers import get_penalizer
 from ss2r.algorithms.sac.data import get_collection_fn
+from ss2r.algorithms.sac.pytree_uniform_sampling_queue import PytreeUniformSamplingQueue
 from ss2r.algorithms.sac.q_transforms import (
     get_cost_q_transform,
     get_reward_q_transform,
@@ -16,7 +17,9 @@ from ss2r.algorithms.sac.rae import RAEReplayBuffer
 def _get_replay_buffer(cfg):
     if "replay_buffer" not in cfg.agent:
         return UniformSamplingQueue
-    else:
+    elif cfg.agent.replay_buffer.name == "pytree":
+        return PytreeUniformSamplingQueue
+    elif cfg.agent.replay_buffer.name == "rae":
         return functools.partial(
             RAEReplayBuffer,
             wandb_ids=cfg.agent.replay_buffer.wandb_ids,

@@ -1,3 +1,6 @@
+defaults:
+  - override /agent/replay_buffer: pytree
+
 training:
   num_envs: 128
   num_eval_envs: 128
