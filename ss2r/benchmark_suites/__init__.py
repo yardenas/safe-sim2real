@@ -294,7 +294,6 @@ def make_mujoco_playground_envs(cfg, train_wrap_env_fn, eval_wrap_env_fn):
         num_vision_envs=cfg.training.num_envs,
     )
     if vision:
-        _preinitialize_vision_env(cfg)
         return train_env, train_env
     eval_env = registry.load(task_cfg.task_name, config=task_params)
     eval_env = eval_wrap_env_fn(eval_env)
