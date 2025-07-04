@@ -1,5 +1,5 @@
 from functools import partial
-from typing import Mapping
+from typing import Mapping, Union
 
 import jax
 import jax.numpy as jnp
@@ -53,3 +53,12 @@ def dequantize_images(observations):
         else:
             out[k] = v
     return out
+
+
+def remove_pixels(
+    obs: Union[jnp.ndarray, Mapping[str, jax.Array]],
+) -> Union[jnp.ndarray, Mapping[str, jax.Array]]:
+    """Removes pixel observations from the observation dict."""
+    if not isinstance(obs, Mapping):
+        return obs
+    return {k: v for k, v in obs.items() if not k.startswith("pixels/")}

@@ -152,13 +152,14 @@ def make_sac_vision_networks(
     parametric_action_distribution = distribution.NormalTanhDistribution(
         event_size=action_size
     )
-    policy_network = make_policy_vision_network(
-        vision_ecoder=policy_encoder,
-        param_size=parametric_action_distribution.param_size,
+    policy_network = networks.make_policy_network_vision(
         observation_size=observation_size,
+        event_size=parametric_action_distribution.param_size,
         preprocess_observations_fn=preprocess_observations_fn,
         hidden_layer_sizes=policy_hidden_layer_sizes,
         activation=activation,
+        obs_key=state_obs_key,
+        layer_norm=layer_norm,
     )
     critic_encoder = networks.VisionMLP(
         layer_sizes=[_HIDDEN_DIM],  # NatureCNN followed by a hidden of 50
@@ -178,7 +179,9 @@ def make_sac_vision_networks(
         preprocess_observations_fn=preprocess_observations_fn,
         hidden_layer_sizes=value_hidden_layer_sizes,
         activation=activation,
-        use_bro=use_bro,
+        # use_bro=use_bro,
+        # FIXME
+        use_bro=False,
         n_critics=n_critics,
         n_heads=n_heads,
     )

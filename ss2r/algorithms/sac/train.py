@@ -19,7 +19,7 @@ See: https://arxiv.org/pdf/1812.05905.pdf
 
 import functools
 import time
-from typing import Any, Callable, Mapping, Optional, Tuple
+from typing import Any, Callable, Mapping, Optional, Tuple, Union
 
 import jax
 import jax.numpy as jnp
@@ -52,7 +52,7 @@ from ss2r.algorithms.sac.types import (
     float32,
 )
 from ss2r.rl.evaluation import ConstraintsEvaluator
-from ss2r.rl.utils import dequantize_images, quantize_images
+from ss2r.rl.utils import dequantize_images, quantize_images, remove_pixels
 
 
 def _restore_state(tree, target_example):
@@ -122,7 +122,7 @@ def _init_training_state(
         }
     else:
         obs_shape = specs.Array((obs_size,), jnp.dtype("float32"))
-    normalizer_params = running_statistics.init_state(obs_shape)
+    normalizer_params = running_statistics.init_state(remove_pixels(obs_shape))
     training_state = TrainingState(
         policy_optimizer_state=policy_optimizer_state,
         policy_params=policy_params,
