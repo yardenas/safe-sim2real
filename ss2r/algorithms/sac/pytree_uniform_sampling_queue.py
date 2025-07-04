@@ -56,7 +56,8 @@ class PytreeUniformSamplingQueue(ReplayBuffer[PytreeReplayBufferState, Transitio
                     device = (
                         pixel_device if k.startswith("pixels/") else non_pixel_device
                     )
-                    out[k] = jnp.zeros(v.shape, v.dtype, device=device)
+                    with jax.default_device(device):
+                        out[k] = jnp.zeros(v.shape, v.dtype)
                 return out
 
         def _init_rest(array_template):
@@ -176,10 +177,7 @@ def _get_devices():
     cpu = jax.devices("cpu")[0]
     try:
         gpus = jax.devices("gpu")
-    except RuntimeError:
-        gpus = []
-    if not gpus:
-        gpu = jax.devices("cpu")[0]
-    else:
         gpu = gpus[0]
+    except RuntimeError:
+        gpu = jax.devices("cpu")[0]
     return cpu, gpu
