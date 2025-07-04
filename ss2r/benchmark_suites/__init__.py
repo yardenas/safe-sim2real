@@ -115,25 +115,16 @@ def get_wrap_env_fn(cfg):
     return out
 
 
-def make(
-    cfg,
-    train_wrap_env_fn=lambda env: env,
-    eval_wrap_env_fn=lambda env: env,
-    use_vision=False,
-):
+def make(cfg, train_wrap_env_fn=lambda env: env, eval_wrap_env_fn=lambda env: env):
     domain_name = get_domain_name(cfg)
     if domain_name == "brax":
-        return make_brax_envs(cfg, train_wrap_env_fn, eval_wrap_env_fn, use_vision)
+        return make_brax_envs(cfg, train_wrap_env_fn, eval_wrap_env_fn)
     elif domain_name == "rccar":
-        return make_rccar_envs(cfg, train_wrap_env_fn, eval_wrap_env_fn, use_vision)
+        return make_rccar_envs(cfg, train_wrap_env_fn, eval_wrap_env_fn)
     elif domain_name == "mujoco_playground":
-        return make_mujoco_playground_envs(
-            cfg, train_wrap_env_fn, eval_wrap_env_fn, use_vision
-        )
+        return make_mujoco_playground_envs(cfg, train_wrap_env_fn, eval_wrap_env_fn)
     elif domain_name == "safety_gym":
-        return make_safety_gym_envs(
-            cfg, train_wrap_env_fn, eval_wrap_env_fn, use_vision
-        )
+        return make_safety_gym_envs(cfg, train_wrap_env_fn, eval_wrap_env_fn)
 
 
 def prepare_randomization_fn(key, num_envs, cfg, task_name):
@@ -146,7 +137,7 @@ def prepare_randomization_fn(key, num_envs, cfg, task_name):
 
 
 def make_rccar_envs(cfg, train_wrap_env_fn, eval_wrap_env_fn, use_vision=False):
-    if use_vision:
+    if "use_vision" in cfg.agent and cfg.agent.use_vision:
         raise ValueError("RCCar does not support vision.")
     task_cfg = dict(get_task_config(cfg))
     task_cfg.pop("domain_name")
@@ -217,8 +208,8 @@ def make_rccar_envs(cfg, train_wrap_env_fn, eval_wrap_env_fn, use_vision=False):
     return train_env, eval_env
 
 
-def make_brax_envs(cfg, train_wrap_env_fn, eval_wrap_env_fn, use_vision=False):
-    if use_vision:
+def make_brax_envs(cfg, train_wrap_env_fn, eval_wrap_env_fn):
+    if "use_vision" in cfg.agent and cfg.agent.use_vision:
         raise ValueError("RCCar does not support vision.")
     task_cfg = get_task_config(cfg)
     train_env = envs.get_environment(
@@ -241,8 +232,6 @@ def make_brax_envs(cfg, train_wrap_env_fn, eval_wrap_env_fn, use_vision=False):
         augment_state=False,
         hard_resets=cfg.training.hard_resets,
     )
-    if not use_vision:
-        return train_env, train_env
     eval_env = envs.get_environment(
         task_cfg.task_name, backend=cfg.environment.backend, **task_cfg.task_params
     )
@@ -272,8 +261,6 @@ def make_mujoco_playground_envs(cfg, train_wrap_env_fn, eval_wrap_env_fn):
     task_params = config_dict.ConfigDict(task_cfg.task_params)
     train_env = registry.load(task_cfg.task_name, config=task_params)
     train_env = train_wrap_env_fn(train_env)
-    eval_env = registry.load(task_cfg.task_name, config=task_params)
-    eval_env = eval_wrap_env_fn(eval_env)
     train_key, eval_key = jax.random.split(jax.random.PRNGKey(cfg.training.seed))
     train_randomization_fn = (
         prepare_randomization_fn(
@@ -293,6 +280,10 @@ def make_mujoco_playground_envs(cfg, train_wrap_env_fn, eval_wrap_env_fn):
         vision=vision,
         num_vision_envs=cfg.training.num_envs,
     )
+    if vision:
+        return train_env, train_env
+    eval_env = registry.load(task_cfg.task_name, config=task_params)
+    eval_env = eval_wrap_env_fn(eval_env)
     eval_randomization_fn = (
         prepare_randomization_fn(
             eval_key,
