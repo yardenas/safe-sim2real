@@ -15,3 +15,4 @@ agent:
   value_hidden_layer_sizes: [512, 512]
   activation: relu
   augment_pixels: true
+  use_vision: true
