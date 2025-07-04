@@ -8,7 +8,7 @@ environment:
   task_params:
     vision: true
     ctrl_dt: 0.04
-    episode_length: 400
+    episode_length: 1000
     vision_config:
       render_batch_size: 128
       render_width: 64
@@ -25,7 +25,7 @@ training:
   train_domain_randomization: false
   eval_domain_randomization: false
   num_eval_episodes: 1
-  episode_length: 400
+  episode_length: 1000
 
 agent:
   activation: swish

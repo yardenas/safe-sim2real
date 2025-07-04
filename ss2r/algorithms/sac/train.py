@@ -63,9 +63,9 @@ def _restore_state(tree, target_example):
 
 
 def _random_translate_pixels(x, rng):
-    x = jax.tree_map(lambda x: x[None], x)
+    x = jax.tree_map(lambda x: x[:, None], x)
     y = batch_random_translate_pixels(x, rng)
-    return jax.tree_map(lambda y: y[0], y)
+    return jax.tree_map(lambda y: y[:, 0], y)
 
 
 def update_lr_schedule_count(opt_state, new_count):
