@@ -71,8 +71,6 @@ def get_train_fn(cfg, checkpoint_path, restore_checkpoint_path):
             policy_hidden_layer_sizes=policy_hidden_layer_sizes,
             value_hidden_layer_sizes=value_hidden_layer_sizes,
             activation=activation,
-            value_obs_key=value_obs_key,
-            policy_obs_key=policy_obs_key,
         )
         del agent_cfg["use_vision"]
     else:

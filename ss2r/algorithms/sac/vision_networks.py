@@ -126,8 +126,6 @@ def make_sac_vision_networks(
     normalise_channels: bool = False,
     policy_hidden_layer_sizes: Sequence[int] = (256, 256),
     value_hidden_layer_sizes: Sequence[int] = (256, 256),
-    value_obs_key: str = "state",
-    policy_obs_key: str = "state",
     use_bro: bool = True,
     n_critics: int = 2,
     n_heads: int = 1,
@@ -154,7 +152,6 @@ def make_sac_vision_networks(
         preprocess_observations_fn=preprocess_observations_fn,
         hidden_layer_sizes=policy_hidden_layer_sizes,
         activation=activation,
-        state_obs_key=policy_obs_key,
     )
     qr_network = make_q_vision_network(
         vision_ecoder=encoder,
@@ -163,7 +160,6 @@ def make_sac_vision_networks(
         preprocess_observations_fn=preprocess_observations_fn,
         hidden_layer_sizes=value_hidden_layer_sizes,
         activation=activation,
-        state_obs_key=value_obs_key,
         use_bro=use_bro,
         n_critics=n_critics,
         n_heads=n_heads,
@@ -176,7 +172,6 @@ def make_sac_vision_networks(
             preprocess_observations_fn=preprocess_observations_fn,
             hidden_layer_sizes=value_hidden_layer_sizes,
             activation=activation,
-            state_obs_key=value_obs_key,
             use_bro=use_bro,
             n_critics=n_critics,
             n_heads=n_heads,
