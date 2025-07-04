@@ -47,8 +47,7 @@ def make_q_vision_network(
                     layer_sizes=list(hidden_layer_sizes) + [head_size],
                     activation=activation,
                     kernel_init=jax.nn.initializers.lecun_uniform(),
-                    # FIXME
-                    # num_heads=n_heads,
+                    num_heads=n_heads,
                 )(hidden)
                 res.append(q)
             return jnp.concatenate(res, axis=-1)
@@ -90,8 +89,7 @@ def make_policy_vision_network(
             hidden = self.encoder(obs)
             hidden = activation(hidden)
             # Don't backprop through the policy
-            # FIXME
-            # hidden = jax.lax.stop_gradient(hidden)
+            hidden = jax.lax.stop_gradient(hidden)
             hidden = linen.Dense(_HIDDEN_DIM)(hidden)
             hidden = linen.LayerNorm()(hidden)
             head = networks.MLP(
@@ -139,12 +137,13 @@ def make_sac_vision_networks(
     safe: bool = False,
 ) -> SafeSACNetworks:
     """Make SAC networks."""
-    policy_encoder = networks.VisionMLP(
+    encoder = networks.VisionMLP(
         layer_sizes=[_HIDDEN_DIM],  # NatureCNN followed by a hidden of 50
         activation=activation,
         kernel_init=kernel_init,
         # FIXME
         # normalise_channels=normalise_channels,
+        normalise_channels=True,
         state_obs_key=state_obs_key,
         layer_norm=layer_norm,
         activate_final=False,
@@ -153,28 +152,16 @@ def make_sac_vision_networks(
     parametric_action_distribution = distribution.NormalTanhDistribution(
         event_size=action_size
     )
-    policy_network = networks.make_policy_network_vision(
+    policy_network = make_policy_vision_network(
+        vision_ecoder=encoder,
+        param_size=parametric_action_distribution.param_size,
         observation_size=observation_size,
-        output_size=parametric_action_distribution.param_size,
         preprocess_observations_fn=preprocess_observations_fn,
         hidden_layer_sizes=policy_hidden_layer_sizes,
         activation=activation,
-        state_obs_key=state_obs_key,
-        layer_norm=layer_norm,
-    )
-    critic_encoder = networks.VisionMLP(
-        layer_sizes=[_HIDDEN_DIM],  # NatureCNN followed by a hidden of 50
-        activation=activation,
-        kernel_init=kernel_init,
-        # FIXME
-        # normalise_channels=normalise_channels,
-        state_obs_key=state_obs_key,
-        layer_norm=layer_norm,
-        activate_final=False,
-        policy_head=True,
     )
     qr_network = make_q_vision_network(
-        vision_ecoder=critic_encoder,
+        vision_ecoder=encoder,
         observation_size=observation_size,
         action_size=action_size,
         preprocess_observations_fn=preprocess_observations_fn,
@@ -186,7 +173,7 @@ def make_sac_vision_networks(
     )
     if safe:
         qc_network = make_q_vision_network(
-            vision_ecoder=critic_encoder,
+            vision_ecoder=encoder,
             observation_size=observation_size,
             action_size=action_size,
             preprocess_observations_fn=preprocess_observations_fn,
