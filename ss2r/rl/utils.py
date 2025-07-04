@@ -35,3 +35,12 @@ def quantize_images(x):
             x = jnp.round(v * 255).astype(jnp.uint8)
             out[k] = x
     return {**x, **out}
+
+
+def dequantize_images(x):
+    out = {}
+    for k, v in x.items():
+        if k.startswith("pixels/"):
+            x = v.astype(jnp.float32) / 255
+            out[k] = x
+    return {**x, **out}

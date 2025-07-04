@@ -50,7 +50,7 @@ from ss2r.algorithms.sac.types import (
     float32,
 )
 from ss2r.rl.evaluation import ConstraintsEvaluator
-from ss2r.rl.utils import quantize_images
+from ss2r.rl.utils import dequantize_images, quantize_images
 
 
 def _restore_state(tree, target_example):
@@ -395,12 +395,11 @@ def train(
         transitions = float32(transitions)
         if augment_pixels:
             key, key_obs = jax.random.split(key, 1)
-            dequantize = lambda x: x.astype(jnp.float32) * 255
             observations = _random_translate_pixels(
-                dequantize(transitions.observation), key_obs
+                dequantize_images(transitions.observation), key_obs
             )
             next_observations = _random_translate_pixels(
-                dequantize(transitions.next_observation), key_obs
+                dequantize_images(transitions.next_observation), key_obs
             )
             transitions = transitions._replace(
                 observation=observations, next_observation=next_observations
