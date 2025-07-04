@@ -1,6 +1,7 @@
 import functools
 
 import jax
+import jax.numpy as jnp
 from brax import envs
 from mujoco_playground import locomotion, manipulation
 
@@ -251,6 +252,19 @@ def make_brax_envs(cfg, train_wrap_env_fn, eval_wrap_env_fn):
     return train_env, eval_env
 
 
+def _prepare_vision_env(cfg):
+    # https://github.com/shacklettbp/madrona_mjx/issues/39
+    from ml_collections import config_dict
+    from mujoco_playground import registry
+
+    task_cfg = get_task_config(cfg)
+    task_params = config_dict.ConfigDict(task_cfg.task_params)
+    task_params["use_vision"] = False
+    train_env = registry.load(task_cfg.task_name, config=task_params)
+    dummy_state = train_env.reset(jax.random.PRNGKey(0))
+    train_env.step(dummy_state, jnp.zeros(train_env.action_size))
+
+
 def make_mujoco_playground_envs(cfg, train_wrap_env_fn, eval_wrap_env_fn):
     from ml_collections import config_dict
     from mujoco_playground import registry
@@ -281,6 +295,7 @@ def make_mujoco_playground_envs(cfg, train_wrap_env_fn, eval_wrap_env_fn):
         num_vision_envs=cfg.training.num_envs,
     )
     if vision:
+        _prepare_vision_env(cfg)
         return train_env, train_env
     eval_env = registry.load(task_cfg.task_name, config=task_params)
     eval_env = eval_wrap_env_fn(eval_env)
