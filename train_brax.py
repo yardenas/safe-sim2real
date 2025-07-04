@@ -111,7 +111,7 @@ def main(cfg):
             cfg.training.num_envs,
             cfg.training.num_eval_envs,
             cfg.training.action_repeat,
-            cfg.environment.task_params.render_batch_size,
+            cfg.environment.task_params.vision_config.render_batch_size,
         )
     steps = Counter()
     with jax.disable_jit(not cfg.jit):
