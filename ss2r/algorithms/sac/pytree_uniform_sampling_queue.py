@@ -73,14 +73,14 @@ class PytreeUniformSamplingQueue(ReplayBuffer[PytreeReplayBufferState, Transitio
         reward = _init_rest(self._data_template.reward)
         discount = _init_rest(self._data_template.discount)
         next_obs = _init_obs(self._data_template.next_observation, cpu, gpu)
-        extra = _init_rest(self._data_template.extra)
+        extras = _init_rest(self._data_template.extras)
         data = Transition(
             observation=obs,
             action=action,
             reward=reward,
             discount=discount,
             next_observation=next_obs,
-            extra=extra,
+            extras=extras,
         )
         return PytreeReplayBufferState(  # type: ignore
             data=data,
