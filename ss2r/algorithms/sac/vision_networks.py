@@ -52,14 +52,14 @@ def make_q_vision_network(
 
     q_module = QModule(encoder=vision_ecoder, n_critics=n_critics)
 
-    def apply(processor_params, params, obs):
+    def apply(processor_params, params, obs, actions):
         if state_obs_key:
             state_obs = preprocess_observations_fn(
                 obs[state_obs_key],
                 networks.normalizer_select(processor_params, state_obs_key),
             )
             obs = {**obs, state_obs_key: state_obs}
-        return q_module.apply(params, obs)
+        return q_module.apply(params, obs, actions)
 
     dummy_obs = {
         key: jnp.zeros((1,) + shape) for key, shape in observation_size.items()
