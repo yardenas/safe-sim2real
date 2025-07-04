@@ -252,15 +252,11 @@ def make_brax_envs(cfg, train_wrap_env_fn, eval_wrap_env_fn):
     return train_env, eval_env
 
 
-def _prepare_vision_env(cfg):
+def _preinitialize_vision_env(task_name, task_params, registry):
     # https://github.com/shacklettbp/madrona_mjx/issues/39
-    from ml_collections import config_dict
-    from mujoco_playground import registry
-
-    task_cfg = get_task_config(cfg)
-    task_params = config_dict.ConfigDict(task_cfg.task_params)
-    task_params["vision"] = False
-    train_env = registry.load(task_cfg.task_name, config=task_params)
+    new_params = task_params.copy()
+    new_params["vision"] = False
+    train_env = registry.load(task_name, config=new_params)
     dummy_state = train_env.reset(jax.random.PRNGKey(0))
     train_env.step(dummy_state, jnp.zeros(train_env.action_size))
 
@@ -274,6 +270,9 @@ def make_mujoco_playground_envs(cfg, train_wrap_env_fn, eval_wrap_env_fn):
     task_cfg = get_task_config(cfg)
     task_params = config_dict.ConfigDict(task_cfg.task_params)
     train_env = registry.load(task_cfg.task_name, config=task_params)
+    vision = "use_vision" in cfg.agent and cfg.agent.use_vision
+    if vision:
+        _preinitialize_vision_env(task_cfg.task_name, task_params, registry)
     train_env = train_wrap_env_fn(train_env)
     train_key, eval_key = jax.random.split(jax.random.PRNGKey(cfg.training.seed))
     train_randomization_fn = (
@@ -283,7 +282,6 @@ def make_mujoco_playground_envs(cfg, train_wrap_env_fn, eval_wrap_env_fn):
         if cfg.training.train_domain_randomization
         else None
     )
-    vision = "use_vision" in cfg.agent and cfg.agent.use_vision
     train_env = wrap_for_brax_training(
         train_env,
         randomization_fn=train_randomization_fn,
@@ -295,7 +293,7 @@ def make_mujoco_playground_envs(cfg, train_wrap_env_fn, eval_wrap_env_fn):
         num_vision_envs=cfg.training.num_envs,
     )
     if vision:
-        _prepare_vision_env(cfg)
+        _preinitialize_vision_env(cfg)
         return train_env, train_env
     eval_env = registry.load(task_cfg.task_name, config=task_params)
     eval_env = eval_wrap_env_fn(eval_env)
