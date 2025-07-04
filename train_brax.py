@@ -36,11 +36,12 @@ def _validate_madrona_args(
     num_envs: int,
     num_eval_envs: int,
     action_repeat: int,
+    num_render_envs: int,
 ):
     """Validates arguments for Madrona-MJX."""
     if train_env != eval_env:
         raise ValueError("Madrona-MJX requires a fixed environment")
-    if num_eval_envs != num_envs:
+    if num_eval_envs != num_envs != num_render_envs:
         raise ValueError("Madrona-MJX requires a fixed batch size")
     if action_repeat != 1:
         raise ValueError(
@@ -110,6 +111,7 @@ def main(cfg):
             cfg.training.num_envs,
             cfg.training.num_eval_envs,
             cfg.training.action_repeat,
+            cfg.environment.task_params.render_batch_size,
         )
     steps = Counter()
     with jax.disable_jit(not cfg.jit):

@@ -116,7 +116,7 @@ class PytreeUniformSamplingQueue(ReplayBuffer[PytreeReplayBufferState, Transitio
 
         # Insert data at position
         if self.store_pixels_in_cpu:
-            cpu = jax.devices("cpu")[0]
+            cpu, _ = _get_devices()
             samples = samples._replace(
                 observation=move_pixels_to_device(samples.observation, cpu),
                 next_observation=move_pixels_to_device(samples.next_observation, cpu),
