@@ -43,33 +43,43 @@ class PytreeUniformSamplingQueue(ReplayBuffer[PytreeReplayBufferState, Transitio
         self.store_pixels_in_cpu = store_pixels_in_cpu
 
     def init(self, key: jax.random.PRNGKey) -> PytreeReplayBufferState:
-        def is_pixel_field(path: tuple[str, ...]) -> bool:
-            return path[:1] in (("observation",), ("next_observation",)) and path[
-                1
-            ].startswith("pixels/")
+        def _init_obs(array_template, pixel_device, non_pixel_device):
+            """
+            Initialize fields on the appropriate device based on key path.
+            Assumes that observations are at most one level deep.
+            """
+            if isinstance(array_template, jax.Array):
+                return jnp.zeros(array_template.shape, array_template.dtype)
+            else:
+                out = {}
+                for k, v in array_template.items():
+                    device = (
+                        pixel_device if k.startswith("pixels/") else non_pixel_device
+                    )
+                    out[k] = jnp.zeros(v.shape, v.dtype, device=device)
+                return out
 
-        def init_data_split_by_device(template, pixel_device, non_pixel_device):
-            """Initialize fields on the appropriate device based on key path."""
-            flat_with_path, treedef = jax.tree_util.tree_flatten_with_path(template)
+        def _init_rest(array_template):
+            return jax.tree_util.tree_map(
+                lambda x: jnp.zeros(x.shape, x.dtype), array_template
+            )
 
-            initialized_leaves = []
-            for path, struct in flat_with_path:
-                device = pixel_device if is_pixel_field(path) else non_pixel_device
-                array = jax.device_put(jnp.zeros(struct.shape, struct.dtype), device)
-                initialized_leaves.append(array)
-
-            return jax.tree_util.tree_unflatten(treedef, initialized_leaves)
-
-        cpu = jax.devices("cpu")[0]
-        gpus = jax.devices("gpu")
-        if not gpus:
-            gpu = jax.devices("cpu")[0]
-        else:
-            gpu = gpus[0]
+        cpu, gpu = _get_devices()
         if not self.store_pixels_in_cpu:
             cpu = gpu
-        data = init_data_split_by_device(
-            self._data_template, pixel_device=cpu, non_pixel_device=gpu
+        obs = _init_obs(self._data_template.observation, cpu, gpu)
+        action = _init_rest(self._data_template.action)
+        reward = _init_rest(self._data_template.reward)
+        discount = _init_rest(self._data_template.discount)
+        next_obs = _init_obs(self._data_template.next_observation, cpu, gpu)
+        extra = _init_rest(self._data_template.extra)
+        data = Transition(
+            observation=obs,
+            action=action,
+            reward=reward,
+            discount=discount,
+            next_observation=next_obs,
+            extra=extra,
         )
         return PytreeReplayBufferState(  # type: ignore
             data=data,
@@ -141,14 +151,10 @@ class PytreeUniformSamplingQueue(ReplayBuffer[PytreeReplayBufferState, Transitio
 
         batch = jax.tree_util.tree_map(sample_field, buffer_state.data)
         if self.store_pixels_in_cpu:
-            gpus = jax.devices("gpu")
-            if not gpus:
-                device = jax.devices("cpu")[0]
-            else:
-                device = gpus[0]
+            _, gpu = _get_devices()
             batch = batch._replace(
-                observation=move_pixels_to_device(batch.observation, device),
-                next_observation=move_pixels_to_device(batch.next_observation, device),
+                observation=move_pixels_to_device(batch.observation, gpu),
+                next_observation=move_pixels_to_device(batch.next_observation, gpu),
             )
         return buffer_state.replace(key=key), batch
 
@@ -164,3 +170,16 @@ def move_pixels_to_device(
         k: jax.device_put(v, to_device) if k.startswith("pixels/") else v
         for k, v in observation.items()
     }
+
+
+def _get_devices():
+    cpu = jax.devices("cpu")[0]
+    try:
+        gpus = jax.devices("gpu")
+    except RuntimeError:
+        gpus = []
+    if not gpus:
+        gpu = jax.devices("cpu")[0]
+    else:
+        gpu = gpus[0]
+    return cpu, gpu
