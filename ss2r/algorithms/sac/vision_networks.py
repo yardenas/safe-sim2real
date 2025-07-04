@@ -107,8 +107,7 @@ def make_sac_vision_networks(
         layer_sizes=[_HIDDEN_DIM],  # NatureCNN followed by a hidden of 50
         activation=activation,
         kernel_init=kernel_init,
-        # FIXME
-        # normalise_channels=normalise_channels,
+        normalise_channels=normalise_channels,
         state_obs_key=state_obs_key,
         layer_norm=layer_norm,
     )
