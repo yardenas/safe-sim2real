@@ -297,11 +297,10 @@ def train(
         extras=extras,
     )
     dummy_transition = float16(dummy_transition)
-    if augment_pixels:
-        dummy_transition = dummy_transition._replace(
-            observation=quantize_images(dummy_transition.observation),
-            next_observation=quantize_images(dummy_transition.next_observation),
-        )
+    dummy_transition = dummy_transition._replace(
+        observation=quantize_images(dummy_transition.observation),
+        next_observation=quantize_images(dummy_transition.next_observation),
+    )
     global_key, local_key = jax.random.split(rng)
     training_state = _init_training_state(
         key=global_key,
