@@ -108,8 +108,6 @@ def make_sac_vision_networks(
         # normalise_channels=normalise_channels,
         state_obs_key=state_obs_key,
         layer_norm=layer_norm,
-        activate_final=True,
-        policy_head=True,
     )
     qr_network = make_q_vision_network(
         vision_ecoder=critic_encoder,
