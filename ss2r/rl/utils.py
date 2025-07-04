@@ -1,4 +1,5 @@
 from functools import partial
+from typing import Mapping
 
 import jax
 import jax.numpy as jnp
@@ -28,19 +29,27 @@ def rollout(
     return final_state, data
 
 
-def quantize_images(x):
+def quantize_images(observations):
+    if not isinstance(observations, Mapping):
+        return observations
     out = {}
-    for k, v in x.items():
+    for k, v in observations.items():
         if k.startswith("pixels/"):
-            x = jnp.round(v * 255).astype(jnp.uint8)
-            out[k] = x
-    return {**x, **out}
+            observations = jnp.round(v * 255).astype(jnp.uint8)
+            out[k] = observations
+        else:
+            out[k] = v
+    return out
 
 
-def dequantize_images(x):
+def dequantize_images(observations):
+    if not isinstance(observations, Mapping):
+        return observations
     out = {}
-    for k, v in x.items():
+    for k, v in observations.items():
         if k.startswith("pixels/"):
-            x = v.astype(jnp.float32) / 255
-            out[k] = x
-    return {**x, **out}
+            observations = v.astype(jnp.float32) / 255
+            out[k] = observations
+        else:
+            out[k] = v
+    return out
