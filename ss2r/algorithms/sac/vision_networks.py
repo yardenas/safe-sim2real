@@ -37,7 +37,7 @@ def make_q_vision_network(
         def __call__(self, obs, actions):
             hidden = self.encoder(obs)
             hidden = jnn.tanh(hidden)
-            hidden = jnp.concatenate([hidden, actions], axis=-1)
+            hidden = jnp.concatenate([hidden, actions[None]], axis=-1)
             res = []
             net = BroNet if use_bro else networks.MLP
             for _ in range(self.n_critics):
