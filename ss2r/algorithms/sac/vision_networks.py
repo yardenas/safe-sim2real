@@ -8,9 +8,9 @@ from flax import linen
 
 from ss2r.algorithms.sac.networks import (
     ActivationFn,
+    BroNet,
     Initializer,
     SafeSACNetworks,
-    make_q_network,
 )
 
 _HIDDEN_DIM = 50
@@ -31,24 +31,26 @@ def make_q_vision_network(
 ):
     class QModule(linen.Module):
         encoder: networks.VisionMLP
+        n_critics: int
 
         @linen.compact
         def __call__(self, obs, actions):
             hidden = self.encoder(obs)
             hidden = jnn.tanh(hidden)
-            out = make_q_network(
-                50,
-                action_size,
-                use_bro=use_bro,
-                n_heads=n_heads,
-                head_size=head_size,
-                hidden_layer_sizes=hidden_layer_sizes,
-                activation=activation,
-                n_critics=n_critics,
-            )(hidden, actions)
-            return out
+            hidden = jnp.concatenate([hidden, actions], axis=-1)
+            res = []
+            net = BroNet if use_bro else networks.MLP
+            for _ in range(self.n_critics):
+                q = net(  # type: ignore
+                    layer_sizes=list(hidden_layer_sizes) + [head_size],
+                    activation=activation,
+                    kernel_init=jax.nn.initializers.lecun_uniform(),
+                    num_heads=n_heads,
+                )(hidden)
+                res.append(q)
+            return jnp.concatenate(res, axis=-1)
 
-    q_module = QModule(encoder=vision_ecoder)
+    q_module = QModule(encoder=vision_ecoder, n_critics=n_critics)
 
     def apply(processor_params, params, obs):
         if state_obs_key:
