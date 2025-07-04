@@ -47,8 +47,7 @@ def make_q_vision_network(
                     layer_sizes=list(hidden_layer_sizes) + [head_size],
                     activation=activation,
                     kernel_init=jax.nn.initializers.lecun_uniform(),
-                    # FIXME
-                    # num_heads=n_heads,
+                    num_heads=n_heads,
                 )(hidden)
                 res.append(q)
             return jnp.concatenate(res, axis=-1)
