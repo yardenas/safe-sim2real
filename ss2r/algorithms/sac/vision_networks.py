@@ -64,7 +64,7 @@ def make_q_vision_network(
     dummy_obs = {
         key: jnp.zeros((1,) + shape) for key, shape in observation_size.items()
     }
-    dummy_action = jnp.zeros(action_size)
+    dummy_action = jnp.zeros((1, action_size))
     return networks.FeedForwardNetwork(
         init=lambda key: q_module.init(key, dummy_obs, dummy_action), apply=apply
     )
