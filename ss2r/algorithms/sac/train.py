@@ -404,10 +404,10 @@ def train(
             key, key_obs = jax.random.split(key)
             observations = _random_translate_pixels(
                 dequantize_images(transitions.observation), key_obs
-            )[0]
+            )
             next_observations = _random_translate_pixels(
                 dequantize_images(transitions.next_observation), key_obs
-            )[0]
+            )
             transitions = transitions._replace(
                 observation=observations, next_observation=next_observations
             )
