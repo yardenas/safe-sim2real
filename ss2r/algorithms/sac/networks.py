@@ -103,9 +103,9 @@ class MLP(linen.Module):
             x = linen.Dense(
                 features=size, kernel_init=self.kernel_init, use_bias=self.bias
             )(x)
-            x = self.activation(x)
             if self.layer_norm:
                 x = linen.LayerNorm()(x)
+            x = self.activation(x)
             if i == len(self.layer_sizes) - 1:
                 break
         # Prediction heads
