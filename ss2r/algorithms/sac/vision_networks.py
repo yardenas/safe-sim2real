@@ -13,8 +13,6 @@ from ss2r.algorithms.sac.networks import (
     SafeSACNetworks,
 )
 
-_HIDDEN_DIM = 50
-
 
 def make_q_vision_network(
     vision_ecoder: networks.VisionMLP,
@@ -28,6 +26,7 @@ def make_q_vision_network(
     use_bro: bool = True,
     n_heads: int = 1,
     head_size: int = 1,
+    critic_hidden_dim: int = 50,
 ):
     class QModule(linen.Module):
         encoder: networks.VisionMLP
@@ -37,7 +36,7 @@ def make_q_vision_network(
         def __call__(self, obs, actions):
             hidden = self.encoder(obs)
             hidden = activation(hidden)
-            hidden = linen.Dense(_HIDDEN_DIM)(hidden)
+            hidden = linen.Dense(critic_hidden_dim)(hidden)
             hidden = linen.LayerNorm()(hidden)
             hidden = jnp.concatenate([hidden, actions], axis=-1)
             res = []
@@ -86,6 +85,7 @@ def make_sac_vision_networks(
     use_bro: bool = True,
     n_critics: int = 2,
     n_heads: int = 1,
+    critic_hidden_dim: int = 50,
     *,
     safe: bool = False,
 ) -> SafeSACNetworks:
@@ -103,7 +103,7 @@ def make_sac_vision_networks(
         layer_norm=layer_norm,
     )
     critic_encoder = networks.VisionMLP(
-        layer_sizes=[_HIDDEN_DIM],  # NatureCNN followed by a hidden of 50
+        layer_sizes=[critic_hidden_dim],
         activation=activation,
         kernel_init=kernel_init,
         normalise_channels=normalise_channels,

@@ -18,3 +18,4 @@ agent:
   use_vision: true
   normalise_channels: false
   layer_norm: false
+  critic_hidden_dim: 50
