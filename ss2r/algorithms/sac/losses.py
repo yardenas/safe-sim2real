@@ -39,11 +39,10 @@ def make_losses(
     safety_discounting: float,
     action_size: int,
     use_bro: bool,
-    init_alpha: float | None,
 ):
     """Creates the SAC losses."""
 
-    target_entropy = -0.5 * action_size if init_alpha is None else init_alpha
+    target_entropy = -0.5 * action_size
     policy_network = sac_network.policy_network
     qr_network = sac_network.qr_network
     qc_network = sac_network.qc_network
