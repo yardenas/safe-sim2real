@@ -101,23 +101,25 @@ class MLP(linen.Module):
     def __call__(self, x):
         for i, size in enumerate(self.layer_sizes):
             x = linen.Dense(
-                features=size, kernel_init=self.kernel_init, use_bias=self.bias
+                features=size,
+                kernel_init=self.kernel_init,
+                use_bias=self.bias,
             )(x)
             if self.layer_norm:
-                x = linen.LayerNorm()(x)
-            x = self.activation(x)
-            if i == len(self.layer_sizes) - 1:
-                break
+                x = linen.LayerNorm(axis=-1)(x)
+            is_final = i == len(self.layer_sizes) - 1
+            if not is_final or self.activate_final:
+                x = self.activation(x)
         # Prediction heads
         heads = []
         for _ in range(self.num_heads):
             h = linen.Dense(
-                features=self.layer_sizes[-1], kernel_init=self.kernel_init
+                features=self.layer_sizes[-1],
+                kernel_init=self.kernel_init,
+                use_bias=self.bias,
             )(x)
             heads.append(h)
         out = jnp.concatenate(heads, axis=-1)
-        if self.activate_final:
-            out = self.activation(out)
         return out
 
 
