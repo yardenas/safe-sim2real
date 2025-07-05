@@ -69,17 +69,27 @@ def get_train_fn(cfg, checkpoint_path, restore_checkpoint_path):
         del agent_cfg["data_collection"]
     if "replay_buffer" in agent_cfg:
         del agent_cfg["replay_buffer"]
-    value_obs_key = "privileged_state" if cfg.training.value_privileged else "state"
-    policy_obs_key = "privileged_state" if cfg.training.policy_privileged else "state"
     if "use_vision" in agent_cfg and agent_cfg["use_vision"]:
         network_factory = functools.partial(
             sac_vision_networks.make_sac_vision_networks,
             policy_hidden_layer_sizes=policy_hidden_layer_sizes,
             value_hidden_layer_sizes=value_hidden_layer_sizes,
             activation=activation,
+            normalise_channels=agent_cfg["normalise_channels"],
+            layer_norm=agent_cfg["layer_norm"],
+            critic_hidden_dim=agent_cfg["critic_hidden_dim"],
         )
-        del agent_cfg["use_vision"]
+        del (
+            agent_cfg["use_vision"],
+            agent_cfg["normalise_channels"],
+            agent_cfg["layer_norm"],
+            agent_cfg["critic_hidden_dim"],
+        )
     else:
+        value_obs_key = "privileged_state" if cfg.training.value_privileged else "state"
+        policy_obs_key = (
+            "privileged_state" if cfg.training.policy_privileged else "state"
+        )
         network_factory = functools.partial(
             sac_networks.make_sac_networks,
             policy_hidden_layer_sizes=policy_hidden_layer_sizes,

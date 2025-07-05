@@ -7,13 +7,12 @@ from brax.training import distribution, networks, types
 from flax import linen
 
 from ss2r.algorithms.sac.networks import (
+    MLP,
     ActivationFn,
     BroNet,
     Initializer,
     SafeSACNetworks,
 )
-
-_HIDDEN_DIM = 50
 
 
 def make_q_vision_network(
@@ -28,6 +27,7 @@ def make_q_vision_network(
     use_bro: bool = True,
     n_heads: int = 1,
     head_size: int = 1,
+    critic_hidden_dim: int = 50,
 ):
     class QModule(linen.Module):
         encoder: networks.VisionMLP
@@ -37,11 +37,11 @@ def make_q_vision_network(
         def __call__(self, obs, actions):
             hidden = self.encoder(obs)
             hidden = activation(hidden)
-            hidden = linen.Dense(_HIDDEN_DIM)(hidden)
+            hidden = linen.Dense(critic_hidden_dim)(hidden)
             hidden = linen.LayerNorm()(hidden)
             hidden = jnp.concatenate([hidden, actions], axis=-1)
             res = []
-            net = BroNet if use_bro else networks.MLP
+            net = BroNet if use_bro else MLP
             for _ in range(self.n_critics):
                 q = net(  # type: ignore
                     layer_sizes=list(hidden_layer_sizes) + [head_size],
@@ -72,53 +72,6 @@ def make_q_vision_network(
     )
 
 
-def make_policy_vision_network(
-    vision_ecoder: networks.VisionMLP,
-    param_size: int,
-    observation_size: Mapping[str, Tuple[int, ...]],
-    preprocess_observations_fn: types.PreprocessObservationFn = types.identity_observation_preprocessor,
-    hidden_layer_sizes: Sequence[int] = (256, 256),
-    activation: ActivationFn = linen.swish,
-    state_obs_key: str = "",
-):
-    class PolicyModule(linen.Module):
-        encoder: networks.VisionMLP
-
-        @linen.compact
-        def __call__(self, obs):
-            hidden = self.encoder(obs)
-            hidden = activation(hidden)
-            # Don't backprop through the policy
-            hidden = jax.lax.stop_gradient(hidden)
-            hidden = linen.Dense(_HIDDEN_DIM)(hidden)
-            hidden = linen.LayerNorm()(hidden)
-            head = networks.MLP(
-                layer_sizes=list(hidden_layer_sizes) + [param_size],
-                activation=activation,
-                kernel_init=jax.nn.initializers.lecun_uniform(),
-            )
-            out = head(hidden)
-            return out
-
-    pi_module = PolicyModule(encoder=vision_ecoder)
-
-    def apply(processor_params, params, obs):
-        if state_obs_key:
-            state_obs = preprocess_observations_fn(
-                obs[state_obs_key],
-                networks.normalizer_select(processor_params, state_obs_key),
-            )
-            obs = {**obs, state_obs_key: state_obs}
-        return pi_module.apply(params, obs)
-
-    dummy_obs = {
-        key: jnp.zeros((1,) + shape) for key, shape in observation_size.items()
-    }
-    return networks.FeedForwardNetwork(
-        init=lambda key: pi_module.init(key, dummy_obs), apply=apply
-    )
-
-
 def make_sac_vision_networks(
     observation_size: Mapping[str, Tuple[int, ...]],
     action_size: int,
@@ -133,35 +86,33 @@ def make_sac_vision_networks(
     use_bro: bool = True,
     n_critics: int = 2,
     n_heads: int = 1,
+    critic_hidden_dim: int = 50,
     *,
     safe: bool = False,
 ) -> SafeSACNetworks:
     """Make SAC networks."""
-    encoder = networks.VisionMLP(
-        layer_sizes=[_HIDDEN_DIM],  # NatureCNN followed by a hidden of 50
-        activation=activation,
-        kernel_init=kernel_init,
-        # FIXME
-        # normalise_channels=normalise_channels,
-        normalise_channels=True,
-        state_obs_key=state_obs_key,
-        layer_norm=layer_norm,
-        activate_final=False,
-        policy_head=True,
-    )
     parametric_action_distribution = distribution.NormalTanhDistribution(
         event_size=action_size
     )
-    policy_network = make_policy_vision_network(
-        vision_ecoder=encoder,
-        param_size=parametric_action_distribution.param_size,
+    policy_network = networks.make_policy_network_vision(
         observation_size=observation_size,
+        output_size=parametric_action_distribution.param_size,
         preprocess_observations_fn=preprocess_observations_fn,
         hidden_layer_sizes=policy_hidden_layer_sizes,
         activation=activation,
+        state_obs_key=state_obs_key,
+        layer_norm=layer_norm,
+    )
+    critic_encoder = networks.VisionMLP(
+        layer_sizes=[critic_hidden_dim],
+        activation=activation,
+        kernel_init=kernel_init,
+        normalise_channels=normalise_channels,
+        state_obs_key=state_obs_key,
+        layer_norm=layer_norm,
     )
     qr_network = make_q_vision_network(
-        vision_ecoder=encoder,
+        vision_ecoder=critic_encoder,
         observation_size=observation_size,
         action_size=action_size,
         preprocess_observations_fn=preprocess_observations_fn,
@@ -173,7 +124,7 @@ def make_sac_vision_networks(
     )
     if safe:
         qc_network = make_q_vision_network(
-            vision_ecoder=encoder,
+            vision_ecoder=critic_encoder,
             observation_size=observation_size,
             action_size=action_size,
             preprocess_observations_fn=preprocess_observations_fn,
