@@ -79,6 +79,7 @@ def _init_training_state(
     key: PRNGKey,
     obs_size: int,
     mbpo_network: mbpo_networks.MBPONetworks,
+    init_alpha: float,
     alpha_optimizer: optax.GradientTransformation,
     policy_optimizer: optax.GradientTransformation,
     qr_optimizer: optax.GradientTransformation,
@@ -89,7 +90,7 @@ def _init_training_state(
 ) -> TrainingState:
     """Inits the training state and replicates it over devices."""
     key_policy, key_qr, key_model = jax.random.split(key, 3)
-    log_alpha = jnp.asarray(0.0, dtype=jnp.float32)
+    log_alpha = jnp.asarray(jnp.log(init_alpha), dtype=jnp.float32)
     alpha_optimizer_state = alpha_optimizer.init(log_alpha)
     policy_params = mbpo_network.policy_network.init(key_policy)
     policy_optimizer_state = policy_optimizer.init(policy_params)
@@ -155,7 +156,7 @@ def train(
     critic_learning_rate: float = 1e-4,
     model_learning_rate: float = 1e-4,
     alpha_learning_rate: float = 3e-4,
-    init_alpha: float | None = None,
+    init_alpha: float = 1.0,
     min_alpha: float = 0.0,
     discounting: float = 0.9,
     safety_discounting: float = 0.9,
@@ -299,6 +300,7 @@ def train(
         key=global_key,
         obs_size=obs_size,
         mbpo_network=mbpo_network,
+        init_alpha=init_alpha,
         alpha_optimizer=alpha_optimizer,
         policy_optimizer=policy_optimizer,
         qr_optimizer=qr_optimizer,
@@ -356,7 +358,6 @@ def train(
         discounting=discounting,
         safety_discounting=safety_discounting,
         action_size=action_size,
-        init_alpha=init_alpha,
         use_bro=use_bro,
         normalize_fn=normalize_fn,
     )

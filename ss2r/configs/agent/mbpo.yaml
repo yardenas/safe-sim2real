@@ -10,7 +10,7 @@ learning_rate: 3e-4
 critic_learning_rate: 3e-4
 model_learning_rate: 3e-4
 alpha_learning_rate: 3e-4
-init_alpha: null
+init_alpha: 1.
 discounting: 0.99
 min_alpha: 0.
 safety_discounting: 0.99

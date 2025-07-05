@@ -40,10 +40,9 @@ def make_losses(
     safety_discounting: float,
     action_size: int,
     use_bro: bool,
-    init_alpha: float | None,
     normalize_fn,
 ):
-    target_entropy = -0.5 * action_size if init_alpha is None else init_alpha
+    target_entropy = -0.5 * action_size
     policy_network = mbpo_network.policy_network
     qr_network = mbpo_network.qr_network
     qc_network = mbpo_network.qc_network
