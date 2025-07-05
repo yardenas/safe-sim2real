@@ -90,16 +90,22 @@ class BroNet(linen.Module):
 
 class MLP(linen.Module):
     layer_sizes: Sequence[int]
-    activation: Callable
-    kernel_init: Callable = jax.nn.initializers.lecun_uniform()
+    activation: ActivationFn = linen.relu
+    kernel_init: Initializer = jax.nn.initializers.lecun_uniform()
+    activate_final: bool = False
+    bias: bool = True
+    layer_norm: bool = False
     num_heads: int = 1
 
     @linen.compact
     def __call__(self, x):
-        for i, size in enumerate(self.layer_sizes - 1):
-            x = linen.Dense(features=size, kernel_init=self.kernel_init)(x)
-            x = linen.LayerNorm()(x)
+        for i, size in enumerate(self.layer_sizes):
+            x = linen.Dense(
+                features=size, kernel_init=self.kernel_init, use_bias=self.bias
+            )(x)
             x = self.activation(x)
+            if self.layer_norm:
+                x = linen.LayerNorm()(x)
         # Prediction heads
         heads = []
         for _ in range(self.num_heads):
@@ -107,7 +113,10 @@ class MLP(linen.Module):
                 features=self.layer_sizes[-1], kernel_init=self.kernel_init
             )(x)
             heads.append(h)
-        return jnp.concatenate(heads, axis=-1)
+        out = jnp.concatenate(heads, axis=-1)
+        if self.activate_final:
+            out = self.activation(out)
+        return out
 
 
 def _get_obs_state_size(obs_size: types.ObservationSize, obs_key: str) -> int:
