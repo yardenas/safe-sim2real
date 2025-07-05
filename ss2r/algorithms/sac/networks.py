@@ -106,6 +106,8 @@ class MLP(linen.Module):
             x = self.activation(x)
             if self.layer_norm:
                 x = linen.LayerNorm()(x)
+            if i == len(self.layer_sizes) - 1:
+                break
         # Prediction heads
         heads = []
         for _ in range(self.num_heads):
