@@ -7,6 +7,7 @@ from brax.training import distribution, networks, types
 from flax import linen
 
 from ss2r.algorithms.sac.networks import (
+    MLP,
     ActivationFn,
     BroNet,
     Initializer,
@@ -40,7 +41,7 @@ def make_q_vision_network(
             hidden = linen.LayerNorm()(hidden)
             hidden = jnp.concatenate([hidden, actions], axis=-1)
             res = []
-            net = BroNet if use_bro else networks.MLP
+            net = BroNet if use_bro else MLP
             for _ in range(self.n_critics):
                 q = net(  # type: ignore
                     layer_sizes=list(hidden_layer_sizes) + [head_size],
