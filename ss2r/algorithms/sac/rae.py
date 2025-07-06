@@ -1,8 +1,9 @@
-from typing import Generic, Sequence, Tuple, TypeVar
+from typing import Callable, Generic, Sequence, Tuple, TypeVar, Union
 
 import flax
 import jax
 import jax.numpy as jnp
+import optax
 from absl import logging
 from brax.training.agents.sac import checkpoint
 from brax.training.replay_buffers import (
@@ -14,6 +15,7 @@ from brax.training.replay_buffers import (
 from ss2r.common.wandb import get_wandb_checkpoint
 
 Sample = TypeVar("Sample")
+MixType = Union[float, Callable[[int], float], Tuple[float, float, int]]
 
 
 @flax.struct.dataclass
@@ -21,6 +23,7 @@ class RAEReplayBufferState:
     offline_state: ReplayBufferState
     online_state: ReplayBufferState
     key: jax.Array
+    step: int
 
 
 class RAEReplayBuffer(ReplayBuffer[RAEReplayBufferState, Sample], Generic[Sample]):
@@ -31,13 +34,12 @@ class RAEReplayBuffer(ReplayBuffer[RAEReplayBufferState, Sample], Generic[Sample
         sample_batch_size: int,
         wandb_ids: Sequence[str],
         wandb_entity: str | None,
-        mix: float = 0.5,
+        mix: MixType = 0.5,
     ):
         self.sample_batch_size = sample_batch_size
-        self.online_sample_size = int(sample_batch_size * mix)
-        self.offline_sample_size = sample_batch_size - self.online_sample_size
+        self.mix = self._init_mix(mix)
         self.online_buffer = UniformSamplingQueue(
-            max_replay_size, dummy_data_sample, self.online_sample_size
+            max_replay_size, dummy_data_sample, self.sample_batch_size
         )
         self.offline_buffer = None
         self.wandb_ids = wandb_ids
@@ -51,14 +53,31 @@ class RAEReplayBuffer(ReplayBuffer[RAEReplayBufferState, Sample], Generic[Sample
         offline_state = prepare_offline_data(self.wandb_ids, self.wandb_entity)
         max_size = offline_state.data.shape[0]
         self.offline_buffer = UniformSamplingQueue(
-            max_size, self._dummy_data_sample, self.offline_sample_size
+            max_size, self._dummy_data_sample, self.sample_batch_size
         )
         logging.info("Restoring replay buffer state with %d samples", max_size)
         return RAEReplayBufferState(
             online_state=online_state,  # type: ignore
             offline_state=offline_state,  # type: ignore
             key=key_next,
+            step=0,
         )
+
+    def _init_mix(self, mix: MixType) -> Callable[[int], float]:
+        if isinstance(mix, float):
+            return lambda step: mix  # type: ignore
+        elif isinstance(mix, tuple) and len(mix) == 3:
+            init_val, end_val, steps = mix
+            scheduler = optax.linear_schedule(
+                init_value=init_val, end_value=end_val, transition_steps=steps
+            )
+            return lambda step: scheduler(step)  # type: ignore
+        elif callable(mix):
+            return lambda step: mix(step)  # type: ignore
+        else:
+            raise ValueError(
+                "mix must be a float, a scheduler function, or a (init, end, steps) tuple."
+            )
 
     def insert_internal(
         self, state: RAEReplayBufferState, samples: Sample
@@ -76,6 +95,9 @@ class RAEReplayBuffer(ReplayBuffer[RAEReplayBufferState, Sample], Generic[Sample
     ) -> Tuple[RAEReplayBufferState, Sample]:
         """Sample from both buffers and return merged batch."""
         assert self.offline_buffer is not None
+        mix_value = self.mix(state.step)
+        online_size = jnp.round(self.sample_batch_size * mix_value).astype(jnp.int32)
+        offline_size = self.sample_batch_size - online_size
         key_online, key_offline, new_key = jax.random.split(state.key, 3)
         online_state, online_samples = self.online_buffer.sample(
             state.online_state.replace(key=key_online)
@@ -84,7 +106,7 @@ class RAEReplayBuffer(ReplayBuffer[RAEReplayBufferState, Sample], Generic[Sample
             state.offline_state.replace(key=key_offline)
         )
         combined_samples = jax.tree_util.tree_map(
-            lambda o, f: jnp.concatenate([o, f], axis=0),
+            lambda o, f: jnp.concatenate([o[:online_size], f[:offline_size]], axis=0),
             online_samples,
             offline_samples,
         )
@@ -92,6 +114,7 @@ class RAEReplayBuffer(ReplayBuffer[RAEReplayBufferState, Sample], Generic[Sample
             online_state=online_state,
             offline_state=offline_state,
             key=new_key,
+            step=state.step + 1,
         )
         return new_state, combined_samples
 
