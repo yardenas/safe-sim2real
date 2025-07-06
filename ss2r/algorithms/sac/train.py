@@ -586,6 +586,8 @@ def train(
         )
         training_metrics |= env_state.metrics
         training_metrics["buffer_current_size"] = replay_buffer.size(buffer_state)
+        if isinstance(buffer_state, RAEReplayBufferState):
+            training_metrics["rae_mixing"] = replay_buffer.mix(buffer_state.step)
         return training_state, env_state, buffer_state, training_metrics
 
     def prefill_replay_buffer(
