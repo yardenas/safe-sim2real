@@ -1,6 +1,10 @@
 # Safe Sim2Real
 A collection of algorithms and experiment tools for safe sim to real transfer in robotics.
 
+## Features
+* Three different CMDP solvers, [CRPO](https://arxiv.org/abs/2011.05869), [Saute-RL](https://arxiv.org/abs/2202.06558) and primal-dual, compatible with SAC, MBPO and PPO.
+* Algorithm implementation is interchangeable between training in simulation to training on real robots via [OnlineEpisodeOrchestrator](https://github.com/yardenas/safe-sim2real/blob/b1962ac5e453b172eaa8373f8d382b562cf5a03b/ss2r/rl/online.py#L19C7-L19C32). Check out `rccar_experiments` for a full example.
+
 ## Requirements 🛠
 
 - Python == 3.11.6
