@@ -1,3 +1,11 @@
+<p align="center">
+  <img src="docs/assets/up-034.jpg" alt="Go2-0" width="22%">
+  <img src="docs/assets/up-036.jpg" alt="Go2-1" width="22%">
+  <img src="docs/assets/up-039.jpg" alt="Go2-2" width="22%">
+  <img src="docs/assets/up-042.jpg" alt="Go2-3" width="22%">
+</p>
+
+
 # Safe Sim2Real
 A collection of algorithms and experiment tools for safe sim to real transfer in robotics.
 
@@ -10,7 +18,7 @@ A collection of algorithms and experiment tools for safe sim to real transfer in
 ## Requirements 🛠
 
 - Python == 3.11.6
-- Recommended environment managers: `venv` or `Poetry`
+- `venv` or `Poetry`
 
 ## Installation 🧩
 
