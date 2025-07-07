@@ -2,7 +2,7 @@ from typing import Callable, Mapping, Optional, Tuple
 
 import jax
 from brax.base import System
-from brax.envs.base import Env, ObservationSize, State, Wrapper
+from brax.envs.base import Env, State, Wrapper
 from brax.envs.wrappers import training as brax_training
 from jax import numpy as jp
 from mujoco_playground import State as MjxState
@@ -385,29 +385,3 @@ class Saute(Wrapper):
             reward=saute_reward,
         )
         return nstate
-
-
-class VisionWrapper(Wrapper):
-    def __init__(self, env):
-        super().__init__(env)
-
-    def _handle_state(self, state):
-        assert isinstance(state.obs, Mapping) and any(
-            key.startswith("pixels/") for key in state.obs
-        )
-        out = {}
-        for key, value in state.obs.items():
-            if key.startswith("pixels/") and value.ndim > 3 and value.shape[0] == 1:
-                out[key] = value[0]
-            else:
-                out[key] = value
-        state = state.replace(obs=out)
-        return state
-
-    @property
-    def unwrapped(self):
-        return self
-
-    @property
-    def observation_size(self) -> ObservationSize:
-        return {"pixels/view_0": (64, 64, 3)}
