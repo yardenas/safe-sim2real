@@ -391,14 +391,6 @@ class VisionWrapper(Wrapper):
     def __init__(self, env):
         super().__init__(env)
 
-    def step(self, state, action):
-        nstate = self.env.step(state, action)
-        return self._handle_state(nstate)
-
-    def reset(self, rng):
-        state = self.env.reset(rng)
-        return self._handle_state(state)
-
     def _handle_state(self, state):
         assert isinstance(state.obs, Mapping) and any(
             key.startswith("pixels/") for key in state.obs
@@ -419,6 +411,7 @@ class VisionWrapper(Wrapper):
     @property
     def observation_size(self) -> ObservationSize:
         abstract_state = jax.eval_shape(self.reset, jax.random.PRNGKey(0))
+        abstract_state = self._handle_state(abstract_state)
         obs = abstract_state.obs
         if isinstance(obs, Mapping):
             return jax.tree_util.tree_map(lambda x: x.shape, obs)
