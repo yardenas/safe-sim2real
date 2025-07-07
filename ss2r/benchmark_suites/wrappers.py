@@ -2,7 +2,7 @@ from typing import Callable, Mapping, Optional, Tuple
 
 import jax
 from brax.base import System
-from brax.envs.base import Env, State, Wrapper
+from brax.envs.base import Env, ObservationSize, State, Wrapper
 from brax.envs.wrappers import training as brax_training
 from jax import numpy as jp
 from mujoco_playground import State as MjxState
@@ -415,3 +415,11 @@ class VisionWrapper(Wrapper):
     @property
     def unwrapped(self):
         return self
+
+    @property
+    def observation_size(self) -> ObservationSize:
+        abstract_state = jax.eval_shape(self.reset, jax.random.PRNGKey(0))
+        obs = abstract_state.obs
+        if isinstance(obs, Mapping):
+            return jax.tree_util.tree_map(lambda x: x.shape, obs)
+        return obs.shape[-1]
