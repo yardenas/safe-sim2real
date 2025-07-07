@@ -405,7 +405,7 @@ class VisionWrapper(Wrapper):
         )
         out = {}
         for key, value in state.obs.items():
-            if key.startswith("pixels/") and value.shape > 3:
+            if key.startswith("pixels/") and value.ndim > 3:
                 if value.shape[0] == 1:
                     state.obs[key] = value[0]
             out[key] = value
