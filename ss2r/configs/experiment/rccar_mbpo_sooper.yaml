@@ -24,7 +24,7 @@ training:
 
 agent:
   batch_size: 256
-  min_replay_size: 2000
+  min_replay_size: 0
   max_replay_size: 1048576
   policy_hidden_layer_sizes: [64, 64]
   model_to_real_data_ratio: 1.
@@ -35,7 +35,7 @@ agent:
   critic_learning_rate: 1e-5
   model_learning_rate: 3e-4
   num_model_rollouts: 400
-  model_pretrain_episodes: 10
+  model_pretrain_episodes: 0
   pessimism: 5
   optimism: 0
   safety_filter: sooper
