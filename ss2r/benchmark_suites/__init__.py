@@ -279,7 +279,7 @@ def make_mujoco_playground_envs(cfg, train_wrap_env_fn, eval_wrap_env_fn):
     train_env = registry.load(task_cfg.task_name, config=task_params)
     train_env = train_wrap_env_fn(train_env)
     train_key, eval_key = jax.random.split(jax.random.PRNGKey(cfg.training.seed))
-    if vision:
+    if vision and cfg.training.train_domain_randomization:
         train_randomization_fn = functools.partial(
             randomization_fns[task_cfg.task_name], num_worlds=cfg.training.num_envs
         )
