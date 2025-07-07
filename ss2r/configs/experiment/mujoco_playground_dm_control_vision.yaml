@@ -6,9 +6,10 @@ training:
   num_eval_envs: 128
 
 environment:
-  vision: true
-  vision_config:
-    render_batch_size: 128
+  task_params:
+    vision: true
+    vision_config:
+      render_batch_size: 128
 
 agent:
   batch_size: 512
