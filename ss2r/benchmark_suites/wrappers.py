@@ -385,3 +385,29 @@ class Saute(Wrapper):
             reward=saute_reward,
         )
         return nstate
+
+
+class VisionWrapper(Wrapper):
+    def __init__(self, env):
+        super().__init__(env)
+
+    def step(self, state, action):
+        nstate = self.env.step(state, action)
+        return self._handle_state(nstate)
+
+    def reset(self, rng):
+        state = self.env.reset(rng)
+        return self._handle_state(state)
+
+    def _handle_state(self, state):
+        assert isinstance(state.obs, Mapping) and any(
+            key.startswith("pixels/") for key in state.obs
+        )
+        out = {}
+        for key, value in state.obs.items():
+            if key.startswith("pixels/") and value.shape > 3:
+                if value.shape[0] == 1:
+                    state.obs[key] = value[0]
+            out[key] = value
+        state = state.replace(obs=out)
+        return state

@@ -30,6 +30,7 @@ from ss2r.benchmark_suites.utils import get_domain_name, get_task_config
 from ss2r.benchmark_suites.wrappers import (
     Saute,
     SPiDR,
+    VisionWrapper,
     wrap,
 )
 
@@ -277,6 +278,8 @@ def make_mujoco_playground_envs(cfg, train_wrap_env_fn, eval_wrap_env_fn):
     if vision:
         _preinitialize_vision_env(task_cfg.task_name, task_params, registry)
     train_env = registry.load(task_cfg.task_name, config=task_params)
+    if vision:
+        train_env = VisionWrapper(train_env)
     train_env = train_wrap_env_fn(train_env)
     train_key, eval_key = jax.random.split(jax.random.PRNGKey(cfg.training.seed))
     if vision and cfg.training.train_domain_randomization:
