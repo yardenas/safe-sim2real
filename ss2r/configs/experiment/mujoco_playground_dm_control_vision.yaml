@@ -4,6 +4,7 @@ defaults:
 training:
   num_envs: 128
   num_eval_envs: 128
+  safe: false
 
 environment:
   task_params:
