@@ -242,6 +242,13 @@ def train(
         env = wrap_env_fn(env)
     rng = jax.random.PRNGKey(seed)
     obs_size = env.observation_size
+    if isinstance(obs_size, Mapping):
+        for key, value in obs_size.items():
+            if key.startswith("pixels/") and len(value) > 3 and value[0] == 1:
+                print("heheheheheeh")
+                value = value[1:]
+                obs_size[key] = value  # type: ignore
+    print("afterere", obs_size)
     action_size = env.action_size
     normalize_fn = lambda x, y: x
     if normalize_observations:
