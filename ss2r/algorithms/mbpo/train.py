@@ -201,6 +201,7 @@ def train(
     model_propagation: str = "nominal",
     use_termination: bool = True,
     safety_filter: str | None = None,
+    model_pretrain_episodes: int = 0,
 ):
     if min_replay_size >= num_timesteps:
         raise ValueError(
@@ -476,13 +477,16 @@ def train(
         model_buffer_state: ReplayBufferState,
         sac_buffer_state: ReplayBufferState,
         key: PRNGKey,
+        pretrain_model: bool = False,
     ) -> Tuple[
         TrainingState, envs.State, ReplayBufferState, ReplayBufferState, Metrics
     ]:
         def f(carry, unused_t):
             ts, es, mbs, acbs, k = carry
             k, new_key = jax.random.split(k)
-            ts, es, mbs, acbs, metrics = training_step(ts, es, mbs, acbs, k)
+            ts, es, mbs, acbs, metrics = training_step(
+                ts, es, mbs, acbs, k, pretrain_model
+            )
             return (ts, es, mbs, acbs, new_key), metrics
 
         (
@@ -522,6 +526,7 @@ def train(
         model_buffer_state: ReplayBufferState,
         sac_buffer_state: ReplayBufferState,
         key: PRNGKey,
+        pretrain_model: bool = False,
     ) -> Tuple[
         TrainingState, envs.State, ReplayBufferState, ReplayBufferState, Metrics
     ]:
@@ -539,6 +544,7 @@ def train(
             model_buffer_state,
             sac_buffer_state,
             key,
+            pretrain_model=pretrain_model,
         )
         metrics = jax.tree_util.tree_map(jnp.mean, metrics)
         jax.tree_util.tree_map(lambda x: x.block_until_ready(), metrics)
@@ -605,6 +611,28 @@ def train(
     logging.info("replay size after prefill %s", replay_size)
     assert replay_size >= min_replay_size
     training_walltime = time.time() - t
+
+    # Pretrain the model.
+    for _ in range(model_pretrain_episodes):
+        logging.info("pretraining model")
+        epoch_key, local_key = jax.random.split(local_key)
+        (
+            training_state,
+            env_state,
+            model_buffer_state,
+            sac_buffer_state,
+            training_metrics,
+        ) = training_epoch_with_timing(
+            training_state,
+            env_state,
+            model_buffer_state,
+            sac_buffer_state,
+            epoch_key,
+            pretrain_model=True,
+        )
+        if reset_on_eval:
+            reset_keys = jax.random.split(epoch_key, num_envs)
+            env_state = reset_fn(reset_keys)
 
     current_step = 0
     for _ in range(num_evals_after_init):

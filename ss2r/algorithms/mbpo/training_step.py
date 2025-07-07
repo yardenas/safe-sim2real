@@ -354,6 +354,7 @@ def make_training_step(
         model_buffer_state: ReplayBufferState,
         sac_buffer_state: ReplayBufferState,
         key: PRNGKey,
+        pretrain_model: bool = False,
     ) -> Tuple[
         TrainingState, envs.State, ReplayBufferState, ReplayBufferState, Metrics
     ]:
@@ -386,47 +387,63 @@ def make_training_step(
         sac_buffer_state = generate_model_data(
             planning_env, policy, sac_buffer_state, training_key
         )
-        # Train SAC with model data
-        sac_buffer_state, model_transitions = sac_replay_buffer.sample(sac_buffer_state)
-        num_real_transitions = int(
-            model_transitions.reward.shape[0] * (1 - model_to_real_data_ratio)
-        )
-        assert (
-            num_real_transitions <= transitions.reward.shape[0]
-        ), "More model minibatches than real minibatches"
-        if num_real_transitions >= 1:
+
+        if not pretrain_model:
+            # Train SAC with model data
+            sac_buffer_state, model_transitions = sac_replay_buffer.sample(
+                sac_buffer_state
+            )
+            num_real_transitions = int(
+                model_transitions.reward.shape[0] * (1 - model_to_real_data_ratio)
+            )
+            assert (
+                num_real_transitions <= transitions.reward.shape[0]
+            ), "More model minibatches than real minibatches"
+            if num_real_transitions >= 1:
+                transitions = jax.tree_util.tree_map(
+                    lambda x, y: x.at[:num_real_transitions].set(
+                        y[:num_real_transitions]
+                    ),
+                    model_transitions,
+                    transitions,
+                )
+            else:
+                transitions = model_transitions
             transitions = jax.tree_util.tree_map(
-                lambda x, y: x.at[:num_real_transitions].set(y[:num_real_transitions]),
-                model_transitions,
+                lambda x: jnp.reshape(
+                    x, (critic_grad_updates_per_step, -1) + x.shape[1:]
+                ),
                 transitions,
             )
+            transitions, disagreement = relabel_transitions(planning_env, transitions)
+            (training_state, _), critic_metrics = jax.lax.scan(
+                critic_sgd_step, (training_state, training_key), transitions
+            )
+            num_actor_updates = -(
+                -critic_grad_updates_per_step // num_critic_updates_per_actor_update
+            )
+            assert num_actor_updates > 0, "Actor updates is non-positive"
+            transitions = jax.tree_util.tree_map(
+                lambda x: x[:num_actor_updates], transitions
+            )
+            (training_state, _), actor_metrics = jax.lax.scan(
+                actor_sgd_step,
+                (training_state, training_key),
+                transitions,
+                length=num_actor_updates,
+            )
+            metrics = {**model_metrics, **critic_metrics, **actor_metrics}
+            metrics["buffer_current_size"] = model_replay_buffer.size(
+                model_buffer_state
+            )
+            metrics |= env_state.metrics
+            metrics["disagreement"] = disagreement
         else:
-            transitions = model_transitions
-        transitions = jax.tree_util.tree_map(
-            lambda x: jnp.reshape(x, (critic_grad_updates_per_step, -1) + x.shape[1:]),
-            transitions,
-        )
-        transitions, disagreement = relabel_transitions(planning_env, transitions)
-        (training_state, _), critic_metrics = jax.lax.scan(
-            critic_sgd_step, (training_state, training_key), transitions
-        )
-        num_actor_updates = -(
-            -critic_grad_updates_per_step // num_critic_updates_per_actor_update
-        )
-        assert num_actor_updates > 0, "Actor updates is non-positive"
-        transitions = jax.tree_util.tree_map(
-            lambda x: x[:num_actor_updates], transitions
-        )
-        (training_state, _), actor_metrics = jax.lax.scan(
-            actor_sgd_step,
-            (training_state, training_key),
-            transitions,
-            length=num_actor_updates,
-        )
-        metrics = {**model_metrics, **critic_metrics, **actor_metrics}
-        metrics["buffer_current_size"] = model_replay_buffer.size(model_buffer_state)
-        metrics |= env_state.metrics
-        metrics["disagreement"] = disagreement
+            metrics = {
+                "model_loss": model_metrics["model_loss"],
+                "buffer_current_size": model_replay_buffer.size(model_buffer_state),
+            }
+            metrics |= env_state.metrics
         return training_state, env_state, model_buffer_state, sac_buffer_state, metrics
 
     return training_step
