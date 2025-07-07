@@ -5,6 +5,9 @@ import jax
 import jax.numpy as jnp
 from brax import envs
 from mujoco_playground import locomotion, manipulation
+from mujoco_playground._src.manipulation.franka_emika_panda.randomize_vision import (
+    domain_randomize as franka_vision_randomize,
+)
 
 from ss2r.algorithms.mbpo.wrappers import TrackOnlineCostsInObservation
 from ss2r.benchmark_suites import brax, mujoco_playground, safety_gym
@@ -276,13 +279,21 @@ def make_mujoco_playground_envs(cfg, train_wrap_env_fn, eval_wrap_env_fn):
     train_env = registry.load(task_cfg.task_name, config=task_params)
     train_env = train_wrap_env_fn(train_env)
     train_key, eval_key = jax.random.split(jax.random.PRNGKey(cfg.training.seed))
-    train_randomization_fn = (
-        prepare_randomization_fn(
-            train_key, cfg.training.num_envs, task_cfg.train_params, task_cfg.task_name
+    if vision:
+        train_randomization_fn = functools.partial(
+            randomization_fns[task_cfg.task_name], num_worlds=cfg.training.num_envs
         )
-        if cfg.training.train_domain_randomization
-        else None
-    )
+    else:
+        train_randomization_fn = (
+            prepare_randomization_fn(
+                train_key,
+                cfg.training.num_envs,
+                task_cfg.train_params,
+                task_cfg.task_name,
+            )
+            if cfg.training.train_domain_randomization
+            else None
+        )
     train_env = wrap_for_brax_training(
         train_env,
         randomization_fn=train_randomization_fn,
@@ -401,6 +412,7 @@ randomization_fns = {
         "AlohaSinglePegInsertion"
     ),
     "go_to_goal": go_to_goal.domain_randomization,
+    "PandaPickCubeCartesian": franka_vision_randomize,
 }
 
 render_fns = {
