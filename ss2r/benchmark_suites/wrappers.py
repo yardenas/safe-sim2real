@@ -411,8 +411,17 @@ class VisionWrapper(Wrapper):
     @property
     def observation_size(self) -> ObservationSize:
         abstract_state = jax.eval_shape(self.reset, jax.random.PRNGKey(0))
-        abstract_state = self._handle_state(abstract_state)
         obs = abstract_state.obs
+        out_obs = {}
         if isinstance(obs, Mapping):
-            return jax.tree_util.tree_map(lambda x: x.shape, obs)
+            for key, value in obs.items():
+                if (
+                    key.startswith("pixels/")
+                    and len(value.shape) > 3
+                    and value.shape[0] == 1
+                ):
+                    out_obs[key] = value.shape[1:]
+                else:
+                    out_obs[key] = value.shape
+            return jax.tree_util.tree_map(lambda x: x.shape, out_obs)
         return obs.shape[-1]
