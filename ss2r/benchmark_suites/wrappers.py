@@ -411,3 +411,7 @@ class VisionWrapper(Wrapper):
             out[key] = value
         state = state.replace(obs=out)
         return state
+
+    @property
+    def unwrapped(self):
+        return self
