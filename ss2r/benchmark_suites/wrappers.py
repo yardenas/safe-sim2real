@@ -420,7 +420,7 @@ class VisionWrapper(Wrapper):
                     and len(value.shape) > 3
                     and value.shape[0] == 1
                 ):
-                    out_obs[key] = value.shape[1:]
+                    out_obs[key] = jax.ShapeDtypeStruct(value.shape[1:], value.dtype)
                 else:
                     out_obs[key] = value.shape
             return jax.tree_util.tree_map(lambda x: x.shape, out_obs)
