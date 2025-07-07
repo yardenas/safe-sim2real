@@ -1,0 +1,14 @@
+# @package _global_
+defaults:
+  - override /environment: franka_emika_panda
+  - _self_
+  
+
+environment:
+  episode_length: 80
+  vision: true
+  obs_noise:
+    brightness: [0.75, 2.0]
+  box_init_range: 0.1
+  action_history_length: 5
+  success_threshold: 0.03
