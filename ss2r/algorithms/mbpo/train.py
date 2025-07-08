@@ -203,7 +203,6 @@ def train(
     safety_filter: str | None = None,
     model_pretrain_episodes: int = 0,
     advantage_threshold: float = 0.2,
-    terminal_reward: str = "value",
 ):
     if min_replay_size >= num_timesteps:
         raise ValueError(
@@ -399,11 +398,14 @@ def train(
         action_size=action_size,
         observation_size=obs_size,
         ensemble_selection=model_propagation,
-        safety_budget=safety_budget,
+        safety_budget=safety_budget
+        if safety_filter == "sooper"
+        else advantage_threshold,
         cost_discount=safety_discounting,
         scaling_fn=budget_scaling_fn,
         use_termination=penalizer is not None and use_termination,
-        terminal_reward=terminal_reward,
+        safety_filter=safety_filter,
+        initial_normalizer_params=training_state.normalizer_params,
     )
     training_step = make_training_step(
         env,
@@ -438,7 +440,7 @@ def train(
         use_termination,
         penalizer,
         safety_budget,
-        terminal_reward,
+        safety_filter,
     )
 
     def prefill_replay_buffer(
