@@ -1,36 +1,33 @@
 # @package _global_
 defaults:
-  - override /environment: rccar_real
+  - override /environment: walker
   - override /agent: mbpo
   - override /agent/data_collection: episodic
   - _self_
 
-environment:
-  action_delay: 1
-  observation_delay: 0
-  sliding_window: 5
-  dt: 0.03333333
-  sample_init_pose: false
-
 training:
-  num_envs: 1
-  num_evals: 40
-  num_timesteps: 10000
-  episode_length: 250
-  safe: true
+  num_timesteps: 40000
   train_domain_randomization: false
   eval_domain_randomization: false
-  safety_budget: 5.0
-  wandb_id: 0ltkzlyo
+  safe: true
+  safety_budget: 100.
+  num_envs: 1
+  num_evals: 40
+  wandb_id: h8zypwbf
 
+environment:
+  task_name: SafeWalkerRun
+  task_params:
+    joint_velocity_limit: 22.75
+  
 agent:
   batch_size: 256
-  min_replay_size: 250
+  min_replay_size: 1000
   max_replay_size: 1048576
   policy_hidden_layer_sizes: [64, 64]
-  critic_grad_updates_per_step: 250
+  critic_grad_updates_per_step: 1000
   model_grad_updates_per_step: 4000
-  num_model_rollouts: 5000
+  num_model_rollouts: 20000
   learning_rate: 1e-5
   critic_learning_rate: 1e-5
   model_learning_rate: 3e-4
@@ -38,4 +35,3 @@ agent:
   pessimism: 5
   optimism: 0
   safety_filter: sooper
-
