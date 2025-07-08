@@ -202,6 +202,8 @@ def train(
     use_termination: bool = True,
     safety_filter: str | None = None,
     model_pretrain_episodes: int = 0,
+    advantage_threshold: float = 0.2,
+    terminal_reward: str = "value",
 ):
     if min_replay_size >= num_timesteps:
         raise ValueError(
@@ -335,7 +337,7 @@ def train(
         safety_filter if safe else None,
         mbpo_network,
         training_state,
-        safety_budget,
+        advantage_threshold if safety_filter == "advantage" else safety_budget,
         budget_scaling_fn,
     )
     model_replay_buffer = replay_buffers.UniformSamplingQueue(
@@ -401,6 +403,7 @@ def train(
         cost_discount=safety_discounting,
         scaling_fn=budget_scaling_fn,
         use_termination=penalizer is not None and use_termination,
+        terminal_reward=terminal_reward,
     )
     training_step = make_training_step(
         env,
@@ -435,6 +438,7 @@ def train(
         use_termination,
         penalizer,
         safety_budget,
+        terminal_reward,
     )
 
     def prefill_replay_buffer(

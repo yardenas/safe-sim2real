@@ -51,6 +51,7 @@ def make_training_step(
     use_termination,
     penalizer,
     safety_budget,
+    terminal_reward,
 ):
     def critic_sgd_step(
         carry: Tuple[TrainingState, PRNGKey], transitions: Transition
@@ -336,7 +337,9 @@ def make_training_step(
             new_reward = jnp.where(
                 discount,
                 new_reward,
-                pessimistic_qr_pred,
+                pessimistic_qr_pred
+                if terminal_reward == "value"
+                else jnp.zeros_like(transitions.reward),
             )
         next_obs_pred = jax.tree_map(lambda x: x.mean(0), next_obs_pred)
         return Transition(
