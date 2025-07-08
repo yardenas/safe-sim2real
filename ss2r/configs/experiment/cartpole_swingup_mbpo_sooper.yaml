@@ -32,4 +32,4 @@ agent:
   model_pretrain_episodes: 0
   pessimism: 10
   optimism: 0
-  safety_filter: advantage
+  safety_filter: sooper
