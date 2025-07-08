@@ -23,8 +23,8 @@ agent:
   batch_size: 256
   min_replay_size: 1000
   max_replay_size: 1048576
-  critic_grad_updates_per_step: 100
-  model_grad_updates_per_step: 100
+  critic_grad_updates_per_step: 2000
+  model_grad_updates_per_step: 4000
   num_model_rollouts: 5000
   learning_rate: 1e-4
   critic_learning_rate: 1e-4
@@ -32,4 +32,5 @@ agent:
   model_pretrain_episodes: 0
   pessimism: 10
   optimism: 0
+  advantage_threshold: 0.2
   safety_filter: sooper
