@@ -6,6 +6,7 @@ training:
   num_eval_envs: 128
   safe: false
   num_eval_episodes: 1
+  num_timesteps: 1000000
 
 environment:
   task_params:
@@ -19,7 +20,7 @@ environment:
 
 agent:
   batch_size: 512
-  grad_updates_per_step: 8
+  grad_updates_per_step: 32
   max_replay_size: 100000
   min_replay_size: 1000
   policy_hidden_layer_sizes: [256, 256, 256]
