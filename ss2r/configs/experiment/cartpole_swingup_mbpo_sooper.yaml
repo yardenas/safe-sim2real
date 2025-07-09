@@ -13,7 +13,7 @@ training:
   eval_domain_randomization: false
   safety_budget: 75
   num_envs: 1
-  num_evals: 40
+  num_evals: 20
   wandb_id: gaj7zb12
 
 agent:
