@@ -54,7 +54,7 @@ locomotion.register_environment(
 manipulation.register_environment(
     "PandaPickCubeCartesianExtended",
     pick_cartesian.PandaPickCubeCartesian,
-    default_config=pick_cartesian.default_config(),
+    pick_cartesian.default_config(),
 )
 
 
