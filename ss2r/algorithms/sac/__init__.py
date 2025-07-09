@@ -77,13 +77,13 @@ def get_train_fn(cfg, checkpoint_path, restore_checkpoint_path):
             activation=activation,
             normalise_channels=agent_cfg["normalise_channels"],
             layer_norm=agent_cfg["layer_norm"],
-            critic_hidden_dim=agent_cfg["critic_hidden_dim"],
+            encoder_hidden_dim=agent_cfg["encoder_hidden_dim"],
         )
         del (
             agent_cfg["use_vision"],
             agent_cfg["normalise_channels"],
             agent_cfg["layer_norm"],
-            agent_cfg["critic_hidden_dim"],
+            agent_cfg["encoder_hidden_dim"],
         )
     else:
         value_obs_key = "privileged_state" if cfg.training.value_privileged else "state"

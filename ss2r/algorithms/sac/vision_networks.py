@@ -10,7 +10,6 @@ from ss2r.algorithms.sac.networks import (
     MLP,
     ActivationFn,
     BroNet,
-    Initializer,
     SafeSACNetworks,
 )
 
@@ -50,14 +49,14 @@ def make_policy_vision_network(
     hidden_layer_sizes: Sequence[int] = (256, 256),
     activation: ActivationFn = linen.swish,
     state_obs_key: str = "",
-    critic_hidden_dim: int = 50,
+    encoder_hidden_dim: int = 50,
 ):
     class Policy(linen.Module):
         @linen.compact
         def __call__(self, obs):
             hidden = Encoder(name="SharedEncoder")(obs)
             hidden = jax.lax.stop_gradient(hidden)
-            hidden = linen.Dense(critic_hidden_dim)(hidden)
+            hidden = linen.Dense(encoder_hidden_dim)(hidden)
             hidden = linen.LayerNorm()(hidden)
             hidden = jnn.tanh(hidden)
             outs = networks.MLP(
@@ -96,7 +95,7 @@ def make_q_vision_network(
     use_bro: bool = True,
     n_heads: int = 1,
     head_size: int = 1,
-    critic_hidden_dim: int = 50,
+    encoder_hidden_dim: int = 50,
 ):
     class QModule(linen.Module):
         n_critics: int
@@ -104,7 +103,7 @@ def make_q_vision_network(
         @linen.compact
         def __call__(self, obs, actions):
             hidden = Encoder(name="SharedEncoder")(obs)
-            hidden = linen.Dense(critic_hidden_dim)(hidden)
+            hidden = linen.Dense(encoder_hidden_dim)(hidden)
             hidden = linen.LayerNorm()(hidden)
             hidden = jnn.tanh(hidden)
             hidden = jnp.concatenate([hidden, actions], axis=-1)
@@ -145,16 +144,13 @@ def make_sac_vision_networks(
     action_size: int,
     preprocess_observations_fn: types.PreprocessObservationFn = types.identity_observation_preprocessor,
     activation: ActivationFn = linen.swish,
-    kernel_init: Initializer = jax.nn.initializers.lecun_uniform(),
-    layer_norm: bool = False,
     state_obs_key: str = "",
-    normalise_channels: bool = False,
     policy_hidden_layer_sizes: Sequence[int] = (256, 256),
     value_hidden_layer_sizes: Sequence[int] = (256, 256),
     use_bro: bool = True,
     n_critics: int = 2,
     n_heads: int = 1,
-    critic_hidden_dim: int = 50,
+    encoder_hidden_dim: int = 50,
     *,
     safe: bool = False,
 ) -> SafeSACNetworks:
@@ -169,7 +165,7 @@ def make_sac_vision_networks(
         hidden_layer_sizes=policy_hidden_layer_sizes,
         activation=activation,
         state_obs_key=state_obs_key,
-        critic_hidden_dim=critic_hidden_dim,
+        encoder_hidden_dim=encoder_hidden_dim,
     )
     qr_network = make_q_vision_network(
         observation_size=observation_size,
