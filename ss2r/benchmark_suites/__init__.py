@@ -464,5 +464,6 @@ render_fns = {
     "SafeHumanoidWalk": mujoco_playground.render,
     "AlohaSinglePegInsertion": mujoco_playground.render,
     "AlohaPegInsertionDistill": mujoco_playground.render,
+    "PandaPickCubeCartesian": mujoco_playground.render,
     "go_to_goal": functools.partial(safety_gym.render, camera="fixedfar"),
 }
