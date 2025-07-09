@@ -12,6 +12,10 @@ environment:
     vision: true
     vision_config:
       render_batch_size: 128
+      render_width: 64
+      render_height: 64
+      use_rasterizer: false
+      gpu_id: 0
 
 agent:
   batch_size: 512

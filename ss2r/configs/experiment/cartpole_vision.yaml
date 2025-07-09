@@ -6,17 +6,11 @@ defaults:
 
 environment:
   task_params:
-    vision: true
     ctrl_dt: 0.04
     episode_length: 1000
     vision_config:
-      render_batch_size: 128
-      render_width: 64
-      render_height: 64
       enabled_geom_groups: [0, 1, 2] 
-      use_rasterizer: false
       history: 3
-      gpu_id: 0
 
 
 training:
