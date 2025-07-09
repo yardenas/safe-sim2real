@@ -462,9 +462,10 @@ def train(
             cost_metrics = {}
             qc_params = None
             qc_optimizer_state = None
-        policy_params = training_state.policy_params.copy(
-            add_or_replace={"SharedEncoder": qr_params["SharedEncoder"]}
-        )
+        if augment_pixels:
+            policy_params = training_state.policy_params.copy(
+                add_or_replace={"SharedEncoder": qr_params["SharedEncoder"]}
+            )
         # TODO (yarden): try to make it faster with cond later
         (actor_loss, aux), new_policy_params, new_policy_optimizer_state = actor_update(
             policy_params,

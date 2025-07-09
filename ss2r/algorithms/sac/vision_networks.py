@@ -54,7 +54,7 @@ def make_policy_vision_network(
 ):
     class Policy(linen.Module):
         @linen.compact
-        def __call__(self, obs, actions):
+        def __call__(self, obs):
             hidden = Encoder(name="SharedEncoder")(obs)
             hidden = jax.lax.stop_gradient(hidden)
             hidden = linen.Dense(critic_hidden_dim)(hidden)
