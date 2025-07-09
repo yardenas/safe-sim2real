@@ -102,6 +102,7 @@ def make_sac_vision_networks(
         activation=activation,
         state_obs_key=state_obs_key,
         layer_norm=layer_norm,
+        normalise_channels=normalise_channels,
     )
     critic_encoder = networks.VisionMLP(
         layer_sizes=[critic_hidden_dim],
