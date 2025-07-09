@@ -87,6 +87,78 @@ def make_sooper_filter_fn(
     return make_policy
 
 
+def make_advantage_filter_fn(
+    mbpo_networks: MBPONetworks,
+    initial_backup_policy_params,
+    initial_normalizer_params,
+    scaling_fn,
+) -> Callable[[Any, bool], types.Policy]:
+    """Creates params and inference function for the SAC agent."""
+    backup_policy = sac_networks.make_inference_fn(mbpo_networks)(
+        (initial_normalizer_params, initial_backup_policy_params), deterministic=True
+    )
+
+    def make_policy(
+        params: PolicyParams,
+        deterministic: bool = False,
+    ) -> types.Policy:
+        (
+            normalizer_params,
+            (policy_params, qc_params, safety_budget),
+        ) = params
+
+        def policy(
+            observations: types.Observation, key_sample: PRNGKey
+        ) -> Tuple[types.Action, types.Extra]:
+            logits = mbpo_networks.policy_network.apply(
+                normalizer_params, policy_params, observations
+            )
+            mode_a = mbpo_networks.parametric_action_distribution.mode(logits)
+            if deterministic:
+                behavioral_action = mode_a
+            else:
+                behavioral_action = mbpo_networks.parametric_action_distribution.sample(
+                    logits, key_sample
+                )
+
+            backup_action = backup_policy(observations, key_sample)[0]
+
+            if mbpo_networks.qc_network is not None:
+                qc_behavioral = mbpo_networks.qc_network.apply(
+                    normalizer_params, qc_params, observations, behavioral_action
+                ).mean(axis=-1)
+                qc_backup = mbpo_networks.qc_network.apply(
+                    normalizer_params, qc_params, observations, backup_action
+                ).mean(axis=-1)
+            else:
+                raise ValueError("QC network is not defined, cannot do shielding.")
+
+            advantage = qc_behavioral - qc_backup
+            safe = advantage[..., None] < safety_budget
+            safe_action = jnp.where(
+                safe,
+                behavioral_action,
+                backup_action,
+            )
+
+            accumulated_cost = observations["cumulative_cost"][..., 0]
+            expected_total_cost = accumulated_cost + scaling_fn(qc_behavioral)
+            extras = {
+                "intervention": 1 - safe[..., 0].astype(jnp.float32),
+                "policy_distance": jnp.linalg.norm(mode_a - safe_action, axis=-1),
+                "safety_gap": jnp.maximum(
+                    expected_total_cost - safety_budget,
+                    jnp.zeros_like(expected_total_cost),
+                ),
+                "expected_total_cost": expected_total_cost,
+            }
+            return safe_action, extras
+
+        return policy
+
+    return make_policy
+
+
 def make(
     name: str | None,
     mbpo_network: MBPONetworks,
@@ -98,6 +170,13 @@ def make(
         return make_inference_fn(mbpo_network), get_inference_policy_params(False)
     if name == "sooper":
         return make_sooper_filter_fn(
+            mbpo_network,
+            training_state.backup_policy_params,
+            training_state.normalizer_params,
+            budget_scaling_fn,
+        ), get_inference_policy_params(True, safety_budget)
+    elif name == "advantage":
+        return make_advantage_filter_fn(
             mbpo_network,
             training_state.backup_policy_params,
             training_state.normalizer_params,
