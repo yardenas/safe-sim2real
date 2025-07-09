@@ -24,3 +24,4 @@ environment:
 agent:
   batch_size: 128
   discounting: 0.95
+  encoder_hidden_dim: 128
