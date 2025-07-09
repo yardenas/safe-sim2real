@@ -351,7 +351,12 @@ class PandaPickCubeCartesian(pick.PandaPickCube):
         out_of_bounds |= box_pos[2] < 0.0
         state.metrics.update(out_of_bounds=out_of_bounds.astype(float))
         state.metrics.update({f"reward/{k}": v for k, v in raw_rewards.items()})
-        state.metrics.update({"reward/lifted": lifted, "reward/success": success})
+        state.metrics.update(
+            {
+                "reward/lifted": lifted.astype(float),
+                "reward/success": success.astype(float),
+            }
+        )
 
         done = (
             out_of_bounds
