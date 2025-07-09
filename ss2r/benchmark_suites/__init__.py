@@ -465,7 +465,7 @@ render_fns = {
     "AlohaSinglePegInsertion": mujoco_playground.render,
     "AlohaPegInsertionDistill": mujoco_playground.render,
     "PandaPickCubeCartesian": functools.partial(
-        mujoco_playground.render, num_envs=None
+        mujoco_playground.render, num_envs=None, camera="front"
     ),
     "go_to_goal": functools.partial(safety_gym.render, camera="fixedfar"),
 }
