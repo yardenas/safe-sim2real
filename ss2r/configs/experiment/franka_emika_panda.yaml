@@ -16,7 +16,3 @@ environment:
     box_init_range: 0.1
     action_history_length: 5
     success_threshold: 0.03
-
-  
-agent:
-  normalise_channels: true

@@ -75,14 +75,11 @@ def get_train_fn(cfg, checkpoint_path, restore_checkpoint_path):
             policy_hidden_layer_sizes=policy_hidden_layer_sizes,
             value_hidden_layer_sizes=value_hidden_layer_sizes,
             activation=activation,
-            normalise_channels=agent_cfg["normalise_channels"],
             layer_norm=agent_cfg["layer_norm"],
             encoder_hidden_dim=agent_cfg["encoder_hidden_dim"],
         )
         del (
             agent_cfg["use_vision"],
-            agent_cfg["normalise_channels"],
-            agent_cfg["layer_norm"],
             agent_cfg["encoder_hidden_dim"],
         )
     else:

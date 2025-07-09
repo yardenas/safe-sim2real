@@ -28,6 +28,4 @@ agent:
   activation: relu
   augment_pixels: true
   use_vision: true
-  normalise_channels: false
-  layer_norm: false
   encoder_hidden_dim: 50
