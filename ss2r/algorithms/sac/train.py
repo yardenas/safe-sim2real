@@ -462,10 +462,12 @@ def train(
             cost_metrics = {}
             qc_params = None
             qc_optimizer_state = None
-
+        policy_params = training_state.policy_params.copy(
+            add_or_replace={"SharedEncoder": qr_params["SharedEncoder"]}
+        )
         # TODO (yarden): try to make it faster with cond later
         (actor_loss, aux), new_policy_params, new_policy_optimizer_state = actor_update(
-            training_state.policy_params,
+            policy_params,
             training_state.normalizer_params,
             training_state.qr_params,
             training_state.qc_params,
@@ -476,7 +478,7 @@ def train(
             penalizer,
             training_state.penalizer_params,
             optimizer_state=training_state.policy_optimizer_state,
-            params=training_state.policy_params,
+            params=policy_params,
         )
         should_update_actor = count % num_critic_updates_per_actor_update == 0
         update_if_needed = lambda x, y: jnp.where(should_update_actor, x, y)
