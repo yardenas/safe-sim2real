@@ -21,6 +21,8 @@ class ModelBasedEnv(envs.Env):
         cost_discount=1.0,
         scaling_fn=lambda x: x,
         use_termination=True,
+        safety_filter="sooper",
+        initial_normalizer_params=None,
     ):
         super().__init__()
         self.model_network = mbpo_network.model_network
@@ -40,6 +42,10 @@ class ModelBasedEnv(envs.Env):
         self.cost_discount = cost_discount
         self.scaling_fn = scaling_fn
         self.use_termination = use_termination
+        self.safety_filter = safety_filter
+        self.initial_normalizer_params = (
+            initial_normalizer_params if initial_normalizer_params is not None else {}
+        )
 
     def reset(self, rng: jax.Array) -> base.State:
         sample_key, model_key = jax.random.split(rng)
@@ -82,20 +88,46 @@ class ModelBasedEnv(envs.Env):
         state.info["cost"] = cost
         state.info["truncation"] = truncation
         if self.qc_network is not None:
-            prev_cumulative_cost = state.obs["cumulative_cost"][0]
-            expected_cost_for_traj = prev_cumulative_cost + self.scaling_fn(
-                self.qc_network.apply(
+            if self.safety_filter == "sooper":
+                prev_cumulative_cost = state.obs["cumulative_cost"][0]
+                expected_cost_for_traj = prev_cumulative_cost + self.scaling_fn(
+                    self.qc_network.apply(
+                        self.normalizer_params,
+                        self.backup_qc_params,
+                        state.obs,
+                        action,
+                    ).mean(axis=-1)
+                )
+                done = jnp.where(
+                    expected_cost_for_traj > self.safety_budget,
+                    jnp.ones_like(done),
+                    done,
+                )
+            elif self.safety_filter == "advantage":
+                qc_behavioral = self.qc_network.apply(
                     self.normalizer_params,
                     self.backup_qc_params,
                     state.obs,
                     action,
                 ).mean(axis=-1)
-            )
-            done = jnp.where(
-                expected_cost_for_traj > self.safety_budget,
-                jnp.ones_like(done),
-                done,
-            )
+                backup_policy = self.policy_network.apply
+                backup_policy_params = self.backup_policy_params
+                backup_action = backup_policy(
+                    self.initial_normalizer_params, backup_policy_params, state.obs
+                )[: self.action_size]
+                qc_backup = self.qc_network.apply(
+                    self.normalizer_params,
+                    self.backup_qc_params,
+                    state.obs,
+                    backup_action,
+                ).mean(axis=-1)
+                advantage = qc_behavioral - qc_backup
+                done = jnp.where(
+                    advantage > self.safety_budget,
+                    jnp.ones_like(done),
+                    done,
+                )
+
             pred_backup_action = self.policy_network.apply
             backup_policy_params = self.backup_policy_params
             backup_action = pred_backup_action(
@@ -107,8 +139,10 @@ class ModelBasedEnv(envs.Env):
                 self.normalizer_params, backup_qr_params, state.obs, backup_action
             ).mean(axis=-1)
             reward = jnp.where(
-                expected_cost_for_traj > self.safety_budget,
-                pessimistic_qr_pred,
+                done,
+                pessimistic_qr_pred
+                if self.safety_filter == "sooper"
+                else jnp.zeros_like(reward),
                 reward,
             )
 
@@ -159,6 +193,8 @@ def create_model_env(
     cost_discount=1.0,
     scaling_fn=lambda x: x,
     use_termination=True,
+    safety_filter="sooper",
+    initial_normalizer_params=None,
 ) -> ModelBasedEnv:
     """Factory function to create a model-based environment."""
     return ModelBasedEnv(
@@ -172,6 +208,8 @@ def create_model_env(
         cost_discount=cost_discount,
         scaling_fn=scaling_fn,
         use_termination=use_termination,
+        safety_filter=safety_filter,
+        initial_normalizer_params=initial_normalizer_params,
     )
 
 

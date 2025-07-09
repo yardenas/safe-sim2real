@@ -202,6 +202,7 @@ def train(
     model_propagation: str = "nominal",
     use_termination: bool = True,
     safety_filter: str | None = None,
+    advantage_threshold: float = 0.2,
 ):
     if min_replay_size >= num_timesteps:
         raise ValueError(
@@ -336,7 +337,7 @@ def train(
         safety_filter if safe else None,
         mbpo_network,
         training_state,
-        safety_budget,
+        advantage_threshold if safety_filter == "advantage" else safety_budget,
         budget_scaling_fn,
     )
     model_replay_buffer = replay_buffers.UniformSamplingQueue(
@@ -397,10 +398,14 @@ def train(
         action_size=action_size,
         observation_size=obs_size,
         ensemble_selection=model_propagation,
-        safety_budget=safety_budget,
+        safety_budget=safety_budget
+        if safety_filter == "sooper"
+        else advantage_threshold,
         cost_discount=safety_discounting,
         scaling_fn=budget_scaling_fn,
         use_termination=penalizer is not None and use_termination,
+        safety_filter=safety_filter,
+        initial_normalizer_params=training_state.normalizer_params,
     )
     training_step = make_training_step(
         env,
@@ -435,6 +440,7 @@ def train(
         use_termination,
         penalizer,
         safety_budget,
+        safety_filter,
     )
 
     def prefill_replay_buffer(
