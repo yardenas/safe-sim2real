@@ -2,13 +2,11 @@
 defaults:
   - override /environment: cartpole
   - override /agent: mbpo
-  - override /agent/data_collection: episodic
   - _self_
 
 training:
-  num_timesteps: 40000
-  num_envs: 1
-  num_evals: 40
+  num_timesteps: 150000
+  num_envs: 10
   safe: true
   safety_budget: 75
   train_domain_randomization: false
@@ -16,12 +14,12 @@ training:
   wandb_id: 1bfmnt25
 
 agent:
-  min_replay_size: 1000
+  min_replay_size: 5000
   sac_batch_size: 512
-  critic_grad_updates_per_step: 1000
-  model_grad_updates_per_step: 4000
-  learning_rate: 1e-4
-  critic_learning_rate: 1e-4
+  critic_grad_updates_per_step: 40
+  model_grad_updates_per_step: 40
+  learning_rate: 6e-4
+  critic_learning_rate: 3e-4
   model_learning_rate: 6e-4
   pessimism: 0
   optimism: 0

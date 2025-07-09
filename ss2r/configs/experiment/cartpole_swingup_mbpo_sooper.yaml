@@ -2,34 +2,31 @@
 defaults:
   - override /environment: cartpole_swingup
   - override /agent: mbpo
-  - override /agent/data_collection: episodic
   - _self_
 
 training:
-  num_timesteps: 10000
+  num_timesteps: 1000000
   action_repeat: 4
   safe: true
   train_domain_randomization: false
   eval_domain_randomization: false
-  safety_budget: 75
-  num_envs: 1
-  num_evals: 40
+  safety_budget: 100
+  num_envs: 10
+  num_evals: 20
   wandb_id: gaj7zb12
 
 agent:
+  batch_size: 512
+  max_replay_size: 4194304
+  min_replay_size: 8192
   policy_hidden_layer_sizes: [256, 256, 256]
   value_hidden_layer_sizes: [512, 512]
   activation: swish
-  batch_size: 256
-  min_replay_size: 1000
-  max_replay_size: 1048576
-  critic_grad_updates_per_step: 2000
-  model_grad_updates_per_step: 4000
-  num_model_rollouts: 5000
+  critic_grad_updates_per_step: 10
+  model_grad_updates_per_step: 50
   learning_rate: 1e-4
   critic_learning_rate: 1e-4
   model_learning_rate: 3e-4
-  pessimism: 10
-  optimism: 0
-  advantage_threshold: 0.2
+  pessimism: 100
+  optimism: 10
   safety_filter: sooper
