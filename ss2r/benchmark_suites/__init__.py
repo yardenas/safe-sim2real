@@ -22,6 +22,7 @@ from ss2r.benchmark_suites.mujoco_playground.go2_joystick import (
     joystick,
 )
 from ss2r.benchmark_suites.mujoco_playground.humanoid import humanoid as dm_humanoid
+from ss2r.benchmark_suites.mujoco_playground.pick_cartesian import pick_cartesian
 from ss2r.benchmark_suites.mujoco_playground.quadruped import quadruped
 from ss2r.benchmark_suites.mujoco_playground.walker import walker
 from ss2r.benchmark_suites.rccar import rccar
@@ -49,6 +50,11 @@ locomotion.register_environment(
 )
 locomotion.register_environment(
     "Go2Footstand", handstand.Footstand, handstand.default_config
+)
+manipulation.register_environment(
+    "PandaPickCubeCartesianExtended",
+    pick_cartesian.PandaPickCubeCartesian,
+    default_config=pick_cartesian.default_config(),
 )
 
 
@@ -413,6 +419,7 @@ randomization_fns = {
     ),
     "go_to_goal": go_to_goal.domain_randomization,
     "PandaPickCubeCartesian": franka_vision_randomize,
+    "PandaPickCubeCartesianExtended": franka_vision_randomize,
 }
 
 render_fns = {
@@ -465,6 +472,9 @@ render_fns = {
     "AlohaSinglePegInsertion": mujoco_playground.render,
     "AlohaPegInsertionDistill": mujoco_playground.render,
     "PandaPickCubeCartesian": functools.partial(
+        mujoco_playground.render, num_envs=None, camera="front"
+    ),
+    "PandaPickCubeCartesianExtended": functools.partial(
         mujoco_playground.render, num_envs=None, camera="front"
     ),
     "go_to_goal": functools.partial(safety_gym.render, camera="fixedfar"),
