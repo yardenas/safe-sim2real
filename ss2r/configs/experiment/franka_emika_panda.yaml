@@ -5,8 +5,10 @@ defaults:
   - _self_
 
 training:
-  num_timesteps: 1000000
+  num_timesteps: 5000000
   episode_length: 80
+  num_envs: 512
+  num_eval_envs: 512
 
 environment:
   task_params:
@@ -16,3 +18,9 @@ environment:
     box_init_range: 0.1
     action_history_length: 5
     success_threshold: 0.03
+    vision_config:
+      render_batch_size: 512
+
+agent:
+  batch_size: 128
+  discounting: 0.95
