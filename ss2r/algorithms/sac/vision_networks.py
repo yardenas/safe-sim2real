@@ -50,6 +50,7 @@ def make_policy_vision_network(
     activation: ActivationFn = linen.swish,
     state_obs_key: str = "",
     encoder_hidden_dim: int = 50,
+    tanh: bool = True,
 ):
     class Policy(linen.Module):
         @linen.compact
@@ -58,7 +59,8 @@ def make_policy_vision_network(
             hidden = jax.lax.stop_gradient(hidden)
             hidden = linen.Dense(encoder_hidden_dim)(hidden)
             hidden = linen.LayerNorm()(hidden)
-            hidden = jnn.tanh(hidden)
+            if tanh:
+                hidden = jnn.tanh(hidden)
             outs = networks.MLP(
                 layer_sizes=list(hidden_layer_sizes) + [output_size],
                 activation=activation,
@@ -96,6 +98,7 @@ def make_q_vision_network(
     n_heads: int = 1,
     head_size: int = 1,
     encoder_hidden_dim: int = 50,
+    tanh: bool = True,
 ):
     class QModule(linen.Module):
         n_critics: int
@@ -105,7 +108,8 @@ def make_q_vision_network(
             hidden = Encoder(name="SharedEncoder")(obs)
             hidden = linen.Dense(encoder_hidden_dim)(hidden)
             hidden = linen.LayerNorm()(hidden)
-            hidden = jnn.tanh(hidden)
+            if tanh:
+                hidden = jnn.tanh(hidden)
             hidden = jnp.concatenate([hidden, actions], axis=-1)
             res = []
             net = BroNet if use_bro else MLP
@@ -151,6 +155,7 @@ def make_sac_vision_networks(
     n_critics: int = 2,
     n_heads: int = 1,
     encoder_hidden_dim: int = 50,
+    tanh: bool = True,
     *,
     safe: bool = False,
 ) -> SafeSACNetworks:
@@ -166,6 +171,7 @@ def make_sac_vision_networks(
         activation=activation,
         state_obs_key=state_obs_key,
         encoder_hidden_dim=encoder_hidden_dim,
+        tanh=tanh,
     )
     qr_network = make_q_vision_network(
         observation_size=observation_size,
@@ -176,6 +182,8 @@ def make_sac_vision_networks(
         use_bro=use_bro,
         n_critics=n_critics,
         n_heads=n_heads,
+        encoder_hidden_dim=encoder_hidden_dim,
+        tanh=tanh,
     )
     if safe:
         qc_network = make_q_vision_network(
@@ -187,6 +195,8 @@ def make_sac_vision_networks(
             use_bro=use_bro,
             n_critics=n_critics,
             n_heads=n_heads,
+            encoder_hidden_dim=encoder_hidden_dim,
+            tanh=tanh,
         )
         old_apply = qc_network.apply
         qc_network.apply = lambda *args, **kwargs: jnn.softplus(

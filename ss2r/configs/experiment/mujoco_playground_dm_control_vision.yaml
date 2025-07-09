@@ -29,3 +29,4 @@ agent:
   augment_pixels: true
   use_vision: true
   encoder_hidden_dim: 50
+  tanh: true
