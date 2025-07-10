@@ -25,3 +25,4 @@ agent:
   batch_size: 128
   discounting: 0.95
   encoder_hidden_dim: 128
+  policy_hidden_layer_sizes: [128, 128]
