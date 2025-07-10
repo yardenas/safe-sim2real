@@ -27,5 +27,4 @@ agent:
   discounting: 0.95
   encoder_hidden_dim: 128
   policy_hidden_layer_sizes: [128, 128, 128]
-  activation: swish
   grad_updates_per_step: 64
