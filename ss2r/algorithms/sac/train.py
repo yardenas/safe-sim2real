@@ -159,6 +159,7 @@ def train(
     alpha_learning_rate: float = 3e-4,
     init_alpha: float = 1.0,
     min_alpha: float = 0.0,
+    target_entropy: float | None = None,
     discounting: float = 0.9,
     safety_discounting: float = 0.9,
     seed: int = 0,
@@ -372,6 +373,7 @@ def train(
         safety_discounting=safety_discounting,
         action_size=action_size,
         use_bro=use_bro,
+        target_entropy=target_entropy,
     )
     alpha_update = (
         gradients.gradient_update_fn(  # pytype: disable=wrong-arg-types  # jax-ndarray
