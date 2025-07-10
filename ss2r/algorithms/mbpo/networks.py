@@ -66,16 +66,12 @@ def make_world_model_ensemble(
     activation: networks.ActivationFn = linen.swish,
     obs_key: str = "state",
 ) -> networks.FeedForwardNetwork:
-    """Creates a model network."""
-
     # Convert obs_size to integer if it's a shape tuple
     if isinstance(obs_size, (tuple, list)):
         obs_size = obs_size[0] if len(obs_size) == 1 else sum(obs_size)
     obs_size = int(obs_size)
 
     class MModule(linen.Module):
-        """M Module."""
-
         obs_size: int
 
         @linen.compact
@@ -138,7 +134,6 @@ def make_mbpo_networks(
     n_heads: int = 1,
     safe: bool = False,
 ) -> MBPONetworks:
-    """Make SAC networks."""
     parametric_action_distribution = distribution.NormalTanhDistribution(
         event_size=action_size
     )
