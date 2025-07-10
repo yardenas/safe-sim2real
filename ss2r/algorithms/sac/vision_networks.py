@@ -18,6 +18,7 @@ class Encoder(linen.Module):
     features: Sequence[int] = (32, 64, 128, 256)
     strides: Sequence[int] = (2, 2, 2, 2)
     padding: str = "SAME"
+    activation: ActivationFn = jnn.relu
 
     @linen.compact
     def __call__(self, data) -> jnp.ndarray:
@@ -32,7 +33,7 @@ class Encoder(linen.Module):
                     kernel_init=jnn.initializers.orthogonal(jnp.sqrt(2)),
                     padding=self.padding,
                 )(x)
-                x = jnn.relu(x)
+                x = self.activation(x)
 
             if len(x.shape) == 4:
                 x = x.reshape([x.shape[0], -1])
@@ -55,7 +56,7 @@ def make_policy_vision_network(
     class Policy(linen.Module):
         @linen.compact
         def __call__(self, obs):
-            hidden = Encoder(name="SharedEncoder")(obs)
+            hidden = Encoder(name="SharedEncoder", activation=activation)(obs)
             hidden = jax.lax.stop_gradient(hidden)
             hidden = linen.Dense(encoder_hidden_dim)(hidden)
             hidden = linen.LayerNorm()(hidden)
@@ -105,7 +106,7 @@ def make_q_vision_network(
 
         @linen.compact
         def __call__(self, obs, actions):
-            hidden = Encoder(name="SharedEncoder")(obs)
+            hidden = Encoder(name="SharedEncoder", activation=activation)(obs)
             hidden = linen.Dense(encoder_hidden_dim)(hidden)
             hidden = linen.LayerNorm()(hidden)
             if tanh:
