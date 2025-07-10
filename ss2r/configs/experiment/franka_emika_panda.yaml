@@ -13,7 +13,6 @@ training:
 environment:
   task_params:
     episode_length: 80
-    ctrl_dt: 0.1
     obs_noise:
       brightness: [0.75, 2.0]
     box_init_range: 0.1
