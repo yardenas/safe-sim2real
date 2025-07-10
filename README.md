@@ -41,6 +41,11 @@ poetry install
 poetry shell
 ```
 
+Note: if you are working on a machine without a CUDA-enabled GPU, install the CPU-only version:
+```bash
+poetry install --without cuda
+```
+
 ## Usage 🧪
 
 Our code uses [Hydra](https://hydra.cc/) to configure experiments. Each experiment is defined as a `yaml` file in `ss2r/configs/experiments`. For example, to train a Unitree Go1 policy with a constraint on joint limit:
