@@ -13,6 +13,7 @@ training:
 environment:
   task_params:
     episode_length: 80
+    ctrl_dt: 0.1
     obs_noise:
       brightness: [0.75, 2.0]
     box_init_range: 0.1
@@ -25,5 +26,5 @@ agent:
   batch_size: 128
   discounting: 0.95
   encoder_hidden_dim: 128
-  policy_hidden_layer_sizes: [128, 128]
+  policy_hidden_layer_sizes: [128, 128, 128]
   activation: swish
