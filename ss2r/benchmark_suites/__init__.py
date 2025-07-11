@@ -5,6 +5,9 @@ import jax
 import jax.numpy as jnp
 from brax import envs
 from mujoco_playground import locomotion, manipulation
+from mujoco_playground._src.manipulation.franka_emika_panda.randomize_vision import (
+    domain_randomize as franka_vision_randomize,
+)
 
 from ss2r.algorithms.mbpo.wrappers import TrackOnlineCostsInObservation
 from ss2r.benchmark_suites import brax, mujoco_playground, safety_gym
@@ -19,6 +22,7 @@ from ss2r.benchmark_suites.mujoco_playground.go2_joystick import (
     joystick,
 )
 from ss2r.benchmark_suites.mujoco_playground.humanoid import humanoid as dm_humanoid
+from ss2r.benchmark_suites.mujoco_playground.pick_cartesian import pick_cartesian
 from ss2r.benchmark_suites.mujoco_playground.quadruped import quadruped
 from ss2r.benchmark_suites.mujoco_playground.walker import walker
 from ss2r.benchmark_suites.rccar import rccar
@@ -46,6 +50,11 @@ locomotion.register_environment(
 )
 locomotion.register_environment(
     "Go2Footstand", handstand.Footstand, handstand.default_config
+)
+manipulation.register_environment(
+    "PandaPickCubeCartesianExtended",
+    pick_cartesian.PandaPickCubeCartesian,
+    pick_cartesian.default_config(),
 )
 
 
@@ -276,13 +285,21 @@ def make_mujoco_playground_envs(cfg, train_wrap_env_fn, eval_wrap_env_fn):
     train_env = registry.load(task_cfg.task_name, config=task_params)
     train_env = train_wrap_env_fn(train_env)
     train_key, eval_key = jax.random.split(jax.random.PRNGKey(cfg.training.seed))
-    train_randomization_fn = (
-        prepare_randomization_fn(
-            train_key, cfg.training.num_envs, task_cfg.train_params, task_cfg.task_name
+    if vision and cfg.training.train_domain_randomization:
+        train_randomization_fn = functools.partial(
+            randomization_fns[task_cfg.task_name], num_worlds=cfg.training.num_envs
         )
-        if cfg.training.train_domain_randomization
-        else None
-    )
+    else:
+        train_randomization_fn = (
+            prepare_randomization_fn(
+                train_key,
+                cfg.training.num_envs,
+                task_cfg.train_params,
+                task_cfg.task_name,
+            )
+            if cfg.training.train_domain_randomization
+            else None
+        )
     train_env = wrap_for_brax_training(
         train_env,
         randomization_fn=train_randomization_fn,
@@ -401,6 +418,8 @@ randomization_fns = {
         "AlohaSinglePegInsertion"
     ),
     "go_to_goal": go_to_goal.domain_randomization,
+    "PandaPickCubeCartesian": franka_vision_randomize,
+    "PandaPickCubeCartesianExtended": franka_vision_randomize,
 }
 
 render_fns = {
@@ -452,5 +471,11 @@ render_fns = {
     "SafeHumanoidWalk": mujoco_playground.render,
     "AlohaSinglePegInsertion": mujoco_playground.render,
     "AlohaPegInsertionDistill": mujoco_playground.render,
+    "PandaPickCubeCartesian": functools.partial(
+        mujoco_playground.render, num_envs=None, camera="front"
+    ),
+    "PandaPickCubeCartesianExtended": functools.partial(
+        mujoco_playground.render, num_envs=None, camera="front"
+    ),
     "go_to_goal": functools.partial(safety_gym.render, camera="fixedfar"),
 }

@@ -159,6 +159,7 @@ def train(
     alpha_learning_rate: float = 3e-4,
     init_alpha: float = 1.0,
     min_alpha: float = 0.0,
+    target_entropy: float | None = None,
     discounting: float = 0.9,
     safety_discounting: float = 0.9,
     seed: int = 0,
@@ -242,6 +243,11 @@ def train(
         env = wrap_env_fn(env)
     rng = jax.random.PRNGKey(seed)
     obs_size = env.observation_size
+    if isinstance(obs_size, Mapping):
+        for key, value in obs_size.items():
+            if key.startswith("pixels/") and len(value) > 3 and value[0] == 1:
+                value = value[1:]
+                obs_size[key] = value  # type: ignore
     action_size = env.action_size
     normalize_fn = lambda x, y: x
     if normalize_observations:
@@ -367,6 +373,7 @@ def train(
         safety_discounting=safety_discounting,
         action_size=action_size,
         use_bro=use_bro,
+        target_entropy=target_entropy,
     )
     alpha_update = (
         gradients.gradient_update_fn(  # pytype: disable=wrong-arg-types  # jax-ndarray
@@ -457,10 +464,13 @@ def train(
             cost_metrics = {}
             qc_params = None
             qc_optimizer_state = None
-
+        if augment_pixels:
+            encoder_params = qr_params["params"]["SharedEncoder"]
+            policy_params = training_state.policy_params.copy()
+            policy_params["params"]["SharedEncoder"] = encoder_params
         # TODO (yarden): try to make it faster with cond later
         (actor_loss, aux), new_policy_params, new_policy_optimizer_state = actor_update(
-            training_state.policy_params,
+            policy_params,
             training_state.normalizer_params,
             training_state.qr_params,
             training_state.qc_params,
@@ -471,7 +481,7 @@ def train(
             penalizer,
             training_state.penalizer_params,
             optimizer_state=training_state.policy_optimizer_state,
-            params=training_state.policy_params,
+            params=policy_params,
         )
         should_update_actor = count % num_critic_updates_per_actor_update == 0
         update_if_needed = lambda x, y: jnp.where(should_update_actor, x, y)

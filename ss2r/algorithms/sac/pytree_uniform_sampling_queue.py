@@ -27,7 +27,7 @@ class PytreeUniformSamplingQueue(ReplayBuffer[PytreeReplayBufferState, Transitio
         dummy_data_sample: Transition,
         sample_batch_size: int,
         *,
-        store_pixels_in_cpu: bool = True,
+        store_pixels_in_cpu: bool = False,
     ):
         # Create per-field data arrays with shapes [max_replay_size, ...]
         self._data_template = jax.tree_util.tree_map(
