@@ -27,6 +27,7 @@ from ss2r.benchmark_suites.utils import get_domain_name, get_task_config
 from ss2r.benchmark_suites.wrappers import (
     Saute,
     SPiDR,
+    Walker_Observation_Wrapper,
     wrap,
 )
 
@@ -50,8 +51,21 @@ locomotion.register_environment(
 
 
 def get_wrap_env_fn(cfg):
-    if "propagation" not in cfg.agent:
+    if (
+        cfg.environment.task_name == "SafeWalkerWalk"
+        or cfg.environment.task_name == "SafeWalkerRun"
+    ):
+
+        def wrap_fn(env):
+            env = Walker_Observation_Wrapper(env)
+            return env
+
+        out = wrap_fn, wrap_fn
+    else:
         out = lambda env: env, lambda env: env
+
+    if "propagation" not in cfg.agent:
+        out = out[0], out[1]  # No propagation, return identity functions
     elif cfg.agent.propagation.name == "spidr":
 
         def fn(env):
@@ -105,14 +119,16 @@ def get_wrap_env_fn(cfg):
     if cfg.agent.name == "mbpo" and cfg.training.safe:
 
         def safe_mbpo_train(env):
+            env = out[0](env)
             env = TrackOnlineCostsInObservation(env)
             return env
 
         def safe_mbpo_eval(env):
+            env = out[1](env)
             env = TrackOnlineCostsInObservation(env)
             return env
 
-        out = safe_mbpo_train, safe_mbpo_eval
+        return safe_mbpo_train, safe_mbpo_eval
 
     return out
 

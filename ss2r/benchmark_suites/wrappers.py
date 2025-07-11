@@ -385,3 +385,157 @@ class Saute(Wrapper):
             reward=saute_reward,
         )
         return nstate
+
+
+class Walker_Observation_Wrapper(Wrapper):
+    """Wrapper that filters Walker observations to keep only specified indices."""
+
+    def __init__(self, env):
+        """Initialize the wrapper with pre-determined indices to keep."""
+        super().__init__(env)
+
+        # Pre-determined indices to keep
+        self.keep_indices = jp.array(
+            [
+                0,
+                2,
+                3,
+                5,
+                6,
+                8,
+                9,
+                11,
+                12,
+                14,
+                15,
+                17,
+                18,
+                20,
+                21,
+                23,
+                24,
+                26,
+                27,
+                29,
+                30,
+                32,
+                33,
+                35,
+                36,
+                38,
+                39,
+                41,
+                42,
+                44,
+                45,
+                47,
+                48,
+                50,
+                51,
+                53,
+                54,
+                56,
+                57,
+                59,
+                60,
+                62,
+                63,
+                65,
+                66,
+                68,
+                69,
+                71,
+                72,
+                74,
+                75,
+                77,
+                78,
+                80,
+                81,
+                83,
+                84,
+                85,
+                86,
+                87,
+                88,
+                89,
+                90,
+                91,
+                92,
+                93,
+            ],
+            dtype=jp.int32,
+        )
+
+        print(
+            f"Walker observation wrapper: keeping {len(self.keep_indices)} out of {self.env.observation_size} dimensions"
+        )
+
+    def _filter_obs(self, obs):
+        """Filter observation to keep only the specified indices."""
+        if isinstance(obs, jax.Array):
+            return jp.take(obs, self.keep_indices, axis=-1)
+        else:
+            # Handle dictionary observations
+            filtered_obs = {}
+            for k, v in obs.items():
+                if k == "state":
+                    filtered_obs[k] = jp.take(v, self.keep_indices, axis=-1)
+                elif k == "privileged_state":
+                    # For privileged state, only filter the base state portion
+                    base_obs_size = 94  # Based on the full size of the walker obs
+                    if len(v.shape) > 1:
+                        # Handle batched observations
+                        filtered_obs[k] = jp.concatenate(
+                            [
+                                jp.take(
+                                    v[..., :base_obs_size], self.keep_indices, axis=-1
+                                ),
+                                v[..., base_obs_size:],
+                            ],
+                            axis=-1,
+                        )
+                    else:
+                        filtered_obs[k] = jp.concatenate(
+                            [
+                                jp.take(v[:base_obs_size], self.keep_indices),
+                                v[base_obs_size:],
+                            ]
+                        )
+                else:
+                    # Keep other observations unchanged
+                    filtered_obs[k] = v
+            return filtered_obs
+
+    def reset(self, rng):
+        """Reset the environment and filter the observation."""
+        state = self.env.reset(rng)
+        filtered_obs = self._filter_obs(state.obs)
+        return state.replace(obs=filtered_obs)
+
+    def step(self, state, action):
+        """Step the environment and filter the observation."""
+        next_state = self.env.step(state, action)
+        filtered_obs = self._filter_obs(next_state.obs)
+        return next_state.replace(obs=filtered_obs)
+
+    @property
+    def observation_size(self):
+        """Return the size of the filtered observation."""
+        orig_size = self.env.observation_size
+        if isinstance(orig_size, int):
+            return len(self.keep_indices)
+        else:
+            # Handle dictionary observations
+            sizes = {}
+            for k, v in orig_size.items():
+                if k == "state":
+                    sizes[k] = len(self.keep_indices)
+                elif k == "privileged_state":
+                    # For privileged state, only the base part is filtered
+                    base_size = 94  # Size of the full walker observation
+                    extra_size = v - base_size if v > base_size else 0
+                    sizes[k] = len(self.keep_indices) + extra_size
+                else:
+                    sizes[k] = v
+            return sizes
