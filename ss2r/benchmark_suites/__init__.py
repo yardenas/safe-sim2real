@@ -70,6 +70,7 @@ def get_wrap_env_fn(cfg):
 
         def fn(env):
             key = jax.random.PRNGKey(cfg.training.seed)
+            env = out[0](env)
             env = SPiDR(
                 env,
                 prepare_randomization_fn(
@@ -84,7 +85,7 @@ def get_wrap_env_fn(cfg):
             )
             return env
 
-        out = fn, lambda env: env
+        return fn, lambda env: out[1](env)
     else:
         raise ValueError("Propagation method not provided.")
     if "penalizer" in cfg.agent and cfg.agent.penalizer.name == "saute":
