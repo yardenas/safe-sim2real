@@ -321,6 +321,13 @@ def train(
             ts_normalizer_params = get_dict_normalizer_params(
                 params, ts_normalizer_params
             )
+            # Filter too small standard deviations
+            ts_normalizer_params = ts_normalizer_params.replace(
+                std={
+                    k: jnp.where(v < 1e-3, 1e-3, v)
+                    for k, v in ts_normalizer_params.std.items()
+                }
+            )
         else:
             ts_normalizer_params = params[0]
         training_state = training_state.replace(  # type: ignore
