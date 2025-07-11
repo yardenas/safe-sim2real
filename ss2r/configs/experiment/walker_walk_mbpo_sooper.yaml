@@ -6,7 +6,7 @@ defaults:
   - _self_
 
 training:
-  num_timesteps: 1000000
+  num_timesteps: 10000
   num_envs: 1
   num_evals: 20
   train_domain_randomization: false
