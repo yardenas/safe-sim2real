@@ -12,8 +12,8 @@
 6. Load cmake `module load cmake/3.27.7`
 7. Point to cuda CMAKE witout loading cuda `export CMAKE_PREFIX_PATH="/cluster/software/stacks/2024-06/spack/opt/spack/linux-ubuntu22.04-x86_64_v3/gcc-12.2.0/cuda-12.1.1-5znnrjb5x5xr26nojxp3yhh6v77il7ie/:${CMAKE_PREFIX_PATH}"`
 8. Activate the poetry environment: `eval $(poetry env activate)`
-8. `mkdir build && cd build && cmake -DLOAD_VULKAN=OFF .. && cd ..`
-9. Compile on a compute node ` srun --ntasks=1 --cpus-per-task=20 --gpus=rtx_4090:1 --time=0:30:00 --mem-per-cpu=10240 make -j`
-10. Change back to the root of the safe-sim2real repository: `cd .. && cd safe-sim2real`
-11. `poetry install --with madrona-mjx`
+9. `mkdir build && cd build && cmake -DLOAD_VULKAN=OFF .. && cd ..`
+10. Compile on a compute node ` srun --ntasks=1 --cpus-per-task=20 --gpus=rtx_4090:1 --time=0:30:00 --mem-per-cpu=10240 make -j`
+11. Change back to the root of the safe-sim2real repository: `cd .. && cd safe-sim2real`
+12. `poetry install --with madrona-mjx`
 13. Test `srun --ntasks=1 --cpus-per-task=20 --gpus=rtx_4090:1 --time=0:30:00 --mem-per-cpu=10240 python train_brax.py +experiment=cartpole_vision`
