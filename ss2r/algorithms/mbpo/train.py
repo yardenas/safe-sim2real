@@ -315,6 +315,18 @@ def train(
     local_key, model_rb_key, actor_critic_rb_key, env_key, eval_key = jax.random.split(
         local_key, 5
     )
+    model_replay_buffer = replay_buffers.UniformSamplingQueue(
+        max_replay_size=max_replay_size,
+        dummy_data_sample=dummy_transition,
+        sample_batch_size=batch_size * model_grad_updates_per_step,
+    )
+    sac_replay_buffer = replay_buffers.UniformSamplingQueue(
+        max_replay_size=max_replay_size,
+        dummy_data_sample=dummy_transition,
+        sample_batch_size=sac_batch_size * critic_grad_updates_per_step,
+    )
+    model_buffer_state = model_replay_buffer.init(model_rb_key)
+    sac_buffer_state = sac_replay_buffer.init(actor_critic_rb_key)
     if restore_checkpoint_path is not None:
         params = checkpoint.load(restore_checkpoint_path)
         ts_normalizer_params = training_state.normalizer_params
@@ -333,6 +345,8 @@ def train(
             behavior_qc_params=params[4] if safe else None,
             backup_qc_params=params[4] if safe else None,
         )
+        if offline:
+            model_buffer_state = params[-1]
     make_planning_policy = mbpo_networks.make_inference_fn(mbpo_network)
     make_rollout_policy, get_rollout_policy_params = safety_filters.make(
         safety_filter if safe else None,
@@ -341,18 +355,6 @@ def train(
         advantage_threshold if safety_filter == "advantage" else safety_budget,
         budget_scaling_fn,
     )
-    model_replay_buffer = replay_buffers.UniformSamplingQueue(
-        max_replay_size=max_replay_size,
-        dummy_data_sample=dummy_transition,
-        sample_batch_size=batch_size * model_grad_updates_per_step,
-    )
-    sac_replay_buffer = replay_buffers.UniformSamplingQueue(
-        max_replay_size=max_replay_size,
-        dummy_data_sample=dummy_transition,
-        sample_batch_size=sac_batch_size * critic_grad_updates_per_step,
-    )
-    model_buffer_state = model_replay_buffer.init(model_rb_key)
-    sac_buffer_state = sac_replay_buffer.init(actor_critic_rb_key)
     alpha_loss, critic_loss, actor_loss, model_loss = mbpo_losses.make_losses(
         mbpo_network=mbpo_network,
         reward_scaling=reward_scaling,
