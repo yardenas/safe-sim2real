@@ -18,10 +18,7 @@ def _get_replay_buffer(cfg):
     if "replay_buffer" not in cfg.agent:
         return UniformSamplingQueue
     elif cfg.agent.replay_buffer.name == "pytree":
-        return functools.partial(
-            PytreeUniformSamplingQueue,
-            store_pixels_in_cpu=cfg.agent.replay_buffer.store_pixels_in_cpu,
-        )
+        return PytreeUniformSamplingQueue
     elif cfg.agent.replay_buffer.name == "rae":
         return functools.partial(
             RAEReplayBuffer,
