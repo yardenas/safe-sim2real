@@ -8,8 +8,9 @@ import tensorflow as tf
 import tf2onnx
 
 import ss2r.algorithms.sac.networks as sac_networks
+from ss2r.algorithms.sac import franka_sac_to_onnx
 from ss2r.algorithms.sac.franka_sac_to_onnx import make_policy_network
-from ss2r.algorithms.sac.vision_networks import make_policy_vision_network
+from ss2r.algorithms.sac.vision_networks import make_sac_vision_networks
 
 
 def test_policy_to_onnx_export():
@@ -24,23 +25,25 @@ def test_policy_to_onnx_export():
     obs_shape = (64, 64, 3)  # shape for each image input
     batch_size = 1
     # Dummy observation with a single pixel input
-    obs = {"pixels/view_0": np.ones((batch_size,) + obs_shape, dtype=tf.float32)}
-
-    policy_network = make_policy_vision_network(
+    obs = {"pixels/view_0": np.ones((batch_size,) + obs_shape, dtype=np.float32)}
+    sac_network = make_sac_vision_networks(
         observation_size={"pixels/view_0": obs_shape},
-        output_size=act_size,
-        hidden_layer_sizes=cfg.agent.policy_hidden_layer_sizes,
+        action_size=act_size,
+        policy_hidden_layer_sizes=cfg.agent.policy_hidden_layer_sizes,
         encoder_hidden_dim=cfg.agent.encoder_hidden_dim,
         activation=tf.nn.swish,
         tanh=True,
     )
-    params = sac_networks.policy_network.init(jax.random.PRNGKey(0), policy_network)
-    make_inference_fn = sac_networks.make_inference_fn(policy_network)
-    inference_fn = make_inference_fn(params, deterministic=True)
+    params = sac_network.policy_network.init(jax.random.PRNGKey(0))
+    make_inference_fn = sac_networks.make_inference_fn(sac_network)
+    dummy_normalizer_params = None
+    inference_fn = make_inference_fn(
+        (dummy_normalizer_params, params), deterministic=True
+    )
 
     # Create model
     tf_model = make_policy_network(
-        output_size=act_size,
+        action_size=act_size,
         hidden_layer_sizes=cfg.agent.policy_hidden_layer_sizes,
         encoder_hidden_dim=cfg.agent.encoder_hidden_dim,
         activation=tf.nn.swish,
@@ -48,10 +51,13 @@ def test_policy_to_onnx_export():
     )
 
     # Run a forward pass
+    tf_model(obs).numpy()[0]
+    franka_sac_to_onnx.transfer_weights(params["params"], tf_model)
     tensorflow_pred = tf_model(obs).numpy()[0]
     print("TF prediction:", tensorflow_pred)
     # Convert to ONNX
-    onnx_model, _ = tf2onnx.convert.from_keras(
+    tf_model.output_names = ["continuous_actions"]
+    tf2onnx.convert.from_keras(
         tf_model,
         input_signature=[
             {
@@ -67,7 +73,7 @@ def test_policy_to_onnx_export():
     sess = rt.InferenceSession("temp.onnx", providers=["CPUExecutionProvider"])
     onnx_pred = sess.run(["continuous_actions"], obs)[0][0]
     print("ONNX prediction:", onnx_pred)
-    jax_pred, _ = inference_fn(obs, jax.random.PRNGKey(0))
+    jax_pred = inference_fn(obs, jax.random.PRNGKey(0))[0][0]
     print("JAX prediction:", jax_pred)
     # Plot comparison
     plt.plot(onnx_pred[:act_size], label="onnx")

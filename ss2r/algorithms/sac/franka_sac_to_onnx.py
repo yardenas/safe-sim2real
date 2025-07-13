@@ -14,7 +14,7 @@ except ImportError:
     logging.warning("TensorFlow is not installed. Skipping conversion to ONNX.")
 
 
-class Encoder(tf.keras.layers.Layer):
+class Encoder(tf.keras.Model):
     def __init__(
         self,
         features=(32, 64, 128, 256),
@@ -27,30 +27,29 @@ class Encoder(tf.keras.layers.Layer):
         self.features = features
         self.strides = strides
         self.padding = padding
-        self.conv_layers = []
+        self.conv_block = tf.keras.Sequential(name="CNN_0")
 
         for i, (f, s) in enumerate(zip(features, strides)):
-            self.conv_layers.append(
-                layers.Conv2D(
-                    filters=f,
-                    kernel_size=3,
-                    strides=s,
-                    padding=padding,
-                    kernel_initializer=tf.keras.initializers.Orthogonal(
-                        gain=tf.sqrt(2.0)
-                    ),
-                    activation="relu",
-                    name=f"conv_{i}",
-                )
+            layer = layers.Conv2D(
+                filters=f,
+                kernel_size=3,
+                strides=s,
+                padding=padding,
+                kernel_initializer=tf.keras.initializers.Orthogonal(gain=tf.sqrt(2.0)),
+                activation="relu",
+                name=f"Conv_{i}",
             )
+            self.conv_block.add(layer)
 
     def call(self, data):
         cnn_outs = []
         for key, x in data.items():
             if key.startswith("pixels/"):
-                for conv in self.conv_layers:
-                    x = conv(x)
-                x = tf.reshape(x, [tf.shape(x)[0], -1])
+                x = self.conv_block(x)
+                if len(x.shape) == 4:
+                    x = tf.reshape(x, [x.shape[0], -1])
+                else:
+                    x = tf.reshape(x, [-1])
                 cnn_outs.append(x)
         return tf.concat(cnn_outs, axis=-1)
 
@@ -58,7 +57,7 @@ class Encoder(tf.keras.layers.Layer):
 class Policy(tf.keras.Model):
     def __init__(
         self,
-        output_size,
+        action_size,
         encoder_hidden_dim=50,
         hidden_layer_sizes=(256, 256),
         activation=tf.nn.swish,
@@ -71,12 +70,11 @@ class Policy(tf.keras.Model):
         self.encoder_norm = layers.LayerNormalization(name="encoder_norm")
         self.use_tanh = tanh
         self.tanh = tf.nn.tanh if tanh else lambda x: x
-
         self.mlp = MLP(  # Assuming your previously defined MLP class is available
-            layer_sizes=list(hidden_layer_sizes) + [output_size],
+            layer_sizes=list(hidden_layer_sizes) + [action_size * 2],
             activation=activation,
-            activate_final=True,
         )
+        self.submodules = [self.encoder, self.encoder_dense, self.mlp]
 
     def call(self, obs):
         hidden = self.encoder(obs)
@@ -87,14 +85,14 @@ class Policy(tf.keras.Model):
 
 
 def make_policy_network(
-    output_size,
+    action_size,
     hidden_layer_sizes=(256, 256),
     activation=tf.nn.swish,
     encoder_hidden_dim: int = 50,
     tanh: bool = True,
 ):
     return Policy(
-        output_size=output_size,
+        action_size=action_size,
         encoder_hidden_dim=encoder_hidden_dim,
         hidden_layer_sizes=hidden_layer_sizes,
         activation=activation,
@@ -126,10 +124,30 @@ def transfer_weights(jax_params, tf_model):
     - tf_model: tf.keras.Model
       An instance of the adapted VisionMLP model containing named submodules and layers.
     """
-    for tf_layer_name in ["MLP_0", "SharedEncoder", "encoder_dense", "encoder_norm"]:
-        for layer_name, layer_params in jax_params.items():
+    tf_inner_module_names = {
+        "mlp": "MLP_0",
+        "SharedEncoder": "CNN_0",
+        "encoder_dense": "Dense_0",
+    }
+    tf_to_jax_module = {
+        "mlp": "MLP_0",
+        "SharedEncoder": "SharedEncoder",
+        "encoder_dense": "Dense_0",
+    }
+    for module_name, inner_module_name in tf_inner_module_names.items():
+        for layer_name, layer_params in jax_params[
+            tf_to_jax_module[module_name]
+        ].items():
             try:
-                tf_layer = tf_model.get_layer(tf_layer_name).get_layer(name=layer_name)
+                if inner_module_name == "Dense_0":
+                    tf_layer = tf_model.get_layer(module_name)
+                    layer_params = jax_params[tf_to_jax_module[module_name]]
+                else:
+                    tf_layer = (
+                        tf_model.get_layer(module_name)
+                        .get_layer(inner_module_name)
+                        .get_layer(name=layer_name)
+                    )
             except ValueError:
                 print(f"Layer {layer_name} not found in TensorFlow model.")
                 continue
@@ -159,7 +177,7 @@ def convert_policy_to_onnx(params, cfg, act_size, obs_size):
     """
     # Define the TF policy network
     tf_policy_network = make_policy_network(
-        param_size=act_size * 2,
+        action_size=act_size,
         hidden_layer_sizes=cfg.agent.policy_hidden_layer_sizes,
         activation=tf.nn.swish,
         encoder_hidden_dim=cfg.agent.encoder_hidden_dim,
