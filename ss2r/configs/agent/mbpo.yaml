@@ -46,3 +46,4 @@ model_propagation: random
 use_termination: true
 safety_filter: null
 advantage_threshold: 0.2
+offline: false
