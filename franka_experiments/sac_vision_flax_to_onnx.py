@@ -66,11 +66,11 @@ def test_policy_to_onnx_export():
                 )
             }
         ],
-        output_path="temp.onnx",
+        output_path="model.onnx",
         opset=11,
     )
     # Load ONNX model
-    sess = rt.InferenceSession("temp.onnx", providers=["CPUExecutionProvider"])
+    sess = rt.InferenceSession("model.onnx", providers=["CPUExecutionProvider"])
     onnx_pred = sess.run(["continuous_actions"], obs)[0][0]
     print("ONNX prediction:", onnx_pred)
     jax_pred = inference_fn(obs, jax.random.PRNGKey(0))[0][0]
