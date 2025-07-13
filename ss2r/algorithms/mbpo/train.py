@@ -203,6 +203,7 @@ def train(
     use_termination: bool = True,
     safety_filter: str | None = None,
     advantage_threshold: float = 0.2,
+    offline: bool = False,
 ):
     if min_replay_size >= num_timesteps:
         raise ValueError(
@@ -441,6 +442,7 @@ def train(
         penalizer,
         safety_budget,
         safety_filter,
+        offline,
     )
 
     def prefill_replay_buffer(
@@ -605,9 +607,10 @@ def train(
     # Create and initialize the replay buffer.
     t = time.time()
     prefill_key, local_key = jax.random.split(local_key)
-    training_state, env_state, model_buffer_state, _ = prefill_replay_buffer(
-        training_state, env_state, model_buffer_state, prefill_key
-    )
+    if not offline:
+        training_state, env_state, model_buffer_state, _ = prefill_replay_buffer(
+            training_state, env_state, model_buffer_state, prefill_key
+        )
     replay_size = jnp.sum(model_replay_buffer.size(model_buffer_state))
     logging.info("replay size after prefill %s", replay_size)
     assert replay_size >= min_replay_size
