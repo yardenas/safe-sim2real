@@ -13,7 +13,7 @@ training:
   eval_domain_randomization: false
   safe: true
   safety_budget: 100.
-  wandb_id: e5sc9nay
+  wandb_id: nou9v0dc
   
 agent:
   policy_hidden_layer_sizes: [256, 256, 256]
