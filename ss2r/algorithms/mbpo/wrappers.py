@@ -3,6 +3,10 @@ from typing import Mapping
 import jax
 import jax.numpy as jnp
 from brax.envs import State, Wrapper
+from brax.training.agents.sac import checkpoint
+
+from ss2r.algorithms.sac.vision_networks import Encoder
+from ss2r.common.wandb import get_wandb_checkpoint
 
 
 class TrackOnlineCostsInObservation(Wrapper):
@@ -50,3 +54,31 @@ class TrackOnlineCostsInObservation(Wrapper):
         next_cumulative_cost = cumulative_cost + cost
         next_state = self.augment_obs(next_state, next_cumulative_cost)
         return next_state
+
+
+class VisionWrapper(Wrapper):
+    def __init__(self, env, wandb_id, wandb_entity):
+        super().__init__(env)
+        checkpoint_path = get_wandb_checkpoint(wandb_id, wandb_entity)
+        params = checkpoint.load(checkpoint_path)
+        self.frozen_encoder_params = {"params": params[3]["params"]["SharedEncoder"]}
+        self.encoder = Encoder()
+
+    def reset(self, rng):
+        state = super().reset(rng)
+        return self._handle_state(state)
+
+    def step(self, state, action):
+        state = super().step(state, action)
+        return self._handle_state(state)
+
+    def _handle_state(self, state):
+        assert isinstance(state.obs, Mapping)
+        latents = {
+            f"latents/{k}": self.encoder.apply(self.frozen_encoder_params, v)
+            for k, v in state.obs.items()
+            if k.startswith("pixels/")
+        }
+        new_obs = state.obs | latents
+        state = state.replace(obs=new_obs)
+        return state
