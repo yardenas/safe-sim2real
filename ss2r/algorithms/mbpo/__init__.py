@@ -55,7 +55,8 @@ def get_train_fn(cfg, checkpoint_path, restore_checkpoint_path):
             activation=activation,
             encoder_hidden_dim=agent_cfg["encoder_hidden_dim"],
             tanh=agent_cfg["tanh"],
-            # TODO (yarden): currently only use latents
+            # TODO (yarden): currently only use latents.
+            # Make sure to disable normalizing the latents.
             use_latents=True,
         )
         del (
