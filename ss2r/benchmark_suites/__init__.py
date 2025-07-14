@@ -9,7 +9,7 @@ from mujoco_playground._src.manipulation.franka_emika_panda.randomize_vision imp
     domain_randomize as franka_vision_randomize,
 )
 
-from ss2r.algorithms.mbpo.wrappers import TrackOnlineCostsInObservation
+from ss2r.algorithms.mbpo.wrappers import TrackOnlineCostsInObservation, VisionWrapper
 from ss2r.benchmark_suites import brax, mujoco_playground, safety_gym
 from ss2r.benchmark_suites.brax.ant import ant
 from ss2r.benchmark_suites.brax.cartpole import cartpole
@@ -122,6 +122,17 @@ def get_wrap_env_fn(cfg):
             return env
 
         out = safe_mbpo_train, safe_mbpo_eval
+    if cfg.agent.name == "mbpo" and "use_vision" in cfg.agent and cfg.agent.use_vision:
+
+        def mbpo_vision_train(env):
+            if cfg.training.safe:
+                env = TrackOnlineCostsInObservation(env)
+            env = VisionWrapper(env)
+
+        def mbpo_vision_test(env):
+            if cfg.training.safe:
+                env = TrackOnlineCostsInObservation(env)
+            env = VisionWrapper(env)
 
     return out
 
