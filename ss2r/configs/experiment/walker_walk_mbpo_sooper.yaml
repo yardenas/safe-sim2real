@@ -13,7 +13,7 @@ training:
   eval_domain_randomization: false
   safe: true
   safety_budget: 100.
-  wandb_id: nou9v0dc
+  wandb_id: 500ig5d2
   
 agent:
   policy_hidden_layer_sizes: [256, 256, 256]
@@ -22,8 +22,8 @@ agent:
   batch_size: 256
   min_replay_size: 1000
   max_replay_size: 1048576
-  critic_grad_updates_per_step: 4000
-  model_grad_updates_per_step: 50000
+  critic_grad_updates_per_step: 5000
+  model_grad_updates_per_step: 10000
   num_model_rollouts: 5000
   learning_rate: 1e-4
   critic_learning_rate: 1e-4
