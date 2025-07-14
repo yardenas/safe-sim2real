@@ -86,11 +86,12 @@ def make_policy_vision_network(
     state_obs_key: str = "",
     encoder_hidden_dim: int = 50,
     tanh: bool = True,
+    use_latents: bool = True,
 ):
     class Policy(linen.Module):
         @linen.compact
         def __call__(self, obs):
-            if isinstance(obs, jax.Array):
+            if use_latents:
                 assert obs.shape == encoder_hidden_dim
                 hidden = obs
             else:
@@ -138,13 +139,14 @@ def make_q_vision_network(
     head_size: int = 1,
     encoder_hidden_dim: int = 50,
     tanh: bool = True,
+    use_latents: bool = True,
 ):
     class QModule(linen.Module):
         n_critics: int
 
         @linen.compact
         def __call__(self, obs, actions):
-            if isinstance(obs, jax.Array):
+            if use_latents:
                 assert obs.shape == encoder_hidden_dim
                 hidden = obs
             else:
@@ -201,6 +203,7 @@ def make_mbpo_vision_networks(
     n_heads: int = 1,
     encoder_hidden_dim: int = 50,
     tanh: bool = True,
+    use_latents: bool = True,
     *,
     safe: bool = False,
 ) -> SafeSACNetworks:
@@ -217,6 +220,7 @@ def make_mbpo_vision_networks(
         state_obs_key=state_obs_key,
         encoder_hidden_dim=encoder_hidden_dim,
         tanh=tanh,
+        use_latents=use_latents,
     )
     qr_network = make_q_vision_network(
         observation_size=observation_size,
@@ -229,6 +233,7 @@ def make_mbpo_vision_networks(
         n_heads=n_heads,
         encoder_hidden_dim=encoder_hidden_dim,
         tanh=tanh,
+        use_latents=use_latents,
     )
     if safe:
         qc_network = make_q_vision_network(
@@ -242,6 +247,7 @@ def make_mbpo_vision_networks(
             n_heads=n_heads,
             encoder_hidden_dim=encoder_hidden_dim,
             tanh=tanh,
+            use_latents=use_latents,
         )
         old_apply = qc_network.apply
         qc_network.apply = lambda *args, **kwargs: jnn.softplus(

@@ -55,6 +55,8 @@ def get_train_fn(cfg, checkpoint_path, restore_checkpoint_path):
             activation=activation,
             encoder_hidden_dim=agent_cfg["encoder_hidden_dim"],
             tanh=agent_cfg["tanh"],
+            # TODO (yarden): currently only use latents
+            use_latents=True,
         )
         del (
             agent_cfg["use_vision"],
