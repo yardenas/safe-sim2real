@@ -92,8 +92,7 @@ def make_policy_vision_network(
         @linen.compact
         def __call__(self, obs):
             if use_latents:
-                assert obs.shape == encoder_hidden_dim
-                hidden = obs
+                hidden = obs["latents"]
             else:
                 hidden = Encoder(name="SharedEncoder")(obs)
             hidden = jax.lax.stop_gradient(hidden)
@@ -147,8 +146,7 @@ def make_q_vision_network(
         @linen.compact
         def __call__(self, obs, actions):
             if use_latents:
-                assert obs.shape == encoder_hidden_dim
-                hidden = obs
+                hidden = obs["latents"]
             else:
                 hidden = Encoder(name="SharedEncoder")(obs)
             hidden = linen.Dense(encoder_hidden_dim)(hidden)

@@ -74,11 +74,5 @@ class VisionWrapper(Wrapper):
 
     def _handle_state(self, state):
         assert isinstance(state.obs, Mapping)
-        latents = {
-            f"latents/{k}": self.encoder.apply(self.frozen_encoder_params, v)
-            for k, v in state.obs.items()
-            if k.startswith("pixels/")
-        }
-        new_obs = state.obs | latents
-        state = state.replace(obs=new_obs)
+        state.obs["latents"] = self.encoder.apply(self.frozen_encoder_params, state.obs)
         return state
