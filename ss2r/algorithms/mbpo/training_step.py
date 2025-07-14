@@ -51,6 +51,8 @@ def make_training_step(
     use_termination,
     penalizer,
     safety_budget,
+    safety_filter,
+    offline,
 ):
     def critic_sgd_step(
         carry: Tuple[TrainingState, PRNGKey], transitions: Transition
@@ -310,21 +312,42 @@ def make_training_step(
             cost = cost.mean(0) + disagreement * pessimism
             transitions.extras["state_extras"]["cost"] = cost
             if (planning_env.qc_network is not None) and use_termination:
-                qc_pred = planning_env.qc_network.apply(
-                    normalizer_params,
-                    planning_env.backup_qc_params,
-                    transitions.observation,
-                    transitions.action,
-                )
-                expected_total_cost = (
-                    scaling_fn(qc_pred.mean(axis=-1))
-                    + transitions.observation["cumulative_cost"].squeeze()
-                )
-                discount = jnp.where(
-                    expected_total_cost > planning_env.safety_budget,
-                    jnp.zeros_like(cost, dtype=jnp.float32),
-                    jnp.ones_like(cost, dtype=jnp.float32),
-                )
+                if safety_filter == "sooper":
+                    qc_pred = planning_env.qc_network.apply(
+                        normalizer_params,
+                        planning_env.backup_qc_params,
+                        transitions.observation,
+                        transitions.action,
+                    )
+                    expected_total_cost = (
+                        scaling_fn(qc_pred.mean(axis=-1))
+                        + transitions.observation["cumulative_cost"].squeeze()
+                    )
+                    discount = jnp.where(
+                        expected_total_cost > planning_env.safety_budget,
+                        jnp.zeros_like(cost, dtype=jnp.float32),
+                        jnp.ones_like(cost, dtype=jnp.float32),
+                    )
+                elif safety_filter == "advantage":
+                    qc_backup = planning_env.qc_network.apply(
+                        normalizer_params,
+                        planning_env.backup_qc_params,
+                        transitions.observation,
+                        backup_action,
+                    ).mean(axis=-1)
+                    qc_behavioral = planning_env.qc_network.apply(
+                        normalizer_params,
+                        planning_env.backup_qc_params,
+                        transitions.observation,
+                        transitions.action,
+                    ).mean(axis=-1)
+                    advantage = qc_behavioral - qc_backup
+                    discount = jnp.where(
+                        advantage > planning_env.safety_budget,
+                        jnp.zeros_like(cost, dtype=jnp.float32),
+                        jnp.ones_like(cost, dtype=jnp.float32),
+                    )
+
             pred_qr = planning_env.qr_network.apply
             backup_qr_params = planning_env.backup_qr_params
             pessimistic_qr_pred = pred_qr(
@@ -336,7 +359,9 @@ def make_training_step(
             new_reward = jnp.where(
                 discount,
                 new_reward,
-                pessimistic_qr_pred,
+                pessimistic_qr_pred
+                if safety_filter == "sooper"
+                else jnp.zeros_like(transitions.reward),
             )
         next_obs_pred = jax.tree_map(lambda x: x.mean(0), next_obs_pred)
         return Transition(
@@ -358,12 +383,13 @@ def make_training_step(
         TrainingState, envs.State, ReplayBufferState, ReplayBufferState, Metrics
     ]:
         """Splits training into experience collection and a jitted training step."""
-        (
-            training_state,
-            env_state,
-            model_buffer_state,
-            training_key,
-        ) = run_experience_step(training_state, env_state, model_buffer_state, key)
+        if not offline:
+            (
+                training_state,
+                env_state,
+                model_buffer_state,
+                training_key,
+            ) = run_experience_step(training_state, env_state, model_buffer_state, key)
         model_buffer_state, transitions = model_replay_buffer.sample(model_buffer_state)
         # Change the front dimension of transitions so 'update_step' is called
         # grad_updates_per_step times by the scan.

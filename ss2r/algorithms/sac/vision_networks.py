@@ -20,7 +20,7 @@ class Encoder(linen.Module):
     padding: str = "SAME"
 
     @linen.compact
-    def __call__(self, data):
+    def __call__(self, data) -> jnp.ndarray:
         pixels_hidden = {k: v for k, v in data.items() if k.startswith("pixels/")}
         cnn_outs = []
         for x in pixels_hidden.values():

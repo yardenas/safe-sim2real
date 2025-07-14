@@ -1,4 +1,4 @@
-from typing import Mapping, Tuple
+from typing import Tuple
 
 import flax
 import jax
@@ -26,8 +26,6 @@ class PytreeUniformSamplingQueue(ReplayBuffer[PytreeReplayBufferState, Transitio
         max_replay_size: int,
         dummy_data_sample: Transition,
         sample_batch_size: int,
-        *,
-        store_pixels_in_cpu: bool = False,
     ):
         # Create per-field data arrays with shapes [max_replay_size, ...]
         self._data_template = jax.tree_util.tree_map(
@@ -40,47 +38,11 @@ class PytreeUniformSamplingQueue(ReplayBuffer[PytreeReplayBufferState, Transitio
         self._max_replay_size = max_replay_size
         self._sample_batch_size = sample_batch_size
         self._size = 0
-        self.store_pixels_in_cpu = store_pixels_in_cpu
 
     def init(self, key: jax.random.PRNGKey) -> PytreeReplayBufferState:
-        def _init_obs(array_template, pixel_device, non_pixel_device):
-            """
-            Initialize fields on the appropriate device based on key path.
-            Assumes that observations are at most one level deep.
-            """
-            if isinstance(array_template, jax.Array):
-                return jnp.zeros(array_template.shape, array_template.dtype)
-            else:
-                out = {}
-                for k, v in array_template.items():
-                    device = (
-                        pixel_device if k.startswith("pixels/") else non_pixel_device
-                    )
-                    with jax.default_device(device):
-                        out[k] = jnp.zeros(v.shape, v.dtype)
-                return out
-
-        def _init_rest(array_template):
-            return jax.tree_util.tree_map(
-                lambda x: jnp.zeros(x.shape, x.dtype), array_template
-            )
-
-        cpu, gpu = _get_devices()
-        if not self.store_pixels_in_cpu:
-            cpu = gpu
-        obs = _init_obs(self._data_template.observation, cpu, gpu)
-        action = _init_rest(self._data_template.action)
-        reward = _init_rest(self._data_template.reward)
-        discount = _init_rest(self._data_template.discount)
-        next_obs = _init_obs(self._data_template.next_observation, cpu, gpu)
-        extras = _init_rest(self._data_template.extras)
-        data = Transition(
-            observation=obs,
-            action=action,
-            reward=reward,
-            discount=discount,
-            next_observation=next_obs,
-            extras=extras,
+        data = jax.tree_util.tree_map(
+            lambda template: jnp.zeros(template.shape, template.dtype),
+            self._data_template,
         )
         return PytreeReplayBufferState(  # type: ignore
             data=data,
@@ -114,13 +76,6 @@ class PytreeUniformSamplingQueue(ReplayBuffer[PytreeReplayBufferState, Transitio
                 field_data, field_sample, position, axis=0
             )
 
-        # Insert data at position
-        if self.store_pixels_in_cpu:
-            cpu, _ = _get_devices()
-            samples = samples._replace(
-                observation=move_pixels_to_device(samples.observation, cpu),
-                next_observation=move_pixels_to_device(samples.next_observation, cpu),
-            )
         new_data = jax.tree_util.tree_map(insert_one_field, data, samples)
         position = (position + len(samples.reward)) % (len(data.reward) + 1)
         sample_position = jnp.maximum(0, buffer_state.sample_position + roll)
@@ -151,33 +106,4 @@ class PytreeUniformSamplingQueue(ReplayBuffer[PytreeReplayBufferState, Transitio
             return jnp.take(field_data, idx, axis=0, mode="wrap")
 
         batch = jax.tree_util.tree_map(sample_field, buffer_state.data)
-        if self.store_pixels_in_cpu:
-            _, gpu = _get_devices()
-            batch = batch._replace(
-                observation=move_pixels_to_device(batch.observation, gpu),
-                next_observation=move_pixels_to_device(batch.next_observation, gpu),
-            )
         return buffer_state.replace(key=key), batch
-
-
-def move_pixels_to_device(
-    observation: Mapping[str, jax.Array] | jax.Array,
-    to_device: jax.Device,
-) -> Mapping[str, jax.Array] | jax.Array:
-    """Move values to CPU if their key matches any regex pattern."""
-    if isinstance(observation, jax.Array):
-        return observation
-    return {
-        k: jax.device_put(v, to_device) if k.startswith("pixels/") else v
-        for k, v in observation.items()
-    }
-
-
-def _get_devices():
-    cpu = jax.devices("cpu")[0]
-    try:
-        gpus = jax.devices("gpu")
-        gpu = gpus[0]
-    except RuntimeError:
-        gpu = jax.devices("cpu")[0]
-    return cpu, gpu
