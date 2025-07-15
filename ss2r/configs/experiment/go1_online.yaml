@@ -7,4 +7,3 @@ defaults:
 training:
   num_envs: 1
   num_eval_envs: 1
-  safe: true

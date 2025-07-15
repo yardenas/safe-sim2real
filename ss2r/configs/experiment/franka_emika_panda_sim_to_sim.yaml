@@ -1,31 +1,33 @@
 # @package _global_
 defaults:
-  - mujoco_playground_dm_control_vision
-  - override /environment: franka_emika_panda
+  - franka_emika_panda_sim_to_real
+  - override /agent/data_collection: episodic
+  - override /agent/replay_buffer: rae
   - _self_
 
 training:
-  num_timesteps: 5000000
-  episode_length: 80
-  num_envs: 512
-  num_eval_envs: 512
+  num_timesteps: 30000
+  wandb_id: gsy4lrxa
+  episode_length: 150
+  num_envs: 2
+  num_eval_envs: 2
 
 environment:
   task_params:
-    episode_length: 80
-    obs_noise:
-      brightness: [0.75, 2.0]
-    box_init_range: 0.1
-    action_history_length: 5
-    success_threshold: 0.03
+    episode_length: 150
+    action_history_length: 1
+    success_threshold: 0.02
     vision_config:
-      render_batch_size: 512
+      render_batch_size: 2
+    box_init_range: 0.3
+    action_scale: 0.015
 
 agent:
   batch_size: 128
   discounting: 0.95
   encoder_hidden_dim: 128
   policy_hidden_layer_sizes: [128, 128]
-  grad_updates_per_step: 64
+  grad_updates_per_step: 2000
   target_entropy: -5
   reward_scaling: 10.
+  min_replay_size: 1000
