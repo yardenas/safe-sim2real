@@ -1,6 +1,6 @@
 # @package _global_
 defaults:
-  - franka_emika_panda_sim_to_real
+  - franka_real
   - override /agent/data_collection: episodic
   - override /agent/replay_buffer: rae
   - _self_
