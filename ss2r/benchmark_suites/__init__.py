@@ -25,6 +25,7 @@ from ss2r.benchmark_suites.rccar import rccar
 from ss2r.benchmark_suites.safety_gym import go_to_goal
 from ss2r.benchmark_suites.utils import get_domain_name, get_task_config
 from ss2r.benchmark_suites.wrappers import (
+    GoToGoal_Observation_Wrapper,
     Saute,
     SPiDR,
     Walker_Observation_Wrapper,
@@ -58,6 +59,13 @@ def get_wrap_env_fn(cfg):
 
         def wrap_fn(env):
             env = Walker_Observation_Wrapper(env)
+            return env
+
+        out = wrap_fn, wrap_fn
+    elif cfg.environment.task_name == "go_to_goal":
+
+        def wrap_fn(env):
+            env = GoToGoal_Observation_Wrapper(env)
             return env
 
         out = wrap_fn, wrap_fn
