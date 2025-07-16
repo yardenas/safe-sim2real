@@ -6,12 +6,9 @@ import jax.numpy as jnp
 import optax
 from absl import logging
 from brax.training.agents.sac import checkpoint
-from brax.training.replay_buffers import (
-    ReplayBuffer,
-    ReplayBufferState,
-    UniformSamplingQueue,
-)
+from brax.training.replay_buffers import ReplayBuffer
 
+from ss2r.algorithms.sac import pytree_uniform_sampling_queue as pusq
 from ss2r.common.wandb import get_wandb_checkpoint
 
 Sample = TypeVar("Sample")
@@ -20,8 +17,8 @@ MixType = Union[float, Callable[[int], float], Tuple[float, float, int]]
 
 @flax.struct.dataclass
 class RAEReplayBufferState:
-    offline_state: ReplayBufferState
-    online_state: ReplayBufferState
+    offline_state: pusq.PytreeReplayBufferState
+    online_state: pusq.PytreeReplayBufferState
     key: jax.Array
     step: int
 
@@ -38,10 +35,10 @@ class RAEReplayBuffer(ReplayBuffer[RAEReplayBufferState, Sample], Generic[Sample
     ):
         self.sample_batch_size = sample_batch_size
         self.mix = self._init_mix(mix)
-        self.online_buffer = UniformSamplingQueue(
+        self.online_buffer = pusq.PytreeUniformSamplingQueue(
             max_replay_size, dummy_data_sample, self.sample_batch_size
         )
-        self.offline_buffer = None
+        self.offline_buffer: pusq.PytreeUniformSamplingQueue | None = None
         self.wandb_ids = wandb_ids
         self.wandb_entity = wandb_entity
         self._dummy_data_sample = dummy_data_sample
@@ -52,7 +49,7 @@ class RAEReplayBuffer(ReplayBuffer[RAEReplayBufferState, Sample], Generic[Sample
         online_state = self.online_buffer.init(key_online)
         offline_state = prepare_offline_data(self.wandb_ids, self.wandb_entity)
         max_size = offline_state.data.shape[0]
-        self.offline_buffer = UniformSamplingQueue(
+        self.offline_buffer = pusq.PytreeUniformSamplingQueue(
             max_size, self._dummy_data_sample, self.sample_batch_size
         )
         logging.info("Restoring replay buffer state with %d samples", max_size)
@@ -100,10 +97,10 @@ class RAEReplayBuffer(ReplayBuffer[RAEReplayBufferState, Sample], Generic[Sample
         offline_size = self.sample_batch_size - online_size
         key_online, key_offline, new_key = jax.random.split(state.key, 3)
         online_state, online_samples = self.online_buffer.sample(
-            state.online_state.replace(key=key_online)
+            state.online_state.replace(key=key_online)  # type: ignore
         )
         offline_state, offline_samples = self.offline_buffer.sample(
-            state.offline_state.replace(key=key_offline)
+            state.offline_state.replace(key=key_offline)  # type: ignore
         )
         combined_samples = jax.tree_util.tree_map(
             lambda o, f: jnp.concatenate([o[:online_size], f[:offline_size]], axis=0),
@@ -135,7 +132,7 @@ def prepare_offline_data(wandb_ids, wandb_entity):
     concatnated_data = jnp.concatenate(data, axis=0)
     insert_position = jnp.array(concatnated_data.shape[0], dtype=jnp.int32)
     key = replay_buffer_state["key"]
-    return ReplayBufferState(
+    return pusq.PytreeReplayBufferState(
         data=concatnated_data,
         insert_position=insert_position,
         key=key,

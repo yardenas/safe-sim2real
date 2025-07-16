@@ -148,7 +148,17 @@ def main(cfg):
                 cfg.training.episode_length,
                 rng,
             )
-            logger.log_video(video, steps.count, "eval/video")
+            fps = (
+                1 / cfg.environment.task_params.ctrl_dt
+                if "ctrl_dt" in cfg.environment.task_params
+                else 30.0
+            )
+            logger.log_video(
+                video,
+                steps.count,
+                "eval/video",
+                fps,
+            )
         if cfg.training.store_checkpoint:
             artifacts = locate_last_checkpoint()
             if artifacts:

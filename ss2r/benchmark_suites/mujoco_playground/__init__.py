@@ -22,14 +22,17 @@ def _dig(env):
         return _dig(env.env)
 
 
-def render(env, policy, steps, rng, camera=None):
+def render(env, policy, steps, rng, camera=None, num_envs=5):
     state = env.reset(rng)
-    state = jax.tree_map(lambda x: x[:5], state)
+    if num_envs is not None:
+        state = jax.tree_map(lambda x: x[:5], state)
     orig_model = env._mjx_model
-    if hasattr(env, "_randomized_models"):
+    if hasattr(env, "_randomized_models") and num_envs is not None:
         render_env = _dig(env)
         model = jax.tree_map(
-            lambda x, ax: jnp.take(x, jnp.arange(5), axis=ax) if ax is not None else x,
+            lambda x, ax: jnp.take(x, jnp.arange(num_envs), axis=ax)
+            if ax is not None
+            else x,
             env._randomized_models,
             env._in_axes,
         )

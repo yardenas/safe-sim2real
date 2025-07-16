@@ -52,6 +52,7 @@ def make_training_step(
     penalizer,
     safety_budget,
     safety_filter,
+    offline,
 ):
     def critic_sgd_step(
         carry: Tuple[TrainingState, PRNGKey], transitions: Transition
@@ -382,12 +383,13 @@ def make_training_step(
         TrainingState, envs.State, ReplayBufferState, ReplayBufferState, Metrics
     ]:
         """Splits training into experience collection and a jitted training step."""
-        (
-            training_state,
-            env_state,
-            model_buffer_state,
-            training_key,
-        ) = run_experience_step(training_state, env_state, model_buffer_state, key)
+        if not offline:
+            (
+                training_state,
+                env_state,
+                model_buffer_state,
+                training_key,
+            ) = run_experience_step(training_state, env_state, model_buffer_state, key)
         model_buffer_state, transitions = model_replay_buffer.sample(model_buffer_state)
         # Change the front dimension of transitions so 'update_step' is called
         # grad_updates_per_step times by the scan.

@@ -1,0 +1,31 @@
+# @package _global_
+defaults:
+  - mujoco_playground_dm_control_vision
+  - override /environment: franka_emika_panda
+  - _self_
+
+training:
+  num_timesteps: 5000000
+  episode_length: 80
+  num_envs: 512
+  num_eval_envs: 512
+
+environment:
+  task_params:
+    episode_length: 80
+    obs_noise:
+      brightness: [0.75, 2.0]
+    box_init_range: 0.1
+    action_history_length: 5
+    success_threshold: 0.03
+    vision_config:
+      render_batch_size: 512
+
+agent:
+  batch_size: 128
+  discounting: 0.95
+  encoder_hidden_dim: 128
+  policy_hidden_layer_sizes: [128, 128]
+  grad_updates_per_step: 64
+  target_entropy: -5
+  reward_scaling: 10.
