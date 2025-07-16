@@ -8,13 +8,34 @@ defaults:
 training:
   num_timesteps: 10000
   safe: true
-  train_domain_randomization: false
-  eval_domain_randomization: false
+  train_domain_randomization: true
+  eval_domain_randomization: true
   safety_budget: 25
   num_envs: 1
   num_evals: 20
   action_repeat: 4
   wandb_id: ht7qygz8
+
+environment:
+  train_params:
+    damping:
+      x: [1., 1.]
+      y: [1., 1.]
+      z: [1., 1.]
+    gear:
+      x: [0.0, 0.0]
+      z: [0.0, 0.0]
+    mass: [1., 1.]
+
+  eval_params:
+    damping:
+      x: [1., 1.]
+      y: [1., 1.]
+      z: [1., 1.]
+    gear:
+      x: [0.0, 0.0]
+      z: [0.0, 0.0]
+    mass: [1., 1.]
 
 
 agent:
