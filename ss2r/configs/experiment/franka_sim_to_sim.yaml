@@ -1,6 +1,6 @@
 # @package _global_
 defaults:
-  - franka_real
+  - franka_sim_to_real
   - override /agent/data_collection: episodic
   - override /agent/replay_buffer: rae
   - _self_
@@ -23,11 +23,4 @@ environment:
     action_scale: 0.015
 
 agent:
-  batch_size: 128
-  discounting: 0.95
-  encoder_hidden_dim: 128
-  policy_hidden_layer_sizes: [128, 128]
-  grad_updates_per_step: 2000
-  target_entropy: -5
-  reward_scaling: 10.
-  min_replay_size: 1000
+  min_replay_size: 400

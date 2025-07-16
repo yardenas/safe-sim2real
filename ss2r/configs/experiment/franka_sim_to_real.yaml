@@ -30,3 +30,5 @@ agent:
   num_critic_updates_per_actor_update: 20
   target_entropy: -5
   reward_scaling: 10.
+  n_critics: 1
+  n_heads: 10
