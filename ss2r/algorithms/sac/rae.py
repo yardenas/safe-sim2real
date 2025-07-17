@@ -106,12 +106,8 @@ class RAEReplayBuffer(ReplayBuffer[RAEReplayBufferState, Sample], Generic[Sample
         combined_samples = jax.tree_util.tree_map(
             lambda o, f: jnp.concatenate([o, f]), online_samples, offline_samples
         )
-        online_weight = jnp.full(
-            (self.sample_batch_size,), mix_value / self.sample_batch_size
-        )
-        offline_weight = jnp.full(
-            (self.sample_batch_size,), (1.0 - mix_value) / self.sample_batch_size
-        )
+        online_weight = jnp.full((self.sample_batch_size,), mix_value)
+        offline_weight = jnp.full((self.sample_batch_size,), 1.0 - mix_value)
         probs = jnp.concatenate([online_weight, offline_weight])
         new_key, subkey = jax.random.split(new_key)
         indices = jax.random.choice(
