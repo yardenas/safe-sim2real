@@ -129,8 +129,8 @@ def prepare_offline_data(wandb_ids, wandb_entity):
         params = checkpoint.load(checkpoint_path)
         replay_buffer_state = params[-1]
         data.append(jax.tree.map(_find_first_nonzeros, replay_buffer_state["data"]))
-    concatnated_data = jnp.concatenate(data, axis=0)
-    insert_position = jnp.array(concatnated_data.shape[0], dtype=jnp.int32)
+    concatnated_data = jax.tree.map(lambda x: jnp.concatenate(x, axis=0), data)
+    insert_position = jnp.array(concatnated_data.reward.shape[0], dtype=jnp.int32)
     key = replay_buffer_state["key"]
     return pusq.PytreeReplayBufferState(
         data=concatnated_data,
@@ -141,7 +141,7 @@ def prepare_offline_data(wandb_ids, wandb_entity):
 
 
 def _find_first_nonzeros(x):
-    zero_row_mask = jnp.all(x == 0, axis=1)
+    zero_row_mask = jnp.all(x == 0, axis=-1)
     if jnp.all(~zero_row_mask):
         # Replay buffer was full, argmax would retun 0
         return x
