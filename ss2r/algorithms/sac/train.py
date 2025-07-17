@@ -52,14 +52,12 @@ from ss2r.algorithms.sac.types import (
     float32,
 )
 from ss2r.rl.evaluation import ConstraintsEvaluator
-from ss2r.rl.utils import dequantize_images, quantize_images, remove_pixels
-
-
-def _restore_state(tree, target_example):
-    state = jax.tree_util.tree_unflatten(
-        jax.tree_util.tree_structure(target_example), jax.tree_util.tree_leaves(tree)
-    )
-    return state
+from ss2r.rl.utils import (
+    dequantize_images,
+    quantize_images,
+    remove_pixels,
+    restore_state,
+)
 
 
 def _random_translate_pixels(x, rng):
@@ -334,24 +332,24 @@ def train(
         params = checkpoint.load(restore_checkpoint_path)
         # FIXME (yarden): del params[-1]
         policy_optimizer_state = update_lr_schedule_count(
-            _restore_state(params[5], training_state.policy_optimizer_state), 0
+            restore_state(params[5], training_state.policy_optimizer_state), 0
         )
-        alpha_optimizer_state = _restore_state(
+        alpha_optimizer_state = restore_state(
             params[6], training_state.alpha_optimizer_state
         )
         qr_optimizer_state = update_lr_schedule_count(
-            _restore_state(params[7], training_state.qr_optimizer_state), 0
+            restore_state(params[7], training_state.qr_optimizer_state), 0
         )
         if qc_optimizer is None:
             qc_optimizer_state = None
         else:
             qc_optimizer_state = update_lr_schedule_count(
-                _restore_state(params[8], training_state.qc_optimizer_state), 0
+                restore_state(params[8], training_state.qc_optimizer_state), 0
             )
         training_state = training_state.replace(  # type: ignore
             normalizer_params=params[0],
             policy_params=params[1],
-            penalizer_params=_restore_state(params[2], training_state.penalizer_params),
+            penalizer_params=restore_state(params[2], training_state.penalizer_params),
             qr_params=params[3],
             qc_params=params[4],
             policy_optimizer_state=policy_optimizer_state,

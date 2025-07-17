@@ -10,6 +10,7 @@ from brax.training.replay_buffers import ReplayBuffer
 
 from ss2r.algorithms.sac import pytree_uniform_sampling_queue as pusq
 from ss2r.common.wandb import get_wandb_checkpoint
+from ss2r.rl.utils import restore_state
 
 Sample = TypeVar("Sample")
 MixType = Union[float, Callable[[int], float], Tuple[float, float, int]]
@@ -47,8 +48,10 @@ class RAEReplayBuffer(ReplayBuffer[RAEReplayBufferState, Sample], Generic[Sample
         """Initialize both buffers and load offline data from disk."""
         key_online, key_next = jax.random.split(key, 2)
         online_state = self.online_buffer.init(key_online)
-        offline_state = prepare_offline_data(self.wandb_ids, self.wandb_entity)
-        max_size = offline_state.data["reward"].shape[0]
+        offline_state = prepare_offline_data(
+            self.wandb_ids, self.wandb_entity, self._dummy_data_sample
+        )
+        max_size = offline_state.data.reward.shape[0]
         self.offline_buffer = pusq.PytreeUniformSamplingQueue(
             max_size, self._dummy_data_sample, self.sample_batch_size
         )
@@ -122,7 +125,7 @@ class RAEReplayBuffer(ReplayBuffer[RAEReplayBufferState, Sample], Generic[Sample
         )
 
 
-def prepare_offline_data(wandb_ids, wandb_entity):
+def prepare_offline_data(wandb_ids, wandb_entity, target_example):
     data = []
     for wandb_id in wandb_ids:
         checkpoint_path = get_wandb_checkpoint(wandb_id, wandb_entity)
@@ -130,7 +133,8 @@ def prepare_offline_data(wandb_ids, wandb_entity):
         replay_buffer_state = params[-1]
         data.append(jax.tree.map(_find_first_nonzeros, replay_buffer_state["data"]))
     concatnated_data = jax.tree.map(lambda *xs: jnp.concatenate(xs, axis=0), *data)
-    insert_position = jnp.array(concatnated_data["reward"].shape[0], dtype=jnp.int32)
+    concatnated_data = restore_state(concatnated_data, target_example)
+    insert_position = jnp.array(concatnated_data.reward.shape[0], dtype=jnp.int32)
     key = replay_buffer_state["key"]
     return pusq.PytreeReplayBufferState(
         data=concatnated_data,
