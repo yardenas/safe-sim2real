@@ -130,7 +130,7 @@ def prepare_offline_data(wandb_ids, wandb_entity):
         replay_buffer_state = params[-1]
         data.append(jax.tree.map(_find_first_nonzeros, replay_buffer_state["data"]))
     concatnated_data = jax.tree.map(lambda *xs: jnp.concatenate(xs, axis=0), *data)
-    insert_position = jnp.array(concatnated_data.reward.shape[0], dtype=jnp.int32)
+    insert_position = jnp.array(concatnated_data["reward"].shape[0], dtype=jnp.int32)
     key = replay_buffer_state["key"]
     return pusq.PytreeReplayBufferState(
         data=concatnated_data,
