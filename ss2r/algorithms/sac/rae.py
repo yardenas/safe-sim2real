@@ -64,8 +64,8 @@ class RAEReplayBuffer(ReplayBuffer[RAEReplayBufferState, Sample], Generic[Sample
     def _init_mix(self, mix: MixType) -> Callable[[int], float]:
         if isinstance(mix, float):
             return lambda step: mix  # type: ignore
-        elif isinstance(mix, (tuple, list)) and len(mix) == 3:
-            init_val, end_val, steps = mix
+        elif isinstance(mix, Sequence) and len(mix) == 3:
+            init_val, end_val, steps = tuple(mix)  # type: ignore
             scheduler = optax.linear_schedule(
                 init_value=init_val, end_value=end_val, transition_steps=steps
             )
