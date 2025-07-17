@@ -96,8 +96,6 @@ class RAEReplayBuffer(ReplayBuffer[RAEReplayBufferState, Sample], Generic[Sample
         """Sample from both buffers and return merged batch."""
         assert self.offline_buffer is not None
         mix_value = self.mix(state.step)
-        online_size = jnp.round(self.sample_batch_size * mix_value).astype(jnp.int32)
-        offline_size = self.sample_batch_size - online_size
         key_online, key_offline, new_key = jax.random.split(state.key, 3)
         online_state, online_samples = self.online_buffer.sample(
             state.online_state.replace(key=key_online)  # type: ignore
@@ -105,16 +103,26 @@ class RAEReplayBuffer(ReplayBuffer[RAEReplayBufferState, Sample], Generic[Sample
         offline_state, offline_samples = self.offline_buffer.sample(
             state.offline_state.replace(key=key_offline)  # type: ignore
         )
-
-        def concat_dynamic(o, f, online_size, offline_size):
-            o_slice = jax.lax.dynamic_slice_in_dim(o, 0, online_size)
-            f_slice = jax.lax.dynamic_slice_in_dim(f, 0, offline_size)
-            return jnp.concatenate([o_slice, f_slice], axis=0)
-
         combined_samples = jax.tree_util.tree_map(
-            lambda o, f: concat_dynamic(o, f, online_size, offline_size),
-            online_samples,
-            offline_samples,
+            lambda o, f: jnp.concatenate([o, f]), online_samples, offline_samples
+        )
+        online_weight = jnp.full(
+            (self.sample_batch_size,), mix_value / self.sample_batch_size
+        )
+        offline_weight = jnp.full(
+            (self.sample_batch_size,), (1.0 - mix_value) / self.sample_batch_size
+        )
+        probs = jnp.concatenate([online_weight, offline_weight])
+        new_key, subkey = jax.random.split(new_key)
+        indices = jax.random.choice(
+            subkey,
+            2 * self.sample_batch_size,
+            shape=(self.sample_batch_size,),
+            p=probs,
+            replace=True,
+        )
+        combined_samples = jax.tree_util.tree_map(
+            lambda s: jnp.take(s, indices, axis=0), combined_samples
         )
         new_state = state.replace(  # type: ignore
             online_state=online_state,
