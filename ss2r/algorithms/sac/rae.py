@@ -128,7 +128,7 @@ def prepare_offline_data(wandb_ids, wandb_entity):
         checkpoint_path = get_wandb_checkpoint(wandb_id, wandb_entity)
         params = checkpoint.load(checkpoint_path)
         replay_buffer_state = params[-1]
-        data.append(_find_first_nonzeros(replay_buffer_state["data"]))
+        data.append(jax.tree.map(_find_first_nonzeros, replay_buffer_state["data"]))
     concatnated_data = jnp.concatenate(data, axis=0)
     insert_position = jnp.array(concatnated_data.shape[0], dtype=jnp.int32)
     key = replay_buffer_state["key"]
