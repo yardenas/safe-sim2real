@@ -105,8 +105,14 @@ class RAEReplayBuffer(ReplayBuffer[RAEReplayBufferState, Sample], Generic[Sample
         offline_state, offline_samples = self.offline_buffer.sample(
             state.offline_state.replace(key=key_offline)  # type: ignore
         )
+
+        def concat_dynamic(o, f, online_size, offline_size):
+            o_slice = jax.lax.dynamic_slice(o, [0], [online_size])
+            f_slice = jax.lax.dynamic_slice(f, [0], [offline_size])
+            return jnp.concatenate([o_slice, f_slice], axis=0)
+
         combined_samples = jax.tree_util.tree_map(
-            lambda o, f: jnp.concatenate([o[:online_size], f[:offline_size]], axis=0),
+            lambda o, f: concat_dynamic(o, f, online_size, offline_size),
             online_samples,
             offline_samples,
         )
