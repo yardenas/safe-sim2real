@@ -48,9 +48,7 @@ class RAEReplayBuffer(ReplayBuffer[RAEReplayBufferState, Sample], Generic[Sample
         """Initialize both buffers and load offline data from disk."""
         key_online, key_next = jax.random.split(key, 2)
         online_state = self.online_buffer.init(key_online)
-        offline_state = prepare_offline_data(
-            self.wandb_ids, self.wandb_entity, self._dummy_data_sample
-        )
+        offline_state = prepare_offline_data(self.wandb_ids, self.wandb_entity)
         max_size = offline_state.data.reward.shape[0]
         self.offline_buffer = pusq.PytreeUniformSamplingQueue(
             max_size, self._dummy_data_sample, self.sample_batch_size
@@ -135,7 +133,7 @@ class RAEReplayBuffer(ReplayBuffer[RAEReplayBufferState, Sample], Generic[Sample
         )
 
 
-def prepare_offline_data(wandb_ids, wandb_entity, target_example):
+def prepare_offline_data(wandb_ids, wandb_entity):
     data = []
     for wandb_id in wandb_ids:
         checkpoint_path = get_wandb_checkpoint(wandb_id, wandb_entity)
@@ -152,12 +150,3 @@ def prepare_offline_data(wandb_ids, wandb_entity, target_example):
         key=key,
         sample_position=replay_buffer_state["sample_position"],
     )
-
-
-def _find_first_nonzeros(x):
-    zero_row_mask = jnp.all(x == 0, axis=-1)
-    if jnp.all(~zero_row_mask):
-        # Replay buffer was full, argmax would retun 0
-        return x
-    first_zero_row_index = jnp.argmax(zero_row_mask)
-    return x[:first_zero_row_index]
