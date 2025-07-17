@@ -7,10 +7,10 @@ import optax
 from absl import logging
 from brax.training.agents.sac import checkpoint
 from brax.training.replay_buffers import ReplayBuffer
+from brax.training.types import Transition
 
 from ss2r.algorithms.sac import pytree_uniform_sampling_queue as pusq
 from ss2r.common.wandb import get_wandb_checkpoint
-from ss2r.rl.utils import restore_state
 
 Sample = TypeVar("Sample")
 MixType = Union[float, Callable[[int], float], Tuple[float, float, int]]
@@ -143,7 +143,7 @@ def prepare_offline_data(wandb_ids, wandb_entity, target_example):
         replay_buffer_state = params[-1]
         data.append(replay_buffer_state["data"])
     concatenated_data = jax.tree.map(lambda *xs: jnp.concatenate(xs, axis=0), *data)
-    concatenated_data = restore_state(concatenated_data, target_example)
+    concatenated_data = Transition(**concatenated_data)
     insert_position = jnp.array(concatenated_data.reward.shape[0], dtype=jnp.int32)
     key = replay_buffer_state["key"]
     return pusq.PytreeReplayBufferState(
