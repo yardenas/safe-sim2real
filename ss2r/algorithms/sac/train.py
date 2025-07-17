@@ -275,8 +275,8 @@ def train(
     policy_optimizer = make_optimizer(
         learning_rate,
         1.0,
-        int(num_grad_steps // num_critic_updates_per_actor_update * actor_burnin),
-        int(num_grad_steps // num_critic_updates_per_actor_update * actor_wait),
+        int(num_grad_steps * actor_burnin),
+        int(num_grad_steps * actor_wait),
     )
     qr_optimizer = make_optimizer(
         critic_learning_rate, 1.0, int(num_grad_steps * critic_burnin)
