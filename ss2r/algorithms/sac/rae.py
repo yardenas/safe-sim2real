@@ -141,13 +141,13 @@ def prepare_offline_data(wandb_ids, wandb_entity, target_example):
         checkpoint_path = get_wandb_checkpoint(wandb_id, wandb_entity)
         params = checkpoint.load(checkpoint_path)
         replay_buffer_state = params[-1]
-        data.append(jax.tree.map(_find_first_nonzeros, replay_buffer_state["data"]))
-    concatnated_data = jax.tree.map(lambda *xs: jnp.concatenate(xs, axis=0), *data)
-    concatnated_data = restore_state(concatnated_data, target_example)
-    insert_position = jnp.array(concatnated_data.reward.shape[0], dtype=jnp.int32)
+        data.append(replay_buffer_state["data"])
+    concatenated_data = jax.tree.map(lambda *xs: jnp.concatenate(xs, axis=0), *data)
+    concatenated_data = restore_state(concatenated_data, target_example)
+    insert_position = jnp.array(concatenated_data.reward.shape[0], dtype=jnp.int32)
     key = replay_buffer_state["key"]
     return pusq.PytreeReplayBufferState(
-        data=concatnated_data,
+        data=concatenated_data,
         insert_position=insert_position,
         key=key,
         sample_position=replay_buffer_state["sample_position"],
