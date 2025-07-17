@@ -48,7 +48,7 @@ class RAEReplayBuffer(ReplayBuffer[RAEReplayBufferState, Sample], Generic[Sample
         key_online, key_next = jax.random.split(key, 2)
         online_state = self.online_buffer.init(key_online)
         offline_state = prepare_offline_data(self.wandb_ids, self.wandb_entity)
-        max_size = offline_state.data.shape[0]
+        max_size = offline_state.data["reward"].shape[0]
         self.offline_buffer = pusq.PytreeUniformSamplingQueue(
             max_size, self._dummy_data_sample, self.sample_batch_size
         )
