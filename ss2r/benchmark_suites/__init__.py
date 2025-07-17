@@ -146,7 +146,7 @@ def get_wrap_env_fn(cfg):
             env = TrackOnlineCostsInObservation(env)
             return env
 
-        out = safe_mbpo_train, safe_mbpo_eval
+        return safe_mbpo_train, safe_mbpo_eval
     if cfg.agent.name == "mbpo" and "use_vision" in cfg.agent and cfg.agent.use_vision:
 
         def mbpo_vision_train(env):
