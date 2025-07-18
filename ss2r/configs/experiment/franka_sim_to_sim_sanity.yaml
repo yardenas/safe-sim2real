@@ -1,0 +1,17 @@
+# @package _global_
+defaults:
+  - franka_sim_to_real
+  - _self_
+
+training:
+  num_timesteps: 100000
+  wandb_id: 9ur6x8vq
+  num_envs: 2
+  num_eval_envs: 2
+  num_evals: 100
+
+environment:
+  task_params:
+    action_history_length: 1
+    vision_config:
+      render_batch_size: 2
