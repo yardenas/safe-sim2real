@@ -17,13 +17,13 @@ training:
 
 environment:
   train_params:
-    torso_length: [0.5, 0.5]
+    torso_length: [0.0, 0.0]
     friction: [0.0, 0.0]
     joint_damping: [0.0, 0.0]
     gear: [0., 0.]
 
   eval_params:
-    torso_length: [0.5, 0.5]
+    torso_length: [0.0, 0.0]
     friction: [0., 0.]
     joint_damping: [0., 0.]
     gear: [0., 0.]
