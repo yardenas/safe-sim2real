@@ -24,10 +24,7 @@ agent:
   replay_buffer:
     wandb_ids:
       - 9ur6x8vq
+    mix: [1., 0., 10000]
   grad_updates_per_step: 100
-  schedule_lr: true
-  actor_burnin: 1.
-  critic_burnin: 1.
-  actor_wait: 0.1
-  learning_rate: 2e-5
-  critic_learning_rate: 6e-5
+  learning_rate: 1e-6
+  critic_learning_rate: 1e-6
