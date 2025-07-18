@@ -5,7 +5,7 @@ defaults:
 
 training:
   num_timesteps: 100000
-  wandb_id: 9ur6x8vq
+  wandb_id: eclz7est
   num_envs: 2
   num_eval_envs: 2
   num_evals: 100
