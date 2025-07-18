@@ -334,7 +334,7 @@ def train(
             restore_state(params[6], training_state.policy_optimizer_state), 0
         )
         alpha_optimizer_state = restore_state(
-            params[6], training_state.alpha_optimizer_state
+            params[7], training_state.alpha_optimizer_state
         )
         qr_optimizer_state = update_lr_schedule_count(
             restore_state(params[8], training_state.qr_optimizer_state), 0
