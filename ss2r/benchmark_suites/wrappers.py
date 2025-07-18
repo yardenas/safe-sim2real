@@ -279,35 +279,23 @@ class HardAutoResetWrapper(Wrapper):
         state = state.replace(done=jp.zeros_like(state.done))
         state = self.env.step(state, action)
 
-        def safe_reset(rng):
-            nstate = self.reset(rng)
-            if "reward" in state.metrics:
-                nstate.metrics["reward"] = state.metrics["reward"]
-                nstate.metrics["cost"] = state.metrics["cost"]
-            return nstate
-
-        maybe_reset = jax.lax.cond(
-            state.done.any(), safe_reset, lambda rng: state, state.info["reset_rng"]
-        )
-
-        def where_done(x, y):
-            done = state.done
-            if done.shape:
-                done = jp.reshape(done, [x.shape[0]] + [1] * (len(x.shape) - 1))  # type: ignore
-            return jp.where(done, x, y)
-
         if hasattr(state, "pipeline_state"):
-            state_data = state.pipeline_state
-            maybe_reset_data = maybe_reset.pipeline_state
             data_name = "pipeline_state"
         elif hasattr(state, "data"):
-            state_data = state.data
-            maybe_reset_data = maybe_reset.data
             data_name = "data"
         else:
             raise NotImplementedError
-        new_data = jax.tree.map(where_done, maybe_reset_data, state_data)
-        obs = jax.tree.map(where_done, maybe_reset.obs, state.obs)
+
+        def safe_reset(rng):
+            nstate = self.reset(rng)
+            return nstate.obs, getattr(state, data_name)
+
+        obs, new_data = jax.lax.cond(
+            state.done.any(),
+            safe_reset,
+            lambda rng: (state.obs, getattr(state, data_name)),
+            state.info["reset_rng"],
+        )
         return state.replace(**{data_name: new_data, "obs": obs})
 
 
