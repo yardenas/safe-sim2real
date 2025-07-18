@@ -18,6 +18,9 @@ environment:
     vision_config:
       render_batch_size: 2
     action_scale: 0.015
+    box_init_range: 0.
+    obs_noise:
+      brightness: [1., 1.]
 
 agent:
   min_replay_size: 400
