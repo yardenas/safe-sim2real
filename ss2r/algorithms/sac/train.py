@@ -332,19 +332,19 @@ def train(
         params = checkpoint.load(restore_checkpoint_path)
         # FIXME (yarden): del params[-1]
         policy_optimizer_state = update_lr_schedule_count(
-            _restore_state(params[6], training_state.policy_optimizer_state), 0
+            restore_state(params[6], training_state.policy_optimizer_state), 0
         )
         alpha_optimizer_state = restore_state(
             params[6], training_state.alpha_optimizer_state
         )
         qr_optimizer_state = update_lr_schedule_count(
-            _restore_state(params[8], training_state.qr_optimizer_state), 0
+            restore_state(params[8], training_state.qr_optimizer_state), 0
         )
         if qc_optimizer is None:
             qc_optimizer_state = None
         else:
             qc_optimizer_state = update_lr_schedule_count(
-                _restore_state(params[9], training_state.qc_optimizer_state), 0
+                restore_state(params[9], training_state.qc_optimizer_state), 0
             )
         training_state = training_state.replace(  # type: ignore
             normalizer_params=params[0],
