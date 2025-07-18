@@ -332,19 +332,19 @@ def train(
         params = checkpoint.load(restore_checkpoint_path)
         # FIXME (yarden): del params[-1]
         policy_optimizer_state = update_lr_schedule_count(
-            restore_state(params[5], training_state.policy_optimizer_state), 0
+            _restore_state(params[6], training_state.policy_optimizer_state), 0
         )
         alpha_optimizer_state = restore_state(
             params[6], training_state.alpha_optimizer_state
         )
         qr_optimizer_state = update_lr_schedule_count(
-            restore_state(params[7], training_state.qr_optimizer_state), 0
+            _restore_state(params[8], training_state.qr_optimizer_state), 0
         )
         if qc_optimizer is None:
             qc_optimizer_state = None
         else:
             qc_optimizer_state = update_lr_schedule_count(
-                restore_state(params[8], training_state.qc_optimizer_state), 0
+                _restore_state(params[9], training_state.qc_optimizer_state), 0
             )
         training_state = training_state.replace(  # type: ignore
             normalizer_params=params[0],
@@ -354,6 +354,7 @@ def train(
             target_qr_params=params[3],
             qc_params=params[4],
             target_qc_params=params[4],
+            alpha_params=params[5],
             policy_optimizer_state=policy_optimizer_state,
             alpha_optimizer_state=alpha_optimizer_state,
             qr_optimizer_state=qr_optimizer_state,
@@ -758,6 +759,7 @@ def train(
                 training_state.penalizer_params,
                 training_state.qr_params,
                 training_state.qc_params,
+                training_state.alpha_params,
                 training_state.policy_optimizer_state,
                 training_state.alpha_optimizer_state,
                 training_state.qr_optimizer_state,
@@ -787,6 +789,7 @@ def train(
         training_state.penalizer_params,
         training_state.qr_params,
         training_state.qc_params,
+        training_state.alpha_params,
         training_state.policy_optimizer_state,
         training_state.alpha_optimizer_state,
         training_state.qr_optimizer_state,
