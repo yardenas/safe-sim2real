@@ -278,8 +278,16 @@ class HardAutoResetWrapper(Wrapper):
             state.info.update(steps=steps)
         state = state.replace(done=jp.zeros_like(state.done))
         state = self.env.step(state, action)
+
+        def safe_reset(rng):
+            nstate = self.reset(rng)
+            if "reward" in state.metrics:
+                nstate.metrics["reward"] = state.metrics["reward"]
+                nstate.metrics["cost"] = state.metrics["cost"]
+            return nstate
+
         maybe_reset = jax.lax.cond(
-            state.done.any(), self.reset, lambda rng: state, state.info["reset_rng"]
+            state.done.any(), safe_reset, lambda rng: state, state.info["reset_rng"]
         )
 
         def where_done(x, y):
