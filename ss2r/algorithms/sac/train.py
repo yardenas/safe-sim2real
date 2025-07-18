@@ -366,7 +366,7 @@ def train(
         sample_batch_size=batch_size,
     )
     buffer_state = replay_buffer.init(rb_key)
-    data = Transition(params[-1].pop("data"))
+    data = Transition(**params[-1].pop("data"))
     buffer_state = PytreeReplayBufferState(**params[-1], data=data)  # type: ignore
     alpha_loss, critic_loss, actor_loss = sac_losses.make_losses(
         sac_network=sac_network,
