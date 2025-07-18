@@ -365,8 +365,8 @@ def train(
         dummy_data_sample=dummy_transition,
         sample_batch_size=batch_size,
     )
+    buffer_state = replay_buffer.init(rb_key)
     if load_buffer:
-        buffer_state = replay_buffer.init(rb_key)
         data = Transition(**params[-1].pop("data"))
         buffer_state = buffer_state.replace(**params[-1], data=data)  # type: ignore
     alpha_loss, critic_loss, actor_loss = sac_losses.make_losses(
