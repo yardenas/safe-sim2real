@@ -9,11 +9,24 @@ training:
   num_timesteps: 10000
   num_envs: 1
   num_evals: 20
-  train_domain_randomization: false
-  eval_domain_randomization: false
+  train_domain_randomization: true
+  eval_domain_randomization: true
   safe: true
   safety_budget: 150.
   wandb_id: rgawckct
+
+environment:
+  train_params:
+    torso_length: [0.5, 0.5]
+    friction: [0.0, 0.0]
+    joint_damping: [0.0, 0.0]
+    gear: [0., 0.]
+
+  eval_params:
+    torso_length: [0.5, 0.5]
+    friction: [0., 0.]
+    joint_damping: [0., 0.]
+    gear: [0., 0.]
 
 agent:
   policy_hidden_layer_sizes: [256, 256, 256]
