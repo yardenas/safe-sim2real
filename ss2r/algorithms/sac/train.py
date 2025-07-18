@@ -40,6 +40,7 @@ import ss2r.algorithms.sac.networks as sac_networks
 from ss2r.algorithms.penalizers import Penalizer
 from ss2r.algorithms.sac import gradients
 from ss2r.algorithms.sac.data import collect_single_step
+from ss2r.algorithms.sac.pytree_uniform_sampling_queue import PytreeReplayBufferState
 from ss2r.algorithms.sac.q_transforms import QTransformation, SACBase, SACCost, UCBCost
 from ss2r.algorithms.sac.rae import RAEReplayBufferState
 from ss2r.algorithms.sac.types import (
@@ -365,6 +366,8 @@ def train(
         sample_batch_size=batch_size,
     )
     buffer_state = replay_buffer.init(rb_key)
+    data = Transition(params[-1].pop("data"))
+    buffer_state = PytreeReplayBufferState(**params[-1], data=data)  # type: ignore
     alpha_loss, critic_loss, actor_loss = sac_losses.make_losses(
         sac_network=sac_network,
         reward_scaling=reward_scaling,
