@@ -26,5 +26,6 @@ agent:
       - 9ur6x8vq
     mix: [1., 0., 10000]
   grad_updates_per_step: 100
+  num_critic_updates_per_actor_update: 1
   learning_rate: 1e-6
   critic_learning_rate: 1e-6
