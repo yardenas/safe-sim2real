@@ -7,6 +7,7 @@ import optax
 from absl import logging
 from brax.training.agents.sac import checkpoint
 from brax.training.replay_buffers import ReplayBuffer
+from brax.training.types import Transition
 
 from ss2r.algorithms.sac import pytree_uniform_sampling_queue as pusq
 from ss2r.common.wandb import get_wandb_checkpoint
@@ -48,7 +49,7 @@ class RAEReplayBuffer(ReplayBuffer[RAEReplayBufferState, Sample], Generic[Sample
         key_online, key_next = jax.random.split(key, 2)
         online_state = self.online_buffer.init(key_online)
         offline_state = prepare_offline_data(self.wandb_ids, self.wandb_entity)
-        max_size = offline_state.data.shape[0]
+        max_size = offline_state.data.reward.shape[0]
         self.offline_buffer = pusq.PytreeUniformSamplingQueue(
             max_size, self._dummy_data_sample, self.sample_batch_size
         )
@@ -63,8 +64,8 @@ class RAEReplayBuffer(ReplayBuffer[RAEReplayBufferState, Sample], Generic[Sample
     def _init_mix(self, mix: MixType) -> Callable[[int], float]:
         if isinstance(mix, float):
             return lambda step: mix  # type: ignore
-        elif isinstance(mix, tuple) and len(mix) == 3:
-            init_val, end_val, steps = mix
+        elif isinstance(mix, Sequence) and len(mix) == 3:
+            init_val, end_val, steps = tuple(mix)  # type: ignore
             scheduler = optax.linear_schedule(
                 init_value=init_val, end_value=end_val, transition_steps=steps
             )
@@ -93,8 +94,6 @@ class RAEReplayBuffer(ReplayBuffer[RAEReplayBufferState, Sample], Generic[Sample
         """Sample from both buffers and return merged batch."""
         assert self.offline_buffer is not None
         mix_value = self.mix(state.step)
-        online_size = jnp.round(self.sample_batch_size * mix_value).astype(jnp.int32)
-        offline_size = self.sample_batch_size - online_size
         key_online, key_offline, new_key = jax.random.split(state.key, 3)
         online_state, online_samples = self.online_buffer.sample(
             state.online_state.replace(key=key_online)  # type: ignore
@@ -103,9 +102,21 @@ class RAEReplayBuffer(ReplayBuffer[RAEReplayBufferState, Sample], Generic[Sample
             state.offline_state.replace(key=key_offline)  # type: ignore
         )
         combined_samples = jax.tree_util.tree_map(
-            lambda o, f: jnp.concatenate([o[:online_size], f[:offline_size]], axis=0),
-            online_samples,
-            offline_samples,
+            lambda o, f: jnp.concatenate([o, f]), online_samples, offline_samples
+        )
+        online_weight = jnp.full((self.sample_batch_size,), mix_value)
+        offline_weight = jnp.full((self.sample_batch_size,), 1.0 - mix_value)
+        probs = jnp.concatenate([online_weight, offline_weight])
+        new_key, subkey = jax.random.split(new_key)
+        indices = jax.random.choice(
+            subkey,
+            2 * self.sample_batch_size,
+            shape=(self.sample_batch_size,),
+            p=probs,
+            replace=True,
+        )
+        combined_samples = jax.tree_util.tree_map(
+            lambda s: jnp.take(s, indices, axis=0), combined_samples
         )
         new_state = state.replace(  # type: ignore
             online_state=online_state,
@@ -128,22 +139,14 @@ def prepare_offline_data(wandb_ids, wandb_entity):
         checkpoint_path = get_wandb_checkpoint(wandb_id, wandb_entity)
         params = checkpoint.load(checkpoint_path)
         replay_buffer_state = params[-1]
-        data.append(_find_first_nonzeros(replay_buffer_state["data"]))
-    concatnated_data = jnp.concatenate(data, axis=0)
-    insert_position = jnp.array(concatnated_data.shape[0], dtype=jnp.int32)
+        data.append(replay_buffer_state["data"])
+    concatenated_data = jax.tree.map(lambda *xs: jnp.concatenate(xs, axis=0), *data)
+    concatenated_data = Transition(**concatenated_data)
+    insert_position = jnp.array(concatenated_data.reward.shape[0], dtype=jnp.int32)
     key = replay_buffer_state["key"]
     return pusq.PytreeReplayBufferState(
-        data=concatnated_data,
+        data=concatenated_data,
         insert_position=insert_position,
         key=key,
         sample_position=replay_buffer_state["sample_position"],
     )
-
-
-def _find_first_nonzeros(x):
-    zero_row_mask = jnp.all(x == 0, axis=1)
-    if jnp.all(~zero_row_mask):
-        # Replay buffer was full, argmax would retun 0
-        return x
-    first_zero_row_index = jnp.argmax(zero_row_mask)
-    return x[:first_zero_row_index]
