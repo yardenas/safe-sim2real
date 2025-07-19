@@ -62,3 +62,10 @@ def remove_pixels(
     if not isinstance(obs, Mapping):
         return obs
     return {k: v for k, v in obs.items() if not k.startswith("pixels/")}
+
+
+def restore_state(tree, target_example):
+    state = jax.tree_util.tree_unflatten(
+        jax.tree_util.tree_structure(target_example), jax.tree_util.tree_leaves(tree)
+    )
+    return state
