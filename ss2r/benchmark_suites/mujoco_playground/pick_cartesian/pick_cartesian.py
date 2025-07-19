@@ -31,6 +31,8 @@ from mujoco_playground._src.manipulation.franka_emika_panda import (
     pick,
 )
 
+from ss2r.benchmark_suites.rewards import tolerance
+
 
 def default_vision_config() -> config_dict.ConfigDict:
     return config_dict.create(
@@ -214,19 +216,15 @@ class PandaPickCubeCartesian(pick.PandaPickCube):
         # initialize env state and info
         metrics = {
             "out_of_bounds": jp.array(0.0),
-            **{
-                f"reward/{k}": 0.0
-                for k in self._config.reward_config.reward_scales.keys()
-            },
-            "reward/lifted": jp.array(0.0),
-            "reward/success": jp.array(0.0),
+            "reward/grasp": jp.array(0.0),
+            "reward/bring": jp.array(0.0),
+            "reward/no_floor_collision": jp.array(0.0),
+            "reward/no_box_collision": jp.array(0.0),
         }
 
         info = {
             "rng": rng,
             "target_pos": target_pos,
-            "reached_box": jp.array(0.0, dtype=float),
-            "prev_reward": jp.array(0.0, dtype=float),
             "current_pos": self._start_tip_transform[:3, 3],
             "newly_reset": jp.array(False, dtype=bool),
             "prev_action": jp.zeros(3),
@@ -273,14 +271,8 @@ class PandaPickCubeCartesian(pick.PandaPickCube):
         state.info["newly_reset"] = state.info["_steps"] == 0
 
         newly_reset = state.info["newly_reset"]
-        state.info["prev_reward"] = jp.where(
-            newly_reset, 0.0, state.info["prev_reward"]
-        )
         state.info["current_pos"] = jp.where(
             newly_reset, self._start_tip_transform[:3, 3], state.info["current_pos"]
-        )
-        state.info["reached_box"] = jp.where(
-            newly_reset, 0.0, state.info["reached_box"]
         )
         state.info["prev_action"] = jp.where(
             newly_reset, jp.zeros(3), state.info["prev_action"]
@@ -313,18 +305,18 @@ class PandaPickCubeCartesian(pick.PandaPickCube):
         # Simulator step
         data = mjx_env.step(self._mjx_model, data, ctrl, self.n_substeps)
 
-        # Dense rewards
         raw_rewards = self._get_reward(data, state.info)
+        grasp, bring = raw_rewards.pop("grasp"), raw_rewards.pop("bring")
+        sparse_reward = max(grasp / 3.0, bring)
+        # Penalize collision with box.
+        hand_box = collision.geoms_colliding(data, self._box_geom, self._hand_geom)
+        raw_rewards["no_box_collision"] = jp.where(hand_box, 0.0, 1.0)
         rewards = {
             k: v * self._config.reward_config.reward_scales[k]
             for k, v in raw_rewards.items()
         }
-
-        # Penalize collision with box.
-        hand_box = collision.geoms_colliding(data, self._box_geom, self._hand_geom)
-        raw_rewards["no_box_collision"] = jp.where(hand_box, 0.0, 1.0)
-
         total_reward = jp.clip(sum(rewards.values()), -1e4, 1e4)
+        total_reward += sparse_reward
 
         if not self._vision:
             # Vision policy cannot access the required state-based observations.
@@ -335,35 +327,18 @@ class PandaPickCubeCartesian(pick.PandaPickCube):
 
         # Sparse rewards
         box_pos = data.xpos[self._obj_body]
-        lifted = (box_pos[2] > 0.05) * self._config.reward_config.lifted_reward
-        total_reward += lifted
-        success = self._get_success(data, state.info)
-        total_reward += success * self._config.reward_config.success_reward
-
-        # Reward progress
-        reward = jp.maximum(
-            total_reward - state.info["prev_reward"], jp.zeros_like(total_reward)
-        )
-        state.info["prev_reward"] = jp.maximum(total_reward, state.info["prev_reward"])
-        reward = jp.where(newly_reset, 0.0, reward)  # Prevent first-step artifact
-
         out_of_bounds = jp.any(jp.abs(box_pos) > 1.0)
         out_of_bounds |= box_pos[2] < 0.0
         state.metrics.update(out_of_bounds=out_of_bounds.astype(float))
-        state.metrics.update({f"reward/{k}": v for k, v in raw_rewards.items()})
         state.metrics.update(
             {
-                "reward/lifted": lifted.astype(float),
-                "reward/success": success.astype(float),
+                "reward/bring": bring,
+                "reward/grasp": grasp,
+                "reward/no_box_collision": raw_rewards["no_box_collision"],
+                "reward/no_floor_collision": raw_rewards["no_floor_collision"],
             }
         )
-
-        done = (
-            out_of_bounds
-            | jp.isnan(data.qpos).any()
-            | jp.isnan(data.qvel).any()
-            | success
-        )
+        done = out_of_bounds | jp.isnan(data.qpos).any() | jp.isnan(data.qvel).any()
 
         # Ensure exact sync between newly_reset and the autoresetwrapper.
         state.info["_steps"] += self._config.action_repeat
@@ -384,19 +359,42 @@ class PandaPickCubeCartesian(pick.PandaPickCube):
         return state.replace(
             data=data,
             obs=obs,
-            reward=reward,
+            reward=total_reward,
             done=done.astype(float),
             info=state.info,
         )
 
-    def _get_success(self, data: mjx.Data, info: dict[str, Any]) -> jax.Array:
-        box_pos = data.xpos[self._obj_body]
+    def _get_reward(self, data: mjx.Data, info: Dict[str, Any]) -> Dict[str, Any]:
         target_pos = info["target_pos"]
-        if (
-            self._vision
-        ):  # Randomized camera positions cannot see location along y line.
-            box_pos, target_pos = box_pos[2], target_pos[2]
-        return jp.linalg.norm(box_pos - target_pos) < self._config.success_threshold
+        box_pos = data.xpos[self._obj_body]
+        gripper_pos = data.site_xpos[self._gripper_site]
+        grasp = tolerance(
+            jp.linalg.norm(gripper_pos - box_pos),
+            (0, self._config.success_threshold),
+            margin=self._config.success_threshold * 2,
+        )
+        bring = tolerance(
+            jp.linalg.norm(box_pos - target_pos),
+            (0, self._config.success_threshold),
+            margin=self._config.success_threshold * 2,
+        )
+        # Check for collisions with the floor
+        hand_floor_collision = [
+            collision.geoms_colliding(data, self._floor_geom, g)
+            for g in [
+                self._left_finger_geom,
+                self._right_finger_geom,
+                self._hand_geom,
+            ]
+        ]
+        floor_collision = sum(hand_floor_collision) > 0
+        no_floor_collision = (1 - floor_collision).astype(float)
+        rewards = {
+            "grasp": grasp,
+            "bring": bring,
+            "no_floor_collision": no_floor_collision,
+        }
+        return rewards
 
     def _move_tip(
         self,
