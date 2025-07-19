@@ -28,4 +28,5 @@ agent:
     wandb_ids:
       - eclz7est
     mix: [1., 0., 10000]
-  grad_updates_per_step: 100
+  grad_updates_per_step: 50
+  target_entropy: null
