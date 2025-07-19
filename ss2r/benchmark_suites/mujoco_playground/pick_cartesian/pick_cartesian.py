@@ -307,7 +307,7 @@ class PandaPickCubeCartesian(pick.PandaPickCube):
 
         raw_rewards = self._get_reward(data, state.info)
         grasp, bring = raw_rewards.pop("grasp"), raw_rewards.pop("bring")
-        sparse_reward = max(grasp / 3.0, bring)
+        sparse_reward = jp.maximum(grasp / 3.0, bring)
         # Penalize collision with box.
         hand_box = collision.geoms_colliding(data, self._box_geom, self._hand_geom)
         raw_rewards["no_box_collision"] = jp.where(hand_box, 0.0, 1.0)
