@@ -148,11 +148,15 @@ def main(cfg):
                 cfg.training.episode_length,
                 rng,
             )
-            fps = (
-                1 / cfg.environment.task_params.ctrl_dt
-                if "ctrl_dt" in cfg.environment.task_params
-                else 30.0
-            )
+            if (
+                hasattr(cfg.environment, "task_params")
+                and "ctrl_dt" in cfg.environment.task_params
+            ):
+                fps = 1 / cfg.environment.task_params.ctrl_dt
+            elif hasattr(cfg.environment, "dt"):
+                fps = 1 / cfg.environment.dt
+            else:
+                fps = 30.0
             logger.log_video(
                 video,
                 steps.count,
