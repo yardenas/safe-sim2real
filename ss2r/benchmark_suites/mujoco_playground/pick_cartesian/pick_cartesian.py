@@ -312,7 +312,7 @@ class PandaPickCubeCartesian(pick.PandaPickCube):
             raw_rewards.pop("box_collision"),
         )
         grasp = grasp * (1.0 - hand_box)
-        total_reward = jp.maximum(grasp / 3.0, bring)
+        total_reward = jp.maximum(grasp / 4.0, bring)
         # Penalize collision with box.
 
         if not self._vision:
