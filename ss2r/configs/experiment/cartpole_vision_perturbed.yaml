@@ -1,0 +1,35 @@
+# @package _global_
+defaults:
+  - mujoco_playground_dm_control_vision
+  - override /environment: cartpole_swingup
+  - _self_
+
+writers:
+  - jsonl
+  - stderr
+
+task_name: SafeCartpolePerturbed
+environment:
+  task_params:
+    ctrl_dt: 0.04
+    episode_length: 1000
+    vision_config:
+      enabled_geom_groups: [0, 1, 2] 
+      history: 3
+    vision: true
+    physical_params:
+      pole_length: 0.1
+      pole_mass: 0.5
+      gear: 0.3
+
+
+training:
+  num_timesteps: 1000000
+  safe: false
+  train_domain_randomization: false
+  eval_domain_randomization: false
+  num_eval_episodes: 1
+  episode_length: 1000
+
+agent:
+  activation: swish
