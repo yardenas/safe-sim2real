@@ -24,6 +24,7 @@ import mujoco
 import numpy as np
 from ml_collections import config_dict
 from mujoco import mjx
+from mujoco.mjx._src import math
 from mujoco_playground._src import collision, mjx_env
 from mujoco_playground._src.manipulation.franka_emika_panda import (
     panda,
@@ -218,8 +219,8 @@ class PandaPickCubeCartesian(pick.PandaPickCube):
             "out_of_bounds": jp.array(0.0),
             "reward/grasp": jp.array(0.0),
             "reward/bring": jp.array(0.0),
-            "reward/no_floor_collision": jp.array(0.0),
-            "reward/no_box_collision": jp.array(0.0),
+            "floor_collision": jp.array(0.0),
+            "reward/box_collision": jp.array(0.0),
         }
 
         info = {
@@ -304,19 +305,15 @@ class PandaPickCubeCartesian(pick.PandaPickCube):
 
         # Simulator step
         data = mjx_env.step(self._mjx_model, data, ctrl, self.n_substeps)
-
         raw_rewards = self._get_reward(data, state.info)
-        grasp, bring = raw_rewards.pop("grasp"), raw_rewards.pop("bring")
-        sparse_reward = jp.maximum(grasp / 3.0, bring)
+        grasp, bring, hand_box = (
+            raw_rewards.pop("grasp"),
+            raw_rewards.pop("bring"),
+            raw_rewards.pop("box_collision"),
+        )
+        grasp = grasp * (1.0 - hand_box)
+        total_reward = jp.maximum(grasp / 3.0, bring)
         # Penalize collision with box.
-        hand_box = collision.geoms_colliding(data, self._box_geom, self._hand_geom)
-        raw_rewards["no_box_collision"] = jp.where(hand_box, 0.0, 1.0)
-        rewards = {
-            k: v * self._config.reward_config.reward_scales[k]
-            for k, v in raw_rewards.items()
-        }
-        total_reward = jp.clip(sum(rewards.values()), -1e4, 1e4)
-        total_reward += sparse_reward
 
         if not self._vision:
             # Vision policy cannot access the required state-based observations.
@@ -329,16 +326,30 @@ class PandaPickCubeCartesian(pick.PandaPickCube):
         box_pos = data.xpos[self._obj_body]
         out_of_bounds = jp.any(jp.abs(box_pos) > 1.0)
         out_of_bounds |= box_pos[2] < 0.0
+        hand_floor_collision = [
+            collision.geoms_colliding(data, self._floor_geom, g)
+            for g in [
+                self._left_finger_geom,
+                self._right_finger_geom,
+                self._hand_geom,
+            ]
+        ]
+        floor_collision = sum(hand_floor_collision) > 0
         state.metrics.update(out_of_bounds=out_of_bounds.astype(float))
         state.metrics.update(
             {
                 "reward/bring": bring,
                 "reward/grasp": grasp,
-                "reward/no_box_collision": raw_rewards["no_box_collision"],
-                "reward/no_floor_collision": raw_rewards["no_floor_collision"],
+                "reward/box_collision": hand_box,
+                "floor_collision": floor_collision.astype(float),
             }
         )
-        done = out_of_bounds | jp.isnan(data.qpos).any() | jp.isnan(data.qvel).any()
+        done = (
+            out_of_bounds
+            | jp.isnan(data.qpos).any()
+            | jp.isnan(data.qvel).any()
+            | floor_collision
+        )
 
         # Ensure exact sync between newly_reset and the autoresetwrapper.
         state.info["_steps"] += self._config.action_repeat
@@ -373,26 +384,23 @@ class PandaPickCubeCartesian(pick.PandaPickCube):
             (0, self._config.success_threshold),
             margin=self._config.success_threshold * 2,
         )
-        bring = tolerance(
+        pos_reward = tolerance(
             jp.linalg.norm(box_pos - target_pos),
             (0, self._config.success_threshold),
             margin=self._config.success_threshold * 2,
         )
-        # Check for collisions with the floor
-        hand_floor_collision = [
-            collision.geoms_colliding(data, self._floor_geom, g)
-            for g in [
-                self._left_finger_geom,
-                self._right_finger_geom,
-                self._hand_geom,
-            ]
-        ]
-        floor_collision = sum(hand_floor_collision) > 0
-        no_floor_collision = (1 - floor_collision).astype(float)
+        box_mat = data.xmat[self._obj_body]
+        target_mat = math.quat_to_mat(data.mocap_quat[self._mocap_target])
+        rot_err = jp.linalg.norm(target_mat.ravel()[:6] - box_mat.ravel()[:6])
+        rot_reward = tolerance(rot_err, (0, self._config.success_threshold), 2)
+        bring = rot_reward * pos_reward
+        hand_box = collision.geoms_colliding(
+            data, self._box_geom, self._hand_geom
+        ).astype(float)
         rewards = {
             "grasp": grasp,
             "bring": bring,
-            "no_floor_collision": no_floor_collision,
+            "box_collision": hand_box,
         }
         return rewards
 
