@@ -392,7 +392,13 @@ class PandaPickCubeCartesian(pick.PandaPickCube):
         box_mat = data.xmat[self._obj_body]
         target_mat = math.quat_to_mat(data.mocap_quat[self._mocap_target])
         rot_err = jp.linalg.norm(target_mat.ravel()[:6] - box_mat.ravel()[:6])
-        rot_reward = tolerance(rot_err, (0, self._config.success_threshold), 2)
+        rot_reward = tolerance(
+            rot_err,
+            (0, self._config.success_threshold),
+            jp.sqrt(2.0),
+            value_at_margin=0.0,
+            sigmoid="cosine",
+        )
         bring = rot_reward * pos_reward
         hand_box = collision.geoms_colliding(
             data, self._box_geom, self._hand_geom
