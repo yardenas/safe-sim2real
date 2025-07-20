@@ -395,7 +395,7 @@ class PandaPickCubeCartesian(pick.PandaPickCube):
         rot_reward = tolerance(
             rot_err,
             (0, self._config.success_threshold),
-            jp.sqrt(2.0),
+            np.sqrt(2.0),
             value_at_margin=0.0,
             sigmoid="cosine",
         )
