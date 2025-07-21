@@ -1,0 +1,4 @@
+# @package _global_
+defaults:
+  - rccar_sim_to_sim
+  - _self_
