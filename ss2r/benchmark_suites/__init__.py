@@ -61,6 +61,8 @@ manipulation.register_environment(
 def get_wrap_env_fn(cfg):
     if "propagation" not in cfg.agent:
         out = lambda env: env, lambda env: env
+    elif cfg.agent.propagation.name == "standard":
+        out = lambda env: env, lambda env: env
     elif cfg.agent.propagation.name == "spidr":
 
         def fn(env):
