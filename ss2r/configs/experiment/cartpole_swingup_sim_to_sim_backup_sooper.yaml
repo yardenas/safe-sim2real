@@ -2,7 +2,7 @@
 defaults:
   - cartpole_swingup_sim_to_sim
   - override /agent/cost_robustness: ramu
-  - override /agent/propagation: null
+  - override /agent/propagation: standard
   - _self_
 
 training:
