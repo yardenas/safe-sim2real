@@ -187,7 +187,7 @@ class PandaPickCubeCartesian(pick.PandaPickCube):
             [
                 x_plane,
                 jax.random.uniform(rng_box, (), minval=-r_range, maxval=r_range),
-                0.0,
+                0.03,
             ]
         )
 
