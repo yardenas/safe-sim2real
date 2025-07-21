@@ -20,6 +20,7 @@ imageio = "^2.37.0"
 brax = {git = "https://github.com/Andrew-Luo1/brax.git", rev = "bc_checkpointing"}
 playground = {git = "https://github.com/Andrew-Luo1/mujoco_playground_new.git"}
 nvidia-cuda-nvrtc-cu12 = "^12.9.86"
+matplotlib = "^3.10.3"
 
 [[tool.poetry.source]]
 name = "PyPI"
