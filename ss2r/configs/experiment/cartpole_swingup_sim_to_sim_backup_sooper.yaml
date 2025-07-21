@@ -1,0 +1,19 @@
+# @package _global_
+defaults:
+  - cartpole_swingup_sim_to_sim
+  - override /agent/cost_robustness: ramu
+  - override /agent/propagation: null
+  - _self_
+
+training:
+  safety_budget: 75
+
+environment:
+  train_params:
+    pole_length: [-0.25, 0.25]
+    pole_mass: [0., 0.]
+    gear: [-2., 2.]
+  eval_params:
+    pole_length: [-0.25, 0.25]
+    pole_mass: [0., 0.]
+    gear: [-2., 2.]
