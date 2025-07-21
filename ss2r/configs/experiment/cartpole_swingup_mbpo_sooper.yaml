@@ -14,7 +14,7 @@ training:
   safety_budget: 100
   num_envs: 1
   num_evals: 20
-  wandb_id: msv6mfut
+  wandb_id: 4vzv4oa0
 
 agent:
   policy_hidden_layer_sizes: [256, 256, 256]
@@ -26,8 +26,8 @@ agent:
   critic_grad_updates_per_step: 4000
   model_grad_updates_per_step: 100000
   num_model_rollouts: 5000
-  learning_rate: 1e-5
-  critic_learning_rate: 1e-5
+  learning_rate: 6e-5
+  critic_learning_rate: 3e-4
   model_learning_rate: 3e-4
   pessimism: 10
   optimism: 0
