@@ -173,7 +173,6 @@ class PandaPickCubeCartesian(pick.PandaPickCube):
             mj_model.geom("box").size = jp.array([0.03])
             # A jumping ball
             mj_model.geom("box").solref = jp.array([-100, -0.1])
-            mj_model.body("box").pos = jp.array([0.0, 0.0, 0.01])
         return mj_model
 
     def reset(self, rng: jax.Array) -> mjx_env.State:
@@ -187,7 +186,7 @@ class PandaPickCubeCartesian(pick.PandaPickCube):
             [
                 x_plane,
                 jax.random.uniform(rng_box, (), minval=-r_range, maxval=r_range),
-                0.03,
+                0.03 + 1e-5,
             ]
         )
 
