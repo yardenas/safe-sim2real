@@ -393,7 +393,7 @@ class PandaPickCubeCartesian(pick.PandaPickCube):
             (0, self._config.success_threshold),
             np.sqrt(2.0),
         )
-        bring = (rot_reward + pos_reward) / 2.0
+        bring = rot_reward * 0.1 + pos_reward * 0.9
         hand_box = collision.geoms_colliding(
             data, self._box_geom, self._hand_geom
         ).astype(float)
