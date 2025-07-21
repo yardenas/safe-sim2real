@@ -11,7 +11,7 @@ training:
   safe: true
   train_domain_randomization: false
   eval_domain_randomization: false
-  safety_budget: 100
+  safety_budget: 75
   num_envs: 1
   wandb_id: gaj7zb12
 
