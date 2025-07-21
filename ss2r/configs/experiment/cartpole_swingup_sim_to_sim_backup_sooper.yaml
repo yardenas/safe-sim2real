@@ -1,6 +1,8 @@
 # @package _global_
 defaults:
   - cartpole_swingup_sim_to_sim
+  - override /agent/cost_robustness: ramu
+  - override /agent/propagation: standard
   - _self_
 
 environment:
