@@ -5,6 +5,8 @@ defaults:
   - override /agent/propagation: standard
   - _self_
 
+training:
+  safety_budget: 100
 
 environment:
   train_params:
