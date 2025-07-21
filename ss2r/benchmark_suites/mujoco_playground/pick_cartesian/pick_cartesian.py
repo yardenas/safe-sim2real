@@ -379,11 +379,7 @@ class PandaPickCubeCartesian(pick.PandaPickCube):
         target_pos = info["target_pos"]
         box_pos = data.xpos[self._obj_body]
         gripper_pos = data.site_xpos[self._gripper_site]
-        grasp = tolerance(
-            jp.linalg.norm(gripper_pos - box_pos),
-            (0, self._config.success_threshold),
-            margin=self._config.success_threshold * 2,
-        )
+        grasp = 1 - jp.tanh(5 * jp.linalg.norm(gripper_pos - box_pos))
         pos_reward = tolerance(
             jp.linalg.norm(box_pos - target_pos),
             (0, self._config.success_threshold),
@@ -396,10 +392,8 @@ class PandaPickCubeCartesian(pick.PandaPickCube):
             rot_err,
             (0, self._config.success_threshold),
             np.sqrt(2.0),
-            value_at_margin=0.0,
-            sigmoid="cosine",
         )
-        bring = rot_reward * pos_reward
+        bring = (rot_reward + pos_reward) / 2.0
         hand_box = collision.geoms_colliding(
             data, self._box_geom, self._hand_geom
         ).astype(float)
