@@ -168,6 +168,10 @@ class PandaPickCubeCartesian(pick.PandaPickCube):
             if data_id == mesh_id
         ]
         mj_model.geom_matid[geoms] = mj_model.mat("off_white").id
+        mj_model.geom("box").type = mujoco.mjtGeom.mjGEOM_SPHERE
+        mj_model.geom("box").size = jp.array([0.03])
+        # A jumping ball
+        mj_model.geom("box").solref = jp.array([-1000, 0])
         return mj_model
 
     def reset(self, rng: jax.Array) -> mjx_env.State:
