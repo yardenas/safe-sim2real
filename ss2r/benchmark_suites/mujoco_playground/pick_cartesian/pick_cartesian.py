@@ -172,7 +172,8 @@ class PandaPickCubeCartesian(pick.PandaPickCube):
             mj_model.geom("box").type = mujoco.mjtGeom.mjGEOM_SPHERE
             mj_model.geom("box").size = jp.array([0.03])
             # A jumping ball
-            mj_model.geom("box").solref = jp.array([-1000, 0])
+            mj_model.geom("box").solref = jp.array([-100, -0.1])
+            mj_model.body("box").pos = jp.array([0.0, 0.0, 0.01])
         return mj_model
 
     def reset(self, rng: jax.Array) -> mjx_env.State:
