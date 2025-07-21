@@ -173,6 +173,7 @@ class PandaPickCubeCartesian(pick.PandaPickCube):
             mj_model.geom("box").size = jp.array([0.03])
             mj_model.opt.impratio = 5
             mj_model.opt.noslip_iterations = 3
+            mj_model.body("box").inertia *= 8
         return mj_model
 
     def reset(self, rng: jax.Array) -> mjx_env.State:
