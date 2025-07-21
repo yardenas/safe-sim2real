@@ -171,9 +171,8 @@ class PandaPickCubeCartesian(pick.PandaPickCube):
         if self._config.use_ball:
             mj_model.geom("box").type = mujoco.mjtGeom.mjGEOM_SPHERE
             mj_model.geom("box").size = jp.array([0.03])
-            # A jumping ball
-            mj_model.opt.impratio = 1.5
-            mj_model.opt.noslip_iterations = 2
+            mj_model.opt.impratio = 5
+            mj_model.opt.noslip_iterations = 3
         return mj_model
 
     def reset(self, rng: jax.Array) -> mjx_env.State:
