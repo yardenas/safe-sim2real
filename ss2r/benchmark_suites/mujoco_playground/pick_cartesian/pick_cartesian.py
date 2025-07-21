@@ -306,7 +306,10 @@ class PandaPickCubeCartesian(pick.PandaPickCube):
 
         # Cartesian control
         increment = jp.zeros(4)
-        increment = increment.at[1:].set(action)  # set y, z and gripper commands.
+        if not self._config.use_x:
+            increment = increment.at[1:].set(action)  # set y, z and gripper commands.
+        else:
+            increment = action
         ctrl, new_tip_position, no_soln = self._move_tip(
             state.info["current_pos"],
             self._start_tip_transform[:3, :3],
