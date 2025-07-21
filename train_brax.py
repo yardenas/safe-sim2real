@@ -148,9 +148,8 @@ def main(cfg):
                 cfg.training.episode_length,
                 rng,
             )
-            if (
-                hasattr(cfg.environment, "task_params")
-                and "ctrl_dt" in cfg.environment.task_params
+            if hasattr(cfg.environment, "task_params") and hasattr(
+                cfg.environment.task_params, "ctrl_dt"
             ):
                 fps = 1 / cfg.environment.task_params.ctrl_dt
             elif hasattr(cfg.environment, "dt"):
