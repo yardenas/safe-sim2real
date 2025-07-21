@@ -150,7 +150,8 @@ def main(cfg):
             )
             fps = (
                 1 / cfg.environment.task_params.ctrl_dt
-                if "ctrl_dt" in cfg.environment.task_params
+                if "task_params" in cfg.environment
+                and "ctrl_dt" in cfg.environment.task_params
                 else 30.0
             )
             logger.log_video(
