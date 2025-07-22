@@ -496,7 +496,7 @@ def train(
         def f(carry, unused_t):
             ts, es, mbs, acbs, k = carry
             k, new_key = jax.random.split(k)
-            ts, es, mbs, acbs, metrics = training_step(ts, es, mbs, acbs, k)
+            ts, es, mbs, metrics = training_step(ts, es, mbs, acbs, k)
             return (ts, es, mbs, acbs, new_key), metrics
 
         (

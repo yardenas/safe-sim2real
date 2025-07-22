@@ -379,9 +379,7 @@ def make_training_step(
         model_buffer_state: ReplayBufferState,
         sac_buffer_state: ReplayBufferState,
         key: PRNGKey,
-    ) -> Tuple[
-        TrainingState, envs.State, ReplayBufferState, ReplayBufferState, Metrics
-    ]:
+    ) -> Tuple[TrainingState, envs.State, ReplayBufferState, Metrics]:
         """Splits training into experience collection and a jitted training step."""
         if not offline:
             (
@@ -453,6 +451,6 @@ def make_training_step(
         metrics["buffer_current_size"] = model_replay_buffer.size(model_buffer_state)
         metrics |= env_state.metrics
         metrics["disagreement"] = disagreement
-        return training_state, env_state, model_buffer_state, sac_buffer_state, metrics
+        return training_state, env_state, model_buffer_state, metrics
 
     return training_step

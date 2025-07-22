@@ -20,7 +20,7 @@ training:
   train_domain_randomization: false
   eval_domain_randomization: false
   safety_budget: 5.0
-  wandb_id: l601fe0o
+  wandb_id: 0ltkzlyo
 
 agent:
   batch_size: 256
