@@ -53,7 +53,7 @@ def test_policy_to_onnx_export():
         hidden_layer_sizes=cfg.agent.policy_hidden_layer_sizes,
         encoder_hidden_dim=cfg.agent.encoder_hidden_dim,
         activation=tf.nn.swish,
-        tanh=True,
+        tanh=cfg.agent.tanh,
     )
 
     # Run a forward pass

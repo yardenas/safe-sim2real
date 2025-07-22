@@ -1,3 +1,4 @@
+import jax
 import numpy as np
 
 from ss2r.algorithms.sac.go1_sac_to_onnx import MLP
@@ -159,7 +160,7 @@ def transfer_weights(jax_params, tf_model):
                 print(f"Unhandled layer type in {layer_name}: {type(tf_layer)}")
 
 
-def convert_policy_to_onnx(params, cfg, act_size, obs_size):
+def convert_policy_to_onnx(make_inference_fn, params, cfg, act_size, obs_size):
     """
     Converts a JAX policy to ONNX format using a TensorFlow intermediate model.
 
@@ -181,11 +182,13 @@ def convert_policy_to_onnx(params, cfg, act_size, obs_size):
         hidden_layer_sizes=cfg.agent.policy_hidden_layer_sizes,
         activation=tf.nn.swish,
         encoder_hidden_dim=cfg.agent.encoder_hidden_dim,
+        tanh=cfg.agent.tanh,
     )
     obs = {"pixels/view_0": np.ones((1,) + obs_size, dtype=np.float32)}
     tf_policy_network(obs).numpy()[0]
     # Transfer JAX weights to TF model
     transfer_weights(params[1]["params"], tf_policy_network)
+    tensorflow_pred = tf_policy_network(obs).numpy()[0]
     # Export to ONNX
     tf_policy_network.output_names = ["continuous_actions"]
     model_proto, _ = tf2onnx.convert.from_keras(
@@ -199,10 +202,13 @@ def convert_policy_to_onnx(params, cfg, act_size, obs_size):
         ],
         opset=11,
     )
+    inference_fn = make_inference_fn(params, deterministic=True)
+    jax_pred = inference_fn(obs, jax.random.PRNGKey(0))[0][0]
+    print("TF prediction:", tensorflow_pred)
+    print("JAX prediction:", jax_pred)
     return model_proto
 
 
 def make_franka_policy(make_policy_fn, params, cfg):
-    del make_policy_fn
-    proto_model = convert_policy_to_onnx(params, cfg, 4, (64, 64, 3))
+    proto_model = convert_policy_to_onnx(make_policy_fn, params, cfg, 4, (64, 64, 3))
     return proto_model.SerializeToString()
