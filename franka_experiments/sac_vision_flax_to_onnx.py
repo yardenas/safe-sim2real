@@ -23,7 +23,7 @@ def test_policy_to_onnx_export():
     # Define dummy config
     cfg = get_cfg()
 
-    act_size = 4
+    act_size = 3
     obs_shape = (64, 64, 3)  # shape for each image input
     # Dummy observation with a single pixel input
     sac_network = make_sac_vision_networks(
