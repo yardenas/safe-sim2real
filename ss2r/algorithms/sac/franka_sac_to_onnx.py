@@ -183,7 +183,7 @@ def convert_policy_to_onnx(params, cfg, act_size, obs_size):
         encoder_hidden_dim=cfg.agent.encoder_hidden_dim,
     )
     obs = {"pixels/view_0": np.ones((1,) + obs_size, dtype=np.float32)}
-    tf_policy_network(obs)
+    tf_policy_network(obs).numpy()[0]
     # Transfer JAX weights to TF model
     transfer_weights(params[1]["params"], tf_policy_network)
     # Export to ONNX
@@ -193,7 +193,7 @@ def convert_policy_to_onnx(params, cfg, act_size, obs_size):
         input_signature=[
             {
                 "pixels/view_0": tf.TensorSpec(
-                    [1, 64, 64, 3], tf.float32, name="pixels/view_0"
+                    [1, *obs_size], tf.float32, name="pixels/view_0"
                 )
             }
         ],
