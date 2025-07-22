@@ -287,6 +287,7 @@ def make_training_step(
     def relabel_transitions(
         planning_env: ModelBasedEnv,
         transitions: Transition,
+        num_real_transitions: int,
     ) -> Transition:
         pred_fn = planning_env.model_network.apply
         model_params = planning_env.model_params
@@ -295,7 +296,6 @@ def make_training_step(
         next_obs_pred, reward, cost = vmap_pred_fn(
             normalizer_params, model_params, transitions.observation, transitions.action
         )
-
         pred_backup_action = planning_env.policy_network.apply
         backup_policy_params = planning_env.backup_policy_params
         backup_action = pred_backup_action(
@@ -307,10 +307,9 @@ def make_training_step(
             else next_obs_pred["state"].std(axis=0).mean(-1)
         )
         new_reward = reward.mean(0) + disagreement * optimism
+        new_cost = cost.mean(0) + disagreement * pessimism
         discount = transitions.discount
         if safe:
-            cost = cost.mean(0) + disagreement * pessimism
-            transitions.extras["state_extras"]["cost"] = cost
             if (planning_env.qc_network is not None) and use_termination:
                 if safety_filter == "sooper":
                     qc_pred = planning_env.qc_network.apply(
@@ -325,8 +324,8 @@ def make_training_step(
                     )
                     discount = jnp.where(
                         expected_total_cost > planning_env.safety_budget,
-                        jnp.zeros_like(cost, dtype=jnp.float32),
-                        jnp.ones_like(cost, dtype=jnp.float32),
+                        jnp.zeros_like(new_cost, dtype=jnp.float32),
+                        jnp.ones_like(new_cost, dtype=jnp.float32),
                     )
                 elif safety_filter == "advantage":
                     qc_backup = planning_env.qc_network.apply(
@@ -344,8 +343,8 @@ def make_training_step(
                     advantage = qc_behavioral - qc_backup
                     discount = jnp.where(
                         advantage > planning_env.safety_budget,
-                        jnp.zeros_like(cost, dtype=jnp.float32),
-                        jnp.ones_like(cost, dtype=jnp.float32),
+                        jnp.zeros_like(new_cost, dtype=jnp.float32),
+                        jnp.ones_like(new_cost, dtype=jnp.float32),
                     )
 
             pred_qr = planning_env.qr_network.apply
@@ -364,14 +363,24 @@ def make_training_step(
                 else jnp.zeros_like(transitions.reward),
             )
         next_obs_pred = jax.tree_map(lambda x: x.mean(0), next_obs_pred)
-        return Transition(
+
+        # Relabel only model-generated transitions.
+        # Discount is relabeled in both cases because this is
+        # how the agent learns to avoid the backup policy
+        def relabel(x, y):
+            return jax.tree_map(lambda x, y: x.at[num_real_transitions:].set(y), x, y)
+
+        new_cost = relabel(transitions.extras["state_extras"]["cost"], new_cost)
+        transitions.extras["state_extras"]["cost"] = new_cost
+        transitions = Transition(
             observation=transitions.observation,
-            next_observation=next_obs_pred,
+            next_observation=relabel(transitions.next_observation, next_obs_pred),
             action=transitions.action,
-            reward=new_reward,
+            reward=relabel(transitions.reward, new_reward),
             discount=discount,
             extras=transitions.extras,
-        ), disagreement
+        )
+        return transitions, disagreement
 
     def training_step(
         training_state: TrainingState,
@@ -430,7 +439,9 @@ def make_training_step(
             lambda x: jnp.reshape(x, (critic_grad_updates_per_step, -1) + x.shape[1:]),
             transitions,
         )
-        transitions, disagreement = relabel_transitions(planning_env, transitions)
+        transitions, disagreement = relabel_transitions(
+            planning_env, transitions, num_real_transitions
+        )
         (training_state, _), critic_metrics = jax.lax.scan(
             critic_sgd_step, (training_state, training_key), transitions
         )
