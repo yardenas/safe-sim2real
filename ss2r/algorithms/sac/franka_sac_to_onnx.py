@@ -189,7 +189,7 @@ def convert_policy_to_onnx(params, cfg, act_size, obs_size):
     model_proto, _ = tf2onnx.convert.from_keras(
         tf_policy_network,
         input_signature=[
-            tf.TensorSpec(shape=(1, obs_size), dtype=tf.float32, name="obs")
+            tf.TensorSpec(shape=(1, *obs_size), dtype=tf.float32, name="obs")
         ],
         opset=11,
     )

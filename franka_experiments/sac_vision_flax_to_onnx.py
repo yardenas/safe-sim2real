@@ -1,11 +1,10 @@
-from types import SimpleNamespace
-
 import jax
 import matplotlib.pyplot as plt
 import numpy as np
 import onnxruntime as rt
 import tensorflow as tf
 import tf2onnx
+from hydra import compose, initialize
 
 import ss2r.algorithms.sac.networks as sac_networks
 from ss2r.algorithms.sac import franka_sac_to_onnx
@@ -13,13 +12,21 @@ from ss2r.algorithms.sac.franka_sac_to_onnx import make_policy_network
 from ss2r.algorithms.sac.vision_networks import make_sac_vision_networks
 
 
+def get_cfg():
+    with initialize(version_base=None, config_path="../ss2r/configs"):
+        cfg = compose(
+            config_name="train_brax",
+            overrides=[
+                "writers=[stderr]",
+                "+experiment=franka_online",
+            ],
+        )
+        return cfg
+
+
 def test_policy_to_onnx_export():
     # Define dummy config
-    cfg = SimpleNamespace(
-        agent=SimpleNamespace(
-            policy_hidden_layer_sizes=(256, 256), encoder_hidden_dim=128
-        )
-    )
+    cfg = get_cfg()
 
     act_size = 4
     obs_shape = (64, 64, 3)  # shape for each image input
@@ -40,7 +47,6 @@ def test_policy_to_onnx_export():
     inference_fn = make_inference_fn(
         (dummy_normalizer_params, params), deterministic=True
     )
-
     # Create model
     tf_model = make_policy_network(
         action_size=act_size,
@@ -81,6 +87,7 @@ def test_policy_to_onnx_export():
     plt.plot(jax_pred, label="jax")
     plt.legend()
     plt.show()
+    franka_sac_to_onnx.make_franka_policy(inference_fn, (None, params), cfg)
 
 
 if __name__ == "__main__":
