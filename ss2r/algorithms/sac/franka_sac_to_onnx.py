@@ -182,6 +182,8 @@ def convert_policy_to_onnx(params, cfg, act_size, obs_size):
         activation=tf.nn.swish,
         encoder_hidden_dim=cfg.agent.encoder_hidden_dim,
     )
+    example_input = tf.zeros((1, *obs_size))
+    tf_policy_network(example_input)
     # Transfer JAX weights to TF model
     transfer_weights(params[1]["params"], tf_policy_network)
     # Export to ONNX
