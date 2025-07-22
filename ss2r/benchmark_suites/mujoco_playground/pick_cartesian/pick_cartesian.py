@@ -168,6 +168,12 @@ class PandaPickCubeCartesian(pick.PandaPickCube):
             if data_id == mesh_id
         ]
         mj_model.geom_matid[geoms] = mj_model.mat("off_white").id
+        if self._config.use_ball:
+            mj_model.geom("box").type = mujoco.mjtGeom.mjGEOM_SPHERE
+            mj_model.geom("box").size = jp.array([0.03])
+            mj_model.opt.impratio = 5
+            mj_model.opt.noslip_iterations = 3
+            mj_model.body("box").inertia *= 150
         return mj_model
 
     def reset(self, rng: jax.Array) -> mjx_env.State:
@@ -181,7 +187,7 @@ class PandaPickCubeCartesian(pick.PandaPickCube):
             [
                 x_plane,
                 jax.random.uniform(rng_box, (), minval=-r_range, maxval=r_range),
-                0.0,
+                0.03 + 1e-5,
             ]
         )
 
@@ -300,7 +306,10 @@ class PandaPickCubeCartesian(pick.PandaPickCube):
 
         # Cartesian control
         increment = jp.zeros(4)
-        increment = increment.at[1:].set(action)  # set y, z and gripper commands.
+        if not self._config.use_x:
+            increment = increment.at[1:].set(action)  # set y, z and gripper commands.
+        else:
+            increment = action
         ctrl, new_tip_position, no_soln = self._move_tip(
             state.info["current_pos"],
             self._start_tip_transform[:3, :3],
