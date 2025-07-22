@@ -87,7 +87,7 @@ def test_policy_to_onnx_export():
     plt.plot(jax_pred, label="jax")
     plt.legend()
     plt.show()
-    franka_sac_to_onnx.make_franka_policy(inference_fn, (None, params), cfg)
+    franka_sac_to_onnx.make_franka_policy(make_inference_fn, (None, params), cfg)
 
 
 if __name__ == "__main__":
