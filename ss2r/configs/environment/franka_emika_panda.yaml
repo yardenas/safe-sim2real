@@ -2,6 +2,8 @@ defaults:
   - mujoco_playground_base
 task_name: PandaPickCubeCartesianExtended
 task_params:
+  use_ball: false
+  use_x: false
   ctrl_dt: 0.05
   sim_dt: 0.005
   episode_length: 200
