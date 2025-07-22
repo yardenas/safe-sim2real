@@ -1,3 +1,4 @@
+# @package _global_
 defaults:
   - override /environment: cartpole_swingup
   - override /agent: mbpo
