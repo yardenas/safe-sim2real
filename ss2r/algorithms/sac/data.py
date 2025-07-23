@@ -73,7 +73,10 @@ def get_collection_fn(cfg):
             )
             return make_collection_fn(orchestrator.request_data)
         elif "PandaPickCubeCartesian" in cfg.environment.task_name:
-            from ss2r.algorithms.sac.franka_sac_to_onnx import make_franka_policy
+            from ss2r.algorithms.sac.franka_sac_to_onnx import (
+                make_franka_policy,
+                postprocess_data,
+            )
             from ss2r.rl.online import OnlineEpisodeOrchestrator
 
             policy_translate_fn = functools.partial(make_franka_policy, cfg=cfg)
@@ -81,7 +84,8 @@ def get_collection_fn(cfg):
                 policy_translate_fn,
                 cfg.training.episode_length,
                 data_collection_cfg.wait_time_sec,
-                data_collection_cfg.address,
+                postprocess_data,
+                address=data_collection_cfg.address,
             )
             return make_collection_fn(orchestrator.request_data)
         else:
