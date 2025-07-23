@@ -1,5 +1,6 @@
 import jax
 import numpy as np
+from brax.training.types import Transition
 
 from ss2r.algorithms.sac.go1_sac_to_onnx import MLP
 
@@ -212,3 +213,18 @@ def convert_policy_to_onnx(make_inference_fn, params, cfg, act_size, obs_size):
 def make_franka_policy(make_policy_fn, params, cfg):
     proto_model = convert_policy_to_onnx(make_policy_fn, params, cfg, 3, (64, 64, 3))
     return proto_model.SerializeToString()
+
+
+def postprocess_data(raw_data, extra_fields):
+    observation, action, reward, next_observation, discount, info = raw_data
+    state_extras = {x: info["state_extras"][x] for x in extra_fields}
+    policy_extras = {}
+    transitions = Transition(
+        observation=observation,
+        action=action,
+        reward=reward,
+        discount=discount,
+        next_observation=next_observation,
+        extras={"policy_extras": policy_extras, "state_extras": state_extras},
+    )
+    return transitions
