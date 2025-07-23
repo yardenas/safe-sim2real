@@ -27,4 +27,3 @@ eval_params:
   thigh: [-20., 20.]
   leg: [-20., 20.]
   foot: [-20., 20.]
-  
