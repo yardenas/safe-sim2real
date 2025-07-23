@@ -81,7 +81,7 @@ def get_collection_fn(cfg):
                 policy_translate_fn,
                 cfg.training.episode_length,
                 data_collection_cfg.wait_time_sec,
-                data_collection_cfg.address,
+                address=data_collection_cfg.address,
             )
             return make_collection_fn(orchestrator.request_data)
         else:
