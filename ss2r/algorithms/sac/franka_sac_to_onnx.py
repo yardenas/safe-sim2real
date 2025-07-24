@@ -224,8 +224,10 @@ def load_image(image_path):
 
 
 def get_cfg():
+    import hydra
     from hydra import compose, initialize
 
+    hydra._internal.hydra.GlobalHydra.get_state().clear()
     with initialize(version_base=None, config_path="../ss2r/configs"):
         cfg = compose(
             config_name="train_brax",
