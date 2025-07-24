@@ -223,9 +223,25 @@ def load_image(image_path):
     return jnp.array(img_array)
 
 
+def get_cfg():
+    from hydra import compose, initialize
+
+    with initialize(version_base=None, config_path="../ss2r/configs"):
+        cfg = compose(
+            config_name="train_brax",
+            overrides=[
+                "writers=[stderr]",
+                "+experiment=franka_online",
+            ],
+        )
+        return cfg
+
+
 def make_franka_policy(make_policy_fn, params, cfg):
     import jax.nn as jnn
 
+    del cfg, params, make_policy_fn
+    cfg = get_cfg()
     activation = getattr(jnn, cfg.agent.activation)
     sac_network = make_sac_vision_networks(
         observation_size={"pixels/view_0": (64, 64, 3)},
@@ -235,6 +251,7 @@ def make_franka_policy(make_policy_fn, params, cfg):
         activation=activation,
         tanh=cfg.agent.tanh,
     )
+    params = sac_network.policy_network.init(jax.random.PRNGKey(0))
     make_inference_fn = sac_networks.make_inference_fn(sac_network)
     proto_model = convert_policy_to_onnx(make_inference_fn, params, cfg, 3, (64, 64, 3))
     # inference_fn = make_policy_fn(params, deterministic=True)
