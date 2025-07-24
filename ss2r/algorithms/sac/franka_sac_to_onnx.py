@@ -254,7 +254,7 @@ def make_franka_policy(make_policy_fn, params, cfg):
     )
     import pickle
 
-    with open(".", "wb") as f:
+    with open("params.pkl", "wb") as f:
         pickle.dump(params, f)
     new_params = sac_network.policy_network.init(jax.random.PRNGKey(0))
     structure_equal = jax.tree_util.tree_structure(
