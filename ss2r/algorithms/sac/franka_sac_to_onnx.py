@@ -228,7 +228,7 @@ def get_cfg():
     from hydra.core.global_hydra import GlobalHydra
 
     GlobalHydra.instance().clear()
-    with initialize(version_base=None, config_path="../ss2r/configs"):
+    with initialize(version_base=None, config_path="../../../ss2r/configs"):
         cfg = compose(
             config_name="train_brax",
             overrides=[
