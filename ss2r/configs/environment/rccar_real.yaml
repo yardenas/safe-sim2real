@@ -26,7 +26,7 @@ train_params:
     blend_ratio_ub: 0.017
     c_d: 0.0
     c_f: 1.45
-    c_m_1: 30
+    c_m_1: 8.2
     c_m_2: 1.25
     c_r: 1.3
     d_f: 0.4
@@ -47,14 +47,14 @@ train_params:
     blend_ratio_ub: [0.0001, 0.2]
     c_d: [0.0, 0.0]
     c_f: [1.1, 2.0]
-    c_m_1: [10.0, 40.0]
+    c_m_1: [6.5, 10.0]
     c_m_2: [1.0, 1.5]
     c_r: [0.4, 2.0]
     d_f: [0.25, 0.6]
     d_r: [0.15, 0.45]
     i_com: [0.03, 0.18]
     steering_limit: [0.4, 0.75]
-    max_throttle: [0.4, 0.6]
+    max_throttle: [0.4, 0.4]
 
 eval_params:
   nominal:
