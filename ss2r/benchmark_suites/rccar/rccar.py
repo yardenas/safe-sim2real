@@ -95,14 +95,13 @@ def decode_angles(state: jnp.array, angle_idx: int) -> jnp.array:
     return state_decoded
 
 
-def cost_fn(xy, obstacles, *, scale_factor=1.0, use_arena=True) -> jax.Array:
+def cost_fn(xy, obstacles, *, scale_factor=1.0) -> jax.Array:
     total = 0.0
     for obstacle in obstacles:
         position, radius = jnp.asarray(obstacle[:2]), obstacle[2]
         distance = jnp.linalg.norm(xy - position)
         total += jnp.where(distance >= radius * scale_factor, 0.0, 1.0)
-    out = 1.0 - in_arena(xy)
-    return total + out * use_arena
+    return total
 
 
 def in_arena(xy, scale=1.0):
@@ -195,10 +194,7 @@ class RCCar(Env):
             if self.sample_init_pose:
                 init_pos, key_pos = jax.lax.while_loop(
                     lambda ins: (
-                        cost_fn(
-                            ins[0], self.obstacles, scale_factor=1.5, use_arena=True
-                        )
-                        > 0.0
+                        cost_fn(ins[0], self.obstacles, scale_factor=1.5) > 0.0
                     )
                     | ((ins[1] == key_pos).all()),
                     sample_init_pos,
@@ -319,7 +315,7 @@ class RCCar(Env):
         next_obs = self._obs(next_dynamics_state)
         vx, vy = dynamics_state[..., 3:5]
         energy = 0.5 * self.sys.m * (vx**2 + vy**2)
-        done = 1.0 - in_arena(next_obs[..., :2], 2.0)
+        done = 1.0 - in_arena(next_obs[..., :2], 1.3)
 
         if self.observation_delay > 0:
             new_obs_buffer = jnp.roll(state.info["obs_buffer"], shift=-1, axis=0)
