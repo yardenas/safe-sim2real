@@ -252,10 +252,14 @@ def make_franka_policy(make_policy_fn, params, cfg):
         activation=activation,
         tanh=cfg.agent.tanh,
     )
-    params = sac_network.policy_network.init(jax.random.PRNGKey(0))
+    new_params = sac_network.policy_network.init(jax.random.PRNGKey(0))
+    structure_equal = jax.tree_util.tree_structure(
+        new_params
+    ) == jax.tree_util.tree_structure(params[1])
+    print("Structure match:", structure_equal)
     make_inference_fn = sac_networks.make_inference_fn(sac_network)
     proto_model = convert_policy_to_onnx(
-        make_inference_fn, (None, params), cfg, 3, (64, 64, 3)
+        make_inference_fn, (None, params[1]), cfg, 3, (64, 64, 3)
     )
     # inference_fn = make_policy_fn(params, deterministic=True)
     # image = load_image("../../../franka_experiments/latest_image.png")
