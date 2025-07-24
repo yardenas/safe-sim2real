@@ -21,7 +21,6 @@ training:
   eval_domain_randomization: false
   safety_budget: 5.
   wandb_id: 0ltkzlyo
-  safety_budget: 5.0
   render: false
 
 agent:
