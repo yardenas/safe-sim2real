@@ -26,12 +26,13 @@ def test_policy_to_onnx_export():
     act_size = 3
     obs_shape = (64, 64, 3)  # shape for each image input
     # Dummy observation with a single pixel input
+    activation = getattr(tf.nn, cfg.agent.activation)
     sac_network = make_sac_vision_networks(
         observation_size={"pixels/view_0": obs_shape},
         action_size=act_size,
         policy_hidden_layer_sizes=cfg.agent.policy_hidden_layer_sizes,
         encoder_hidden_dim=cfg.agent.encoder_hidden_dim,
-        activation=tf.nn.swish,
+        activation=activation,
         tanh=True,
     )
     params = sac_network.policy_network.init(jax.random.PRNGKey(0))

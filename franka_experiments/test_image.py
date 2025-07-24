@@ -34,13 +34,14 @@ def test_policy_outputs():
     image_path = os.path.join(current_dir, "latest_image.png")
     obs_img = load_image(image_path)
     obs_img = load_image(image_path)
+    activation = getattr(jnn, run_config["agent"]["activation"])
     sac_network = make_sac_vision_networks(
         observation_size={"pixels/view_0": obs_shape},
         action_size=act_size,
         policy_hidden_layer_sizes=run_config["agent"]["policy_hidden_layer_sizes"],
         value_hidden_layer_sizes=run_config["agent"]["value_hidden_layer_sizes"],
         encoder_hidden_dim=run_config["agent"]["encoder_hidden_dim"],
-        activation=jnn.swish,
+        activation=activation,
         tanh=run_config["agent"]["tanh"],
     )
     make_policy = sac_networks.make_inference_fn(sac_network)

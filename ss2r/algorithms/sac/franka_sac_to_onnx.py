@@ -178,10 +178,11 @@ def convert_policy_to_onnx(make_inference_fn, params, cfg, act_size, obs_size):
         onnx_model (InferenceSession): Loaded ONNX runtime model.
     """
     # Define the TF policy network
+    activation = getattr(tf.nn, cfg.agent.activation)
     tf_policy_network = make_policy_network(
         action_size=act_size,
         hidden_layer_sizes=cfg.agent.policy_hidden_layer_sizes,
-        activation=tf.nn.swish,
+        activation=activation,
         encoder_hidden_dim=cfg.agent.encoder_hidden_dim,
         tanh=cfg.agent.tanh,
     )
