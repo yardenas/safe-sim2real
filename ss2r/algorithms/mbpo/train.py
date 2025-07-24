@@ -45,7 +45,6 @@ from ss2r.algorithms.sac.q_transforms import QTransformation, SACBase, SACCost
 from ss2r.algorithms.sac.types import (
     CollectDataFn,
     Metrics,
-    ReplayBufferState,
     Transition,
     float16,
 )
@@ -336,20 +335,21 @@ def train(
             )
         else:
             ts_normalizer_params = params[0]
-        training_state = training_state.replace(  # type: ignore
-            normalizer_params=ts_normalizer_params,
-            behavior_policy_params=params[1],
-            backup_policy_params=params[1],
-            behavior_qr_params=params[3],
-            behavior_target_qr_params=params[3],
-            backup_qr_params=params[3],
-            behavior_qc_params=params[4] if safe else None,
-            behavior_target_qc_params=params[4] if safe else None,
-            backup_qc_params=params[4] if safe else None,
-            backup_target_qc_params=params[4] if safe else None,
-        )
         if offline:
-            model_buffer_state = params[-1]
+            model_buffer_state = replay_buffers.ReplayBufferState(**params[-1])
+        else:
+            training_state = training_state.replace(  # type: ignore
+                normalizer_params=ts_normalizer_params,
+                behavior_policy_params=params[1],
+                backup_policy_params=params[1],
+                behavior_qr_params=params[3],
+                behavior_target_qr_params=params[3],
+                backup_qr_params=params[3],
+                behavior_qc_params=params[4] if safe else None,
+                behavior_target_qc_params=params[4] if safe else None,
+                backup_qc_params=params[4] if safe else None,
+                backup_target_qc_params=params[4] if safe else None,
+            )
     make_planning_policy = mbpo_networks.make_inference_fn(mbpo_network)
     make_rollout_policy, get_rollout_policy_params = safety_filters.make(
         safety_filter if safe else None,
@@ -453,9 +453,9 @@ def train(
     def prefill_replay_buffer(
         training_state: TrainingState,
         env_state: envs.State,
-        buffer_state: ReplayBufferState,
+        buffer_state: replay_buffers.ReplayBufferState,
         key: PRNGKey,
-    ) -> Tuple[TrainingState, envs.State, ReplayBufferState, PRNGKey]:
+    ) -> Tuple[TrainingState, envs.State, replay_buffers.ReplayBufferState, PRNGKey]:
         def f(carry, unused):
             del unused
             training_state, env_state, buffer_state, key = carry
@@ -487,11 +487,11 @@ def train(
     def training_epoch(
         training_state: TrainingState,
         env_state: envs.State,
-        model_buffer_state: ReplayBufferState,
-        sac_buffer_state: ReplayBufferState,
+        model_buffer_state: replay_buffers.ReplayBufferState,
+        sac_buffer_state: replay_buffers.ReplayBufferState,
         key: PRNGKey,
     ) -> Tuple[
-        TrainingState, envs.State, ReplayBufferState, ReplayBufferState, Metrics
+        TrainingState, envs.State, replay_buffers.ReplayBufferState, replay_buffers.ReplayBufferState, Metrics
     ]:
         def f(carry, unused_t):
             ts, es, mbs, acbs, k = carry
@@ -533,11 +533,11 @@ def train(
     def training_epoch_with_timing(
         training_state: TrainingState,
         env_state: envs.State,
-        model_buffer_state: ReplayBufferState,
-        sac_buffer_state: ReplayBufferState,
+        model_buffer_state: replay_buffers.ReplayBufferState,
+        sac_buffer_state: replay_buffers.ReplayBufferState,
         key: PRNGKey,
     ) -> Tuple[
-        TrainingState, envs.State, ReplayBufferState, ReplayBufferState, Metrics
+        TrainingState, envs.State, replay_buffers.ReplayBufferState, replay_buffers.ReplayBufferState, Metrics
     ]:
         nonlocal training_walltime  # type: ignore
         t = time.time()
