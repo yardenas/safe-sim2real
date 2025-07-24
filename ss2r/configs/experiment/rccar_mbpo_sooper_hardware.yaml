@@ -2,7 +2,7 @@
 defaults:
   - override /environment: rccar_real
   - override /agent: mbpo
-  - override /agent/data_collection: episodic
+  - override /agent/data_collection: hardware
   - _self_
 
 environment:
@@ -19,8 +19,8 @@ training:
   safe: true
   train_domain_randomization: false
   eval_domain_randomization: false
-  safety_budget: 15.0
-  wandb_id: s9ymlkzj
+  safety_budget: 5.
+  wandb_id: 0ltkzlyo
 
 agent:
   batch_size: 256
@@ -28,11 +28,11 @@ agent:
   max_replay_size: 1048576
   policy_hidden_layer_sizes: [64, 64]
   critic_grad_updates_per_step: 4000
-  model_grad_updates_per_step: 100000
+  model_grad_updates_per_step: 50000
   num_model_rollouts: 100000
   learning_rate: 1e-5
   critic_learning_rate: 1e-5
   model_learning_rate: 3e-4
-  pessimism: 50
+  pessimism: 10
   optimism: 0
   safety_filter: sooper
