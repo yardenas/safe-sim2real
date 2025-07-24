@@ -210,8 +210,23 @@ def convert_policy_to_onnx(make_inference_fn, params, cfg, act_size, obs_size):
     return model_proto
 
 
+def load_image(image_path):
+    """Load and preprocess image from disk to match expected input."""
+    import jax.numpy as jnp
+    from PIL import Image
+
+    img = Image.open(image_path).convert("RGB")
+    img_array = np.asarray(img).astype(np.float32) / 255.0  # Normalize to [0, 1]
+    return jnp.array(img_array)
+
+
 def make_franka_policy(make_policy_fn, params, cfg):
     proto_model = convert_policy_to_onnx(make_policy_fn, params, cfg, 3, (64, 64, 3))
+    inference_fn = make_policy_fn(params, deterministic=True)
+    image = load_image("../../../franka_experiments/latest_image.png")
+    obs = {"pixels/view_0": image}
+    jax_pred = inference_fn(obs, jax.random.PRNGKey(0))[0][0]
+    print("sdfffffffff", jax_pred)
     return proto_model.SerializeToString()
 
 
