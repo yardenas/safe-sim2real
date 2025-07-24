@@ -38,7 +38,7 @@ class Encoder(tf.keras.Model):
                 strides=s,
                 padding=padding,
                 kernel_initializer=tf.keras.initializers.Orthogonal(gain=tf.sqrt(2.0)),
-                activation="relu",
+                activation=tf.nn.relu,
                 name=f"Conv_{i}",
             )
             self.conv_block.add(layer)
@@ -223,11 +223,11 @@ def load_image(image_path):
 
 def make_franka_policy(make_policy_fn, params, cfg):
     proto_model = convert_policy_to_onnx(make_policy_fn, params, cfg, 3, (64, 64, 3))
-    inference_fn = make_policy_fn(params, deterministic=True)
-    image = load_image("../../../franka_experiments/latest_image.png")
-    obs = {"pixels/view_0": image}
-    jax_pred = inference_fn(obs, jax.random.PRNGKey(0))[0]
-    print("sdfffffffff", jax_pred)
+    # inference_fn = make_policy_fn(params, deterministic=True)
+    # image = load_image("../../../franka_experiments/latest_image.png")
+    # obs = {"pixels/view_0": image}
+    # jax_pred = inference_fn(obs, jax.random.PRNGKey(0))[0]
+    # print("sdfffffffff", jax_pred)
     return proto_model.SerializeToString()
 
 
