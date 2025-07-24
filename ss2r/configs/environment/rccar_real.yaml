@@ -97,4 +97,4 @@ eval_params:
     d_r: [0.15, 0.45]
     i_com: [0.03, 0.18]
     steering_limit: [0.4, 0.75]
-    max_throttle: [0.4, 0.4]
+    max_throttle: [0.4, 0.6]
