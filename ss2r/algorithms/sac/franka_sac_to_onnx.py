@@ -225,7 +225,7 @@ def make_franka_policy(make_policy_fn, params, cfg):
     inference_fn = make_policy_fn(params, deterministic=True)
     image = load_image("../../../franka_experiments/latest_image.png")
     obs = {"pixels/view_0": image}
-    jax_pred = inference_fn(obs, jax.random.PRNGKey(0))[0][0]
+    jax_pred = inference_fn(obs, jax.random.PRNGKey(0))[0]
     print("sdfffffffff", jax_pred)
     return proto_model.SerializeToString()
 
