@@ -21,6 +21,8 @@ training:
   eval_domain_randomization: false
   safety_budget: 5.
   wandb_id: 0ltkzlyo
+  safety_budget: 5.0
+  render: false
 
 agent:
   batch_size: 256
@@ -36,3 +38,6 @@ agent:
   pessimism: 10
   optimism: 0
   safety_filter: sooper
+  store_buffer: true
+  data_collection:
+    address: tcp://169.254.211.241:5555
