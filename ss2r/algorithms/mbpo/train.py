@@ -617,6 +617,11 @@ def train(
         training_state, env_state, model_buffer_state, _ = prefill_replay_buffer(
             training_state, env_state, model_buffer_state, prefill_key
         )
+    else:
+        training_state = training_state.replace(  # type: ignore
+            env_steps=training_state.env_steps
+            + num_prefill_experience_call * env_steps_per_experience_call,
+        )
     replay_size = jnp.sum(model_replay_buffer.size(model_buffer_state))
     logging.info("replay size after prefill %s", replay_size)
     assert replay_size >= min_replay_size
