@@ -330,7 +330,9 @@ def train(
     if restore_checkpoint_path is not None:
         params = checkpoint.load(restore_checkpoint_path)
         ts_normalizer_params = training_state.normalizer_params
-        if isinstance(ts_normalizer_params.mean, dict):
+        if isinstance(ts_normalizer_params.mean, dict) and not isinstance(
+            params[0].mean, dict
+        ):
             ts_normalizer_params = get_dict_normalizer_params(
                 params, ts_normalizer_params
             )
