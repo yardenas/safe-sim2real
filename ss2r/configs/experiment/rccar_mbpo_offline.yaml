@@ -15,9 +15,8 @@ environment:
 
 training:
   num_envs: 1
-  num_timesteps: 1000
+  num_timesteps: 50000
   episode_length: 250
-  num_evals: 2
   safe: true
   train_domain_randomization: false
   eval_domain_randomization: false
