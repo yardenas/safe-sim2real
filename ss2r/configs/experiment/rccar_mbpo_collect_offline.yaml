@@ -1,0 +1,12 @@
+# @package _global_
+defaults:
+  - rccar_mbpo_sooper_hardware
+  - _self_
+
+training:
+  num_evals: 1
+  num_timesteps: 50250
+
+
+agent:
+  store_buffer: true
