@@ -656,9 +656,14 @@ def train(
             params = (
                 training_state.normalizer_params,
                 training_state.behavior_policy_params,
+                training_state.penalizer_params,
                 training_state.behavior_qr_params,
-                training_state.backup_qc_params,
-                training_state.model_params,
+                training_state.behavior_qc_params,
+                training_state.alpha_params,
+                training_state.behavior_policy_optimizer_state,
+                training_state.alpha_optimizer_state,
+                training_state.behavior_qr_optimizer_state,
+                training_state.behavior_qc_optimizer_state,
             )
             if store_buffer:
                 params += (model_buffer_state,)
@@ -681,9 +686,14 @@ def train(
     params = (
         training_state.normalizer_params,
         training_state.behavior_policy_params,
+        training_state.penalizer_params,
         training_state.behavior_qr_params,
-        training_state.backup_qc_params,
-        training_state.model_params,
+        training_state.behavior_qc_params,
+        training_state.alpha_params,
+        training_state.behavior_policy_optimizer_state,
+        training_state.alpha_optimizer_state,
+        training_state.behavior_qr_optimizer_state,
+        training_state.behavior_qc_optimizer_state,
     )
     if store_buffer:
         params += (model_buffer_state,)
