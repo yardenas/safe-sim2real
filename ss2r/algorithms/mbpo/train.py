@@ -45,6 +45,7 @@ from ss2r.algorithms.sac.q_transforms import QTransformation, SACBase, SACCost
 from ss2r.algorithms.sac.types import (
     CollectDataFn,
     Metrics,
+    ReplayBufferState,
     Transition,
     float16,
 )
@@ -453,9 +454,9 @@ def train(
     def prefill_replay_buffer(
         training_state: TrainingState,
         env_state: envs.State,
-        buffer_state: replay_buffers.ReplayBufferState,
+        buffer_state: ReplayBufferState,
         key: PRNGKey,
-    ) -> Tuple[TrainingState, envs.State, replay_buffers.ReplayBufferState, PRNGKey]:
+    ) -> Tuple[TrainingState, envs.State, ReplayBufferState, PRNGKey]:
         def f(carry, unused):
             del unused
             training_state, env_state, buffer_state, key = carry
@@ -487,11 +488,11 @@ def train(
     def training_epoch(
         training_state: TrainingState,
         env_state: envs.State,
-        model_buffer_state: replay_buffers.ReplayBufferState,
-        sac_buffer_state: replay_buffers.ReplayBufferState,
+        model_buffer_state: ReplayBufferState,
+        sac_buffer_state: ReplayBufferState,
         key: PRNGKey,
     ) -> Tuple[
-        TrainingState, envs.State, replay_buffers.ReplayBufferState, replay_buffers.ReplayBufferState, Metrics
+        TrainingState, envs.State, ReplayBufferState, ReplayBufferState, Metrics
     ]:
         def f(carry, unused_t):
             ts, es, mbs, acbs, k = carry
@@ -533,11 +534,11 @@ def train(
     def training_epoch_with_timing(
         training_state: TrainingState,
         env_state: envs.State,
-        model_buffer_state: replay_buffers.ReplayBufferState,
-        sac_buffer_state: replay_buffers.ReplayBufferState,
+        model_buffer_state: ReplayBufferState,
+        sac_buffer_state: ReplayBufferState,
         key: PRNGKey,
     ) -> Tuple[
-        TrainingState, envs.State, replay_buffers.ReplayBufferState, replay_buffers.ReplayBufferState, Metrics
+        TrainingState, envs.State, ReplayBufferState, ReplayBufferState, Metrics
     ]:
         nonlocal training_walltime  # type: ignore
         t = time.time()
