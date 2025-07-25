@@ -132,18 +132,20 @@ def transfer_weights(jax_params, tf_model):
         "mlp": "MLP_0",
         "SharedEncoder": "CNN_0",
         "encoder_dense": "Dense_0",
+        "encoder_norm": "LayerNorm_0",
     }
     tf_to_jax_module = {
         "mlp": "MLP_0",
         "SharedEncoder": "SharedEncoder",
         "encoder_dense": "Dense_0",
+        "encoder_norm": "LayerNorm_0",
     }
     for module_name, inner_module_name in tf_inner_module_names.items():
         for layer_name, layer_params in jax_params[
             tf_to_jax_module[module_name]
         ].items():
             try:
-                if inner_module_name == "Dense_0":
+                if inner_module_name in ["Dense_0", "LayerNorm_0"]:
                     tf_layer = tf_model.get_layer(module_name)
                     layer_params = jax_params[tf_to_jax_module[module_name]]
                 else:
@@ -159,6 +161,12 @@ def transfer_weights(jax_params, tf_model):
                 kernel = np.array(layer_params["kernel"])
                 bias = np.array(layer_params["bias"])
                 tf_layer.set_weights([kernel, bias])
+                print(f"Transferred Dense/Conv2D layer: {module_name}/{layer_name}")
+            elif isinstance(tf_layer, tf.keras.layers.LayerNormalization):
+                scale = np.array(layer_params["scale"])
+                bias = np.array(layer_params["bias"])
+                tf_layer.set_weights([scale, bias])
+                print(f"Transferred LayerNorm: {module_name}/{layer_name}")
             else:
                 print(f"Unhandled layer type in {layer_name}: {type(tf_layer)}")
 
