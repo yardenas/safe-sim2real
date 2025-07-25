@@ -3,11 +3,11 @@ from typing import Mapping
 import hydra
 import jax.nn as jnn
 import jax.numpy as jnp
-import wandb
 from brax.training.acme import running_statistics, specs
 from brax.training.agents.sac import checkpoint
 
 import ss2r.algorithms.mbpo.networks as mbpo_networks
+import wandb
 from rccar_experiments.experiment_driver import ExperimentDriver
 from rccar_experiments.utils import make_env
 from ss2r.algorithms.mbpo import safety_filters
@@ -45,7 +45,8 @@ def fetch_wandb_policy(cfg, env):
         else:
             obs_shape = specs.Array((obs_size,), jnp.dtype("float32"))
         normalizer_params = running_statistics.init_state(obs_shape)
-        normalizer_params = get_dict_normalizer_params(params, normalizer_params)
+        if not isinstance(params[0].mean, dict):
+            normalizer_params = get_dict_normalizer_params(params, normalizer_params)
         backup_policy_params = params[1]
         budget_scaling_fn = (
             lambda x: x
