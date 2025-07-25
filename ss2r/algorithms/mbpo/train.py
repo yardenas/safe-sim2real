@@ -336,20 +336,21 @@ def train(
             )
         else:
             ts_normalizer_params = params[0]
-        training_state = training_state.replace(  # type: ignore
-            normalizer_params=ts_normalizer_params,
-            behavior_policy_params=params[1],
-            backup_policy_params=params[1],
-            behavior_qr_params=params[3],
-            behavior_target_qr_params=params[3],
-            backup_qr_params=params[3],
-            behavior_qc_params=params[4] if safe else None,
-            behavior_target_qc_params=params[4] if safe else None,
-            backup_qc_params=params[4] if safe else None,
-            backup_target_qc_params=params[4] if safe else None,
-        )
         if offline:
-            model_buffer_state = params[-1]
+            model_buffer_state = replay_buffers.ReplayBufferState(**params[-1])
+        else:
+            training_state = training_state.replace(  # type: ignore
+                normalizer_params=ts_normalizer_params,
+                behavior_policy_params=params[1],
+                backup_policy_params=params[1],
+                behavior_qr_params=params[3],
+                behavior_target_qr_params=params[3],
+                backup_qr_params=params[3],
+                behavior_qc_params=params[4] if safe else None,
+                behavior_target_qc_params=params[4] if safe else None,
+                backup_qc_params=params[4] if safe else None,
+                backup_target_qc_params=params[4] if safe else None,
+            )
     make_planning_policy = mbpo_networks.make_inference_fn(mbpo_network)
     make_rollout_policy, get_rollout_policy_params = safety_filters.make(
         safety_filter if safe else None,
