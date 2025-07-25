@@ -1,0 +1,10 @@
+# @package _global_
+defaults:
+  - rccar_mbpo_sooper_hardware
+  - override /agent/penalizer: crpo
+  - _self_
+
+agent:
+  use_termination: false
+  pessimism: 0
+  safety_filter: null
