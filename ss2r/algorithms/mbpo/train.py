@@ -330,7 +330,9 @@ def train(
     if restore_checkpoint_path is not None:
         params = checkpoint.load(restore_checkpoint_path)
         ts_normalizer_params = training_state.normalizer_params
-        if isinstance(ts_normalizer_params.mean, dict):
+        if isinstance(ts_normalizer_params.mean, dict) and not isinstance(
+            params[0].mean, dict
+        ):
             ts_normalizer_params = get_dict_normalizer_params(
                 params, ts_normalizer_params
             )
@@ -617,6 +619,11 @@ def train(
         training_state, env_state, model_buffer_state, _ = prefill_replay_buffer(
             training_state, env_state, model_buffer_state, prefill_key
         )
+    else:
+        training_state = training_state.replace(  # type: ignore
+            env_steps=training_state.env_steps
+            + num_prefill_experience_call * env_steps_per_experience_call,
+        )
     replay_size = jnp.sum(model_replay_buffer.size(model_buffer_state))
     logging.info("replay size after prefill %s", replay_size)
     assert replay_size >= min_replay_size
@@ -651,9 +658,14 @@ def train(
             params = (
                 training_state.normalizer_params,
                 training_state.behavior_policy_params,
+                training_state.penalizer_params,
                 training_state.behavior_qr_params,
-                training_state.backup_qc_params,
-                training_state.model_params,
+                training_state.behavior_qc_params,
+                training_state.alpha_params,
+                training_state.behavior_policy_optimizer_state,
+                training_state.alpha_optimizer_state,
+                training_state.behavior_qr_optimizer_state,
+                training_state.behavior_qc_optimizer_state,
             )
             if store_buffer:
                 params += (model_buffer_state,)
@@ -676,9 +688,14 @@ def train(
     params = (
         training_state.normalizer_params,
         training_state.behavior_policy_params,
+        training_state.penalizer_params,
         training_state.behavior_qr_params,
-        training_state.backup_qc_params,
-        training_state.model_params,
+        training_state.behavior_qc_params,
+        training_state.alpha_params,
+        training_state.behavior_policy_optimizer_state,
+        training_state.alpha_optimizer_state,
+        training_state.behavior_qr_optimizer_state,
+        training_state.behavior_qc_optimizer_state,
     )
     if store_buffer:
         params += (model_buffer_state,)
