@@ -388,6 +388,8 @@ def make_training_step(
                 model_buffer_state,
                 training_key,
             ) = run_experience_step(training_state, env_state, model_buffer_state, key)
+        else:
+            training_key = key
         model_buffer_state, transitions = model_replay_buffer.sample(model_buffer_state)
         # Change the front dimension of transitions so 'update_step' is called
         # grad_updates_per_step times by the scan.
