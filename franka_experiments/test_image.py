@@ -3,6 +3,7 @@ import os
 import jax
 import jax.nn as jnn
 import jax.numpy as jnp
+import matplotlib.pyplot as plt
 import numpy as np
 import wandb
 from brax.training.agents.sac import checkpoint
@@ -13,11 +14,14 @@ from ss2r.algorithms.sac.vision_networks import make_sac_vision_networks
 from ss2r.common.wandb import get_wandb_checkpoint
 
 
-def load_image(image_path):
+def load_images(real_image, tiled_image):
     """Load and preprocess image from disk to match expected input."""
-    img = Image.open(image_path).convert("RGB")
+    img = Image.open(real_image).convert("RGB")
     img_array = np.asarray(img).astype(np.float32) / 255.0  # Normalize to [0, 1]
-    return jnp.array(img_array)
+    img = Image.open(tiled_image)
+    # Extract the upper left corner (0,0 to corner_size, corner_size)
+    corner = img.crop((0, 0, 64, 64))
+    return jnp.array(img_array), jnp.array(corner).astype(np.float32)[..., :3] / 255.0
 
 
 def test_policy_outputs():
@@ -31,9 +35,9 @@ def test_policy_outputs():
     obs_shape = (64, 64, 3)
     # Load actual image from disk
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    image_path = os.path.join(current_dir, "latest_image.png")
-    obs_img = load_image(image_path)
-    obs_img = load_image(image_path)
+    real_path = os.path.join(current_dir, "latest_image.png")
+    sim_path = os.path.join(current_dir, "tiled_output.png")
+    real_image, sim_image = load_images(real_path, sim_path)
     activation = getattr(jnn, run_config["agent"]["activation"])
     sac_network = make_sac_vision_networks(
         observation_size={"pixels/view_0": obs_shape},
@@ -46,12 +50,21 @@ def test_policy_outputs():
     )
     make_policy = sac_networks.make_inference_fn(sac_network)
     # Ensure inference function gets correct input format
-    batched_obs = {
-        "pixels/view_0": jnp.expand_dims(obs_img, axis=0)
-    }  # Add batch dimension
     policy = make_policy((params[0], params[1]), True)
-    action = policy(batched_obs, jax.random.PRNGKey(0))[0]
-    print("Action:", action)
+    obs = {"pixels/view_0": real_image}
+    jax_pred = policy(obs, jax.random.PRNGKey(0))[0]
+    print("pred real image", jax_pred)
+    obs = {"pixels/view_0": sim_image}
+    jax_pred = policy(obs, jax.random.PRNGKey(0))[0]
+    print("pred sim image", jax_pred)
+    _, axes = plt.subplots(1, 2, figsize=(8, 4))
+    axes[0].imshow(real_image)
+    axes[0].axis("off")
+    axes[0].set_title("Real")
+    axes[1].imshow(sim_image)
+    axes[1].axis("off")
+    axes[1].set_title("Sim")
+    plt.show()
 
 
 if __name__ == "__main__":
