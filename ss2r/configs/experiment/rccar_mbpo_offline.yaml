@@ -3,6 +3,7 @@ defaults:
   - override /environment: rccar_real
   - override /agent: mbpo
   - override /agent/penalizer: crpo
+  - override /agent/cost_robustness: ramu
   - _self_
 
 environment:
@@ -35,9 +36,7 @@ agent:
   critic_learning_rate: 3e-4
   model_learning_rate: 3e-4
   use_termination: false
-  pessimism: 30
-  # Use negative optimism so that the reward is pessimistic w.r.t uncertianty
-  # following MOPO paper.
-  optimism: -30
+  pessimism: 0
+  optimism: 0
   safety_filter: null
   offline: true
