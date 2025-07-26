@@ -2,6 +2,7 @@
 defaults:
   - override /environment: rccar_real
   - override /agent: mbpo
+  - override /agent/cost_robustness: pessimistic_cost_update
   - override /agent/data_collection: episodic
   - _self_
 
