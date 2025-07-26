@@ -289,24 +289,24 @@ def _preinitialize_vision_env(task_name, task_params, registry):
 
 def make_spidr_cartpole_vision(cfg, train_wrap_env_fn, eval_wrap_env_fn):
     from ml_collections import config_dict
+    from mujoco_playground import registry
 
     from ss2r.benchmark_suites.mujoco_playground import wrap_for_brax_training
 
     task_cfg = get_task_config(cfg)
     task_params = config_dict.ConfigDict(task_cfg.task_params)
+    _preinitialize_vision_env(task_cfg.task_name, task_params, registry)
     train_key, spidr_key = jax.random.split(jax.random.PRNGKey(cfg.training.seed))
-    new_params = copy.deepcopy(task_params)
-    new_params["vision"] = False
     spidr_train_randomization_fn = prepare_randomization_fn(
         spidr_key,
         8,
         task_cfg.train_params,
         task_cfg.task_name,
     )
-    train_env = VisionSPiDRCartpole(spidr_train_randomization_fn, config=new_params)
-    dummy_state = train_env.reset(jax.random.PRNGKey(0))
-    train_env.step(dummy_state, jnp.zeros(train_env.action_size))
-    train_env = VisionSPiDRCartpole(spidr_train_randomization_fn, config=task_params)
+    train_env = registry.load(task_cfg.task_name, config=task_params)
+    train_env = VisionSPiDRCartpole(
+        train_env, spidr_train_randomization_fn, config=task_params
+    )
     train_randomization_fn = (
         prepare_randomization_fn(
             train_key,
