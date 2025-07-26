@@ -4,10 +4,6 @@ defaults:
   - override /environment: cartpole_swingup
   - _self_
 
-writers:
-  - jsonl
-  - stderr
-
 task_name: SafeCartpolePerturbed
 environment:
   task_params:
@@ -19,8 +15,8 @@ environment:
     vision: true
     physical_params:
       pole_length: 0.1
-      pole_mass: 0.5
-      gear: 0.3
+      pole_mass: 0.1
+      gear: 2.0
 
 
 training:
