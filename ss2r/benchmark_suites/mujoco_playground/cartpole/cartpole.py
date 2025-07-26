@@ -81,6 +81,7 @@ def set_cartpole_physical_params(env, pole_length=None, pole_mass=None, gear=Non
     """
     sys = getattr(env, 'sys', None)
     if sys is None:
+        print("WARNING: SYS not provided.")
         return
     if pole_length is not None:
         sys.geom_size = sys.geom_size.at[_POLE_ID, 1].set(pole_length)
