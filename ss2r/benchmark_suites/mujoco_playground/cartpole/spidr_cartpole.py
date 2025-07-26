@@ -1,11 +1,12 @@
 from typing import Any, Dict, Optional, Union
 
+import jax
 import jax.numpy as jnp
 from brax.envs.base import Wrapper
 from ml_collections import config_dict
 from mujoco_playground._src.dm_control_suite import cartpole
 
-from ss2r.benchmark_suites.wrappers import SPiDR
+from ss2r.benchmark_suites.wrappers import BraxDomainRandomizationVmapWrapper, _get_obs
 
 
 class VisionSPiDRCartpole(Wrapper):
@@ -19,26 +20,40 @@ class VisionSPiDRCartpole(Wrapper):
         super().__init__(env)
         config["vision"] = False
         base_cartpole = cartpole.Balance(True, False, config, config_overrides)
-        self._spidr_env = SPiDR(
-            base_cartpole,
-            randomization_fn,
-            8,
-            5e4,
-            0.0,
+        self.perturbed_env = BraxDomainRandomizationVmapWrapper(
+            base_cartpole, randomization_fn, augment_state=False
         )
+        self.lambda_ = 5e4
+        self.alpha = 0.0
 
     def reset(self, rng):
         state = self.env.reset(rng)
-        state.info["disagreement"] = jnp.zeros_like(state.reward)
-        state.metrics["disagreement"] = jnp.zeros_like(state.reward)
+        disagreement = jnp.zeros_like(state.reward)
+        state.info["disagreement"] = disagreement
+        state.metrics["disagreement"] = disagreement
         return state
 
     def step(self, state, action):
+        nstate = self.env.step(state, action)
         spidr_state = state.replace(
-            obs=self._spidr_env.env._get_obs(state.data, state.info)
+            obs=self.perturbed_env.env._get_obs(state, state.info)
         )
-        spidr_state = self._spidr_env.step(spidr_state, action)
-        out_state = self.env.step(state, action)
-        out_state.info["disagreement"] = spidr_state.info["disagreement"]
-        out_state.metrics["disagreement"] = spidr_state.metrics["disagreement"]
-        return out_state
+        v_state, v_action = self._tile(spidr_state), self._tile(action)
+        perturbed_nstate = self.perturbed_env.step(v_state, v_action)
+        next_obs = _get_obs(perturbed_nstate)
+        disagreement = self._compute_disagreement(next_obs)
+        nstate.info["disagreement"] = disagreement
+        nstate.metrics["disagreement"] = disagreement
+        return nstate
+
+    def _compute_disagreement(self, next_obs: jax.Array) -> jax.Array:
+        variance = jnp.nanvar(next_obs, axis=0).mean(-1)
+        variance = jnp.where(jnp.isnan(variance), 0.0, variance)
+        return jnp.clip(variance, a_max=1000.0) * self.lambda_ + self.alpha
+
+    def _tile(self, tree):
+        def tile(x):
+            x = jnp.asarray(x)
+            return jnp.tile(x, (self.num_perturbed_envs,) + (1,) * x.ndim)
+
+        return jax.tree_map(tile, tree)
