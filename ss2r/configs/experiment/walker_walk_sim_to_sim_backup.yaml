@@ -1,0 +1,31 @@
+# @package _global_
+defaults:
+  - mujoco_playground_dm_control
+  - override /environment: walker
+  - override /agent/cost_robustness: ucb_cost
+  - override /agent/propagation: spidr
+  - _self_
+
+train_params:
+  torso_length: [-0.75, 0.75]
+  friction: [0.0, 0.0]
+  joint_damping: [0.0, 0.0]
+  gear: [-10., 10.]
+
+eval_params:
+  torso_length: [-0.75, 0.75]
+  friction: [0., 0.]
+  joint_damping: [0., 0.]
+  gear: [-10., 10.]
+
+training:
+  num_timesteps: 2000000
+  train_domain_randomization: true
+  eval_domain_randomization: true
+  safe: true
+  safety_budget: 100.
+
+agent:
+  propagation:
+    lambda_: 6
+  
