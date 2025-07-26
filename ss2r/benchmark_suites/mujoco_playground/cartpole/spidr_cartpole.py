@@ -23,6 +23,7 @@ class VisionSPiDRCartpole(Wrapper):
         self.perturbed_env = BraxDomainRandomizationVmapWrapper(
             base_cartpole, randomization_fn, augment_state=False
         )
+        self.num_perturbed_envs = 8
         self.lambda_ = 5e4
         self.alpha = 0.0
 
@@ -36,7 +37,7 @@ class VisionSPiDRCartpole(Wrapper):
     def step(self, state, action):
         nstate = self.env.step(state, action)
         spidr_state = state.replace(
-            obs=self.perturbed_env.env._get_obs(state, state.info)
+            obs=self.perturbed_env.env._get_obs(state.data, state.info)
         )
         v_state, v_action = self._tile(spidr_state), self._tile(action)
         perturbed_nstate = self.perturbed_env.step(v_state, v_action)
