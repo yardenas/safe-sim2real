@@ -1,5 +1,4 @@
 defaults:
-  - cost_robustness: null
   - reward_robustness: null
   - penalizer: crpo
   - propagation: null
