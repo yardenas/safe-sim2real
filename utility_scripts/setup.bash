@@ -21,3 +21,7 @@ module load libxext/1.3.3-e74gj2z
 module load libxfixes/5.0.2-5fbeidb
 
 module load python/3.11.6
+module load cuda/12.8.0
+module load cudnn/9.2.0.82-12
+
+export XLA_FLAGS="--xla_gpu_triton_gemm_any=true --xla_gpu_cuda_data_dir=$CUDA_HOME"
