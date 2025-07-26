@@ -320,10 +320,9 @@ def make_spidr_cartpole_vision(cfg, train_wrap_env_fn, eval_wrap_env_fn):
     if cfg.training.safe:
         limit = task_params.slider_position_bound
         train_env = dm_cartpole.ConstraintWrapper(train_env, limit)
-    new_train_randomization_fn = lambda sys, num_worlds: train_randomization_fn(sys)
     train_env = wrap_for_brax_training(
         train_env,
-        randomization_fn=new_train_randomization_fn,
+        randomization_fn=train_randomization_fn,
         episode_length=cfg.training.episode_length,
         action_repeat=cfg.training.action_repeat,
         augment_state=False,
