@@ -28,6 +28,7 @@ class VisionSPiDRCartpole(cartpole.Balance):
     def reset(self, rng):
         state = super().reset(rng)
         state.info["disagreement"] = jnp.zeros_like(state.reward)
+        state.metrics["disagreement"] = jnp.zeros_like(state.reward)
         return state
 
     def step(self, state, action):
@@ -37,4 +38,5 @@ class VisionSPiDRCartpole(cartpole.Balance):
         spidr_state = self._spidr_env.step(spidr_state, action)
         out_state = super().step(state, action)
         out_state.info["disagreement"] = spidr_state.info["disagreement"]
+        out_state.metrics["disagreement"] = spidr_state.metrics["disagreement"]
         return out_state
