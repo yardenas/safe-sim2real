@@ -95,14 +95,12 @@ def decode_angles(state: jnp.array, angle_idx: int) -> jnp.array:
     return state_decoded
 
 
-def cost_fn(xy, obstacles, *, scale_factor=1.0, use_arena=False) -> jax.Array:
+def cost_fn(xy, obstacles, *, scale_factor=1.0) -> jax.Array:
     total = 0.0
     for obstacle in obstacles:
         position, radius = jnp.asarray(obstacle[:2]), obstacle[2]
         distance = jnp.linalg.norm(xy - position)
         total += jnp.where(distance >= radius * scale_factor, 0.0, 1.0)
-    if use_arena:
-        total += 1.0 - in_arena(xy)
     return total
 
 
@@ -144,12 +142,10 @@ class RCCar(Env):
         self.dim_action = (2,)
         self.encode_angle = True
         self.dim_state = (7,) if self.encode_angle else (6,)
-        self.hardware = hardware
         self.dynamics_model: RaceCarDynamics | HardwareDynamics = (
             RaceCarDynamics(dt=dt) if hardware is None else hardware
         )
         self.sys = CarParams(**car_model_params)
-        self.hardware = hardware
 
     def _obs(self, state: jnp.array) -> jnp.array:
         """Adds observation noise to the state"""
@@ -198,13 +194,7 @@ class RCCar(Env):
             if self.sample_init_pose:
                 init_pos, key_pos = jax.lax.while_loop(
                     lambda ins: (
-                        cost_fn(
-                            ins[0],
-                            self.obstacles,
-                            scale_factor=1.5,
-                            use_arena=(not self.hardware),
-                        )
-                        > 0.0
+                        cost_fn(ins[0], self.obstacles, scale_factor=1.5) > 0.0
                     )
                     | ((ins[1] == key_pos).all()),
                     sample_init_pos,
@@ -325,7 +315,7 @@ class RCCar(Env):
         next_obs = self._obs(next_dynamics_state)
         vx, vy = dynamics_state[..., 3:5]
         energy = 0.5 * self.sys.m * (vx**2 + vy**2)
-        done = 1.0 - in_arena(next_obs[..., :2], 1.3 if self.hardware else 2.0)
+        done = 1.0 - in_arena(next_obs[..., :2], 1.3)
 
         if self.observation_delay > 0:
             new_obs_buffer = jnp.roll(state.info["obs_buffer"], shift=-1, axis=0)
