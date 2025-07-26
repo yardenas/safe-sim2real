@@ -15,6 +15,7 @@ class VisionSPiDRCartpole(cartpole.Balance):
         config_overrides: Optional[Dict[str, Union[str, int, list[Any]]]] = None,
     ):
         super().__init__(True, False, config, config_overrides)
+        config["vision"] = False
         base_cartpole = cartpole.Balance(True, False, config, config_overrides)
         self._spidr_env = SPiDR(
             base_cartpole,
