@@ -15,6 +15,9 @@ from ss2r.benchmark_suites.brax.ant import ant
 from ss2r.benchmark_suites.brax.cartpole import cartpole
 from ss2r.benchmark_suites.brax.humanoid import humanoid
 from ss2r.benchmark_suites.mujoco_playground.cartpole import cartpole as dm_cartpole
+from ss2r.benchmark_suites.mujoco_playground.cartpole.spidr_cartpole import (
+    VisionSPiDRCartpole,
+)
 from ss2r.benchmark_suites.mujoco_playground.go1_joystick import go1_joystick
 from ss2r.benchmark_suites.mujoco_playground.go2_joystick import (
     getup,
@@ -147,6 +150,8 @@ def make(cfg, train_wrap_env_fn=lambda env: env, eval_wrap_env_fn=lambda env: en
         return make_mujoco_playground_envs(cfg, train_wrap_env_fn, eval_wrap_env_fn)
     elif domain_name == "safety_gym":
         return make_safety_gym_envs(cfg, train_wrap_env_fn, eval_wrap_env_fn)
+    elif domain_name == "cartpole_spidr_vision":
+        return make_spidr_cartpole_vision(cfg, train_wrap_env_fn, eval_wrap_env_fn)
 
 
 def prepare_randomization_fn(key, num_envs, cfg, task_name):
@@ -280,6 +285,53 @@ def _preinitialize_vision_env(task_name, task_params, registry):
     train_env = registry.load(task_name, config=new_params)
     dummy_state = train_env.reset(jax.random.PRNGKey(0))
     train_env.step(dummy_state, jnp.zeros(train_env.action_size))
+
+
+def make_spidr_cartpole_vision(cfg, train_wrap_env_fn, eval_wrap_env_fn):
+    from ml_collections import config_dict
+
+    from ss2r.benchmark_suites.mujoco_playground import wrap_for_brax_training
+
+    task_cfg = get_task_config(cfg)
+    task_params = config_dict.ConfigDict(task_cfg.task_params)
+    train_key, spidr_key = jax.random.split(jax.random.PRNGKey(cfg.training.seed))
+    new_params = copy.deepcopy(task_params)
+    new_params["vision"] = False
+    spidr_train_randomization_fn = prepare_randomization_fn(
+        spidr_key,
+        8,
+        task_cfg.train_params,
+        task_cfg.task_name,
+    )
+    train_env = VisionSPiDRCartpole(spidr_train_randomization_fn, config=new_params)
+    dummy_state = train_env.reset(jax.random.PRNGKey(0))
+    train_env.step(dummy_state, jnp.zeros(train_env.action_size))
+    train_env = VisionSPiDRCartpole(spidr_train_randomization_fn, config=task_params)
+    train_randomization_fn = (
+        prepare_randomization_fn(
+            train_key,
+            cfg.training.num_envs,
+            task_cfg.train_params,
+            task_cfg.task_name,
+        )
+        if cfg.training.train_domain_randomization
+        else None
+    )
+    if cfg.training.safe:
+        limit = task_params.slider_position_bound
+        train_env = cartpole.ConstraintWrapper(train_env, limit)
+    new_train_randomization_fn = lambda sys, num_worlds: train_randomization_fn(sys)
+    train_env = wrap_for_brax_training(
+        train_env,
+        randomization_fn=new_train_randomization_fn,
+        episode_length=cfg.training.episode_length,
+        action_repeat=cfg.training.action_repeat,
+        augment_state=False,
+        hard_resets=cfg.training.hard_resets,
+        vision=True,
+        num_vision_envs=cfg.training.num_envs,
+    )
+    return train_env, train_env
 
 
 def make_mujoco_playground_envs(cfg, train_wrap_env_fn, eval_wrap_env_fn):
