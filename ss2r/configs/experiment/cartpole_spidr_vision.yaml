@@ -25,12 +25,14 @@ environment:
       enabled_geom_groups: [0, 1, 2]
       history: 3
   train_params:
-    gain: [0, 5]
-    gear: [0., 0.]
+    pole_length: [0., 0.]
+    pole_mass: [0., 0.]
+    gear: [0., 5.]
 
   eval_params:
-    gain: [0, 0]
-    gear: [0., 300.]
+    pole_length: [-0.25, 0.25]
+    pole_mass: [0., 0.]
+    gear: [0., 5.]
 
 agent:
   activation: swish
