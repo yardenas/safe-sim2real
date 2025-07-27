@@ -33,7 +33,7 @@ environment:
 agent:
   policy_hidden_layer_sizes: [256, 256, 256]
   value_hidden_layer_sizes: [512, 512]
-  activation: swish
+  activation: relu
   batch_size: 256
   min_replay_size: 1000
   max_replay_size: 1048576
