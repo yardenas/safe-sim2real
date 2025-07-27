@@ -305,7 +305,7 @@ def make_spidr_cartpole_vision(cfg, train_wrap_env_fn, eval_wrap_env_fn):
     )
     train_env = registry.load(task_cfg.task_name, config=task_params)
     train_env = VisionSPiDRCartpole(
-        train_env, spidr_train_randomization_fn, config=task_params
+        train_env, spidr_train_randomization_fn, cfg.agent.lambda_, config=task_params
     )
     train_randomization_fn = (
         prepare_randomization_fn(

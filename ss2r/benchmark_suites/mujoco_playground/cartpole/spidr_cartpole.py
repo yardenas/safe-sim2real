@@ -14,6 +14,7 @@ class VisionSPiDRCartpole(Wrapper):
         self,
         env,
         randomization_fn: Any,
+        lambda_: float = 5e4,
         config: config_dict.ConfigDict = cartpole.default_config(),
         config_overrides: Optional[Dict[str, Union[str, int, list[Any]]]] = None,
     ):
@@ -24,7 +25,7 @@ class VisionSPiDRCartpole(Wrapper):
             base_cartpole, randomization_fn, augment_state=False
         )
         self.num_perturbed_envs = 8
-        self.lambda_ = 5e4
+        self.lambda_ = lambda_
         self.alpha = 0.0
 
     def reset(self, rng):
