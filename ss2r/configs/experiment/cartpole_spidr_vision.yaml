@@ -17,6 +17,7 @@ training:
 
 environment:
   domain_name: cartpole_spidr_vision
+  task_name: SafeCartpoleBalance
   task_params:
     ctrl_dt: 0.04
     episode_length: 1000

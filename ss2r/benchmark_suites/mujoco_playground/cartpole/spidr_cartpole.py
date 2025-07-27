@@ -19,7 +19,7 @@ class VisionSPiDRCartpole(Wrapper):
     ):
         super().__init__(env)
         config["vision"] = False
-        base_cartpole = cartpole.Balance(True, False, config, config_overrides)
+        base_cartpole = cartpole.Balance(False, False, config, config_overrides)
         self.perturbed_env = BraxDomainRandomizationVmapWrapper(
             base_cartpole, randomization_fn, augment_state=False
         )
