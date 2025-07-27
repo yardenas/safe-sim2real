@@ -202,6 +202,7 @@ def train(
     entropy_bonus: bool = True,
     augment_pixels: bool = False,
     load_buffer: bool = False,
+    lambda_: float = 5e4,
 ):
     if min_replay_size >= num_timesteps:
         raise ValueError(
