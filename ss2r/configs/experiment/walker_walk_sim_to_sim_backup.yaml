@@ -11,13 +11,13 @@ environment:
     torso_length: [-0.1, 0.1]
     friction: [0.0, 0.0]
     joint_damping: [0.0, 0.0]
-    gear: [-2., 5.]
+    gear: [-5., 5.]
 
   eval_params:
     torso_length: [-0.1, 0.1]
     friction: [0., 0.]
     joint_damping: [0., 0.]
-    gear: [-2., 5.]
+    gear: [-5., 5.]
 
 training:
   num_timesteps: 2000000
