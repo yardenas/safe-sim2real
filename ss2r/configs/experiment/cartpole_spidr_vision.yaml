@@ -37,5 +37,5 @@ agent:
   activation: swish
   batch_size: 256
   grad_updates_per_step: 32
-  lambda_: 5e4
+  lambda_: 500
   min_replay_size: 8192
