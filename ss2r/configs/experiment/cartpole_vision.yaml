@@ -25,4 +25,5 @@ training:
 agent:
   activation: swish
   batch_size: 256
-  grad_updates_per_step: 64
+  grad_updates_per_step: 32
+  min_replay_size: 8192
