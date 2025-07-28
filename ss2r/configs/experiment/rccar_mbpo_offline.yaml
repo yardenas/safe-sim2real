@@ -3,7 +3,6 @@ defaults:
   - override /environment: rccar_real
   - override /agent: mbpo
   - override /agent/penalizer: crpo
-  - override /agent/cost_robustness: ramu
   - _self_
 
 environment:
@@ -36,7 +35,7 @@ agent:
   critic_learning_rate: 3e-4
   model_learning_rate: 3e-4
   use_termination: false
-  pessimism: 0
-  optimism: 0
+  pessimism: 30
+  optimism: -30
   safety_filter: null
   offline: true
