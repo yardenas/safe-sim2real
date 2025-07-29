@@ -3,11 +3,11 @@ from typing import Mapping
 import hydra
 import jax.nn as jnn
 import jax.numpy as jnp
+import wandb
 from brax.training.acme import running_statistics, specs
 from brax.training.agents.sac import checkpoint
 
 import ss2r.algorithms.mbpo.networks as mbpo_networks
-import wandb
 from rccar_experiments.experiment_driver import ExperimentDriver
 from rccar_experiments.utils import make_env
 from ss2r.algorithms.mbpo import safety_filters

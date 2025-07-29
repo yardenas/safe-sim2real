@@ -1,9 +1,8 @@
+import sys
+import subprocess
+import shlex
 import json
 import os
-import shlex
-import subprocess
-import sys
-
 
 def extract_num_seeds(args):
     for arg in args:
@@ -11,10 +10,8 @@ def extract_num_seeds(args):
             return int(arg.split("=", 1)[1])
     return 1
 
-
 def remove_num_seeds_arg(args):
     return [a for a in args if not a.startswith("+eval_params.num_seeds=")]
-
 
 def average_metrics(metrics_list):
     if not metrics_list:
@@ -27,15 +24,12 @@ def average_metrics(metrics_list):
             avg[k] = sum(values) / len(values)
     return avg
 
-
 def remove_wandb_writer(args):
     new_args = []
     for arg in args:
         if arg.startswith("writers="):
             writers = arg.split("=", 1)[1]
-            writers_list = [
-                w.strip() for w in writers.replace("[", "").replace("]", "").split(",")
-            ]
+            writers_list = [w.strip() for w in writers.replace("[", "").replace("]", "").split(",")]
             writers_list = [w for w in writers_list if w != "wandb"]
             if writers_list:
                 new_arg = f"writers={','.join(writers_list)}"
@@ -43,7 +37,6 @@ def remove_wandb_writer(args):
         else:
             new_args.append(arg)
     return new_args
-
 
 def main():
     base_args = sys.argv[1:]
@@ -69,18 +62,19 @@ def main():
     metrics_list = []
     for seed in range(num_seeds):
         cmd = [
-            sys.executable,
-            "eval_policy.py",
+            sys.executable, "eval_policy.py",
             f"training.seed={seed}",
             "writers=[stderr]",
-            *args_wo_wandb,
+            *args_wo_wandb
         ]
         print(f"Running: {' '.join(shlex.quote(a) for a in cmd)}")
-        with open(f"eval_policy_seed_{seed}.out", "w") as out, open(
-            f"eval_policy_seed_{seed}.err", "w"
-        ) as err:
+        with open(f"eval_policy_seed_{seed}.out", "w") as out, open(f"eval_policy_seed_{seed}.err", "w") as err:
             result = subprocess.run(
-                cmd, stdout=out, stderr=err, start_new_session=True, close_fds=True
+                cmd,
+                stdout=out,
+                stderr=err,
+                start_new_session=True,
+                close_fds=True
             )
         path = os.path.abspath(os.path.dirname(__file__))
         metrics_path = os.path.join(path, "metrics.json")
@@ -90,19 +84,15 @@ def main():
             metrics_list.append(metrics)
             os.rename(metrics_path, f"metrics_seed_{seed}.json")
             if result.returncode != 0:
-                print(
-                    f"Warning: Run with seed {seed} exited with code {result.returncode}, but metrics.json was found. Treating as success."
-                )
+                print(f"Warning: Run with seed {seed} exited with code {result.returncode}, but metrics.json was found. Treating as success.")
         else:
-            print(
-                f"Run with seed {seed} failed and metrics.json not found. See eval_policy_seed_{seed}.err for details."
-            )
+            print(f"Run with seed {seed} failed and metrics.json not found. See eval_policy_seed_{seed}.err for details.")
             sys.exit(result.returncode)
 
     # Average metrics
     avg_metrics = average_metrics(metrics_list)
-    avg_metrics["num_seeds"] = num_seeds
-    avg_metrics["seeds"] = list(range(num_seeds))
+    avg_metrics['num_seeds'] = num_seeds
+    avg_metrics['seeds'] = list(range(num_seeds))
 
     print("Averaged metrics across seeds:")
     print(json.dumps(avg_metrics, indent=2))
@@ -110,7 +100,6 @@ def main():
     # Log averaged metrics to wandb using TrainingLogger
     try:
         import wandb
-
         wandb.init(
             project=wandb_config["wandb"]["project"],
             name=wandb_config["wandb"]["name"],
@@ -121,7 +110,6 @@ def main():
         print("Averaged metrics logged to wandb.")
     except Exception as e:
         print(f"Failed to log averaged metrics to wandb: {e}")
-
 
 if __name__ == "__main__":
     main()

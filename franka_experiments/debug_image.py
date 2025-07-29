@@ -5,12 +5,12 @@ import jax.nn as jnn
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
 import numpy as np
+import wandb
 from brax.training.agents.sac import checkpoint
 from PIL import Image
 from scipy.ndimage import binary_dilation
 
 import ss2r.algorithms.sac.networks as sac_networks
-import wandb
 from ss2r.algorithms.sac.vision_networks import make_sac_vision_networks
 from ss2r.common.wandb import get_wandb_checkpoint
 

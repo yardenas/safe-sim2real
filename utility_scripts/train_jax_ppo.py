@@ -25,6 +25,7 @@ import jax
 import jax.numpy as jp
 import mujoco
 import mujoco_playground
+import wandb
 from absl import app, flags, logging
 from brax.training.agents.ppo import networks as ppo_networks
 from brax.training.agents.ppo import networks_vision as ppo_networks_vision
@@ -39,8 +40,6 @@ from mujoco_playground.config import (
     manipulation_params,
 )
 from tensorboardX import SummaryWriter
-
-import wandb
 
 xla_flags = os.environ.get("XLA_FLAGS", "")
 xla_flags += " --xla_gpu_triton_gemm_any=True"
