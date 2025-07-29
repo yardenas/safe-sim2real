@@ -2,9 +2,8 @@
 # It can be run standalone or using the wrapper script eval_policy_seeds.py.
 # Example usage: python eval_policy.py +experiment=cartpole_vision training.render=false training.safe=true wandb.entity=ENTITY training.wandb_id=ID +cfg.training.seed=0
 import json
-import os
 import logging
-from pathlib import Path
+import os
 
 import hydra
 import jax
@@ -14,25 +13,32 @@ from omegaconf import OmegaConf
 from ss2r import benchmark_suites
 from ss2r.algorithms import mbpo, ppo, sac
 from ss2r.common.wandb import get_wandb_checkpoint
-from ss2r.common.logging import TrainingLogger
-
 from train_brax import _validate_madrona_args
 
 _LOG = logging.getLogger(__name__)
+
+
 def get_policy_fn(cfg):
     if cfg.training.wandb_id:
         checkpoint_path = get_wandb_checkpoint(cfg.training.wandb_id, cfg.wandb.entity)
     else:
         raise ValueError("wandb_id must be specified for evaluation.")
     if cfg.agent.name == "sac":
-        train_fn = sac.get_train_fn(cfg, checkpoint_path=None, restore_checkpoint_path=checkpoint_path)
+        train_fn = sac.get_train_fn(
+            cfg, checkpoint_path=None, restore_checkpoint_path=checkpoint_path
+        )
     elif cfg.agent.name == "ppo":
-        train_fn = ppo.get_train_fn(cfg, checkpoint_path=None, restore_checkpoint_path=checkpoint_path)
+        train_fn = ppo.get_train_fn(
+            cfg, checkpoint_path=None, restore_checkpoint_path=checkpoint_path
+        )
     elif cfg.agent.name == "mbpo":
-        train_fn = mbpo.get_train_fn(cfg, checkpoint_path=None, restore_checkpoint_path=checkpoint_path)
+        train_fn = mbpo.get_train_fn(
+            cfg, checkpoint_path=None, restore_checkpoint_path=checkpoint_path
+        )
     else:
         raise ValueError(f"Unknown agent name: {cfg.agent.name}")
     return train_fn
+
 
 def to_serializable(val):
     # Recursively convert JAX/NumPy arrays to Python scalars/lists
@@ -51,6 +57,7 @@ def to_serializable(val):
         return [to_serializable(v) for v in val]
     return val
 
+
 @hydra.main(version_base=None, config_path="ss2r/configs", config_name="train_brax")
 def main(cfg):
     _LOG.info(
@@ -65,7 +72,8 @@ def main(cfg):
     wandb_handle = None
     if "wandb" in getattr(cfg, "writers", []):
         import wandb
-        cfg.wandb.name = 'eval_policy_' + cfg.wandb.name
+
+        cfg.wandb.name = "eval_policy_" + cfg.wandb.name
         wandb.init(
             project=getattr(cfg, "wandb", {}).get("project", "ss2r"),
             config=OmegaConf.to_container(cfg, resolve=True),
@@ -77,7 +85,9 @@ def main(cfg):
     train_fn = get_policy_fn(cfg)
     train_env_wrap_fn, eval_env_wrap_fn = benchmark_suites.get_wrap_env_fn(cfg)
     use_vision = "use_vision" in cfg.agent and cfg.agent.use_vision
-    train_env, eval_env = benchmark_suites.make(cfg, train_env_wrap_fn, eval_env_wrap_fn)
+    train_env, eval_env = benchmark_suites.make(
+        cfg, train_env_wrap_fn, eval_env_wrap_fn
+    )
     if use_vision:
         _validate_madrona_args(
             train_env,
@@ -106,6 +116,7 @@ def main(cfg):
             with open(metrics_path, "w") as f:
                 json.dump(serializable_metrics, f)
     _LOG.info("Done evaluating policy.")
+
 
 if __name__ == "__main__":
     main()
