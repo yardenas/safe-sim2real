@@ -6,10 +6,10 @@ import hydra
 import jax
 import jax.nn as jnn
 import numpy as np
-import wandb
 from brax.io import model
 from brax.training.acme import running_statistics
 
+import wandb
 from rccar_experiments.utils import DummyPolicy, collect_trajectory, make_env
 from ss2r.algorithms.sac.networks import make_inference_fn, make_sac_networks
 from ss2r.benchmark_suites.rccar import hardware
