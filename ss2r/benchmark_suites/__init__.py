@@ -32,6 +32,7 @@ from ss2r.benchmark_suites.wrappers import (
     GoToGoalObservationWrapper,
     Saute,
     SPiDR,
+    WalkerObservationWrapper,
     wrap,
 )
 
@@ -60,7 +61,17 @@ manipulation.register_environment(
 
 
 def get_wrap_env_fn(cfg):
-    if cfg.environment.task_name == "go_to_goal":
+    if (
+        cfg.environment.task_name == "SafeWalkerWalk"
+        or cfg.environment.task_name == "SafeWalkerRun"
+    ):
+
+        def wrap_fn(env):
+            env = WalkerObservationWrapper(env)
+            return env
+
+        out = wrap_fn, wrap_fn
+    elif cfg.environment.task_name == "go_to_goal":
 
         def wrap_fn(env):
             env = GoToGoalObservationWrapper(env)
