@@ -29,7 +29,7 @@
     <material class="panda" name="off_white8" rgba="0.9111111111111111 0.9111111111111111 0.9288888888888889 0.6"/>
     <material class="panda" name="off_white9" rgba="0.9 0.9 0.92 0.55"/>
     <material name="groundplane" texture="groundplane" texuniform="true" texrepeat="5 5" reflectance="0.2"/>
-    <texture name="qr_texture" type="2d" file="qr_atlas.png"/>
+    <texture name="qr_texture" type="2d" file="textures/qr_atlas.png"/>
     <material name="qr_material" texture="qr_texture" texrepeat="1 1" texuniform="false"/>
   </asset>
   <worldbody>
