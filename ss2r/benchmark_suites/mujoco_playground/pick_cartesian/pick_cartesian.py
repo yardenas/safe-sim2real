@@ -22,6 +22,7 @@ import jax
 import jax.numpy as jp
 import mujoco
 import numpy as np
+from etils import epath
 from ml_collections import config_dict
 from mujoco import mjx
 from mujoco_playground._src import collision, mjx_env
@@ -96,13 +97,7 @@ class PandaPickCubeCartesian(pick.PandaPickCube):
         mjx_env.MjxEnv.__init__(self, config, config_overrides)
         self._vision = config.vision
 
-        xml_path = (
-            mjx_env.ROOT_PATH
-            / "manipulation"
-            / "franka_emika_panda"
-            / "xmls"
-            / "mjx_single_cube_camera.xml"
-        )
+        xml_path = epath.Path(__file__).parent / "xmls" / "mjx_single_cube_camera.xml"
         self._xml_path = xml_path.as_posix()
 
         mj_model = self.modify_model(
