@@ -92,6 +92,7 @@ def get_assets():
     assets = {}
     path = _ROOT_PATH / "manipulation" / "franka_emika_panda" / "xmls"
     mjx_env.update_assets(assets, path, "*.xml")
+    mjx_env.update_assets(assets, _ROOT_PATH / "assets", "*.png")
     path = mjx_env.MENAGERIE_PATH / _MENAGERIE_FRANKA_DIR
     mjx_env.update_assets(assets, path, "*.xml")
     mjx_env.update_assets(assets, path / "assets")
