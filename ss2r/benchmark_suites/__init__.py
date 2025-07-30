@@ -32,6 +32,7 @@ from ss2r.benchmark_suites.wrappers import (
     GoToGoalObservationWrapper,
     Saute,
     SPiDR,
+    WalkerObservationWrapper,
     wrap,
 )
 
@@ -60,7 +61,17 @@ manipulation.register_environment(
 
 
 def get_wrap_env_fn(cfg):
-    if cfg.environment.task_name == "go_to_goal":
+    if (
+        cfg.environment.task_name == "SafeWalkerWalk"
+        or cfg.environment.task_name == "SafeWalkerRun"
+    ):
+
+        def wrap_fn(env):
+            env = WalkerObservationWrapper(env)
+            return env
+
+        out = wrap_fn, wrap_fn
+    elif cfg.environment.task_name == "go_to_goal":
 
         def wrap_fn(env):
             env = GoToGoalObservationWrapper(env)
@@ -125,14 +136,16 @@ def get_wrap_env_fn(cfg):
     if cfg.agent.name == "mbpo" and cfg.training.safe:
 
         def safe_mbpo_train(env):
+            env = out[0](env)
             env = TrackOnlineCostsInObservation(env)
             return env
 
         def safe_mbpo_eval(env):
+            env = out[1](env)
             env = TrackOnlineCostsInObservation(env)
             return env
 
-        out = safe_mbpo_train, safe_mbpo_eval
+        return safe_mbpo_train, safe_mbpo_eval
     if cfg.agent.name == "mbpo" and "use_vision" in cfg.agent and cfg.agent.use_vision:
 
         def mbpo_vision_train(env):
