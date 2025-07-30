@@ -1,5 +1,5 @@
 <mujoco model="panda nohand">
-  <compiler angle="radian" meshdir="assets" autolimits="true"/>
+  <compiler angle="radian" meshdir="../../../../../mujoco_menagerie/franka_emika_panda/assets" autolimits="true"/>
 
   <option integrator="implicitfast" impratio="10"/>
 

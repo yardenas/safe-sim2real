@@ -1,6 +1,5 @@
 <mujoco model="panda single cube camera">
   <include file="mjx_panda.xml"/>
-  <compiler texturedir="ss2r/benchmark_suites/mujoco_playground/pick_cartesian/xmls/textures"/>
   <!-- For now, we copy over mjx_scene.xml to ensure there's no extra light source -->
   <statistic center="0.3 0 0.4" extent="1"/>
   <option timestep="0.005" iterations="5" ls_iterations="8" integrator="implicitfast" impratio="1.5" noslip_iterations="2">
@@ -30,7 +29,7 @@
     <material class="panda" name="off_white8" rgba="0.9111111111111111 0.9111111111111111 0.9288888888888889 0.6"/>
     <material class="panda" name="off_white9" rgba="0.9 0.9 0.92 0.55"/>
     <material name="groundplane" texture="groundplane" texuniform="true" texrepeat="5 5" reflectance="0.2"/>
-    <texture name="qr_texture" type="cube" fileright="aruco_571.png" fileleft="aruco_581.png" fileup="aruco_591.png" filedown="aruco_601.png" filefront="aruco_611.png" fileback="aruco_621.png"/>
+    <texture name="qr_texture" type="cube" fileright="assets/aruco_571.png" fileleft="assets/aruco_581.png" fileup="assets/aruco_591.png" filedown="assets/aruco_601.png" filefront="assets/aruco_611.png" fileback="assets/aruco_621.png"/>
     <material name="qr_material" texture="qr_texture" texrepeat="1 1" texuniform="false"/>
   </asset>
   <worldbody>
