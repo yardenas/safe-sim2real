@@ -381,3 +381,80 @@ class Saute(Wrapper):
             reward=saute_reward,
         )
         return nstate
+
+
+class GoToGoalObservationWrapper(Wrapper):
+    """Wrapper that filters GoToGoal observations to keep only dimensions with significant variance."""
+
+    def __init__(self, env):
+        """Initialize the wrapper with indices to keep based on std > 1e-6."""
+        super().__init__(env)
+        # Keep only indices where std > 1e-6
+        # These are indices 0-31 and 48-54 based on the provided std values
+        self.keep_indices = jp.array(
+            list(range(0, 32)) + list(range(48, 55)),
+            dtype=jp.int32,
+        )
+
+    def _filter_obs(self, obs):
+        """Filter observation to keep only the specified indices."""
+        if isinstance(obs, jax.Array):
+            return jp.take(obs, self.keep_indices, axis=-1)
+        else:
+            filtered_obs = {}
+            for k, v in obs.items():
+                if k == "state":
+                    filtered_obs[k] = jp.take(v, self.keep_indices, axis=-1)
+                elif k == "privileged_state":
+                    base_obs_size = 55
+                    if len(v.shape) > 1:
+                        filtered_obs[k] = jp.concatenate(
+                            [
+                                jp.take(
+                                    v[..., :base_obs_size], self.keep_indices, axis=-1
+                                ),
+                                v[..., base_obs_size:],
+                            ],
+                            axis=-1,
+                        )
+                    else:
+                        filtered_obs[k] = jp.concatenate(
+                            [
+                                jp.take(v[:base_obs_size], self.keep_indices),
+                                v[base_obs_size:],
+                            ]
+                        )
+                else:
+                    filtered_obs[k] = v
+            return filtered_obs
+
+    def reset(self, rng):
+        """Reset the environment and filter the observation."""
+        state = self.env.reset(rng)
+        filtered_obs = self._filter_obs(state.obs)
+        return state.replace(obs=filtered_obs)
+
+    def step(self, state, action):
+        """Step the environment and filter the observation."""
+        next_state = self.env.step(state, action)
+        filtered_obs = self._filter_obs(next_state.obs)
+        return next_state.replace(obs=filtered_obs)
+
+    @property
+    def observation_size(self):
+        """Return the size of the filtered observation."""
+        orig_size = self.env.observation_size
+        if isinstance(orig_size, int):
+            return len(self.keep_indices)
+        else:
+            sizes = {}
+            for k, v in orig_size.items():
+                if k == "state":
+                    sizes[k] = len(self.keep_indices)
+                elif k == "privileged_state":
+                    base_size = 55
+                    extra_size = v - base_size if v > base_size else 0
+                    sizes[k] = len(self.keep_indices) + extra_size
+                else:
+                    sizes[k] = v
+            return sizes
