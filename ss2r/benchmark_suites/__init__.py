@@ -353,6 +353,7 @@ def make_safety_gym_envs(cfg, train_wrap_env_fn, eval_wrap_env_fn):
     train_env = go_to_goal.GoToGoal()
     train_env = train_wrap_env_fn(train_env)
     eval_env = go_to_goal.GoToGoal()
+    eval_env = eval_wrap_env_fn(eval_env)
     train_key, eval_key = jax.random.split(jax.random.PRNGKey(cfg.training.seed))
     train_randomization_fn = (
         prepare_randomization_fn(
