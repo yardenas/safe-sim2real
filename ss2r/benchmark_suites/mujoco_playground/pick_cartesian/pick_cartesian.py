@@ -27,7 +27,6 @@ from ml_collections import config_dict
 from mujoco import mjx
 from mujoco_playground._src import collision, mjx_env
 from mujoco_playground._src.manipulation.franka_emika_panda import (
-    panda,
     panda_kinematics,
     pick,
 )
@@ -85,6 +84,20 @@ def adjust_brightness(img, scale):
     return jp.clip(img * scale, 0, 1)
 
 
+_ROOT_PATH = epath.Path(__file__).parent
+_MENAGERIE_FRANKA_DIR = "franka_emika_panda"
+
+
+def get_assets():
+    assets = {}
+    path = _ROOT_PATH / "manipulation" / "franka_emika_panda" / "xmls"
+    mjx_env.update_assets(assets, path, "*.xml")
+    path = mjx_env.MENAGERIE_PATH / _MENAGERIE_FRANKA_DIR
+    mjx_env.update_assets(assets, path, "*.xml")
+    mjx_env.update_assets(assets, path / "assets")
+    return assets
+
+
 class PandaPickCubeCartesian(pick.PandaPickCube):
     """Environment for training the Franka Panda robot to pick up a cube in
     Cartesian space."""
@@ -97,13 +110,16 @@ class PandaPickCubeCartesian(pick.PandaPickCube):
         mjx_env.MjxEnv.__init__(self, config, config_overrides)
         self._vision = config.vision
 
-        xml_path = epath.Path(__file__).parent / "xmls" / "mjx_single_cube_camera.xml"
+        xml_path = (
+            epath.Path(__file__).parent
+            / "assets"
+            / "xmls"
+            / "mjx_single_cube_camera.xml"
+        )
         self._xml_path = xml_path.as_posix()
 
         mj_model = self.modify_model(
-            mujoco.MjModel.from_xml_string(
-                xml_path.read_text(), assets=panda.get_assets()
-            )
+            mujoco.MjModel.from_xml_string(xml_path.read_text(), assets=get_assets())
         )
         mj_model.opt.timestep = config.sim_dt
 
