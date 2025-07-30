@@ -40,7 +40,7 @@ def domain_randomize(
     """Tile the necessary axes for the Madrona BatchRenderer."""
     mj_model = pick_cartesian.PandaPickCubeCartesian().mj_model
     floor_geom_id = mj_model.geom("floor").id
-    box_geom_id = mj_model.geom("box").id
+    # box_geom_id = mj_model.geom("box").id
     strip_geom_id = mj_model.geom("init_space").id
 
     in_axes = jax.tree_util.tree_map(lambda x: None, mjx_model)
@@ -96,9 +96,9 @@ def domain_randomize(
             jax.random.randint(key_matid, shape=(num_geoms,), minval=0, maxval=10)
             + mat_offset
         )
-        geom_matid = geom_matid.at[box_geom_id].set(
-            -2
-        )  # Use the above randomized colors
+        # geom_matid = geom_matid.at[box_geom_id].set(
+        #     -2
+        # )  # Use the above randomized colors
         geom_matid = geom_matid.at[floor_geom_id].set(-2)
         geom_matid = geom_matid.at[strip_geom_id].set(-2)
 

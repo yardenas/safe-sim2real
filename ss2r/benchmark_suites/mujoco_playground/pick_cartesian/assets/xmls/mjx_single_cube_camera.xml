@@ -34,8 +34,7 @@
   </asset>
   <worldbody>
     <!-- Matching the Realsense D435 -->
-    <camera fovy="62" name="front" pos="0.915 -0.0 0.32" euler="0 0.92 1.57"/>
-    <!-- <camera fovy="42" name="front_1" pos="1.176 0.001 0.483" xyaxes="0.006 1.000 -0.000 -0.720 0.004 0.694"/> -->
+    <camera fovy="62" name="front" pos="0.915 -0.0 0.32" euler="0 0.92 1.5708"/>
     <geom name="floor" size="0 0 0.05" type="plane" material="groundplane" contype="1"/>
     <geom name="init_space" size="0.02 1 0.01" type="plane" pos="0.631 0 0.001" rgba="1 1 1 1" contype="0" conaffinity="0"/>
     <body name="box" pos="1 0 0.03">
