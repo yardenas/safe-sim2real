@@ -1,6 +1,5 @@
 # @package _global_
 defaults:
-  - mujoco_playground_dm_control
   - override /environment: go_to_goal
   - override /agent: mbpo
   - override /agent/data_collection: episodic
@@ -16,10 +15,12 @@ training:
   action_repeat: 4
   num_envs: 1
   num_evals: 20
-  wandb_id: ____
+  wandb_id: d2rfpzty
 
 agent:
   activation: swish
+  policy_hidden_layer_sizes: [256, 256, 256]
+  value_hidden_layer_sizes: [512, 512]
   batch_size: 256
   min_replay_size: 1000
   max_replay_size: 1048576
