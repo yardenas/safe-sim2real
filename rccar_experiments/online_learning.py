@@ -45,7 +45,8 @@ def fetch_wandb_policy(cfg, env):
         else:
             obs_shape = specs.Array((obs_size,), jnp.dtype("float32"))
         normalizer_params = running_statistics.init_state(obs_shape)
-        normalizer_params = get_dict_normalizer_params(params, normalizer_params)
+        if not isinstance(params[0].mean, dict):
+            normalizer_params = get_dict_normalizer_params(params, normalizer_params)
         backup_policy_params = params[1]
         budget_scaling_fn = (
             lambda x: x
