@@ -20,7 +20,7 @@ training:
   train_domain_randomization: false
   eval_domain_randomization: false
   safety_budget: 5.0
-  wandb_id: vahll47z # 5iczzhkf old data
+  wandb_id: vahll47z
   render: false
 
 agent:
@@ -36,6 +36,6 @@ agent:
   model_learning_rate: 3e-4
   use_termination: false
   pessimism: 30
-  optimism: -5
+  optimism: -10
   safety_filter: null
   offline: true
