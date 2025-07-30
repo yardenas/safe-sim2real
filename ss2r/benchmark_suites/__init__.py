@@ -29,6 +29,7 @@ from ss2r.benchmark_suites.rccar import rccar
 from ss2r.benchmark_suites.safety_gym import go_to_goal
 from ss2r.benchmark_suites.utils import get_domain_name, get_task_config
 from ss2r.benchmark_suites.wrappers import (
+    GoToGoalObservationWrapper,
     Saute,
     SPiDR,
     wrap,
@@ -59,8 +60,17 @@ manipulation.register_environment(
 
 
 def get_wrap_env_fn(cfg):
-    if "propagation" not in cfg.agent:
+    if cfg.environment.task_name == "go_to_goal":
+
+        def wrap_fn(env):
+            env = GoToGoalObservationWrapper(env)
+            return env
+
+        out = wrap_fn, wrap_fn
+    else:
         out = lambda env: env, lambda env: env
+    if "propagation" not in cfg.agent:
+        out = out[0], out[1]
     elif cfg.agent.propagation.name == "spidr":
 
         def fn(env):
