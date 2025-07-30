@@ -168,3 +168,4 @@ outputs
 data
 artifacts
 paper
+*.sbatch

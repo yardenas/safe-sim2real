@@ -44,4 +44,5 @@ def test_policy_to_onnx_export():
 
 
 if __name__ == "__main__":
-    test_policy_to_onnx_export()
+    for _ in range(3):
+        test_policy_to_onnx_export()

@@ -2,6 +2,7 @@
 defaults:
   - override /environment: cartpole
   - override /agent: mbpo
+  - override /agent/cost_robustness: pessimistic_cost_update
   - _self_
 
 training:

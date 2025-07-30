@@ -1,9 +1,7 @@
 # @package _global_
 defaults:
   - override /environment: rccar_real
-  - override /agent: mbpo
   - override /agent/data_collection: hardware
-  - override /agent/cost_robustness: pessimistic_cost_update
   - _self_
 
 environment:
@@ -15,28 +13,20 @@ environment:
 
 training:
   num_envs: 1
-  num_timesteps: 25000
+  num_timesteps: 1500
   episode_length: 250
   safe: true
+  num_evals: 1
   train_domain_randomization: false
   eval_domain_randomization: false
   safety_budget: 5.
-  wandb_id: 0ltkzlyo # mep3e25n for offline to online
+  wandb_id: 0ltkzlyo
   render: false
 
 agent:
-  batch_size: 256
-  min_replay_size: 2500
+  min_replay_size: 1250
   max_replay_size: 1048576
   policy_hidden_layer_sizes: [64, 64]
-  critic_grad_updates_per_step: 4000
-  model_grad_updates_per_step: 50000
-  num_model_rollouts: 100000
-  learning_rate: 1e-5
-  critic_learning_rate: 1e-5
-  model_learning_rate: 3e-4
-  pessimism: 10
-  optimism: 0
-  safety_filter: sooper
+  grad_updates_per_step: 0
   data_collection:
     address: tcp://169.254.211.241:5555
