@@ -22,6 +22,7 @@ environment:
 
 
 agent:
+  activation: swish
   propagation:
-    lambda_: 6
+    lambda_: 4.5
   
