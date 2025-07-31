@@ -199,6 +199,7 @@ class Quadruped(mjx_env.MjxEnv):
         info = {"rng": rng}
         reward, done = jp.zeros(2)
         obs = self._get_obs(data, info)
+        obs += jax.random.normal(rng, obs.shape) * 1e-4
         return mjx_env.State(data, obs, reward, done, metrics, info)
 
     def step(self, state: mjx_env.State, action: jax.Array) -> mjx_env.State:
