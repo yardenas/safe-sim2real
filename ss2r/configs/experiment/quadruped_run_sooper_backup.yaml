@@ -1,0 +1,22 @@
+# @package _global_
+defaults:
+  - mujoco_playground_dm_control
+  - override /environment: quadruped
+  - override /agent/penalizer: lagrangian
+  - override /agent/cost_robustness: ucb_cost
+  - override /agent/propagation: spidr
+  - _self_
+
+
+training:
+  num_timesteps: 2000000
+  safe: true
+  train_domain_randomization: true
+  eval_domain_randomization: false
+  safety_budget: 100
+
+agent:
+  activation: swish
+  reset_on_eval: false
+  propagation: 
+    lambda_: 5e-4
