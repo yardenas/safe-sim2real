@@ -247,7 +247,9 @@ def train(
     action_size = env.action_size
     normalize_fn = lambda x, y: x
     if normalize_observations:
-        normalize_fn = running_statistics.normalize
+        normalize_fn = functools.partial(
+            running_statistics.normalize, max_abs_value=5.0
+        )
 
     mbpo_network = network_factory(
         observation_size=obs_size["state"]
