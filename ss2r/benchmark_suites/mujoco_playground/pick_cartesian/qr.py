@@ -23,6 +23,6 @@ for marker_id in marker_ids:
     path = epath.Path(__file__).parent
     image_path = path / "assets" / epath.Path(f"aruco_{marker_id}.png")
     img = Image.open(image_path).convert("RGB")
-    border_size = 20
+    border_size = 75
     img_with_border = ImageOps.expand(img, border=border_size, fill="white")
     img_with_border.save(f"aruco_{marker_id}.png")

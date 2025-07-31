@@ -39,7 +39,7 @@
     <geom name="init_space" size="0.02 1 0.01" type="plane" pos="0.631 0 0.001" rgba="1 1 1 1" contype="0" conaffinity="0"/>
     <body name="box" pos="1 0 0.03">
       <freejoint/>
-      <geom type="box" name="box" size="0.05 0.05 0.05" condim="3"
+      <geom type="box" name="box" size="0.025 0.025 0.025" condim="3"
        friction="1 .03 .003" rgba="1 1 1 1" contype="2" conaffinity="1" solref="0.01 1" material="qr_material"/>
     </body>
     <body mocap="true" name="mocap_target">
