@@ -7,7 +7,7 @@ defaults:
   - _self_
 
 training:
-  num_timesteps: 300000
+  num_timesteps: 100000
   safe: true
   train_domain_randomization: false
   eval_domain_randomization: false
@@ -26,8 +26,8 @@ agent:
   critic_grad_updates_per_step: 4000
   model_grad_updates_per_step: 20000
   num_model_rollouts: 100000
-  learning_rate: 1e-6
-  critic_learning_rate: 1e-6
+  learning_rate: 1e-5
+  critic_learning_rate: 1e-5
   model_learning_rate: 3e-4
   pessimism: 3
   optimism: 0
