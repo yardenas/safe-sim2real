@@ -1,6 +1,6 @@
 # @package _global_
 defaults:
-  - mujoco_playground_dm_control
+  - mujoco_playground_dm_control_sooper
   - override /environment: quadruped
   - override /agent: mbpo
   - override /agent/data_collection: step
@@ -9,11 +9,6 @@ defaults:
 
 
 training:
-  num_timesteps: 2000000
-  safe: true
-  train_domain_randomization: false
-  eval_domain_randomization: false
-  safety_budget: 100
   wandb_id: fmc7c57s
 
 agent:
@@ -21,8 +16,3 @@ agent:
   reset_on_eval: false
   model_grad_updates_per_step: 50
   critic_grad_updates_per_step: 20
-  safety_filter: sooper
-  advantage_threshold: 0.2
-  # learning_rate: 1e-5
-  # critic_learning_rate: 1e-5
-  # model_learning_rate: 3e-4
