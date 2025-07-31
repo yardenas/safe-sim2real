@@ -204,6 +204,7 @@ def train(
     safety_filter: str | None = None,
     advantage_threshold: float = 0.2,
     offline: bool = False,
+    learn_from_scratch: bool = False,
 ):
     if min_replay_size >= num_timesteps:
         raise ValueError(
@@ -340,6 +341,14 @@ def train(
             ts_normalizer_params = params[0]
         if offline:
             model_buffer_state = replay_buffers.ReplayBufferState(**params[-1])
+        elif learn_from_scratch:
+            training_state = training_state.replace(  # type: ignore
+                normalizer_params=ts_normalizer_params,
+                backup_policy_params=params[1],
+                backup_qr_params=params[3],
+                backup_qc_params=params[4] if safe else None,
+                backup_target_qc_params=params[4] if safe else None,
+            )
         else:
             training_state = training_state.replace(  # type: ignore
                 normalizer_params=ts_normalizer_params,
