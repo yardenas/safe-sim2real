@@ -375,13 +375,14 @@ def train(
                 params[7], training_state.alpha_optimizer_state
             )
             qr_optimizer_state = restore_state(
-                params[8][1], training_state.behavior_qr_optimizer_state
+                params[8][1]["inner_state"], training_state.behavior_qr_optimizer_state
             )
             if qc_optimizer is None:
                 qc_optimizer_state = None
             else:
                 qc_optimizer_state = restore_state(
-                    params[9][1], training_state.backup_qc_optimizer_state
+                    params[9][1]["inner_state"],
+                    training_state.backup_qc_optimizer_state,
                 )
             training_state = training_state.replace(  # type: ignore
                 behavior_policy_optimizer_state=policy_optimizer_state,
