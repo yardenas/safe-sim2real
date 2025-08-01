@@ -455,7 +455,7 @@ randomization_fns = {
     ),
     "go_to_goal": go_to_goal.domain_randomization,
     "PandaPickCubeCartesian": franka_vision_randomize,
-    "PandaPickCubeCartesianExtended": franka_vision_randomize,
+    "PandaPickCubeCartesianExtended": pick_cartesian.domain_randomize,
 }
 
 render_fns = {
