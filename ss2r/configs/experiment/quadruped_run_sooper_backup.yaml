@@ -19,4 +19,4 @@ agent:
   activation: swish
   reset_on_eval: false
   propagation: 
-    lambda_: 5e-4
+    lambda_: 5e-3
