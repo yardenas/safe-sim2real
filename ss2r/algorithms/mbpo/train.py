@@ -372,7 +372,7 @@ def train(
                 training_state.behavior_policy_optimizer_state,
             )
             alpha_optimizer_state = restore_state(
-                params[7][1], training_state.alpha_optimizer_state
+                params[7], training_state.alpha_optimizer_state
             )
             qr_optimizer_state = restore_state(
                 params[8][1], training_state.behavior_qr_optimizer_state
