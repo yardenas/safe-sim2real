@@ -377,7 +377,7 @@ def train(
             qr_optimizer_state = restore_state(
                 params[8][1]["inner_state"], training_state.behavior_qr_optimizer_state
             )
-            if qc_optimizer is None:
+            if not safe:
                 qc_optimizer_state = None
             else:
                 qc_optimizer_state = restore_state(
