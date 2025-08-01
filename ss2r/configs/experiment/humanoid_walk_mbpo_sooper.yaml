@@ -1,8 +1,9 @@
 # @package _global_
 defaults:
   - override /environment: humanoid_walk
-  - override /agent/propagation: spidr
-  - override /agent/cost_robustness: ucb_cost
+  - override /agent: mbpo
+  - override /agent/data_collection: episodic
+  - override /agent/cost_robustness: pessimistic_cost_update
   - _self_
 
 
