@@ -207,6 +207,7 @@ def train(
     offline: bool = False,
     learn_from_scratch: bool = False,
     load_auxiliaries: bool = False,
+    sooper_budget_scale: float = 1.0,
 ):
     if min_replay_size >= num_timesteps:
         raise ValueError(
@@ -446,7 +447,7 @@ def train(
         action_size=action_size,
         observation_size=obs_size,
         ensemble_selection=model_propagation,
-        safety_budget=safety_budget
+        safety_budget=safety_budget * sooper_budget_scale
         if safety_filter == "sooper"
         else advantage_threshold,
         cost_discount=safety_discounting,
