@@ -23,8 +23,8 @@ agent:
   batch_size: 256
   min_replay_size: 5000
   max_replay_size: 1048576
-  critic_grad_updates_per_step: 4000
-  model_grad_updates_per_step: 50000
+  critic_grad_updates_per_step: 10
+  model_grad_updates_per_step: 50
   num_model_rollouts: 100000
   pessimism: 30
   optimism: -10
