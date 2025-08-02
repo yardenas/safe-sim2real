@@ -34,3 +34,4 @@ agent:
     lagrange_multiplier: 5.
     penalty_multiplier: 2.
     penalty_multiplier_factor: 0.25
+  model_to_real_data_ratio: 0.25
