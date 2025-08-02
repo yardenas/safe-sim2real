@@ -27,7 +27,6 @@ agent:
   num_model_rollouts: 100000
   pessimism: 10
   optimism: -10
-  safety_discounting: 0.999
   safety_filter: null
   offline: true
   normalize_budget: false
