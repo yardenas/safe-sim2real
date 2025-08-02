@@ -204,9 +204,6 @@ def train(
     safety_filter: str | None = None,
     advantage_threshold: float = 0.2,
     offline: bool = False,
-    learn_from_scratch: bool = False,
-    load_auxiliaries: bool = False,
-    target_alpha: float | None = None,
 ):
     if min_replay_size >= num_timesteps:
         raise ValueError(
@@ -373,7 +370,6 @@ def train(
         action_size=action_size,
         use_bro=use_bro,
         normalize_fn=normalize_fn,
-        target_alpha=target_alpha,
     )
     alpha_update = (
         gradients.gradient_update_fn(  # pytype: disable=wrong-arg-types  # jax-ndarray

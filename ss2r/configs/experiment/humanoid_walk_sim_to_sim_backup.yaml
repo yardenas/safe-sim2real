@@ -20,7 +20,7 @@ train_params:
     x: [-20., 20.]
     y: [-20., 20.]
     z: [-60., 60.]
-  gear_knee: [-5., 5.]
+  gear_knee: [-40., 40.]
 
 agent:
   activation: swish
