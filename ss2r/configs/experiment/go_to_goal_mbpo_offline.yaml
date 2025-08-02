@@ -2,8 +2,7 @@
 defaults:
   - override /environment: go_to_goal
   - override /agent: mbpo
-  - override /agent/data_collection: episodic
-  - override /agent/cost_robustness: pessimistic_cost_update
+  - override /agent/penalizer: lagrangian
   - _self_
 
 training:
@@ -27,12 +26,13 @@ agent:
   critic_grad_updates_per_step: 4000
   model_grad_updates_per_step: 50000
   num_model_rollouts: 100000
-  learning_rate: 1e-5
-  critic_learning_rate: 1e-5
-  model_learning_rate: 3e-4
-  pessimism: 0
-  optimism: 0
+  pessimism: 30
+  optimism: -10
   safety_discounting: 0.999
-  safety_filter: sooper
-  advantage_threshold: 0.2
-  load_auxiliaries: true
+  safety_filter: null
+  offline: true
+  normalize_budget: false
+  penalizer:
+    lagrange_multiplier: 5.
+    penalty_multiplier: 2.
+    penalty_multiplier_factor: 0.25
