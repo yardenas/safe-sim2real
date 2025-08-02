@@ -157,7 +157,7 @@ def make_losses(
                 normalizer_params, qc_params, transitions.observation, action
             )
             mean_qc = jnp.mean(qc_action, axis=-1)
-            constraint = safety_budget - mean_qc.mean() / cost_scaling
+            constraint = safety_budget - mean_qc.mean()
             actor_loss, penalizer_aux, penalizer_params = penalizer(
                 actor_loss, constraint, jax.lax.stop_gradient(penalizer_params)
             )

@@ -211,13 +211,7 @@ class SPiDR(Wrapper):
         # domain randomization, the initial states will be different, having
         # a non-zero disagreement.
         state = self.env.reset(rng)
-        cost = jp.zeros_like(state.reward)
-        state.info["state_propagation"] = {}
-        state.info["state_propagation"]["next_obs"] = self._tile(_get_obs(state))
-        state.info["state_propagation"]["cost"] = self._tile(cost)
-        disagreement = self._compute_disagreement(
-            state.info["state_propagation"]["next_obs"]
-        )
+        disagreement = jp.zeros_like(state.reward)
         state.info["disagreement"] = disagreement
         state.metrics["disagreement"] = disagreement
         return state
@@ -228,10 +222,6 @@ class SPiDR(Wrapper):
         perturbed_nstate = self.perturbed_env.step(v_state, v_action)
         next_obs = _get_obs(perturbed_nstate)
         disagreement = self._compute_disagreement(next_obs)
-        nstate.info["state_propagation"]["next_obs"] = next_obs
-        nstate.info["state_propagation"]["cost"] = perturbed_nstate.info.get(
-            "cost", jp.zeros_like(perturbed_nstate.reward)
-        )
         nstate.info["disagreement"] = disagreement
         nstate.metrics["disagreement"] = disagreement
         return nstate
