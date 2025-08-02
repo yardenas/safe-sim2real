@@ -7,7 +7,7 @@ defaults:
   - _self_
 
 training:
-  num_timesteps: 80000
+  num_timesteps: 500000
   train_domain_randomization: false
   eval_domain_randomization: false
   safe: true
@@ -23,7 +23,7 @@ agent:
   model_hidden_layer_sizes: [512, 512]
   activation: swish
   batch_size: 256
-  min_replay_size: 1000
+  min_replay_size: 5000
   max_replay_size: 1048576
   critic_grad_updates_per_step: 4000
   model_grad_updates_per_step: 50000
