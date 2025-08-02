@@ -1,6 +1,5 @@
 # @package _global_
 defaults:
-  - mujoco_playground_dm_control
   - override /environment: go_to_goal
   - override /agent: mbpo
   - override /agent/data_collection: episodic
@@ -14,11 +13,14 @@ training:
   safe: true
   safety_budget: 25
   action_repeat: 4
-  num_envs: 1
+  num_envs: 20
   num_evals: 20
-  wandb_id: ____
+  wandb_id: atpwmr5r
 
 agent:
+  policy_hidden_layer_sizes: [256, 256, 256]
+  value_hidden_layer_sizes: [512, 512]
+  model_hidden_layer_sizes: [512, 512]
   activation: swish
   batch_size: 256
   min_replay_size: 1000
@@ -33,3 +35,4 @@ agent:
   optimism: 0
   safety_discounting: 0.999
   safety_filter: sooper
+  advantage_threshold: 0.2
