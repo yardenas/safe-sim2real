@@ -35,3 +35,4 @@ agent:
   safety_discounting: 0.999
   safety_filter: sooper
   advantage_threshold: 0.2
+  load_auxiliaries: true
