@@ -366,7 +366,7 @@ def make_training_step(
         next_obs_pred = jax.tree_map(lambda x: x.mean(0), next_obs_pred)
         return Transition(
             observation=transitions.observation,
-            next_observation=next_obs_pred,
+            next_observation=transitions.next_observation,
             action=transitions.action,
             reward=new_reward,
             discount=discount,
