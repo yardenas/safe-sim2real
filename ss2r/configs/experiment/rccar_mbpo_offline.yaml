@@ -20,7 +20,7 @@ training:
   train_domain_randomization: false
   eval_domain_randomization: false
   safety_budget: 5.0
-  wandb_id: 5iczzhkf
+  wandb_id: vahll47z
   render: false
 
 agent:
@@ -38,6 +38,6 @@ agent:
   pessimism: 30
   # Use negative optimism so that the reward is pessimistic w.r.t uncertianty
   # following MOPO paper.
-  optimism: -30
+  optimism: -10
   safety_filter: null
   offline: true
