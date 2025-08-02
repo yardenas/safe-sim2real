@@ -34,3 +34,5 @@ agent:
   optimism: 0
   advantage_threshold: 0.2
   safety_filter: sooper
+  target_alpha: -0.25
+  init_alpha: 0.25
