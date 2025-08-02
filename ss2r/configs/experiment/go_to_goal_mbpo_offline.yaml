@@ -25,8 +25,8 @@ agent:
   critic_grad_updates_per_step: 10
   model_grad_updates_per_step: 50
   num_model_rollouts: 100000
-  pessimism: 10
-  optimism: -10
+  pessimism: 5
+  optimism: -5
   safety_filter: null
   offline: true
   normalize_budget: false
