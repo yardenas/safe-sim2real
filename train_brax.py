@@ -115,7 +115,7 @@ def main(cfg):
         )
     steps = Counter()
     with jax.disable_jit(not cfg.jit):
-        make_policy, params, _ = train_fn(
+        make_policy, params, run_metrics = train_fn(
             environment=train_env,
             eval_env=eval_env,
             progress_fn=functools.partial(report, logger, steps),
@@ -165,6 +165,7 @@ def main(cfg):
             if artifacts:
                 logger.log_artifact(artifacts, "model", "checkpoint")
     _LOG.info("Done training.")
+    return run_metrics
 
 
 if __name__ == "__main__":
