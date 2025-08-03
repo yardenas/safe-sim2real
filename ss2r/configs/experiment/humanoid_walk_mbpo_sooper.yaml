@@ -8,13 +8,13 @@ defaults:
 
 
 training:
-  num_timesteps: 75000
+  num_timesteps: 25000
   safe: true
   train_domain_randomization: false
   eval_domain_randomization: false
   safety_budget: 100
   num_envs: 1
-  num_evals: 25
+  num_evals: 20
   wandb_id: jxqqane5
 
 agent:
@@ -25,7 +25,7 @@ agent:
   batch_size: 256
   min_replay_size: 1000
   max_replay_size: 1048576
-  critic_grad_updates_per_step: 1000
+  critic_grad_updates_per_step: 2000
   model_grad_updates_per_step: 80000
   num_model_rollouts: 100000
   learning_rate: 1e-5
