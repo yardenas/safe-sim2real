@@ -15,20 +15,20 @@ training:
   action_repeat: 4
   num_envs: 1
   num_evals: 20
-  wandb_id: d2rfpzty
+  wandb_id: atpwmr5r
 
 agent:
   activation: swish
   policy_hidden_layer_sizes: [256, 256, 256]
   value_hidden_layer_sizes: [512, 512]
   batch_size: 256
-  min_replay_size: 1000
+  min_replay_size: 2000
   max_replay_size: 1048576
   critic_grad_updates_per_step: 4000
-  model_grad_updates_per_step: 50000
-  num_model_rollouts: 100000
-  learning_rate: 1e-5
-  critic_learning_rate: 1e-5
+  model_grad_updates_per_step: 85000
+  num_model_rollouts: 125000
+  learning_rate: 1e-6
+  critic_learning_rate: 1e-7
   model_learning_rate: 3e-4
   pessimism: 0
   optimism: 0
