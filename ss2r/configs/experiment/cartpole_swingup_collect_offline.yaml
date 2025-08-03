@@ -8,5 +8,4 @@ training:
   safe: false
 
 agent:
-  max_replay_size: 25000
   store_buffer: true
