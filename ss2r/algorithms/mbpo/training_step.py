@@ -328,6 +328,15 @@ def make_training_step(
                         jnp.zeros_like(cost, dtype=jnp.float32),
                         jnp.ones_like(cost, dtype=jnp.float32),
                     )
+                    pred_qr = planning_env.qr_network.apply
+                    backup_qr_params = planning_env.backup_qr_params
+                    pessimistic_qr_pred = pred_qr(
+                        normalizer_params,
+                        backup_qr_params,
+                        transitions.observation,
+                        backup_action,
+                    ).mean(axis=-1)
+                    new_reward = jnp.where(discount, new_reward, pessimistic_qr_pred)
                 elif safety_filter == "advantage":
                     qc_backup = planning_env.qc_network.apply(
                         normalizer_params,
@@ -347,22 +356,9 @@ def make_training_step(
                         jnp.zeros_like(cost, dtype=jnp.float32),
                         jnp.ones_like(cost, dtype=jnp.float32),
                     )
-
-            pred_qr = planning_env.qr_network.apply
-            backup_qr_params = planning_env.backup_qr_params
-            pessimistic_qr_pred = pred_qr(
-                normalizer_params,
-                backup_qr_params,
-                transitions.observation,
-                backup_action,
-            ).mean(axis=-1)
-            new_reward = jnp.where(
-                discount,
-                new_reward,
-                pessimistic_qr_pred
-                if safety_filter == "sooper"
-                else jnp.zeros_like(transitions.reward),
-            )
+                    new_reward = jnp.where(
+                        discount, new_reward, jnp.zeros_like(new_reward)
+                    )
         next_obs_pred = jax.tree_map(lambda x: x.mean(0), next_obs_pred)
         return Transition(
             observation=transitions.observation,
