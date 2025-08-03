@@ -67,13 +67,18 @@ class InterventionConstraintEvalWrapper(EvalWrapper):
             "cost", jnp.zeros_like(reset_state.reward)
         )
         reset_state.metrics["intervention"] = jnp.zeros_like(reset_state.reward)
-        reset_state.metrics["policy_distance"] = jnp.zeros_like(reset_state.reward)
         episode_metrics = jax.tree_util.tree_map(jnp.zeros_like, reset_state.metrics)
         episode_metrics["max_policy_distance"] = jnp.zeros_like(reset_state.reward)
         episode_metrics["max_safety_gap"] = jnp.zeros_like(reset_state.reward)
         episode_metrics["max_expected_total_cost"] = jnp.zeros_like(reset_state.reward)
         episode_metrics["max_cumulative_cost"] = jnp.zeros_like(reset_state.reward)
         episode_metrics["max_q_c"] = jnp.zeros_like(reset_state.reward)
+        reset_state.info["intervention"] = jnp.zeros_like(reset_state.reward)
+        reset_state.info["policy_distance"] = jnp.zeros_like(reset_state.reward)
+        reset_state.info["safety_gap"] = jnp.zeros_like(reset_state.reward)
+        reset_state.info["expected_total_cost"] = jnp.zeros_like(reset_state.reward)
+        reset_state.info["cumulative_cost"] = jnp.zeros_like(reset_state.reward)
+        reset_state.info["q_c"] = jnp.zeros_like(reset_state.reward)
         eval_metrics = EvalMetrics(
             episode_metrics=episode_metrics,
             active_episodes=jnp.ones_like(reset_state.reward),
