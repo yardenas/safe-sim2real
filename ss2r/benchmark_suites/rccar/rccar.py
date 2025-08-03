@@ -10,7 +10,7 @@ from ss2r.benchmark_suites.rccar.hardware import HardwareDynamics
 from ss2r.benchmark_suites.rccar.model import CarParams, RaceCarDynamics
 from ss2r.rl.utils import rollout
 
-X_LIM = (-0.3, 3.0)
+X_LIM = (-0.45, 3.0)
 Y_LIM = (-2.1, 1.5)
 
 

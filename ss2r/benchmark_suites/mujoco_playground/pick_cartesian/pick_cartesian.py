@@ -16,20 +16,161 @@
 Pick up a cube to a fixed location using a cartesian controller."""
 
 import warnings
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Optional, Tuple, Union
 
 import jax
 import jax.numpy as jp
 import mujoco
 import numpy as np
+from etils import epath
 from ml_collections import config_dict
 from mujoco import mjx
 from mujoco_playground._src import collision, mjx_env
 from mujoco_playground._src.manipulation.franka_emika_panda import (
-    panda,
     panda_kinematics,
     pick,
+    pick_cartesian,
+    randomize_vision,
 )
+
+
+def domain_randomize(
+    mjx_model: mjx.Model, num_worlds: int
+) -> Tuple[mjx.Model, mjx.Model]:
+    """Tile the necessary axes for the Madrona BatchRenderer."""
+    mj_model = pick_cartesian.PandaPickCubeCartesian().mj_model
+    floor_geom_id = mj_model.geom("floor").id
+    box_geom_id = mj_model.geom("box").id
+    strip_geom_id = mj_model.geom("init_space").id
+
+    in_axes = jax.tree_util.tree_map(lambda x: None, mjx_model)
+    in_axes = in_axes.tree_replace(
+        {
+            "geom_rgba": 0,
+            "geom_matid": 0,
+            "cam_pos": 0,
+            "cam_quat": 0,
+            "light_pos": 0,
+            "light_dir": 0,
+            "light_directional": 0,
+            "light_castshadow": 0,
+        }
+    )
+    rng = jax.random.key(0)
+
+    # Simpler logic implementing via Numpy.
+    np.random.seed(0)
+    light_positions = [
+        randomize_vision.sample_light_position() for _ in range(num_worlds)
+    ]
+    light_positions = jp.array(light_positions)
+
+    @jax.vmap
+    def rand(rng: jax.Array, light_position: jax.Array):
+        """Generate randomized model fields."""
+        _, key = jax.random.split(rng, 2)
+
+        #### Apearance ####
+        # Sample a random color for the box
+        key_box, key_strip, key_floor, key = jax.random.split(key, 4)
+        # rgba = jp.array(
+        #     [jax.random.uniform(key_box, (), minval=0.5, maxval=1.0), 0.0, 0.0, 1.0]
+        # )
+        # geom_rgba = mjx_model.geom_rgba.at[box_geom_id].set(rgba)
+        geom_rgba = mjx_model.geom_rgba.copy()
+
+        strip_white = jax.random.uniform(key_strip, (), minval=0.8, maxval=1.0)
+        geom_rgba = geom_rgba.at[strip_geom_id].set(
+            jp.array([strip_white, strip_white, strip_white, 1.0])
+        )  # type: ignore
+
+        # Sample a shade of gray
+        gray_scale = jax.random.uniform(key_floor, (), minval=0.0, maxval=0.25)
+        geom_rgba = geom_rgba.at[floor_geom_id].set(
+            jp.array([gray_scale, gray_scale, gray_scale, 1.0])
+        )
+
+        mat_offset, num_geoms = 5, geom_rgba.shape[0]
+        key_matid, key = jax.random.split(key)
+        geom_matid = (
+            jax.random.randint(key_matid, shape=(num_geoms,), minval=0, maxval=10)
+            + mat_offset
+        )
+        geom_matid = geom_matid.at[box_geom_id].set(
+            -1
+        )  # Use the above randomized colors
+        geom_matid = geom_matid.at[floor_geom_id].set(-2)
+        geom_matid = geom_matid.at[strip_geom_id].set(-2)
+
+        #### Cameras ####
+        key_pos, key_ori, key = jax.random.split(key, 3)
+        cam_offset = jax.random.uniform(key_pos, (3,), minval=-0.05, maxval=0.05)
+        assert (
+            len(mjx_model.cam_pos) == 1
+        ), f"Expected single camera, got {len(mjx_model.cam_pos)}"
+        cam_pos = mjx_model.cam_pos.at[0].set(mjx_model.cam_pos[0] + cam_offset)
+        cam_quat = mjx_model.cam_quat.at[0].set(
+            randomize_vision.perturb_orientation(key_ori, mjx_model.cam_quat[0], 10)
+        )
+
+        #### Lighting ####
+        nlight = mjx_model.light_pos.shape[0]
+        assert (
+            nlight == 1
+        ), f"Sim2Real was trained with a single light source, got {nlight}"
+        key_lsha, key_ldir, key = jax.random.split(key, 3)
+
+        # Direction
+        shine_at = jp.array([0.661, -0.001, 0.179])  # Gripper starting position
+        nom_dir = (shine_at - light_position) / jp.linalg.norm(
+            shine_at - light_position
+        )
+        light_dir = mjx_model.light_dir.at[0].set(
+            randomize_vision.perturb_orientation(key_ldir, nom_dir, 20)
+        )
+
+        # Whether to cast shadows
+        light_castshadow = jax.random.bernoulli(key_lsha, 0.75, shape=(nlight,)).astype(
+            jp.float32
+        )
+
+        # No need to randomize into specular lighting
+        light_directional = jp.ones((nlight,))
+
+        return (
+            geom_rgba,
+            geom_matid,
+            cam_pos,
+            cam_quat,
+            light_dir,
+            light_directional,
+            light_castshadow,
+        )
+
+    (
+        geom_rgba,
+        geom_matid,
+        cam_pos,
+        cam_quat,
+        light_dir,
+        light_directional,
+        light_castshadow,
+    ) = rand(jax.random.split(rng, num_worlds), light_positions)
+
+    mjx_model = mjx_model.tree_replace(
+        {
+            "geom_rgba": geom_rgba,
+            "geom_matid": geom_matid,
+            "cam_pos": cam_pos,
+            "cam_quat": cam_quat,
+            "light_pos": light_positions,
+            "light_dir": light_dir,
+            "light_directional": light_directional,
+            "light_castshadow": light_castshadow,
+        }
+    )
+
+    return mjx_model, in_axes
 
 
 def default_vision_config() -> config_dict.ConfigDict:
@@ -84,6 +225,21 @@ def adjust_brightness(img, scale):
     return jp.clip(img * scale, 0, 1)
 
 
+_ROOT_PATH = epath.Path(__file__).parent
+_MENAGERIE_FRANKA_DIR = "franka_emika_panda"
+
+
+def get_assets():
+    assets = {}
+    path = _ROOT_PATH / "manipulation" / "franka_emika_panda" / "xmls"
+    mjx_env.update_assets(assets, path, "*.xml")
+    mjx_env.update_assets(assets, _ROOT_PATH / "assets", "*.png")
+    path = mjx_env.MENAGERIE_PATH / _MENAGERIE_FRANKA_DIR
+    mjx_env.update_assets(assets, path, "*.xml")
+    mjx_env.update_assets(assets, path / "assets")
+    return assets
+
+
 class PandaPickCubeCartesian(pick.PandaPickCube):
     """Environment for training the Franka Panda robot to pick up a cube in
     Cartesian space."""
@@ -97,18 +253,15 @@ class PandaPickCubeCartesian(pick.PandaPickCube):
         self._vision = config.vision
 
         xml_path = (
-            mjx_env.ROOT_PATH
-            / "manipulation"
-            / "franka_emika_panda"
+            epath.Path(__file__).parent
+            / "assets"
             / "xmls"
             / "mjx_single_cube_camera.xml"
         )
         self._xml_path = xml_path.as_posix()
 
         mj_model = self.modify_model(
-            mujoco.MjModel.from_xml_string(
-                xml_path.read_text(), assets=panda.get_assets()
-            )
+            mujoco.MjModel.from_xml_string(xml_path.read_text(), assets=get_assets())
         )
         mj_model.opt.timestep = config.sim_dt
 

@@ -47,3 +47,5 @@ use_termination: true
 safety_filter: null
 advantage_threshold: 0.2
 offline: false
+learn_from_scratch: false
+load_auxiliaries: false
