@@ -207,6 +207,7 @@ def train(
     offline: bool = False,
     learn_from_scratch: bool = False,
     load_auxiliaries: bool = False,
+    model_weight_decay: float = 0.0001,
 ):
     if min_replay_size >= num_timesteps:
         raise ValueError(
@@ -265,14 +266,14 @@ def train(
         n_heads=n_heads,
     )
     alpha_optimizer = optax.adam(learning_rate=alpha_learning_rate)
-    make_optimizer = lambda lr, grad_clip_norm: optax.chain(
+    make_optimizer = lambda lr, grad_clip_norm, wd=0.0001: optax.chain(
         optax.clip_by_global_norm(grad_clip_norm),
-        optax.adamw(learning_rate=lr),
+        optax.adamw(learning_rate=lr, weight_decay=wd),
     )
     policy_optimizer = make_optimizer(learning_rate, 1.0)
     qr_optimizer = make_optimizer(critic_learning_rate, 1.0)
     qc_optimizer = make_optimizer(critic_learning_rate, 1.0)
-    model_optimizer = make_optimizer(model_learning_rate, 1.0)
+    model_optimizer = make_optimizer(model_learning_rate, 1.0, wd=model_weight_decay)
     if isinstance(obs_size, Mapping):
         dummy_obs = {k: jnp.zeros(v) for k, v in obs_size.items()}
     else:
