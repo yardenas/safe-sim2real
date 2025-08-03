@@ -68,20 +68,14 @@ class InterventionConstraintEvalWrapper(EvalWrapper):
         )
         reset_state.metrics["intervention"] = jnp.zeros_like(reset_state.reward)
         reset_state.metrics["policy_distance"] = jnp.zeros_like(reset_state.reward)
-        reset_state.metrics["safety_gap"] = jnp.zeros_like(reset_state.reward)
-        reset_state.metrics["expected_total_cost"] = jnp.zeros_like(reset_state.reward)
-        reset_state.metrics["cumulative_cost"] = jnp.zeros_like(reset_state.reward)
-        reset_state.metrics["q_c"] = jnp.zeros_like(reset_state.reward)
-
-        reset_state.info["intervention"] = jnp.zeros_like(reset_state.reward)
-        reset_state.info["policy_distance"] = jnp.zeros_like(reset_state.reward)
-        reset_state.info["safety_gap"] = jnp.zeros_like(reset_state.reward)
-        reset_state.info["expected_total_cost"] = jnp.zeros_like(reset_state.reward)
-        reset_state.info["cumulative_cost"] = jnp.zeros_like(reset_state.reward)
-        reset_state.info["q_c"] = jnp.zeros_like(reset_state.reward)
-
+        episode_metrics = jax.tree_util.tree_map(jnp.zeros_like, reset_state.metrics)
+        episode_metrics["max_policy_distance"] = jnp.zeros_like(reset_state.reward)
+        episode_metrics["max_safety_gap"] = jnp.zeros_like(reset_state.reward)
+        episode_metrics["max_expected_total_cost"] = jnp.zeros_like(reset_state.reward)
+        episode_metrics["max_cumulative_cost"] = jnp.zeros_like(reset_state.reward)
+        episode_metrics["max_q_c"] = jnp.zeros_like(reset_state.reward)
         eval_metrics = EvalMetrics(
-            episode_metrics=jax.tree_util.tree_map(jnp.zeros_like, reset_state.metrics),
+            episode_metrics=episode_metrics,
             active_episodes=jnp.ones_like(reset_state.reward),
             episode_steps=jnp.zeros_like(reset_state.reward),
         )
@@ -99,19 +93,6 @@ class InterventionConstraintEvalWrapper(EvalWrapper):
         nstate.metrics["intervention"] = nstate.info.get(
             "intervention", jnp.zeros_like(nstate.reward)
         )
-        nstate.metrics["policy_distance"] = nstate.info.get(
-            "policy_distance", jnp.zeros_like(nstate.reward)
-        )
-        nstate.metrics["safety_gap"] = nstate.info.get(
-            "safety_gap", jnp.zeros_like(nstate.reward)
-        )
-        nstate.metrics["expected_total_cost"] = nstate.info.get(
-            "expected_total_cost", jnp.zeros_like(nstate.reward)
-        )
-        nstate.metrics["cumulative_cost"] = nstate.info.get(
-            "cumulative_cost", jnp.zeros_like(nstate.reward)
-        )
-        nstate.metrics["q_c"] = nstate.info.get("q_c", jnp.zeros_like(nstate.reward))
         episode_steps = jnp.where(
             state_metrics.active_episodes,
             nstate.info.get("steps", jnp.zeros_like(state_metrics.episode_steps)),
@@ -122,6 +103,18 @@ class InterventionConstraintEvalWrapper(EvalWrapper):
             state_metrics.episode_metrics,
             nstate.metrics,
         )
+        for k in [
+            "policy_distance",
+            "safety_gap",
+            "expected_total_cost",
+            "cumulative_cost",
+            "q_c",
+        ]:
+            episode_metrics[f"max_{k}"] = jnp.maximum(
+                nstate.info.get(k, jnp.zeros_like(nstate.reward))
+                * state_metrics.active_episodes,
+                state_metrics.episode_metrics[k],
+            )
         active_episodes = state_metrics.active_episodes * (1 - nstate.done)
         eval_metrics = EvalMetrics(
             episode_metrics=episode_metrics,
