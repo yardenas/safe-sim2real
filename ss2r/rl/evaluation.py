@@ -121,23 +121,6 @@ class InterventionConstraintEvalWrapper(EvalWrapper):
                 episode_metrics[k] = (
                     v + nstate.metrics[k] * state_metrics.active_episodes
                 )
-        # episode_metrics = jax.tree_util.tree_map(
-        #     lambda a, b: a + b * state_metrics.active_episodes,
-        #     state_metrics.episode_metrics,
-        #     nstate.metrics,
-        # )
-        # for k in [
-        #     "policy_distance",
-        #     "safety_gap",
-        #     "expected_total_cost",
-        #     "cumulative_cost",
-        #     "q_c",
-        # ]:
-        #     episode_metrics[f"max_{k}"] = jnp.maximum(
-        #         nstate.info.get(k, jnp.zeros_like(nstate.reward))
-        #         * state_metrics.active_episodes,
-        #         state_metrics.episode_metrics[k],
-        #     )
         active_episodes = state_metrics.active_episodes * (1 - nstate.done)
         eval_metrics = EvalMetrics(
             episode_metrics=episode_metrics,
