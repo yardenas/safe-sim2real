@@ -150,16 +150,16 @@ class WeightAndBiasesWriter:
         config.wandb.name = name
         config_dict = omegaconf.OmegaConf.to_container(config, resolve=True)
         assert isinstance(config_dict, dict)
-        wandb.init(
+        wandb.init(  # type: ignore[attr-defined]
             project="ss2r",
             resume=True,
             config=config_dict,
             **config.wandb,
         )
-        self._handle = wandb
+        self._handle = wandb  # type: ignore
 
     def log(self, summary: dict[str, float], step: int):
-        self._handle.log(summary, step=step)
+        self._handle.log(summary, step=step)  # type: ignore[attr-defined]
 
     def log_video(
         self,
@@ -168,9 +168,9 @@ class WeightAndBiasesWriter:
         name: str = "policy",
         fps: int | float = 30,
     ):
-        self._handle.log(
+        self._handle.log(  # type: ignore[attr-defined]
             {
-                name: self._handle.Video(
+                name: self._handle.Video(  # type: ignore[attr-defined]
                     np.array(images, copy=False),
                     fps=int(fps),
                     caption=name,
@@ -188,12 +188,12 @@ class WeightAndBiasesWriter:
         metadata: dict[str, Any] | None = None,
     ):
         if name is None:
-            name = self._handle.run.id
+            name = self._handle.run.id  # type: ignore[attr-defined]
         if metadata is None:
-            metadata = dict(self._handle.config)
-        artifact = self._handle.Artifact(name, type, description, metadata)
+            metadata = dict(self._handle.config)  # type: ignore[attr-defined]
+        artifact = self._handle.Artifact(name, type, description, metadata)  # type: ignore[attr-defined]
         artifact.add_dir(path)
-        self._handle.log_artifact(artifact, aliases=[self._handle.run.id])
+        self._handle.log_artifact(artifact, aliases=[self._handle.run.id])  # type: ignore[attr-defined]
 
 
 class StateWriter:
