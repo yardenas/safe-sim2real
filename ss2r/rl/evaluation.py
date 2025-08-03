@@ -70,11 +70,15 @@ class InterventionConstraintEvalWrapper(EvalWrapper):
         reset_state.metrics["policy_distance"] = jnp.zeros_like(reset_state.reward)
         reset_state.metrics["safety_gap"] = jnp.zeros_like(reset_state.reward)
         reset_state.metrics["expected_total_cost"] = jnp.zeros_like(reset_state.reward)
+        reset_state.metrics["cumulative_cost"] = jnp.zeros_like(reset_state.reward)
+        reset_state.metrics["q_c"] = jnp.zeros_like(reset_state.reward)
 
         reset_state.info["intervention"] = jnp.zeros_like(reset_state.reward)
         reset_state.info["policy_distance"] = jnp.zeros_like(reset_state.reward)
         reset_state.info["safety_gap"] = jnp.zeros_like(reset_state.reward)
         reset_state.info["expected_total_cost"] = jnp.zeros_like(reset_state.reward)
+        reset_state.info["cumulative_cost"] = jnp.zeros_like(reset_state.reward)
+        reset_state.info["q_c"] = jnp.zeros_like(reset_state.reward)
 
         eval_metrics = EvalMetrics(
             episode_metrics=jax.tree_util.tree_map(jnp.zeros_like, reset_state.metrics),
@@ -104,7 +108,10 @@ class InterventionConstraintEvalWrapper(EvalWrapper):
         nstate.metrics["expected_total_cost"] = nstate.info.get(
             "expected_total_cost", jnp.zeros_like(nstate.reward)
         )
-
+        nstate.metrics["cumulative_cost"] = nstate.info.get(
+            "cumulative_cost", jnp.zeros_like(nstate.reward)
+        )
+        nstate.metrics["q_c"] = nstate.info.get("q_c", jnp.zeros_like(nstate.reward))
         episode_steps = jnp.where(
             state_metrics.active_episodes,
             nstate.info.get("steps", jnp.zeros_like(state_metrics.episode_steps)),
@@ -264,6 +271,10 @@ class InterventionConstraintsEvaluator(ConstraintsEvaluator):
             .episode_metrics["expected_total_cost"]
             .mean(0)
         )
+        cumulative_cost = (
+            eval_state.info["eval_metrics"].episode_metrics["cumulative_cost"].mean(0)
+        )
+        q_c = eval_state.info["eval_metrics"].episode_metrics["q_c"].mean(0)
         safe = np.where(constraint < self.budget, 1.0, 0.0)
         eval_state.info["eval_metrics"].episode_metrics["cost"] = constraint
         eval_state.info["eval_metrics"].episode_metrics["intervention"] = intervention
@@ -274,6 +285,10 @@ class InterventionConstraintsEvaluator(ConstraintsEvaluator):
         eval_state.info["eval_metrics"].episode_metrics[
             "expected_total_cost"
         ] = expected_total_cost
+        eval_state.info["eval_metrics"].episode_metrics[
+            "cumulative_cost"
+        ] = cumulative_cost
+        eval_state.info["eval_metrics"].episode_metrics["q_c"] = q_c
         eval_state.info["eval_metrics"].episode_metrics["safe"] = safe
         eval_metrics = eval_state.info["eval_metrics"]
         eval_metrics.active_episodes.block_until_ready()
