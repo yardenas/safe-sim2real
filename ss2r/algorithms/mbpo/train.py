@@ -292,6 +292,7 @@ def train(
             "policy_distance": jnp.zeros(()),
             "cumulative_cost": jnp.zeros(()),
             "expected_total_cost": jnp.zeros(()),
+            "q_c": jnp.zeros(()),
         }
 
     dummy_transition = Transition(  # pytype: disable=wrong-arg-types  # jax-ndarray
