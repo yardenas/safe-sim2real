@@ -8,13 +8,13 @@ defaults:
 
 
 training:
-  num_timesteps: 10000
+  num_timesteps: 25000
   safe: true
   train_domain_randomization: false
   eval_domain_randomization: false
   safety_budget: 100
   num_envs: 1
-  num_evals: 20
+  num_evals: 25
   wandb_id: jxqqane5
 
 agent:
