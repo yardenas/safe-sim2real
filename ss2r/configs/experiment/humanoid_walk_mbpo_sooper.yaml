@@ -15,7 +15,7 @@ training:
   safety_budget: 100
   num_envs: 1
   num_evals: 25
-  wandb_id: jxqqane5
+  wandb_id: shvehwgl
 
 agent:
   policy_hidden_layer_sizes: [256, 256, 256]
