@@ -27,13 +27,12 @@ agent:
   critic_grad_updates_per_step: 4000
   model_grad_updates_per_step: 85000
   num_model_rollouts: 100000
-  learning_rate: 1e-5
-  critic_learning_rate: 1e-5
+  learning_rate: 1e-6
+  critic_learning_rate: 1e-7
   model_learning_rate: 3e-4
   pessimism: 3.5
   optimism: 0
   normalize_budget: false
-  safety_discounting: 0.99
   discounting: 0.95
   safety_filter: sooper
   advantage_threshold: 0.2

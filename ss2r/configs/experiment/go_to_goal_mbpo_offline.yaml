@@ -6,7 +6,7 @@ defaults:
   - _self_
 
 training:
-  num_timesteps: 1000000
+  num_timesteps: 2000000
   train_domain_randomization: false
   eval_domain_randomization: false
   safe: true
@@ -29,7 +29,7 @@ agent:
   optimism: -5
   safety_filter: null
   offline: true
-  normalize_budget: false
+  discounting: 0.95
   penalizer:
     lagrange_multiplier: 5.
     penalty_multiplier: 2.
