@@ -103,23 +103,41 @@ class InterventionConstraintEvalWrapper(EvalWrapper):
             nstate.info.get("steps", jnp.zeros_like(state_metrics.episode_steps)),
             state_metrics.episode_steps,
         )
-        episode_metrics = jax.tree_util.tree_map(
-            lambda a, b: a + b * state_metrics.active_episodes,
-            state_metrics.episode_metrics,
-            nstate.metrics,
-        )
-        for k in [
-            "policy_distance",
-            "safety_gap",
-            "expected_total_cost",
-            "cumulative_cost",
-            "q_c",
-        ]:
-            episode_metrics[f"max_{k}"] = jnp.maximum(
-                nstate.info.get(k, jnp.zeros_like(nstate.reward))
-                * state_metrics.active_episodes,
-                state_metrics.episode_metrics[k],
-            )
+        episode_metrics = {}
+        for k, v in state_metrics.episode_metrics.items():
+            if k in [
+                "max_policy_distance",
+                "max_safety_gap",
+                "max_expected_total_cost",
+                "max_cumulative_cost",
+                "max_q_c",
+            ]:
+                episode_metrics[k] = jnp.maximum(
+                    nstate.info.get(k.strip("max_"), jnp.zeros_like(nstate.reward))
+                    * state_metrics.active_episodes,
+                    v,
+                )
+            else:
+                episode_metrics[k] = (
+                    v + nstate.metrics[k] * state_metrics.active_episodes
+                )
+        # episode_metrics = jax.tree_util.tree_map(
+        #     lambda a, b: a + b * state_metrics.active_episodes,
+        #     state_metrics.episode_metrics,
+        #     nstate.metrics,
+        # )
+        # for k in [
+        #     "policy_distance",
+        #     "safety_gap",
+        #     "expected_total_cost",
+        #     "cumulative_cost",
+        #     "q_c",
+        # ]:
+        #     episode_metrics[f"max_{k}"] = jnp.maximum(
+        #         nstate.info.get(k, jnp.zeros_like(nstate.reward))
+        #         * state_metrics.active_episodes,
+        #         state_metrics.episode_metrics[k],
+        #     )
         active_episodes = state_metrics.active_episodes * (1 - nstate.done)
         eval_metrics = EvalMetrics(
             episode_metrics=episode_metrics,
