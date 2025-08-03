@@ -25,7 +25,7 @@ agent:
   min_replay_size: 10000
   max_replay_size: 1048576
   critic_grad_updates_per_step: 4000
-  model_grad_updates_per_step: 50000
+  model_grad_updates_per_step: 85000
   num_model_rollouts: 100000
   learning_rate: 1e-5
   critic_learning_rate: 1e-5
@@ -34,6 +34,7 @@ agent:
   optimism: 0
   normalize_budget: false
   safety_discounting: 0.99
+  discounting: 0.95
   safety_filter: sooper
   advantage_threshold: 0.2
   load_auxiliaries: true
