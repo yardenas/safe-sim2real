@@ -260,34 +260,38 @@ class InterventionConstraintsEvaluator(ConstraintsEvaluator):
             eval_state.info["eval_metrics"].episode_metrics["intervention"].mean(0)
         )
         policy_distance = (
-            eval_state.info["eval_metrics"].episode_metrics["policy_distance"].mean(0)
+            eval_state.info["eval_metrics"]
+            .episode_metrics["max_policy_distance"]
+            .mean(0)
         )
         safety_gap = (
-            eval_state.info["eval_metrics"].episode_metrics["safety_gap"].mean(0)
+            eval_state.info["eval_metrics"].episode_metrics["max_safety_gap"].mean(0)
         )
         expected_total_cost = (
             eval_state.info["eval_metrics"]
-            .episode_metrics["expected_total_cost"]
+            .episode_metrics["max_expected_total_cost"]
             .mean(0)
         )
         cumulative_cost = (
-            eval_state.info["eval_metrics"].episode_metrics["cumulative_cost"].mean(0)
+            eval_state.info["eval_metrics"]
+            .episode_metrics["max_cumulative_cost"]
+            .mean(0)
         )
-        q_c = eval_state.info["eval_metrics"].episode_metrics["q_c"].mean(0)
+        q_c = eval_state.info["eval_metrics"].episode_metrics["max_q_c"].mean(0)
         safe = np.where(constraint < self.budget, 1.0, 0.0)
         eval_state.info["eval_metrics"].episode_metrics["cost"] = constraint
         eval_state.info["eval_metrics"].episode_metrics["intervention"] = intervention
         eval_state.info["eval_metrics"].episode_metrics[
-            "policy_distance"
+            "max_policy_distance"
         ] = policy_distance
-        eval_state.info["eval_metrics"].episode_metrics["safety_gap"] = safety_gap
+        eval_state.info["eval_metrics"].episode_metrics["max_safety_gap"] = safety_gap
         eval_state.info["eval_metrics"].episode_metrics[
-            "expected_total_cost"
+            "max_expected_total_cost"
         ] = expected_total_cost
         eval_state.info["eval_metrics"].episode_metrics[
-            "cumulative_cost"
+            "max_cumulative_cost"
         ] = cumulative_cost
-        eval_state.info["eval_metrics"].episode_metrics["q_c"] = q_c
+        eval_state.info["eval_metrics"].episode_metrics["max_q_c"] = q_c
         eval_state.info["eval_metrics"].episode_metrics["safe"] = safe
         eval_metrics = eval_state.info["eval_metrics"]
         eval_metrics.active_episodes.block_until_ready()
