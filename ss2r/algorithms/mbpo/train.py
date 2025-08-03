@@ -290,6 +290,7 @@ def train(
         extras["policy_extras"] = {
             "intervention": jnp.zeros(()),
             "policy_distance": jnp.zeros(()),
+            "safety_gap": jnp.zeros(()),
             "cumulative_cost": jnp.zeros(()),
             "expected_total_cost": jnp.zeros(()),
             "q_c": jnp.zeros(()),
