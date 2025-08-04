@@ -6,7 +6,7 @@ defaults:
   - _self_
 
 training:
-  num_timesteps: 100000
+  num_timesteps: 25000
   wandb_id: eclz7est
   num_envs: 1
   num_eval_envs: 1
@@ -28,5 +28,5 @@ agent:
   replay_buffer:
     wandb_ids:
       - eclz7est
-    mix: [1., 0., 10000]
+    mix: [1., 0., 7500]
   grad_updates_per_step: 50
