@@ -2,7 +2,11 @@ defaults:
   - safety_gym_base
 
 task_name: go_to_goal
-task_params: {}
+task_params: 
+  seed: 0
+  visualize_lidar: False 
+  num_hazards: 10
+  num_vases: 10
 
 train_params:
   damping:
