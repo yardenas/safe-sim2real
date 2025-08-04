@@ -1,0 +1,6 @@
+defaults:
+  - go_to_goal
+
+task_params:
+  num_hazards: 8
+  num_vases: 1
