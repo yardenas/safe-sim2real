@@ -50,3 +50,4 @@ offline: false
 learn_from_scratch: false
 load_auxiliaries: false
 model_weight_decay: 0.0001
+target_entropy: null
