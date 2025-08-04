@@ -5,6 +5,7 @@ import optuna
 from omegaconf import OmegaConf
 from undecorated import undecorated
 
+from ss2r.common.logging import TrainingLogger
 from train_brax import main as train_brax_main
 
 # Define the hyperparameters to optimize and their search spaces
@@ -115,20 +116,18 @@ def objective(trial, train_brax_main_undecorated, base_cfg):
 
     # Set unique wandb.name
     cfg.wandb.name += param_str + f",optuna_trial={trial.number}"
-    # Disable wandb writer in cfg
+    # Disable wandb writer in cfg for individual runs
     cfg.writers = ["jsonl", "stderr"]
 
     # Run train_brax and get metrics
     try:
         metrics = train_brax_main_undecorated(cfg)
-        # Expect metrics["eval"]["episode_reward"]
         reward = metrics.get("eval/episode_reward") or (
             metrics.get("eval", {}).get("episode_reward")
             if isinstance(metrics.get("eval"), dict)
             else None
         )
         if reward is None:
-            # Try nested dict
             reward = metrics.get("eval", {}).get("episode_reward")
         if reward is None:
             print("Warning: eval/episode_reward not found in metrics, using 0.0")
@@ -136,6 +135,15 @@ def objective(trial, train_brax_main_undecorated, base_cfg):
     except Exception as e:
         print(f"Trial failed: {e}")
         reward = 0.0
+
+    # Log config and objective value to wandb for this trial
+    # log_cfg = OmegaConf.create(OmegaConf.to_container(cfg, resolve=True))
+    # log_cfg.writers = ["wandb"]
+    # log_cfg.wandb.name += ",optuna_trial_log"
+    # logger = TrainingLogger(log_cfg)
+    # log_data = {f"optuna/trial_{k}": v for k, v in trial.params.items()}
+    # log_data["optuna/trial_value"] = reward
+    # logger.log(log_data, step=trial.number)
 
     # Optuna maximizes reward, so return -reward for minimization
     return -reward
@@ -149,9 +157,19 @@ def main(cfg):
         return objective(trial, train_brax_main_undecorated, cfg)
 
     study = optuna.create_study(direction="minimize")
-    study.optimize(optuna_objective, n_trials=50, n_jobs=2)
+    study.optimize(optuna_objective, n_trials=50, n_jobs=3)
     print("Best trial:")
     print(study.best_trial)
+
+    # Log best trial to wandb
+    best_trial = study.best_trial
+    best_log_data = {f"optuna/best_{k}": v for k, v in best_trial.params.items()}
+    best_log_data["optuna/best_value"] = best_trial.value
+    # Use TrainingLogger with wandb for final logging
+    cfg.wandb.name += ",optuna_best_trial"
+    cfg.writers = ["wandb"]
+    logger = TrainingLogger(cfg)
+    logger.log(best_log_data, step=0)
 
 
 if __name__ == "__main__":
