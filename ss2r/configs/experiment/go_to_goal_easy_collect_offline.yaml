@@ -1,0 +1,11 @@
+# @package _global_
+defaults:
+  - go_to_goal_simple
+  - override /environment: go_to_goal_easy
+
+training:
+  # Use high safety budget so that the policy is unsafe
+  safety_budget: 100000
+
+agent:
+  store_buffer: true
