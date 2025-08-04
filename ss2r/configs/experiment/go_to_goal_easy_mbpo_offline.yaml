@@ -6,7 +6,7 @@ defaults:
   - _self_
 
 training:
-  num_timesteps: 50000000
+  num_timesteps: 2000000
   train_domain_randomization: false
   eval_domain_randomization: false
   safe: true
@@ -19,6 +19,7 @@ training:
 agent:
   policy_hidden_layer_sizes: [256, 256, 256]
   value_hidden_layer_sizes: [512, 512]
+  model_hidden_layer_sizes: [400, 400, 400, 400]
   activation: swish
   batch_size: 256
   max_replay_size: 4194304
@@ -26,7 +27,7 @@ agent:
   model_grad_updates_per_step: 50
   num_model_rollouts: 4000
   pessimism: 3.5
-  optimism: -5
+  optimism: -8.
   safety_filter: null
   offline: true
   discounting: 0.95
