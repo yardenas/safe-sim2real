@@ -15,12 +15,12 @@ A collection of algorithms and experiment tools for safe sim to real transfer in
 * Blazing fast training. Full compatibility with [MuJoCo Playground](https://github.com/google-deepmind/mujoco_playground). Reimplementation of OpenAI's [Safety Gym](https://github.com/openai/safety-gym) in MJX and safety tasks from [Real-World RL suite](https://github.com/google-research/realworldrl_suite/tree/master).
 
 
-## Requirements 🛠
+## Requirements
 
 - Python == 3.11.6
 - `venv` or `Poetry`
 
-## Installation 🧩
+## Installation
 
 ### Using pip
 
@@ -41,26 +41,26 @@ poetry install
 poetry shell
 ```
 
-## Usage 🧪
+## Usage
 
 Our code uses [Hydra](https://hydra.cc/) to configure experiments. Each experiment is defined as a `yaml` file in `ss2r/configs/experiments`. For example, to train a Unitree Go1 policy with a constraint on joint limit:
 
 ```bash
 python train_brax.py +experiment=go1_sim_to_real
 ```
-## Docs 📖
+## Docs
 * Policies (in `onnx` format) used for the Unitree Go1 experiments can be found in `ss2r/docs/policies`.
 * In `ss2r/docs/videos` you can find videos of 5 trials for each policy, marked by its policy id.
 
 
-<!-- ## Citation 🔗
+<!-- ## Citation
 
 If you find our repository useful in your work, please consider citing:
 
 ```bibtex
 ``` -->
 
-<!-- ## Learn More 🔍
+<!-- ## Learn More
 
 * **Project Webpage**: 
 * **Paper**:
