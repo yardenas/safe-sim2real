@@ -11,6 +11,7 @@ training:
   num_envs: 1
   num_eval_envs: 1
   num_evals: 100
+  episode_length: 250
 
 environment:
   task_params:
@@ -23,7 +24,7 @@ environment:
       brightness: [1., 1.]
 
 agent:
-  min_replay_size: 400
+  min_replay_size: 1000
   replay_buffer:
     wandb_ids:
       - eclz7est
