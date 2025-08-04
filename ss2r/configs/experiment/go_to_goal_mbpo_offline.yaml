@@ -6,7 +6,7 @@ defaults:
   - _self_
 
 training:
-  num_timesteps: 2000000
+  num_timesteps: 50000000
   train_domain_randomization: false
   eval_domain_randomization: false
   safe: true
@@ -14,7 +14,7 @@ training:
   action_repeat: 4
   num_envs: 20
   num_evals: 15
-  wandb_id: hyexix1g
+  wandb_id: p03n9e0s
 
 agent:
   policy_hidden_layer_sizes: [256, 256, 256]
@@ -23,8 +23,8 @@ agent:
   batch_size: 256
   max_replay_size: 4194304
   critic_grad_updates_per_step: 10
-  model_grad_updates_per_step: 250
-  num_model_rollouts: 5000
+  model_grad_updates_per_step: 50
+  num_model_rollouts: 4000
   pessimism: 3.5
   optimism: -5
   safety_filter: null
@@ -34,5 +34,5 @@ agent:
     lagrange_multiplier: 5.
     penalty_multiplier: 2.
     penalty_multiplier_factor: 0.25
-  model_to_real_data_ratio: 0.25
   model_weight_decay: 0.005
+  model_to_real_data_ratio: 0.25
