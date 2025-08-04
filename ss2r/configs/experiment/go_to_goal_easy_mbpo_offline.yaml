@@ -1,6 +1,6 @@
 # @package _global_
 defaults:
-  - override /environment: go_to_goal
+  - override /environment: go_to_goal_easy
   - override /agent: mbpo
   - override /agent/penalizer: lagrangian
   - _self_
@@ -24,7 +24,7 @@ agent:
   max_replay_size: 4194304
   critic_grad_updates_per_step: 10
   model_grad_updates_per_step: 50
-  num_model_rollouts: 4000
+  num_model_rollouts: 100000
   pessimism: 3.5
   optimism: -8.
   safety_filter: null

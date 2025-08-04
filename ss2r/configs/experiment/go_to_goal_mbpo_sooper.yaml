@@ -1,6 +1,6 @@
 # @package _global_
 defaults:
-  - override /environment: go_to_goal
+  - override /environment: go_to_goal_easy
   - override /agent: mbpo
   - override /agent/data_collection: episodic
   - override /agent/cost_robustness: pessimistic_cost_update
