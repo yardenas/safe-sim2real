@@ -32,7 +32,6 @@ agent:
   model_learning_rate: 3e-4
   pessimism: 3.5
   optimism: 0
-  normalize_budget: false
   discounting: 0.95
   safety_filter: sooper
   advantage_threshold: 0.2
