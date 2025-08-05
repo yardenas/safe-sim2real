@@ -286,6 +286,7 @@ def train(
     }
     if safe:
         extras["state_extras"]["cost"] = jnp.zeros(())  # type: ignore
+    if safety_filter == "sooper":
         extras["policy_extras"] = {
             "intervention": jnp.zeros(()),
             "policy_distance": jnp.zeros(()),
@@ -633,7 +634,11 @@ def train(
 
     if not eval_env:
         eval_env = environment
-    Evaluator = InterventionConstraintsEvaluator if safe else ConstraintsEvaluator
+    Evaluator = (
+        InterventionConstraintsEvaluator
+        if safety_filter is not None
+        else ConstraintsEvaluator
+    )
     evaluator = Evaluator(
         eval_env,
         functools.partial(make_rollout_policy, deterministic=deterministic_eval),
