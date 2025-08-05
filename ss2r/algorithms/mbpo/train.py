@@ -346,6 +346,9 @@ def train(
             ts_normalizer_params = params[0]
         if offline:
             model_buffer_state = replay_buffers.ReplayBufferState(**params[-1])
+            training_state = training_state.replace(  # type: ignore
+                normalizer_params=ts_normalizer_params
+            )
         elif learn_from_scratch:
             training_state = training_state.replace(  # type: ignore
                 normalizer_params=ts_normalizer_params,
