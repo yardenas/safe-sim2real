@@ -5,7 +5,9 @@ defaults:
 
 training:
   num_timesteps: 25000
-  safe: false
+  safe: true
 
 agent:
   store_buffer: true
+  safety_filter: null
+  use_termination: false
