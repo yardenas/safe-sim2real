@@ -11,3 +11,4 @@ training:
 
 agent:
   store_buffer: true
+  safety_filter: null
