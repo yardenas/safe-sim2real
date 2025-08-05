@@ -14,7 +14,7 @@ training:
   safety_budget: 100
   num_envs: 20
   num_evals: 15
-  wandb_id: 92ecmdds
+  wandb_id: 92154gtm
 
 agent:
   policy_hidden_layer_sizes: [256, 256, 256]
