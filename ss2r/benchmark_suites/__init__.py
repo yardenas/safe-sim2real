@@ -131,9 +131,11 @@ def get_wrap_env_fn(cfg):
 
         return saute_train, saute_eval
 
-    # TODO (manu): use another flag than safe because we
-    # might implement other baselines for safety
-    if cfg.agent.name == "mbpo" and cfg.training.safe:
+    if (
+        cfg.agent.name == "mbpo"
+        and cfg.training.safe
+        and cfg.agent.safety_filter is not None
+    ):
 
         def safe_mbpo_train(env):
             env = out[0](env)
@@ -374,9 +376,9 @@ def make_safety_gym_envs(cfg, train_wrap_env_fn, eval_wrap_env_fn):
     from ss2r.benchmark_suites.safety_gym import go_to_goal
 
     task_cfg = get_task_config(cfg)
-    train_env = go_to_goal.GoToGoal()
+    train_env = go_to_goal.GoToGoal(**task_cfg.task_params)
     train_env = train_wrap_env_fn(train_env)
-    eval_env = go_to_goal.GoToGoal()
+    eval_env = go_to_goal.GoToGoal(**task_cfg.task_params)
     eval_env = eval_wrap_env_fn(eval_env)
     train_key, eval_key = jax.random.split(jax.random.PRNGKey(cfg.training.seed))
     train_randomization_fn = (

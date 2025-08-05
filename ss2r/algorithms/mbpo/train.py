@@ -286,6 +286,7 @@ def train(
     }
     if safe:
         extras["state_extras"]["cost"] = jnp.zeros(())  # type: ignore
+    if safety_filter is not None:
         extras["policy_extras"] = {
             "intervention": jnp.zeros(()),
             "policy_distance": jnp.zeros(()),
@@ -368,20 +369,27 @@ def train(
             )
         if load_auxiliaries:
             policy_optimizer_state = restore_state(
-                params[6][1]["inner_state"],
+                params[6][1]["inner_state"]
+                if isinstance(params[6][1], dict)
+                else params[6],
                 training_state.behavior_policy_optimizer_state,
             )
             alpha_optimizer_state = restore_state(
                 params[7], training_state.alpha_optimizer_state
             )
             qr_optimizer_state = restore_state(
-                params[8][1]["inner_state"], training_state.behavior_qr_optimizer_state
+                params[8][1]["inner_state"]
+                if isinstance(params[8][1], dict)
+                else params[8],
+                training_state.behavior_qr_optimizer_state,
             )
             if not safe:
                 qc_optimizer_state = None
             else:
                 qc_optimizer_state = restore_state(
-                    params[9][1]["inner_state"],
+                    params[9][1]["inner_state"]
+                    if isinstance(params[9][1], dict)
+                    else params[9],
                     training_state.backup_qc_optimizer_state,
                 )
             training_state = training_state.replace(  # type: ignore
@@ -626,7 +634,11 @@ def train(
 
     if not eval_env:
         eval_env = environment
-    Evaluator = InterventionConstraintsEvaluator if safe else ConstraintsEvaluator
+    Evaluator = (
+        InterventionConstraintsEvaluator
+        if safety_filter is not None
+        else ConstraintsEvaluator
+    )
     evaluator = Evaluator(
         eval_env,
         functools.partial(make_rollout_policy, deterministic=deterministic_eval),
