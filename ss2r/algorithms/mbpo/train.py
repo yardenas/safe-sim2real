@@ -286,7 +286,7 @@ def train(
     }
     if safe:
         extras["state_extras"]["cost"] = jnp.zeros(())  # type: ignore
-    if safety_filter == "sooper":
+    if safety_filter is not None:
         extras["policy_extras"] = {
             "intervention": jnp.zeros(()),
             "policy_distance": jnp.zeros(()),
