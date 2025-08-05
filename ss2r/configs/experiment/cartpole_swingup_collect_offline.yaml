@@ -5,9 +5,9 @@ defaults:
 
 training:
   num_timesteps: 25000
+  num_evals: 1
+  safety_budget: 150
   safe: true
 
 agent:
   store_buffer: true
-  safety_filter: null
-  use_termination: false
