@@ -26,7 +26,7 @@ agent:
   min_replay_size: 5000
   max_replay_size: 1048576
   critic_grad_updates_per_step: 2000
-  model_grad_updates_per_step: 150000
+  model_grad_updates_per_step: 80000
   num_model_rollouts: 100000
   learning_rate: 1e-5
   critic_learning_rate: 1e-5
