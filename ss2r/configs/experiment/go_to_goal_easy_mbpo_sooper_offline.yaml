@@ -15,20 +15,20 @@ training:
   action_repeat: 4
   num_envs: 1
   num_evals: 15
-  wandb_id: s33sdel4
+  wandb_id: qr033tpx
 
 agent:
   policy_hidden_layer_sizes: [256, 256, 256]
   value_hidden_layer_sizes: [512, 512]
   activation: swish
   batch_size: 256
-  min_replay_size: 10000
+  min_replay_size: 2000
   max_replay_size: 1048576
   critic_grad_updates_per_step: 2000
   model_grad_updates_per_step: 100000
   num_model_rollouts: 50000
-  learning_rate: 1e-6
-  critic_learning_rate: 1e-6
+  learning_rate: 1e-5
+  critic_learning_rate: 1e-5
   model_learning_rate: 1e-4
   pessimism: 10.
   optimism: 0.
