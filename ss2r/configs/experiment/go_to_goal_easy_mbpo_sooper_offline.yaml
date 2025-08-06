@@ -7,13 +7,13 @@ defaults:
   - _self_
 
 training:
-  num_timesteps: 3000000
+  num_timesteps: 500000
   train_domain_randomization: false
   eval_domain_randomization: false
   safe: true
   safety_budget: 25
   action_repeat: 4
-  num_envs: 10
+  num_envs: 5
   num_evals: 15
   wandb_id: qr033tpx
 
@@ -23,19 +23,19 @@ agent:
   model_hidden_layer_sizes: [400,400,400,400]
   activation: swish
   batch_size: 256
-  min_replay_size: 2000
+  min_replay_size: 5000
   max_replay_size: 1048576
-  critic_grad_updates_per_step: 4000
-  model_grad_updates_per_step: 100000
+  critic_grad_updates_per_step: 2000
+  model_grad_updates_per_step: 80000
   num_model_rollouts: 100000
-  learning_rate: 1e-4
-  critic_learning_rate: 1e-4
-  model_learning_rate: 3e-4
-  pessimism: 5.
+  learning_rate: 1e-5
+  critic_learning_rate: 1e-5
+  model_learning_rate: 1e-4
+  pessimism: 0.
   optimism: 0.
   discounting: 0.95
   safety_filter: sooper
   advantage_threshold: 0.2
   load_auxiliaries: true
   model_to_real_data_ratio: 1.
-  num_critic_updates_per_actor_update: 1
+  num_critic_updates_per_actor_update: 4
