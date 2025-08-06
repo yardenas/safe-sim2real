@@ -2,7 +2,7 @@
 defaults:
   - override /environment: cartpole_swingup
   - override /agent: mbpo
-  - override /agent/penalizer: crpo
+  - override /agent/penalizer: lagrangian
   - _self_
 
 training:
@@ -36,3 +36,7 @@ agent:
   # following MOPO paper.
   safety_filter: null
   offline: true
+  penalizer:
+    lagrange_multiplier: 5.
+    penalty_multiplier: 2.
+    penalty_multiplier_factor: 0.25
