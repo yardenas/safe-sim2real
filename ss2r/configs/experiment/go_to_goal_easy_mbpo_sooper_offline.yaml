@@ -20,7 +20,6 @@ training:
 agent:
   policy_hidden_layer_sizes: [256, 256, 256]
   value_hidden_layer_sizes: [512, 512]
-  model_ensemble_size: 8
   activation: swish
   batch_size: 256
   min_replay_size: 2000
