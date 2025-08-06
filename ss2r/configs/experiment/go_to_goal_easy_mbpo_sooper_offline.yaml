@@ -15,7 +15,7 @@ training:
   action_repeat: 4
   num_envs: 5
   num_evals: 15
-  wandb_id: qr033tpx
+  wandb_id: 16f4nuip
 
 agent:
   policy_hidden_layer_sizes: [256, 256, 256]
@@ -38,4 +38,4 @@ agent:
   advantage_threshold: 0.2
   load_auxiliaries: true
   model_to_real_data_ratio: 1.
-  num_critic_updates_per_actor_update: 4
+  num_critic_updates_per_actor_update: 1
