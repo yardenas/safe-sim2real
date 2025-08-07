@@ -54,7 +54,7 @@ def get_train_fn(cfg, checkpoint_path, restore_checkpoint_path):
             value_hidden_layer_sizes=value_hidden_layer_sizes,
             activation=activation,
             encoder_hidden_dim=50,
-            tanh=agent_cfg["tanh"],
+            tanh=True,
             # TODO (yarden): currently only use latents.
             # Make sure to disable normalizing the latents.
             use_latents=True,
