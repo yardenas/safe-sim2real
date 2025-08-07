@@ -79,6 +79,7 @@ def get_train_fn(cfg, checkpoint_path, restore_checkpoint_path):
             agent_cfg["use_vision"],
             agent_cfg["encoder_hidden_dim"],
             agent_cfg["tanh"],
+            agent_cfg["lambda_"],
         )
     else:
         value_obs_key = "privileged_state" if cfg.training.value_privileged else "state"
