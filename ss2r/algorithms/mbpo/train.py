@@ -218,7 +218,7 @@ def train(
         budget_scaling_fn = (
             lambda x: x * episode_length * (1.0 - safety_discounting) / action_repeat
         )
-    logging.info(f"Episode safety budget: {safety_budget}")
+    logging.info(f"Episode safety budget: {budget_scaling_fn(safety_budget)}")
     if max_replay_size is None:
         max_replay_size = num_timesteps
     # The number of environment steps executed for every `actor_step()` call.
