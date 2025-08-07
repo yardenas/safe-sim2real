@@ -1,0 +1,29 @@
+# @package _global_
+defaults:
+  - override /environment: cartpole_swingup
+  - override /agent: mbpo
+  - _self_
+
+training:
+  num_timesteps: 150000
+  safe: false
+  num_envs: 10
+  train_domain_randomization: false
+  eval_domain_randomization: false
+  action_repeat: 4
+
+environment:
+  task_params:
+    vision: true
+    vision_config:
+      render_batch_size: 10
+      render_width: 64
+      render_height: 64
+      use_rasterizer: false
+      gpu_id: 0
+
+agent:
+  min_replay_size: 5000
+  sac_batch_size: 512
+  critic_grad_updates_per_step: 20
+  model_grad_updates_per_step: 25
