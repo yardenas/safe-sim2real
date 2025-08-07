@@ -10,10 +10,11 @@ training:
   num_envs: 10
   train_domain_randomization: false
   eval_domain_randomization: false
-  action_repeat: 4
 
 environment:
   task_params:
+    episode_length: 1000
+    ctrl_dt: 0.04
     vision: true
     vision_config:
       render_batch_size: 10
@@ -21,6 +22,8 @@ environment:
       render_height: 64
       use_rasterizer: false
       gpu_id: 0
+      enabled_geom_groups: [0, 1, 2] 
+      history: 3
 
 agent:
   min_replay_size: 5000
