@@ -30,3 +30,4 @@ agent:
   sac_batch_size: 512
   critic_grad_updates_per_step: 20
   model_grad_updates_per_step: 25
+  use_vision: true
