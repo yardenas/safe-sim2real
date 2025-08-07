@@ -78,7 +78,9 @@ def make_sooper_filter_fn(
                     expected_total_cost - safety_budget,
                     jnp.zeros_like(expected_total_cost),
                 ),
+                "cumulative_cost": accumulated_cost,
                 "expected_total_cost": expected_total_cost,
+                "q_c": qc,
             }
             return safe_action, extras
 
