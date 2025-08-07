@@ -146,7 +146,7 @@ def make_q_vision_network(
         @linen.compact
         def __call__(self, obs, actions):
             if use_latents:
-                hidden = obs["latents"]
+                hidden = obs
             else:
                 hidden = Encoder(name="SharedEncoder")(obs)
             hidden = linen.Dense(encoder_hidden_dim)(hidden)
