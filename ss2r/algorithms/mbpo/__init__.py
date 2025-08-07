@@ -59,11 +59,7 @@ def get_train_fn(cfg, checkpoint_path, restore_checkpoint_path):
             # Make sure to disable normalizing the latents.
             use_latents=True,
         )
-        del (
-            agent_cfg["use_vision"],
-            agent_cfg["encoder_hidden_dim"],
-            agent_cfg["tanh"],
-        )
+        del agent_cfg["use_vision"]
     else:
         value_obs_key = "privileged_state" if cfg.training.value_privileged else "state"
         policy_obs_key = (
