@@ -79,5 +79,9 @@ class VisionWrapper(Wrapper):
         return state
 
     @property
-    def observation_size(self) -> int:
+    def observation_size(self):
         return 50
+
+    @property
+    def unwrapped(self):
+        return self
