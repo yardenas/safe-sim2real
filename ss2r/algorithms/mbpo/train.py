@@ -50,6 +50,7 @@ from ss2r.algorithms.sac.types import (
     float16,
 )
 from ss2r.rl.evaluation import ConstraintsEvaluator, InterventionConstraintsEvaluator
+from ss2r.rl.utils import restore_state
 
 
 def get_dict_normalizer_params(params, ts_normalizer_params):
@@ -204,6 +205,8 @@ def train(
     safety_filter: str | None = None,
     advantage_threshold: float = 0.2,
     offline: bool = False,
+    learn_from_scratch: bool = False,
+    load_auxiliaries: bool = False,
 ):
     if min_replay_size >= num_timesteps:
         raise ValueError(
@@ -215,7 +218,7 @@ def train(
         budget_scaling_fn = (
             lambda x: x * episode_length * (1.0 - safety_discounting) / action_repeat
         )
-    logging.info(f"Episode safety budget: {safety_budget}")
+    logging.info(f"Episode safety budget: {budget_scaling_fn(safety_budget)}")
     if max_replay_size is None:
         max_replay_size = num_timesteps
     # The number of environment steps executed for every `actor_step()` call.
@@ -246,7 +249,9 @@ def train(
     action_size = env.action_size
     normalize_fn = lambda x, y: x
     if normalize_observations:
-        normalize_fn = running_statistics.normalize
+        normalize_fn = functools.partial(
+            running_statistics.normalize, max_abs_value=5.0
+        )
 
     mbpo_network = network_factory(
         observation_size=obs_size["state"]
@@ -281,6 +286,7 @@ def train(
     }
     if safe:
         extras["state_extras"]["cost"] = jnp.zeros(())  # type: ignore
+    if safety_filter is not None:
         extras["policy_extras"] = {
             "intervention": jnp.zeros(()),
             "policy_distance": jnp.zeros(()),
@@ -340,6 +346,17 @@ def train(
             ts_normalizer_params = params[0]
         if offline:
             model_buffer_state = replay_buffers.ReplayBufferState(**params[-1])
+            training_state = training_state.replace(  # type: ignore
+                normalizer_params=ts_normalizer_params
+            )
+        elif learn_from_scratch:
+            training_state = training_state.replace(  # type: ignore
+                normalizer_params=ts_normalizer_params,
+                backup_policy_params=params[1],
+                backup_qr_params=params[3],
+                backup_qc_params=params[4] if safe else None,
+                backup_target_qc_params=params[4] if safe else None,
+            )
         else:
             training_state = training_state.replace(  # type: ignore
                 normalizer_params=ts_normalizer_params,
@@ -352,6 +369,39 @@ def train(
                 behavior_target_qc_params=params[4] if safe else None,
                 backup_qc_params=params[4] if safe else None,
                 backup_target_qc_params=params[4] if safe else None,
+            )
+        if load_auxiliaries:
+            policy_optimizer_state = restore_state(
+                params[6][1]["inner_state"]
+                if isinstance(params[6][1], dict)
+                else params[6],
+                training_state.behavior_policy_optimizer_state,
+            )
+            alpha_optimizer_state = restore_state(
+                params[7], training_state.alpha_optimizer_state
+            )
+            qr_optimizer_state = restore_state(
+                params[8][1]["inner_state"]
+                if isinstance(params[8][1], dict)
+                else params[8],
+                training_state.behavior_qr_optimizer_state,
+            )
+            if not safe:
+                qc_optimizer_state = None
+            else:
+                qc_optimizer_state = restore_state(
+                    params[9][1]["inner_state"]
+                    if isinstance(params[9][1], dict)
+                    else params[9],
+                    training_state.backup_qc_optimizer_state,
+                )
+            training_state = training_state.replace(  # type: ignore
+                behavior_policy_optimizer_state=policy_optimizer_state,
+                alpha_optimizer_state=alpha_optimizer_state,
+                behavior_qr_optimizer_state=qr_optimizer_state,
+                behavior_qc_optimizer_state=qc_optimizer_state,
+                backup_qc_optimizer_state=qc_optimizer_state,
+                alpha_params=params[5],
             )
     make_planning_policy = mbpo_networks.make_inference_fn(mbpo_network)
     make_rollout_policy, get_rollout_policy_params = safety_filters.make(
@@ -587,7 +637,11 @@ def train(
 
     if not eval_env:
         eval_env = environment
-    Evaluator = InterventionConstraintsEvaluator if safe else ConstraintsEvaluator
+    Evaluator = (
+        InterventionConstraintsEvaluator
+        if safety_filter is not None
+        else ConstraintsEvaluator
+    )
     evaluator = Evaluator(
         eval_env,
         functools.partial(make_rollout_policy, deterministic=deterministic_eval),

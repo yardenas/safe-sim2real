@@ -187,12 +187,19 @@ def build_arena(
 
 # TODO (yarden): should not depend on mujoco playground eventually
 class GoToGoal(mjx_env.MjxEnv):
-    def __init__(self, *, visualize_lidar: bool = False, seed: int = 0):
+    def __init__(
+        self,
+        *,
+        visualize_lidar: bool = False,
+        seed: int = 0,
+        num_hazards: int = 10,
+        num_vases: int = 10,
+    ):
         self.spec = {
             "robot": ObjectSpec(0.4, 1),
             "goal": ObjectSpec(_GOAL_SIZE + 0.05, 1),
-            "hazards": ObjectSpec(0.18, 10),
-            "vases": ObjectSpec(0.15, 10),
+            "hazards": ObjectSpec(0.18, num_hazards),
+            "vases": ObjectSpec(0.15, num_vases),
         }
         mj_spec: mj.MjSpec = mj.MjSpec.from_file(filename=str(_XML_PATH), assets={})
         layout = _sample_layout(jax.random.PRNGKey(seed), self.spec)

@@ -32,8 +32,10 @@ from ss2r.benchmark_suites.rccar import rccar
 from ss2r.benchmark_suites.safety_gym import go_to_goal
 from ss2r.benchmark_suites.utils import get_domain_name, get_task_config
 from ss2r.benchmark_suites.wrappers import (
+    GoToGoalObservationWrapper,
     Saute,
     SPiDR,
+    WalkerObservationWrapper,
     wrap,
 )
 
@@ -62,12 +64,32 @@ manipulation.register_environment(
 
 
 def get_wrap_env_fn(cfg):
-    if "propagation" not in cfg.agent:
+    if (
+        cfg.environment.task_name == "SafeWalkerWalk"
+        or cfg.environment.task_name == "SafeWalkerRun"
+    ):
+
+        def wrap_fn(env):
+            env = WalkerObservationWrapper(env)
+            return env
+
+        out = wrap_fn, wrap_fn
+    elif cfg.environment.task_name == "go_to_goal":
+
+        def wrap_fn(env):
+            env = GoToGoalObservationWrapper(env)
+            return env
+
+        out = wrap_fn, wrap_fn
+    else:
         out = lambda env: env, lambda env: env
+    if "propagation" not in cfg.agent:
+        out = out[0], out[1]
     elif cfg.agent.propagation.name == "spidr":
 
         def fn(env):
             key = jax.random.PRNGKey(cfg.training.seed)
+            env = out[0](env)
             env = SPiDR(
                 env,
                 prepare_randomization_fn(
@@ -82,7 +104,7 @@ def get_wrap_env_fn(cfg):
             )
             return env
 
-        out = fn, lambda env: env
+        return fn, lambda env: out[1](env)
     else:
         raise ValueError("Propagation method not provided.")
     if "penalizer" in cfg.agent and cfg.agent.penalizer.name == "saute":
@@ -112,19 +134,23 @@ def get_wrap_env_fn(cfg):
 
         return saute_train, saute_eval
 
-    # TODO (manu): use another flag than safe because we
-    # might implement other baselines for safety
-    if cfg.agent.name == "mbpo" and cfg.training.safe:
+    if (
+        cfg.agent.name == "mbpo"
+        and cfg.training.safe
+        and cfg.agent.safety_filter is not None
+    ):
 
         def safe_mbpo_train(env):
+            env = out[0](env)
             env = TrackOnlineCostsInObservation(env)
             return env
 
         def safe_mbpo_eval(env):
+            env = out[1](env)
             env = TrackOnlineCostsInObservation(env)
             return env
 
-        out = safe_mbpo_train, safe_mbpo_eval
+        return safe_mbpo_train, safe_mbpo_eval
     if cfg.agent.name == "mbpo" and "use_vision" in cfg.agent and cfg.agent.use_vision:
 
         def mbpo_vision_train(env):
@@ -402,9 +428,10 @@ def make_safety_gym_envs(cfg, train_wrap_env_fn, eval_wrap_env_fn):
     from ss2r.benchmark_suites.safety_gym import go_to_goal
 
     task_cfg = get_task_config(cfg)
-    train_env = go_to_goal.GoToGoal()
+    train_env = go_to_goal.GoToGoal(**task_cfg.task_params)
     train_env = train_wrap_env_fn(train_env)
-    eval_env = go_to_goal.GoToGoal()
+    eval_env = go_to_goal.GoToGoal(**task_cfg.task_params)
+    eval_env = eval_wrap_env_fn(eval_env)
     train_key, eval_key = jax.random.split(jax.random.PRNGKey(cfg.training.seed))
     train_randomization_fn = (
         prepare_randomization_fn(
@@ -482,7 +509,7 @@ randomization_fns = {
     ),
     "go_to_goal": go_to_goal.domain_randomization,
     "PandaPickCubeCartesian": franka_vision_randomize,
-    "PandaPickCubeCartesianExtended": franka_vision_randomize,
+    "PandaPickCubeCartesianExtended": pick_cartesian.domain_randomize,
 }
 
 render_fns = {

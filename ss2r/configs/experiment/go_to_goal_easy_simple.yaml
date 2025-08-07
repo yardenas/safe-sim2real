@@ -1,0 +1,4 @@
+# @package _global_
+defaults:
+  - go_to_goal_simple
+  - override /environment: go_to_goal_easy
