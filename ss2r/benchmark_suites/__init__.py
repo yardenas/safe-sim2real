@@ -134,24 +134,22 @@ def get_wrap_env_fn(cfg):
 
         return saute_train, saute_eval
 
-    if (
-        cfg.agent.name == "mbpo"
-        and cfg.training.safe
-        and cfg.agent.safety_filter is not None
-    ):
+    if cfg.agent.name == "mbpo":
 
         def safe_mbpo_train(env):
             env = out[0](env)
             if "use_vision" in cfg.agent and cfg.agent.use_vision:
                 env = VisionWrapper(env, cfg.training.wandb_id, cfg.wandb.entity)
-            env = TrackOnlineCostsInObservation(env)
+            if cfg.training.safe and cfg.agent.safety_filter is not None:
+                env = TrackOnlineCostsInObservation(env)
             return env
 
         def safe_mbpo_eval(env):
             env = out[1](env)
             if "use_vision" in cfg.agent and cfg.agent.use_vision:
                 env = VisionWrapper(env)
-            env = TrackOnlineCostsInObservation(env)
+            if cfg.training.safe and cfg.agent.safety_filter is not None:
+                env = TrackOnlineCostsInObservation(env)
             return env
 
         return safe_mbpo_train, safe_mbpo_eval
