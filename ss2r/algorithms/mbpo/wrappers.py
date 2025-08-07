@@ -77,3 +77,7 @@ class VisionWrapper(Wrapper):
         latents = self.encoder.apply(self.frozen_encoder_params, state.obs)
         state = state.replace(obs=latents)
         return state
+
+    @property
+    def observation_size(self) -> int:
+        return 50
