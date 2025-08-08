@@ -1,7 +1,6 @@
 import functools
 
 import ss2r.algorithms.mbpo.networks as mbpo_networks
-import ss2r.algorithms.mbpo.vision_networks as mbpo_vision_networks
 from ss2r.algorithms.penalizers import get_penalizer
 from ss2r.algorithms.sac.data import get_collection_fn
 from ss2r.algorithms.sac.q_transforms import (
@@ -48,32 +47,18 @@ def get_train_fn(cfg, checkpoint_path, restore_checkpoint_path):
     if "data_collection" in agent_cfg:
         del agent_cfg["data_collection"]
     if "use_vision" in agent_cfg and agent_cfg["use_vision"]:
-        network_factory = functools.partial(
-            mbpo_vision_networks.make_mbpo_vision_networks,
-            policy_hidden_layer_sizes=policy_hidden_layer_sizes,
-            value_hidden_layer_sizes=value_hidden_layer_sizes,
-            activation=activation,
-            encoder_hidden_dim=50,
-            tanh=True,
-            # TODO (yarden): currently only use latents.
-            # Make sure to disable normalizing the latents.
-            use_latents=True,
-        )
         del agent_cfg["use_vision"]
-    else:
-        value_obs_key = "privileged_state" if cfg.training.value_privileged else "state"
-        policy_obs_key = (
-            "privileged_state" if cfg.training.policy_privileged else "state"
-        )
-        network_factory = functools.partial(
-            mbpo_networks.make_mbpo_networks,
-            policy_hidden_layer_sizes=policy_hidden_layer_sizes,
-            value_hidden_layer_sizes=value_hidden_layer_sizes,
-            model_hidden_layer_sizes=model_hidden_layer_sizes,
-            activation=activation,
-            value_obs_key=value_obs_key,
-            policy_obs_key=policy_obs_key,
-        )
+    value_obs_key = "privileged_state" if cfg.training.value_privileged else "state"
+    policy_obs_key = "privileged_state" if cfg.training.policy_privileged else "state"
+    network_factory = functools.partial(
+        mbpo_networks.make_mbpo_networks,
+        policy_hidden_layer_sizes=policy_hidden_layer_sizes,
+        value_hidden_layer_sizes=value_hidden_layer_sizes,
+        model_hidden_layer_sizes=model_hidden_layer_sizes,
+        activation=activation,
+        value_obs_key=value_obs_key,
+        policy_obs_key=policy_obs_key,
+    )
     penalizer, penalizer_params = get_penalizer(cfg)
     reward_q_transform = get_reward_q_transform(cfg)
     cost_q_transform = get_cost_q_transform(cfg)
