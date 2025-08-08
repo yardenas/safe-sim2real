@@ -136,7 +136,6 @@ def make_q_vision_network(
     head_size: int = 1,
     encoder_hidden_dim: int = 50,
     tanh: bool = True,
-    use_latents: bool = True,
 ):
     class QModule(linen.Module):
         n_critics: int
@@ -246,7 +245,7 @@ def make_mbpo_vision_networks(
     else:
         qc_network = None
     model_network = make_world_model_ensemble(
-        encoder_hidden_dim,
+        4096,
         action_size,
         preprocess_observations_fn=preprocess_observations_fn,
         postprocess_observations_fn=postprocess_observations_fn,
