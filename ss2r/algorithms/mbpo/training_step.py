@@ -116,6 +116,8 @@ def make_training_step(
             else:
                 behavior_qc_params = training_state.behavior_qc_params
                 behavior_qc_optimizer_state = training_state.behavior_qc_optimizer_state
+                backup_qc_params = training_state.backup_qc_params
+                backup_qc_optimizer_state = training_state.backup_qc_optimizer_state
         else:
             cost_metrics = {}
             backup_qc_params = training_state.backup_qc_params
