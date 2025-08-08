@@ -334,7 +334,7 @@ def train(
     )
     model_buffer_state = model_replay_buffer.init(model_rb_key)
     sac_buffer_state = sac_replay_buffer.init(actor_critic_rb_key)
-    if restore_checkpoint_path is not None:
+    if restore_checkpoint_path is not None and False:
         params = checkpoint.load(restore_checkpoint_path)
         ts_normalizer_params = training_state.normalizer_params
         if load_normalizer:
