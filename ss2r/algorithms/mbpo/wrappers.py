@@ -61,10 +61,11 @@ class VisionWrapper(Wrapper):
         super().__init__(env)
         # Madrona backend calls unwrapped function and therefore
         # never reaches the correct observation size.
+        old_prop = type(self.env).observation_size
         self.env.observation_size = property(
             self.observation_size,
-            fset=self.env.observation_size.fget,
-            fdel=self.env.observation_size.fdel,
+            fset=old_prop.fget,
+            fdel=old_prop.fdel,
         )
         checkpoint_path = get_wandb_checkpoint(wandb_id, wandb_entity)
         params = checkpoint.load(checkpoint_path)
