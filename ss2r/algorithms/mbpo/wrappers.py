@@ -66,7 +66,7 @@ class VisionWrapper(Wrapper):
         old_prop = mjx_env.MjxEnv.observation_size
         mjx_env.MjxEnv.observation_size = property(
             fget=lambda self: 4096,
-            fset=old_prop.fget,
+            fset=old_prop.fset,
             fdel=old_prop.fdel,
         )
         checkpoint_path = get_wandb_checkpoint(wandb_id, wandb_entity)
