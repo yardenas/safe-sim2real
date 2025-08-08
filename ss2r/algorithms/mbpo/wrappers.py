@@ -72,9 +72,9 @@ class VisionWrapper(Wrapper):
         )
         checkpoint_path = get_wandb_checkpoint(wandb_id, wandb_entity)
         params = checkpoint.load(checkpoint_path)
-        self.frozen_encoder_params = {"params": params[3]["params"]["SharedEncoder"]}
-        self.frozen_dense_params = {"params": params[3]["params"]["Dense_0"]}
-        self.frozen_layer_norm_params = {"params": params[3]["params"]["LayerNorm_0"]}
+        self.frozen_encoder_params = {"params": params[1]["params"]["SharedEncoder"]}
+        self.frozen_dense_params = {"params": params[1]["params"]["Dense_0"]}
+        self.frozen_layer_norm_params = {"params": params[1]["params"]["LayerNorm_0"]}
         self.encoder = Encoder()
         self.dense = linen.Dense(50)
         self.layer_norm = linen.LayerNorm()
