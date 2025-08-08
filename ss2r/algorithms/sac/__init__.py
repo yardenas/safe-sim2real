@@ -83,11 +83,10 @@ def get_train_fn(cfg, checkpoint_path, restore_checkpoint_path):
         if "lambda_" in agent_cfg:
             del agent_cfg["lambda_"]
     else:
-        pass
-    value_obs_key = "privileged_state" if cfg.training.value_privileged else "state"
-    policy_obs_key = (
-        "privileged_state" if cfg.training.policy_privileged else "state"
-    )
+        value_obs_key = "privileged_state" if cfg.training.value_privileged else "state"
+        policy_obs_key = (
+            "privileged_state" if cfg.training.policy_privileged else "state"
+        )
     # FIXME
     network_factory = functools.partial(
         sac_networks.make_sac_networks,
