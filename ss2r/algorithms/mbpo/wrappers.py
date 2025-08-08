@@ -59,7 +59,13 @@ class TrackOnlineCostsInObservation(Wrapper):
 class VisionWrapper(Wrapper):
     def __init__(self, env, wandb_id, wandb_entity):
         super().__init__(env)
-        self.env.observation_size = property(self.observation_size)
+        # Madrona backend calls unwrapped function and therefore
+        # never reaches the correct observation size.
+        self.env.observation_size = property(
+            self.observation_size,
+            fset=self.env.observation_size.fget,
+            fdel=self.env.observation_size.fdel,
+        )
         checkpoint_path = get_wandb_checkpoint(wandb_id, wandb_entity)
         params = checkpoint.load(checkpoint_path)
         self.frozen_encoder_params = {"params": params[3]["params"]["SharedEncoder"]}
