@@ -9,6 +9,7 @@ training:
   safe: false
   num_envs: 128
   num_eval_envs: 128
+  num_eval_episodes: 1
   train_domain_randomization: false
   eval_domain_randomization: false
 
