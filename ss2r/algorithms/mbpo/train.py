@@ -207,6 +207,7 @@ def train(
     offline: bool = False,
     learn_from_scratch: bool = False,
     load_auxiliaries: bool = False,
+    load_normalizer: bool = True,
 ):
     if min_replay_size >= num_timesteps:
         raise ValueError(
@@ -336,14 +337,15 @@ def train(
     if restore_checkpoint_path is not None:
         params = checkpoint.load(restore_checkpoint_path)
         ts_normalizer_params = training_state.normalizer_params
-        if isinstance(ts_normalizer_params.mean, dict) and not isinstance(
-            params[0].mean, dict
-        ):
-            ts_normalizer_params = get_dict_normalizer_params(
-                params, ts_normalizer_params
-            )
-        else:
-            ts_normalizer_params = params[0]
+        if load_normalizer:
+            if isinstance(ts_normalizer_params.mean, dict) and not isinstance(
+                params[0].mean, dict
+            ):
+                ts_normalizer_params = get_dict_normalizer_params(
+                    params, ts_normalizer_params
+                )
+            else:
+                ts_normalizer_params = params[0]
         if offline:
             model_buffer_state = replay_buffers.ReplayBufferState(**params[-1])
             training_state = training_state.replace(  # type: ignore

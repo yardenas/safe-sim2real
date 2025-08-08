@@ -80,6 +80,8 @@ def get_train_fn(cfg, checkpoint_path, restore_checkpoint_path):
             agent_cfg["encoder_hidden_dim"],
             agent_cfg["tanh"],
         )
+        if "lambda_" in agent_cfg:
+            del agent_cfg["lambda_"]
     else:
         value_obs_key = "privileged_state" if cfg.training.value_privileged else "state"
         policy_obs_key = (

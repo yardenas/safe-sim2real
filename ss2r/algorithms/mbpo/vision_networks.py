@@ -3,6 +3,7 @@ from typing import Mapping, Sequence, Tuple
 import jax
 import jax.nn as jnn
 import jax.numpy as jnp
+import numpy as np
 from brax.training import distribution, networks, types
 from flax import linen
 
@@ -86,16 +87,15 @@ def make_policy_vision_network(
     state_obs_key: str = "",
     encoder_hidden_dim: int = 50,
     tanh: bool = True,
-    use_latents: bool = True,
 ):
     class Policy(linen.Module):
         @linen.compact
         def __call__(self, obs):
-            if use_latents:
-                hidden = obs["latents"]
-            else:
-                hidden = Encoder(name="SharedEncoder")(obs)
-            hidden = jax.lax.stop_gradient(hidden)
+            # Create dummy encoder so that it's easier to load the
+            # checkpoint
+            Encoder(name="SharedEncoder")({"pixels/view_0": np.zeros((1, 64, 64, 3))})
+            # Ignore the encoder because we use VisionWrapper
+            hidden = obs
             hidden = linen.Dense(encoder_hidden_dim)(hidden)
             hidden = linen.LayerNorm()(hidden)
             if tanh:
@@ -117,9 +117,7 @@ def make_policy_vision_network(
             obs = {**obs, state_obs_key: state_obs}
         return pi_module.apply(params, obs)
 
-    dummy_obs = {
-        key: jnp.zeros((1,) + shape) for key, shape in observation_size.items()
-    }
+    dummy_obs = jnp.zeros((1, observation_size))
     return networks.FeedForwardNetwork(
         init=lambda key: pi_module.init(key, dummy_obs), apply=apply
     )
@@ -138,17 +136,16 @@ def make_q_vision_network(
     head_size: int = 1,
     encoder_hidden_dim: int = 50,
     tanh: bool = True,
-    use_latents: bool = True,
 ):
     class QModule(linen.Module):
         n_critics: int
 
         @linen.compact
         def __call__(self, obs, actions):
-            if use_latents:
-                hidden = obs["latents"]
-            else:
-                hidden = Encoder(name="SharedEncoder")(obs)
+            # Create dummy encoder so that it's easier to load the
+            # checkpoint
+            Encoder(name="SharedEncoder")({"pixels/view_0": np.zeros((1, 64, 64, 3))})
+            hidden = obs
             hidden = linen.Dense(encoder_hidden_dim)(hidden)
             hidden = linen.LayerNorm()(hidden)
             if tanh:
@@ -177,9 +174,7 @@ def make_q_vision_network(
             obs = {**obs, state_obs_key: state_obs}
         return q_module.apply(params, obs, actions)
 
-    dummy_obs = {
-        key: jnp.zeros((1,) + shape) for key, shape in observation_size.items()
-    }
+    dummy_obs = jnp.zeros((1, observation_size))
     dummy_action = jnp.zeros((1, action_size))
     return networks.FeedForwardNetwork(
         init=lambda key: q_module.init(key, dummy_obs, dummy_action), apply=apply
@@ -201,7 +196,6 @@ def make_mbpo_vision_networks(
     n_heads: int = 1,
     encoder_hidden_dim: int = 50,
     tanh: bool = True,
-    use_latents: bool = True,
     *,
     safe: bool = False,
 ) -> SafeSACNetworks:
@@ -218,7 +212,6 @@ def make_mbpo_vision_networks(
         state_obs_key=state_obs_key,
         encoder_hidden_dim=encoder_hidden_dim,
         tanh=tanh,
-        use_latents=use_latents,
     )
     qr_network = make_q_vision_network(
         observation_size=observation_size,
@@ -231,7 +224,6 @@ def make_mbpo_vision_networks(
         n_heads=n_heads,
         encoder_hidden_dim=encoder_hidden_dim,
         tanh=tanh,
-        use_latents=use_latents,
     )
     if safe:
         qc_network = make_q_vision_network(
@@ -245,7 +237,6 @@ def make_mbpo_vision_networks(
             n_heads=n_heads,
             encoder_hidden_dim=encoder_hidden_dim,
             tanh=tanh,
-            use_latents=use_latents,
         )
         old_apply = qc_network.apply
         qc_network.apply = lambda *args, **kwargs: jnn.softplus(
@@ -254,7 +245,7 @@ def make_mbpo_vision_networks(
     else:
         qc_network = None
     model_network = make_world_model_ensemble(
-        encoder_hidden_dim,
+        4096,
         action_size,
         preprocess_observations_fn=preprocess_observations_fn,
         postprocess_observations_fn=postprocess_observations_fn,
