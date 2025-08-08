@@ -98,7 +98,10 @@ def make_policy_vision_network(
             )
             hidden = linen.Dense(encoder_hidden_dim)(hidden)
             linen.LayerNorm()(hidden)
-            hidden = obs
+            if isinstance(obs, Mapping):
+                hidden = obs["state"]
+            else:
+                hidden = obs
             if tanh:
                 hidden = jnn.tanh(hidden)
             outs = networks.MLP(
@@ -150,7 +153,10 @@ def make_q_vision_network(
             )
             hidden = linen.Dense(encoder_hidden_dim)(hidden)
             linen.LayerNorm()(hidden)
-            hidden = obs
+            if isinstance(obs, Mapping):
+                hidden = obs["state"]
+            else:
+                hidden = obs
             if tanh:
                 hidden = jnn.tanh(hidden)
             hidden = jnp.concatenate([hidden, actions], axis=-1)
