@@ -98,7 +98,10 @@ def make_policy_vision_network(
             )
             hidden = linen.Dense(encoder_hidden_dim)(hidden)
             linen.LayerNorm()(hidden)
-            hidden = obs
+            if isinstance(obs, Mapping):
+                hidden = obs["state"]
+            else:
+                hidden = obs
             if tanh:
                 hidden = jnn.tanh(hidden)
             outs = networks.MLP(
@@ -118,6 +121,8 @@ def make_policy_vision_network(
             obs = {**obs, state_obs_key: state_obs}
         return pi_module.apply(params, obs)
 
+    if isinstance(observation_size, Mapping):
+        observation_size = observation_size["state"]  # type: ignore
     dummy_obs = jnp.zeros((1, observation_size))
     return networks.FeedForwardNetwork(
         init=lambda key: pi_module.init(key, dummy_obs), apply=apply
@@ -150,7 +155,10 @@ def make_q_vision_network(
             )
             hidden = linen.Dense(encoder_hidden_dim)(hidden)
             linen.LayerNorm()(hidden)
-            hidden = obs
+            if isinstance(obs, Mapping):
+                hidden = obs["state"]
+            else:
+                hidden = obs
             if tanh:
                 hidden = jnn.tanh(hidden)
             hidden = jnp.concatenate([hidden, actions], axis=-1)
@@ -177,6 +185,8 @@ def make_q_vision_network(
             obs = {**obs, state_obs_key: state_obs}
         return q_module.apply(params, obs, actions)
 
+    if isinstance(observation_size, Mapping):
+        observation_size = observation_size["state"]  # type: ignore
     dummy_obs = jnp.zeros((1, observation_size))
     dummy_action = jnp.zeros((1, action_size))
     return networks.FeedForwardNetwork(

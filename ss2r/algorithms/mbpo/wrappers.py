@@ -58,15 +58,22 @@ class TrackOnlineCostsInObservation(Wrapper):
 
 
 class VisionWrapper(Wrapper):
-    def __init__(self, env, wandb_id, wandb_entity):
+    def __init__(self, env, wandb_id, wandb_entity, cumulative_cost):
         super().__init__(env)
         # Madrona backend calls unwrapped function and therefore
         # never reaches the correct observation size.
         from mujoco_playground._src import mjx_env
 
         old_prop = mjx_env.MjxEnv.observation_size
+        if cumulative_cost:
+            get_fn = lambda self: {
+                "state": 50,
+                "cumulative_cost": 1,
+            }
+        else:
+            get_fn = lambda self: 50
         mjx_env.MjxEnv.observation_size = property(
-            fget=lambda self: 50,
+            fget=get_fn,
             fset=old_prop.fset,
             fdel=old_prop.fdel,
         )

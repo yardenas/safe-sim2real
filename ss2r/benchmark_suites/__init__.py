@@ -138,17 +138,27 @@ def get_wrap_env_fn(cfg):
 
         def safe_mbpo_train(env):
             env = out[0](env)
+            use_safety_filter = (
+                cfg.training.safe and cfg.agent.safety_filter is not None
+            )
             if "use_vision" in cfg.agent and cfg.agent.use_vision:
-                env = VisionWrapper(env, cfg.training.wandb_id, cfg.wandb.entity)
-            if cfg.training.safe and cfg.agent.safety_filter is not None:
+                env = VisionWrapper(
+                    env, cfg.training.wandb_id, cfg.wandb.entity, use_safety_filter
+                )
+            if use_safety_filter:
                 env = TrackOnlineCostsInObservation(env)
             return env
 
         def safe_mbpo_eval(env):
             env = out[1](env)
+            use_safety_filter = (
+                cfg.training.safe and cfg.agent.safety_filter is not None
+            )
             if "use_vision" in cfg.agent and cfg.agent.use_vision:
-                env = VisionWrapper(env, cfg.training.wandb_id, cfg.wandb.entity)
-            if cfg.training.safe and cfg.agent.safety_filter is not None:
+                env = VisionWrapper(
+                    env, cfg.training.wandb_id, cfg.wandb.entity, use_safety_filter
+                )
+            if use_safety_filter:
                 env = TrackOnlineCostsInObservation(env)
             return env
 
