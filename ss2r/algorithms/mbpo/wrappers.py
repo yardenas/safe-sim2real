@@ -61,8 +61,10 @@ class VisionWrapper(Wrapper):
         super().__init__(env)
         # Madrona backend calls unwrapped function and therefore
         # never reaches the correct observation size.
-        old_prop = type(self.env.unwrapped).observation_size
-        self.env.unwrapped.observation_size = property(
+        from mujoco_playground._src import mjx_env
+
+        old_prop = mjx_env.MjxEnv.observation_size
+        mjx_env.MjxEnv.observation_size = property(
             fget=lambda self: 4096,
             fset=old_prop.fget,
             fdel=old_prop.fdel,
