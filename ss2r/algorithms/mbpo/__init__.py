@@ -89,7 +89,7 @@ def get_train_fn(cfg, checkpoint_path, restore_checkpoint_path):
         get_experience_fn=data_collection,
         restore_checkpoint_path=restore_checkpoint_path,
         wrap_env_fn=functools.partial(
-            VisionWrapper, wandb_id=cfg.training.wandb_id, entity=cfg.wandb.entity
+            VisionWrapper, wandb_id=cfg.training.wandb_id, wandb_entity=cfg.wandb.entity
         )
         if use_vision
         else None,
