@@ -34,3 +34,4 @@ agent:
   model_grad_updates_per_step: 25
   use_vision: true
   normalize_observations: false
+  load_normalizer: false
