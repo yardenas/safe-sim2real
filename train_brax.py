@@ -92,7 +92,7 @@ def report(logger, step, num_steps, metrics):
 
 
 @hydra.main(version_base=None, config_path="ss2r/configs", config_name="train_brax")
-def main(cfg):
+def main(cfg) -> float:
     _LOG.info(
         f"Setting up experiment with the following configuration: "
         f"\n{OmegaConf.to_yaml(cfg)}"
@@ -142,7 +142,7 @@ def main(cfg):
                         * cfg.training.action_repeat,
                     ),
                 )
-            video = benchmark_suites.render_fns[cfg.environment.task_name](
+            video = benchmark_suites.render_fns[cfg.environment.task_name](  # type: ignore
                 eval_env,
                 make_policy(policy_params, deterministic=True),
                 cfg.training.episode_length,
@@ -163,9 +163,10 @@ def main(cfg):
         if cfg.training.store_checkpoint:
             artifacts = locate_last_checkpoint()
             if artifacts:
-                logger.log_artifact(artifacts, "model", "checkpoint")
+                logger.log_artifact(artifacts, "model", "checkpoint")  # type: ignore
     _LOG.info("Done training.")
-    return run_metrics
+    reward = float(run_metrics.get("eval/episode_reward", 0.0))
+    return reward
 
 
 if __name__ == "__main__":
