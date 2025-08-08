@@ -66,7 +66,7 @@ def get_train_fn(cfg, checkpoint_path, restore_checkpoint_path):
         del agent_cfg["data_collection"]
     if "replay_buffer" in agent_cfg:
         del agent_cfg["replay_buffer"]
-    if "use_vision" in agent_cfg and agent_cfg["use_vision"]:
+    if "use_vision" in agent_cfg and agent_cfg["use_vision"] and False:
         network_factory = functools.partial(
             sac_vision_networks.make_sac_vision_networks,
             policy_hidden_layer_sizes=policy_hidden_layer_sizes,
@@ -87,14 +87,15 @@ def get_train_fn(cfg, checkpoint_path, restore_checkpoint_path):
         policy_obs_key = (
             "privileged_state" if cfg.training.policy_privileged else "state"
         )
-        network_factory = functools.partial(
-            sac_networks.make_sac_networks,
-            policy_hidden_layer_sizes=policy_hidden_layer_sizes,
-            value_hidden_layer_sizes=value_hidden_layer_sizes,
-            activation=activation,
-            value_obs_key=value_obs_key,
-            policy_obs_key=policy_obs_key,
-        )
+    # FIXME
+    network_factory = functools.partial(
+        sac_networks.make_sac_networks,
+        policy_hidden_layer_sizes=policy_hidden_layer_sizes,
+        value_hidden_layer_sizes=value_hidden_layer_sizes,
+        activation=activation,
+        value_obs_key=value_obs_key,
+        policy_obs_key=policy_obs_key,
+    )
     penalizer, penalizer_params = get_penalizer(cfg)
     cost_q_transform = get_cost_q_transform(cfg)
     reward_q_transform = get_reward_q_transform(cfg)

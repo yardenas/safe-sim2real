@@ -329,7 +329,7 @@ def train(
     )
     del global_key
     local_key, rb_key, env_key, eval_key = jax.random.split(local_key, 4)
-    if restore_checkpoint_path is not None:
+    if restore_checkpoint_path is not None and False:
         params = checkpoint.load(restore_checkpoint_path)
         policy_optimizer_state = update_lr_schedule_count(
             restore_state(params[6], training_state.policy_optimizer_state), 0
