@@ -92,7 +92,7 @@ def make_policy_vision_network(
         @linen.compact
         def __call__(self, obs):
             if use_latents:
-                hidden = obs["latents"]
+                hidden = obs
             else:
                 hidden = Encoder(name="SharedEncoder")(obs)
             hidden = jax.lax.stop_gradient(hidden)
