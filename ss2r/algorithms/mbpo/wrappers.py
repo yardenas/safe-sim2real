@@ -65,14 +65,13 @@ class VisionWrapper(Wrapper):
         from mujoco_playground._src import mjx_env
 
         old_prop = mjx_env.MjxEnv.observation_size
-        get_fn = (
-            lambda self: 50
-            if not cumulative_cost
-            else lambda self: {
+        if cumulative_cost:
+            get_fn = lambda self: {
                 "state": 50,
                 "cumulative_cost": 1,
             }
-        )
+        else:
+            get_fn = lambda self: 50
         mjx_env.MjxEnv.observation_size = property(
             fget=get_fn,
             fset=old_prop.fset,
