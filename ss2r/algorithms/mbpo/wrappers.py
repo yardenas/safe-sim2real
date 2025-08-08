@@ -80,7 +80,7 @@ class VisionWrapper(Wrapper):
 
     @property
     def observation_size(self):
-        return 50
+        return 4096
 
     @property
     def unwrapped(self):
