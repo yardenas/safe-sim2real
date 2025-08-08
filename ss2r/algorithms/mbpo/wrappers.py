@@ -81,3 +81,11 @@ class VisionWrapper(Wrapper):
     @property
     def observation_size(self):
         return 4096
+
+    @property
+    def unwrapped(self):
+        return self
+
+    def __getattr__(self, name):
+        """Delegate attribute access to the wrapped instance."""
+        return getattr(self.env.unwrapped, name)

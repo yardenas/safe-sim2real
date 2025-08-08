@@ -2,7 +2,6 @@ import functools
 
 import ss2r.algorithms.mbpo.networks as mbpo_networks
 import ss2r.algorithms.mbpo.vision_networks as mbpo_vision_networks
-from ss2r.algorithms.mbpo.wrappers import VisionWrapper
 from ss2r.algorithms.penalizers import get_penalizer
 from ss2r.algorithms.sac.data import get_collection_fn
 from ss2r.algorithms.sac.q_transforms import (
@@ -48,8 +47,7 @@ def get_train_fn(cfg, checkpoint_path, restore_checkpoint_path):
         del agent_cfg["propagation"]
     if "data_collection" in agent_cfg:
         del agent_cfg["data_collection"]
-    use_vision = "use_vision" in agent_cfg and agent_cfg["use_vision"]
-    if use_vision:
+    if "use_vision" in agent_cfg and agent_cfg["use_vision"]:
         # network_factory = functools.partial(
         #     mbpo_vision_networks.make_mbpo_vision_networks,
         #     policy_hidden_layer_sizes=policy_hidden_layer_sizes,
@@ -60,18 +58,19 @@ def get_train_fn(cfg, checkpoint_path, restore_checkpoint_path):
         # )
         del agent_cfg["use_vision"]
     else:
-        pass
-    value_obs_key = "privileged_state" if cfg.training.value_privileged else "state"
-    policy_obs_key = "privileged_state" if cfg.training.policy_privileged else "state"
-    network_factory = functools.partial(
-        mbpo_networks.make_mbpo_networks,
-        policy_hidden_layer_sizes=policy_hidden_layer_sizes,
-        value_hidden_layer_sizes=value_hidden_layer_sizes,
-        model_hidden_layer_sizes=model_hidden_layer_sizes,
-        activation=activation,
-        value_obs_key=value_obs_key,
-        policy_obs_key=policy_obs_key,
-    )
+        value_obs_key = "privileged_state" if cfg.training.value_privileged else "state"
+        policy_obs_key = (
+            "privileged_state" if cfg.training.policy_privileged else "state"
+        )
+        network_factory = functools.partial(
+            mbpo_networks.make_mbpo_networks,
+            policy_hidden_layer_sizes=policy_hidden_layer_sizes,
+            value_hidden_layer_sizes=value_hidden_layer_sizes,
+            model_hidden_layer_sizes=model_hidden_layer_sizes,
+            activation=activation,
+            value_obs_key=value_obs_key,
+            policy_obs_key=policy_obs_key,
+        )
     penalizer, penalizer_params = get_penalizer(cfg)
     reward_q_transform = get_reward_q_transform(cfg)
     cost_q_transform = get_cost_q_transform(cfg)
@@ -88,10 +87,5 @@ def get_train_fn(cfg, checkpoint_path, restore_checkpoint_path):
         penalizer_params=penalizer_params,
         get_experience_fn=data_collection,
         restore_checkpoint_path=restore_checkpoint_path,
-        wrap_env_fn=functools.partial(
-            VisionWrapper, wandb_id=cfg.training.wandb_id, wandb_entity=cfg.wandb.entity
-        )
-        if use_vision
-        else None,
     )
     return train_fn
