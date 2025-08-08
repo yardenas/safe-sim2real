@@ -12,7 +12,7 @@ training:
   num_eval_episodes: 1
   train_domain_randomization: false
   eval_domain_randomization: false
-  wandb_id: y03fn7f
+  wandb_id: y03fxn7f
   render: false
 
 environment:
