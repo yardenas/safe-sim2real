@@ -93,11 +93,12 @@ def make_policy_vision_network(
         def __call__(self, obs):
             # Create dummy encoder so that it's easier to load the
             # checkpoint
-            Encoder(name="SharedEncoder")({"pixels/view_0": np.zeros((1, 64, 64, 3))})
-            # Ignore the encoder because we use VisionWrapper
-            hidden = obs
+            hidden = Encoder(name="SharedEncoder")(
+                {"pixels/view_0": np.zeros((1, 64, 64, 3))}
+            )
             hidden = linen.Dense(encoder_hidden_dim)(hidden)
-            hidden = linen.LayerNorm()(hidden)
+            linen.LayerNorm()(hidden)
+            hidden = obs
             if tanh:
                 hidden = jnn.tanh(hidden)
             outs = networks.MLP(
@@ -144,10 +145,12 @@ def make_q_vision_network(
         def __call__(self, obs, actions):
             # Create dummy encoder so that it's easier to load the
             # checkpoint
-            Encoder(name="SharedEncoder")({"pixels/view_0": np.zeros((1, 64, 64, 3))})
-            hidden = obs
+            hidden = Encoder(name="SharedEncoder")(
+                {"pixels/view_0": np.zeros((1, 64, 64, 3))}
+            )
             hidden = linen.Dense(encoder_hidden_dim)(hidden)
-            hidden = linen.LayerNorm()(hidden)
+            linen.LayerNorm()(hidden)
+            hidden = obs
             if tanh:
                 hidden = jnn.tanh(hidden)
             hidden = jnp.concatenate([hidden, actions], axis=-1)
@@ -245,7 +248,7 @@ def make_mbpo_vision_networks(
     else:
         qc_network = None
     model_network = make_world_model_ensemble(
-        4096,
+        encoder_hidden_dim,
         action_size,
         preprocess_observations_fn=preprocess_observations_fn,
         postprocess_observations_fn=postprocess_observations_fn,
