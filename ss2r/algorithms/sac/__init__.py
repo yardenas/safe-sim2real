@@ -66,15 +66,15 @@ def get_train_fn(cfg, checkpoint_path, restore_checkpoint_path):
         del agent_cfg["data_collection"]
     if "replay_buffer" in agent_cfg:
         del agent_cfg["replay_buffer"]
-    if "use_vision" in agent_cfg and agent_cfg["use_vision"] and False:
-        network_factory = functools.partial(
-            sac_vision_networks.make_sac_vision_networks,
-            policy_hidden_layer_sizes=policy_hidden_layer_sizes,
-            value_hidden_layer_sizes=value_hidden_layer_sizes,
-            activation=activation,
-            encoder_hidden_dim=agent_cfg["encoder_hidden_dim"],
-            tanh=agent_cfg["tanh"],
-        )
+    if "use_vision" in agent_cfg and agent_cfg["use_vision"]:
+        # network_factory = functools.partial(
+        #     sac_vision_networks.make_sac_vision_networks,
+        #     policy_hidden_layer_sizes=policy_hidden_layer_sizes,
+        #     value_hidden_layer_sizes=value_hidden_layer_sizes,
+        #     activation=activation,
+        #     encoder_hidden_dim=agent_cfg["encoder_hidden_dim"],
+        #     tanh=agent_cfg["tanh"],
+        # )
         del (
             agent_cfg["use_vision"],
             agent_cfg["encoder_hidden_dim"],
