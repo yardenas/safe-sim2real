@@ -116,6 +116,8 @@ def make_training_step(
             else:
                 behavior_qc_params = training_state.behavior_qc_params
                 behavior_qc_optimizer_state = training_state.behavior_qc_optimizer_state
+                backup_qc_params = training_state.backup_qc_params
+                backup_qc_optimizer_state = training_state.backup_qc_optimizer_state
         else:
             cost_metrics = {}
             backup_qc_params = training_state.backup_qc_params
@@ -361,6 +363,7 @@ def make_training_step(
                     new_reward = jnp.where(
                         discount, new_reward, jnp.zeros_like(new_reward)
                     )
+        next_obs_pred = jax.tree_map(lambda x: x.mean(0), next_obs_pred)
         return Transition(
             observation=transitions.observation,
             next_observation=next_obs_pred,
