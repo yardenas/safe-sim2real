@@ -61,9 +61,9 @@ class VisionWrapper(Wrapper):
         super().__init__(env)
         # Madrona backend calls unwrapped function and therefore
         # never reaches the correct observation size.
-        old_prop = type(self.env).observation_size
+        old_prop = type(self.env.unwrapped).observation_size
         self.env.observation_size = property(
-            self.observation_size,
+            fget=lambda self: 4096,
             fset=old_prop.fget,
             fdel=old_prop.fdel,
         )
@@ -85,7 +85,3 @@ class VisionWrapper(Wrapper):
         latents = self.encoder.apply(self.frozen_encoder_params, state.obs)
         state = state.replace(obs=latents)
         return state
-
-    @property
-    def observation_size(self):
-        return 4096
