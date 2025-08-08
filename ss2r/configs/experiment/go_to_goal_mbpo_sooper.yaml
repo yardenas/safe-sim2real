@@ -23,7 +23,7 @@ agent:
   value_hidden_layer_sizes: [512, 512]
   model_hidden_layer_sizes: [400, 400, 400, 400]
   batch_size: 256
-  min_replay_size: 5000
+  min_replay_size: 2000
   max_replay_size: 1048576
   critic_grad_updates_per_step: 2000
   model_grad_updates_per_step: 80000
@@ -36,4 +36,3 @@ agent:
   safety_discounting: 0.99
   safety_filter: sooper
   load_auxiliaries: true
-  model_to_real_data_ratio: 1.
