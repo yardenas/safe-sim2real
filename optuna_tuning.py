@@ -1,44 +1,58 @@
-import sys
+import os
+import traceback
 
 import hydra
 import optuna
 from omegaconf import OmegaConf
 from undecorated import undecorated
 
-from ss2r.common.logging import TrainingLogger
 from train_brax import main as train_brax_main
 
 # Define the hyperparameters to optimize and their search spaces
 SEARCH_SPACE = [
+    # {
+    #     "name": "agent.model_hidden_layer_sizes",
+    #     "type": "categorical",
+    #     "choices": [
+    #         [256, 256, 256],
+    #         [400, 400, 400],
+    #     ],
+    # },
     {
         "name": "agent.min_replay_size",
         "type": "int",
         "low": 250,
         "high": 3000,
     },
-    {
-        "name": "agent.max_replay_size",
-        "type": "int",
-        "low": 10000,
-        "high": 2000000,
-    },
+    # {
+    #     "name": "agent.max_replay_size",
+    #     "type": "int",
+    #     "low": 10000,
+    #     "high": 2000000,
+    # },
     {
         "name": "agent.critic_grad_updates_per_step",
         "type": "int",
-        "low": 1000,
-        "high": 10000,
+        "low": 50,
+        "high": 6000,
     },
     {
         "name": "agent.model_grad_updates_per_step",
         "type": "int",
-        "low": 10000,
-        "high": 200000,
+        "low": 50,
+        "high": 85000,
+    },
+    {
+        "name": "agent.num_critic_updates_per_actor_update",
+        "type": "int",
+        "low": 1,
+        "high": 20,
     },
     {
         "name": "agent.num_model_rollouts",
         "type": "int",
-        "low": 10000,
-        "high": 200000,
+        "low": 50000,
+        "high": 150000,
     },
     {
         "name": "agent.critic_learning_rate",
@@ -52,45 +66,12 @@ SEARCH_SPACE = [
         "low": 1e-9,
         "high": 1e-2,
     },
-    {
-        "name": "agent.model_hidden_layer_sizes",
-        "type": "categorical",
-        "choices": [
-            [512, 512],
-            [256, 256, 256],
-        ],
-    },
-    {
-        "name": "agent.num_critic_updates_per_actor_update",
-        "type": "int",
-        "low": 1,
-        "high": 20,
-    },
 ]
 
 
 def set_nested_attr(cfg, dotted_key, value):
     """Set a nested attribute in an OmegaConf object using a dotted key."""
-    keys = dotted_key.split(".")
-    obj = cfg
-    for k in keys[:-1]:
-        obj = obj[k]
-    obj[keys[-1]] = value
-
-
-def run_train_brax_with_overrides(overrides):
-    # Compose config and run train_brax.main, return metrics
-    from train_brax import main as train_brax_main
-
-    # Hydra requires sys.argv to be set for overrides
-    orig_argv = sys.argv
-    sys.argv = [orig_argv[0]] + overrides
-    try:
-        # train_brax.main returns metrics dict
-        metrics = train_brax_main()
-    finally:
-        sys.argv = orig_argv
-    return metrics
+    OmegaConf.update(cfg, dotted_key, value, merge=False)
 
 
 def objective(trial, train_brax_main_undecorated, base_cfg):
@@ -117,59 +98,62 @@ def objective(trial, train_brax_main_undecorated, base_cfg):
     # Set unique wandb.name
     cfg.wandb.name += param_str + f",optuna_trial={trial.number}"
     # Disable wandb writer in cfg for individual runs
-    cfg.writers = ["jsonl", "stderr"]
+    # cfg.writers = ["jsonl", "stderr"]
 
-    # Run train_brax and get metrics
     try:
-        metrics = train_brax_main_undecorated(cfg)
-        reward = metrics.get("eval/episode_reward") or (
-            metrics.get("eval", {}).get("episode_reward")
-            if isinstance(metrics.get("eval"), dict)
-            else None
-        )
-        if reward is None:
-            reward = metrics.get("eval", {}).get("episode_reward")
-        if reward is None:
-            print("Warning: eval/episode_reward not found in metrics, using 0.0")
-            reward = 0.0
+        reward = train_brax_main_undecorated(cfg)
+        print(f"Trial {trial.number} completed with reward: {reward}")
     except Exception as e:
         print(f"Trial failed: {e}")
+        traceback.print_exc()
         reward = 0.0
+    finally:
+        # Ensure wandb is finished to avoid hanging processes
+        import wandb
 
-    # Log config and objective value to wandb for this trial
-    # log_cfg = OmegaConf.create(OmegaConf.to_container(cfg, resolve=True))
-    # log_cfg.writers = ["wandb"]
-    # log_cfg.wandb.name += ",optuna_trial_log"
-    # logger = TrainingLogger(log_cfg)
-    # log_data = {f"optuna/trial_{k}": v for k, v in trial.params.items()}
-    # log_data["optuna/trial_value"] = reward
-    # logger.log(log_data, step=trial.number)
-
-    # Optuna maximizes reward, so return -reward for minimization
+        wandb.finish()
     return -reward
 
 
 @hydra.main(version_base=None, config_path="ss2r/configs", config_name="train_brax")
 def main(cfg):
+    optuna_storage = getattr(cfg, "optuna_storage", None)
+    study_name = cfg.get("wandb", {}).get("notes", "ss2r_optuna_study")
+    if optuna_storage:
+        del cfg.optuna_storage  # remove from cfg to avoid passing to train_brax_main
+        optuna_storage = f"sqlite:///{optuna_storage}/{study_name}.db"
+        db_path = optuna_storage[len("sqlite:///") :]
+
     train_brax_main_undecorated = undecorated(train_brax_main)
 
     def optuna_objective(trial):
         return objective(trial, train_brax_main_undecorated, cfg)
 
-    study = optuna.create_study(direction="minimize")
-    study.optimize(optuna_objective, n_trials=50, n_jobs=3)
+    if optuna_storage and os.path.exists(db_path):
+        try:
+            study = optuna.load_study(study_name=study_name, storage=optuna_storage)
+            print(f"Loaded existing Optuna study '{study_name}' from {optuna_storage}")
+        except Exception:
+            study = optuna.create_study(
+                direction="minimize", study_name=study_name, storage=optuna_storage
+            )
+            print(f"Created new Optuna study '{study_name}' at {optuna_storage}")
+    elif optuna_storage:
+        print(
+            f"Storage path {optuna_storage} does not exist. Creating new Optuna study '{study_name}'."
+        )
+        study = optuna.create_study(
+            direction="minimize", study_name=study_name, storage=optuna_storage
+        )
+    else:
+        print(
+            f"Creating new Optuna study '{study_name}' without storage since no storage path was provided."
+        )
+        study = optuna.create_study(direction="minimize", study_name=study_name)
+
+    study.optimize(optuna_objective, n_trials=50, n_jobs=1)
     print("Best trial:")
     print(study.best_trial)
-
-    # Log best trial to wandb
-    best_trial = study.best_trial
-    best_log_data = {f"optuna/best_{k}": v for k, v in best_trial.params.items()}
-    best_log_data["optuna/best_value"] = best_trial.value
-    # Use TrainingLogger with wandb for final logging
-    cfg.wandb.name += ",optuna_best_trial"
-    cfg.writers = ["wandb"]
-    logger = TrainingLogger(cfg)
-    logger.log(best_log_data, step=0)
 
 
 if __name__ == "__main__":
