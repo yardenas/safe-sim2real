@@ -5,14 +5,15 @@ defaults:
   - _self_
 
 training:
-  num_timesteps: 150000
+  num_timesteps: 1000000
   safe: false
   num_envs: 128
   num_eval_envs: 128
   num_eval_episodes: 1
   train_domain_randomization: false
   eval_domain_randomization: false
-  wandb_id: y03fxn7f
+  wandb_id: y03fn7f
+  render: false
 
 environment:
   task_params:
@@ -33,7 +34,7 @@ agent:
   max_replay_size: 100000
   sac_batch_size: 512
   policy_hidden_layer_sizes: [256, 256, 256]
-  critic_grad_updates_per_step: 20
+  critic_grad_updates_per_step: 32
   model_grad_updates_per_step: 25
   use_vision: true
   normalize_observations: false
