@@ -334,7 +334,7 @@ def train(
     )
     model_buffer_state = model_replay_buffer.init(model_rb_key)
     sac_buffer_state = sac_replay_buffer.init(actor_critic_rb_key)
-    if restore_checkpoint_path is not None and False:
+    if restore_checkpoint_path is not None:
         params = checkpoint.load(restore_checkpoint_path)
         ts_normalizer_params = training_state.normalizer_params
         if load_normalizer:
@@ -639,8 +639,6 @@ def train(
 
     if not eval_env:
         eval_env = environment
-    if wrap_env_fn:
-        eval_env = wrap_env_fn(eval_env)
     Evaluator = (
         InterventionConstraintsEvaluator
         if safety_filter is not None
