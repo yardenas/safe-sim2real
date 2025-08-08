@@ -62,7 +62,7 @@ class VisionWrapper(Wrapper):
         # Madrona backend calls unwrapped function and therefore
         # never reaches the correct observation size.
         old_prop = type(self.env.unwrapped).observation_size
-        self.env.observation_size = property(
+        self.env.unwrapped.observation_size = property(
             fget=lambda self: 4096,
             fset=old_prop.fget,
             fdel=old_prop.fdel,
