@@ -639,6 +639,8 @@ def train(
 
     if not eval_env:
         eval_env = environment
+    if wrap_env_fn:
+        eval_env = wrap_env_fn(eval_env)
     Evaluator = (
         InterventionConstraintsEvaluator
         if safety_filter is not None

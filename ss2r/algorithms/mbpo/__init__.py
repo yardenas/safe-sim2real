@@ -2,6 +2,7 @@ import functools
 
 import ss2r.algorithms.mbpo.networks as mbpo_networks
 import ss2r.algorithms.mbpo.vision_networks as mbpo_vision_networks
+from ss2r.algorithms.mbpo.wrappers import VisionWrapper
 from ss2r.algorithms.penalizers import get_penalizer
 from ss2r.algorithms.sac.data import get_collection_fn
 from ss2r.algorithms.sac.q_transforms import (
@@ -47,7 +48,8 @@ def get_train_fn(cfg, checkpoint_path, restore_checkpoint_path):
         del agent_cfg["propagation"]
     if "data_collection" in agent_cfg:
         del agent_cfg["data_collection"]
-    if "use_vision" in agent_cfg and agent_cfg["use_vision"]:
+    use_vision = "use_vision" in agent_cfg and agent_cfg["use_vision"]
+    if use_vision:
         # network_factory = functools.partial(
         #     mbpo_vision_networks.make_mbpo_vision_networks,
         #     policy_hidden_layer_sizes=policy_hidden_layer_sizes,
@@ -86,5 +88,6 @@ def get_train_fn(cfg, checkpoint_path, restore_checkpoint_path):
         penalizer_params=penalizer_params,
         get_experience_fn=data_collection,
         restore_checkpoint_path=restore_checkpoint_path,
+        wrap_env_fn=VisionWrapper if use_vision else None,
     )
     return train_fn
