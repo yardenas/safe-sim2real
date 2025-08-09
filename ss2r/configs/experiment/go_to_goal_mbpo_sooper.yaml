@@ -7,13 +7,13 @@ defaults:
   - _self_
 
 training:
-  num_timesteps: 1000000
+  num_timesteps: 200000
   train_domain_randomization: false
   eval_domain_randomization: false
   safe: true
   safety_budget: 25
   action_repeat: 4
-  num_envs: 10
+  num_envs: 1
   num_evals: 25
   wandb_id: atpwmr5r
 
