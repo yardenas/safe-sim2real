@@ -94,6 +94,9 @@ def make_training_step(
                     params=training_state.backup_qc_params,
                 )
                 cost_metrics["backup_cost_critic_loss"] = backup_cost_critic_loss
+            else:
+                backup_qc_params = training_state.backup_qc_params
+                backup_qc_optimizer_state = training_state.backup_qc_optimizer_state
             if penalizer is not None:
                 (
                     behavior_cost_critic_loss,
@@ -116,8 +119,6 @@ def make_training_step(
             else:
                 behavior_qc_params = training_state.behavior_qc_params
                 behavior_qc_optimizer_state = training_state.behavior_qc_optimizer_state
-                backup_qc_params = training_state.backup_qc_params
-                backup_qc_optimizer_state = training_state.backup_qc_optimizer_state
         else:
             cost_metrics = {}
             backup_qc_params = training_state.backup_qc_params
