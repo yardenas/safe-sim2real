@@ -28,9 +28,9 @@ agent:
   critic_grad_updates_per_step: 2000
   model_grad_updates_per_step: 120000
   num_model_rollouts: 100000
-  learning_rate: 3e-4
-  critic_learning_rate: 3e-4
-  model_learning_rate: 3e-4
+  learning_rate: 3e-6
+  critic_learning_rate: 1e-6
+  model_learning_rate: 1e-4
   pessimism: 0
   optimism: 0
   safety_discounting: 0.99
