@@ -64,8 +64,9 @@ def make_policy_vision_network(
             for k, x in obs.items():
                 if not k.startswith("pixels/"):
                     additional_obs.append(x)
-            additional_obs = jnp.concatenate(additional_obs, axis=-1)
-            hidden = jnp.concatenate([hidden, additional_obs], axis=-1)
+            if additional_obs:
+                additional_obs = jnp.concatenate(additional_obs, axis=-1)
+                hidden = jnp.concatenate([hidden, additional_obs], axis=-1)
             outs = networks.MLP(
                 layer_sizes=list(hidden_layer_sizes) + [output_size],
                 activation=activation,
@@ -120,8 +121,9 @@ def make_q_vision_network(
             for k, x in obs.items():
                 if not k.startswith("pixels/"):
                     additional_obs.append(x)
-            additional_obs = jnp.concatenate(additional_obs, axis=-1)
-            hidden = jnp.concatenate([hidden, additional_obs], axis=-1)
+            if additional_obs:
+                additional_obs = jnp.concatenate(additional_obs, axis=-1)
+                hidden = jnp.concatenate([hidden, additional_obs], axis=-1)
             res = []
             net = BroNet if use_bro else MLP
             for _ in range(self.n_critics):
