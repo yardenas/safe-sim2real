@@ -20,6 +20,8 @@ environment:
     success_threshold: 0.03
     vision_config:
       render_batch_size: 512
+      render_width: 84
+      render_height: 84
 
 agent:
   batch_size: 128
