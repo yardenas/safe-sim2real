@@ -39,6 +39,9 @@ class Encoder(linen.Module):
             else:
                 x = x.reshape([-1])
             cnn_outs.append(x)
+        for k, v in data.items():
+            if not k.startswith("pixels/"):
+                cnn_outs.append(v)
         return jnp.concatenate(cnn_outs, axis=-1)
 
 

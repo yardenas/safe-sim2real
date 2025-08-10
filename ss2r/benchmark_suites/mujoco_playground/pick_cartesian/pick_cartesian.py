@@ -34,6 +34,16 @@ from mujoco_playground._src.manipulation.franka_emika_panda import (
 )
 
 
+def _rgba_to_grayscale(rgba: jax.Array) -> jax.Array:
+    """
+    Intensity-weigh the colors.
+    This expects the input to have the channels in the last dim.
+    """
+    r, g, b = rgba[..., 0], rgba[..., 1], rgba[..., 2]
+    gray = 0.2989 * r + 0.5870 * g + 0.1140 * b
+    return gray
+
+
 def domain_randomize(
     mjx_model: mjx.Model, num_worlds: int
 ) -> Tuple[mjx.Model, mjx.Model]:
@@ -412,7 +422,7 @@ class PandaPickCubeCartesian(pick.PandaPickCube):
             render_token, rgb, _ = self.renderer.init(data, self._mjx_model)
             info.update({"render_token": render_token})
 
-            obs = jp.asarray(rgb[0][..., :3], dtype=jp.float32) / 255.0
+            obs = _rgba_to_grayscale(jp.asarray(rgb[0], dtype=jp.float32)) / 255.0
             obs = adjust_brightness(obs, brightness)
             obs = {"pixels/view_0": obs}
 
@@ -539,7 +549,7 @@ class PandaPickCubeCartesian(pick.PandaPickCube):
         obs = jp.concat([obs, no_soln.reshape(1), action], axis=0)
         if self._vision:
             _, rgb, _ = self.renderer.render(state.info["render_token"], data)
-            obs = jp.asarray(rgb[0][..., :3], dtype=jp.float32) / 255.0
+            obs = _rgba_to_grayscale(jp.asarray(rgb[0], dtype=jp.float32)) / 255.0
             obs = adjust_brightness(obs, state.info["brightness"])
             obs = {"pixels/view_0": obs}
 
