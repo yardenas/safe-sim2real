@@ -187,8 +187,8 @@ def default_vision_config() -> config_dict.ConfigDict:
     return config_dict.create(
         gpu_id=0,
         render_batch_size=1024,
-        render_width=84,
-        render_height=84,
+        render_width=64,
+        render_height=64,
         use_rasterizer=False,
         enabled_geom_groups=[0, 1, 2],
     )
