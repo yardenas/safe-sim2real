@@ -25,6 +25,7 @@ import numpy as np
 from etils import epath
 from ml_collections import config_dict
 from mujoco import mjx
+from mujoco.mjx._src import math
 from mujoco_playground._src import collision, mjx_env
 from mujoco_playground._src.manipulation.franka_emika_panda import (
     panda_kinematics,
@@ -571,6 +572,49 @@ class PandaPickCubeCartesian(pick.PandaPickCube):
         ):  # Randomized camera positions cannot see location along y line.
             box_pos, target_pos = box_pos[2], target_pos[2]
         return jp.linalg.norm(box_pos - target_pos) < self._config.success_threshold
+
+    def _get_reward(self, data: mjx.Data, info: Dict[str, Any]) -> Dict[str, Any]:
+        target_pos = info["target_pos"]
+        box_pos = data.xpos[self._obj_body]
+        gripper_pos = data.site_xpos[self._gripper_site]
+        pos_err = jp.linalg.norm(target_pos - box_pos)
+        box_mat = data.xmat[self._obj_body]
+        target_mat = math.quat_to_mat(data.mocap_quat[self._mocap_target])
+        rot_err = jp.linalg.norm(target_mat.ravel()[:6] - box_mat.ravel()[:6])
+
+        box_target = 1 - jp.tanh(5 * (0.6 * pos_err + 0.4 * rot_err))
+        gripper_box = 1 - jp.tanh(5 * jp.linalg.norm(box_pos - gripper_pos))
+        robot_target_qpos = 1 - jp.tanh(
+            jp.linalg.norm(
+                data.qpos[self._robot_arm_qposadr]
+                - self._init_q[self._robot_arm_qposadr]
+            )
+        )
+
+        # Check for collisions with the floor
+        hand_floor_collision = [
+            collision.geoms_colliding(data, self._floor_geom, g)
+            for g in [
+                self._left_finger_geom,
+                self._right_finger_geom,
+                self._hand_geom,
+            ]
+        ]
+        floor_collision = sum(hand_floor_collision) > 0
+        no_floor_collision = (1 - floor_collision).astype(float)
+
+        info["reached_box"] = 1.0 * jp.maximum(
+            info["reached_box"],
+            (jp.linalg.norm(box_pos - gripper_pos) < 0.012),
+        )
+
+        rewards = {
+            "gripper_box": gripper_box,
+            "box_target": box_target * info["reached_box"],
+            "no_floor_collision": no_floor_collision,
+            "robot_target_qpos": robot_target_qpos,
+        }
+        return rewards
 
     def _move_tip(
         self,
