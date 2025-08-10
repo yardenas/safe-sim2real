@@ -52,7 +52,7 @@ class Encoder(tf.keras.Model):
                     x = tf.reshape(x, [x.shape[0], -1])
                 else:
                     x = tf.reshape(x, [-1])
-                cnn_outs.append(x)
+            cnn_outs.append(x)
         return tf.concat(cnn_outs, axis=-1)
 
 
@@ -207,7 +207,8 @@ def convert_policy_to_onnx(make_inference_fn, params, cfg, act_size, obs_size):
             {
                 "pixels/view_0": tf.TensorSpec(
                     [1, *obs_size], tf.float32, name="pixels/view_0"
-                )
+                ),
+                "state": tf.TensorSpec([1, 3], tf.float32, name="state"),
             }
         ],
         opset=11,
