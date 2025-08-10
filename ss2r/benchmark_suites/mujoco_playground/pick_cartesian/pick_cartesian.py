@@ -51,7 +51,7 @@ def domain_randomize(
     mj_model = pick_cartesian.PandaPickCubeCartesian().mj_model
     floor_geom_id = mj_model.geom("floor").id
     box_geom_id = mj_model.geom("box").id
-    strip_geom_id = mj_model.geom("init_space").id
+    # strip_geom_id = mj_model.geom("init_space").id
 
     in_axes = jax.tree_util.tree_map(lambda x: None, mjx_model)
     in_axes = in_axes.tree_replace(
@@ -89,10 +89,10 @@ def domain_randomize(
         # geom_rgba = mjx_model.geom_rgba.at[box_geom_id].set(rgba)
         geom_rgba = mjx_model.geom_rgba.copy()
 
-        strip_white = jax.random.uniform(key_strip, (), minval=0.8, maxval=1.0)
-        geom_rgba = geom_rgba.at[strip_geom_id].set(
-            jp.array([strip_white, strip_white, strip_white, 1.0])
-        )  # type: ignore
+        # strip_white = jax.random.uniform(key_strip, (), minval=0.8, maxval=1.0)
+        # geom_rgba = geom_rgba.at[strip_geom_id].set(
+        #     jp.array([strip_white, strip_white, strip_white, 1.0])
+        # )  # type: ignore
 
         # Sample a shade of gray
         gray_scale = jax.random.uniform(key_floor, (), minval=0.0, maxval=0.25)
@@ -110,7 +110,7 @@ def domain_randomize(
             -1
         )  # Use the above randomized colors
         geom_matid = geom_matid.at[floor_geom_id].set(-2)
-        geom_matid = geom_matid.at[strip_geom_id].set(-2)
+        # geom_matid = geom_matid.at[strip_geom_id].set(-2)
 
         #### Cameras ####
         key_pos, key_ori, key = jax.random.split(key, 3)
