@@ -221,7 +221,7 @@ def convert_policy_to_onnx(make_inference_fn, params, cfg, act_size, obs_size):
 
 def make_franka_policy(make_policy_fn, params, cfg):
     tf.keras.backend.clear_session()
-    proto_model = convert_policy_to_onnx(make_policy_fn, params, cfg, 3, (64, 64, 3))
+    proto_model = convert_policy_to_onnx(make_policy_fn, params, cfg, 3, (84, 84, 3))
     return proto_model.SerializeToString()
 
 

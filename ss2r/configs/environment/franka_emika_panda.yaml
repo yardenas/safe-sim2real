@@ -24,8 +24,8 @@ task_params:
   vision_config:
     gpu_id: 0
     render_batch_size: 1024
-    render_width: 64
-    render_height: 64
+    render_width: 84
+    render_height: 84
     use_rasterizer: false
     enabled_geom_groups: [0, 1, 2]
   obs_noise:
