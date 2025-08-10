@@ -11,7 +11,7 @@ training:
   num_envs: 1
   num_eval_envs: 1
   num_evals: 100
-  episode_length: 1000
+  episode_length: 250
 
 environment:
   task_params:
@@ -29,7 +29,7 @@ agent:
     wandb_ids:
       - 5gw74omm
     mix: [1., 0., 7500]
-  grad_updates_per_step: 2000
+  grad_updates_per_step: 500
   learning_rate: 1e-5
   critic_learning_rate: 1e-5
-  num_critic_updates_per_actor_update: 1
+  num_critic_updates_per_actor_update: 2
