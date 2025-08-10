@@ -423,7 +423,7 @@ class PandaPickCubeCartesian(pick.PandaPickCube):
             info.update({"render_token": render_token})
 
             obs = _rgba_to_grayscale(jp.asarray(rgb[0], dtype=jp.float32)) / 255.0
-            obs = adjust_brightness(obs, brightness)
+            obs = adjust_brightness(obs, brightness)[..., None]
             gripper_pos = data.site_xpos[self._gripper_site]
             obs = {"pixels/view_0": obs, "state": gripper_pos}
 
@@ -551,7 +551,7 @@ class PandaPickCubeCartesian(pick.PandaPickCube):
         if self._vision:
             _, rgb, _ = self.renderer.render(state.info["render_token"], data)
             obs = _rgba_to_grayscale(jp.asarray(rgb[0], dtype=jp.float32)) / 255.0
-            obs = adjust_brightness(obs, state.info["brightness"])
+            obs = adjust_brightness(obs, state.info["brightness"])[..., None]
             gripper_pos = data.site_xpos[self._gripper_site]
             obs = {"pixels/view_0": obs, "state": gripper_pos}
 

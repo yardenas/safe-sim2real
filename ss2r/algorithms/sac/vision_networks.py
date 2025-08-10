@@ -33,7 +33,6 @@ class Encoder(linen.Module):
                     padding=self.padding,
                 )(x)
                 x = jnn.relu(x)
-
             if len(x.shape) == 4:
                 x = x.reshape([x.shape[0], -1])
             else:
