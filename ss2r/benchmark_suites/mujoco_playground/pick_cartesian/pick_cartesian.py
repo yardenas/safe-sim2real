@@ -581,8 +581,7 @@ class PandaPickCubeCartesian(pick.PandaPickCube):
         box_mat = data.xmat[self._obj_body]
         target_mat = math.quat_to_mat(data.mocap_quat[self._mocap_target])
         rot_err = jp.linalg.norm(target_mat.ravel()[:6] - box_mat.ravel()[:6])
-
-        box_target = 1 - jp.tanh(5 * (0.6 * pos_err + 0.4 * rot_err))
+        box_target = 1 - jp.tanh(5 * (pos_err)) - jp.tanh(5 * (rot_err))
         gripper_box = 1 - jp.tanh(5 * jp.linalg.norm(box_pos - gripper_pos))
         robot_target_qpos = 1 - jp.tanh(
             jp.linalg.norm(
