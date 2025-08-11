@@ -14,7 +14,7 @@ training:
   num_eval_episodes: 1
   train_domain_randomization: false
   eval_domain_randomization: false
-  wandb_id: n9jdpg48  # y5z7b4bq
+  wandb_id: y5z7b4bq
   render: false
 
 environment:
@@ -39,7 +39,7 @@ agent:
   critic_grad_updates_per_step: 1000
   model_grad_updates_per_step: 80000
   num_model_rollouts: 100000
-  learning_rate: 3e-4
+  learning_rate: 1e-5
   critic_learning_rate: 3e-4
   model_learning_rate: 3e-4
   use_vision: true
