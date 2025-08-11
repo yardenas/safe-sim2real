@@ -7,7 +7,7 @@ defaults:
   - _self_
 
 training:
-  num_timesteps: 1000000
+  num_timesteps: 3000000
   safe: true
   num_envs: 5
   num_eval_envs: 5
