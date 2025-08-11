@@ -7,7 +7,7 @@ defaults:
   - _self_
 
 training:
-  num_timesteps: 300000
+  num_timesteps: 1000000
   safe: true
   num_envs: 5
   num_eval_envs: 5
@@ -39,8 +39,8 @@ agent:
   critic_grad_updates_per_step: 1000
   model_grad_updates_per_step: 80000
   num_model_rollouts: 100000
-  learning_rate: 1e-6
-  critic_learning_rate: 1e-6
+  learning_rate: 3e-4
+  critic_learning_rate: 3e-4
   model_learning_rate: 3e-4
   use_vision: true
   normalize_observations: false
