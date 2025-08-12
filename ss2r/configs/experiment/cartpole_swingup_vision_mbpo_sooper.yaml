@@ -33,7 +33,7 @@ environment:
 
 agent:
   min_replay_size: 5000
-  max_replay_size: 100000
+  max_replay_size: 1048576
   sac_batch_size: 512
   policy_hidden_layer_sizes: [256, 256, 256]
   critic_grad_updates_per_step: 1000
