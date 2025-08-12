@@ -16,6 +16,7 @@ training:
   eval_domain_randomization: false
   wandb_id: y5z7b4bq
   render: false
+  num_evals: 25
 
 environment:
   task_params:
@@ -49,5 +50,5 @@ agent:
   optimism: 0.
   advantage_threshold: 0.2
   safety_filter: sooper
-  reset_on_eval: false
+  reset_on_eval: true
   load_auxiliaries: true
