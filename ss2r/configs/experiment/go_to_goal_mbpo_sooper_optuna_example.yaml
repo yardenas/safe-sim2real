@@ -1,0 +1,69 @@
+# @package _global_
+defaults:
+  - override /environment: go_to_goal
+  - override /agent: mbpo
+  - override /agent/data_collection: episodic
+  - override /agent/cost_robustness: pessimistic_cost_update
+  - override /hydra/sweeper: optuna
+  - _self_
+
+
+training:
+  num_timesteps: 500000
+  train_domain_randomization: false
+  eval_domain_randomization: false
+  safe: true
+  safety_budget: 25
+  action_repeat: 4
+  num_envs: 1
+  num_evals: 20
+  wandb_id: dgp6qgv1
+  render: false
+
+agent:
+  activation: swish
+  policy_hidden_layer_sizes: [256, 256, 256]
+  value_hidden_layer_sizes: [512, 512]
+  model_hidden_layer_sizes: [400, 400, 400, 400]
+  batch_size: 256
+  safety_discounting: 0.99
+  min_replay_size: 1000
+  max_replay_size: 1048576
+  critic_grad_updates_per_step: 1000
+  model_grad_updates_per_step: 50000
+  num_critic_updates_per_actor_update: 1
+  num_model_rollouts: 100000
+  learning_rate: 1e-5
+  critic_learning_rate: 1e-5
+  model_learning_rate: 3e-4
+  pessimism: 0
+  optimism: 0
+  safety_filter: sooper
+  load_auxiliaries: true
+
+hydra:
+  sweep:
+    dir: SCRATCH_DIR/${now:%Y-%m-%d_%H-%M-%S}
+    subdir: ${hydra.job.num}
+  sweeper:
+    _target_: hydra_plugins.hydra_optuna_sweeper.optuna_sweeper.OptunaSweeper
+    direction: maximize
+    n_trials: 400
+    n_jobs: 20
+    storage: "sqlite:////SCRATCH_DIR/optuna_go_to_goal_mbpo_sooper_${now:%Y-%m-%d_%H-%M-%S}.db"
+    sampler:
+      _target_: optuna.samplers.TPESampler
+      seed: 0
+    params:
+      agent.min_replay_size: choice(250,500,1000,1500,2000,2500,3000,4000,5000)
+      agent.max_replay_size: interval(10000, 2000000)
+      agent.critic_grad_updates_per_step: choice(50,250,500,1000,2000,4000,6000)
+      agent.model_grad_updates_per_step: choice(50,250,500,2000,10000,25000,50000,70000,85000,100000)
+      agent.num_critic_updates_per_actor_update: choice(1,2,5,10,15,20,30,40,50)
+      agent.num_model_rollouts: choice(50000,75000,100000)
+      agent.critic_learning_rate: choice(1e-9,1e-8,1e-7,1e-6,5e-6,1e-5,5e-5,1e-4,5e-4,1e-3,5e-3,1e-2) # tag(log, interval(1e-9, 1e-2))
+      agent.learning_rate: choice(1e-9,1e-8,1e-7,1e-6,5e-6,1e-5,5e-5,1e-4,5e-4,1e-3,5e-3,1e-2) # tag(log, interval(1e-9, 1e-2))
+      agent.model_hidden_layer_sizes: choice([256, 256], [400, 400, 400])
+      agent.safety_discounting: choice(0.9,0.95,0.99,0.999)
+      agent.pessimism: choice(10,15,20)
+      training.wandb_id: choice(2k0olihe,zpywfm1x,rf14j5sk,ibxycrco,9j2s72g3,w9zur2uc)
