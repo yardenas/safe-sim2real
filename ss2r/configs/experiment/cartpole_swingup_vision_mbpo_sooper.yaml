@@ -50,3 +50,4 @@ agent:
   advantage_threshold: 0.2
   safety_filter: sooper
   reset_on_eval: false
+  load_auxiliaries: true
