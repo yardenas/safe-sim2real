@@ -7,10 +7,10 @@ defaults:
   - _self_
 
 training:
-  num_timesteps: 2500000
+  num_timesteps: 1000000
   safe: true
-  num_envs: 5
-  num_eval_envs: 5
+  num_envs: 1
+  num_eval_envs: 1
   num_eval_episodes: 1
   train_domain_randomization: false
   eval_domain_randomization: false
@@ -23,7 +23,7 @@ environment:
     ctrl_dt: 0.04
     vision: true
     vision_config:
-      render_batch_size: 5
+      render_batch_size: 1
       render_width: 64
       render_height: 64
       use_rasterizer: false
@@ -37,7 +37,7 @@ agent:
   sac_batch_size: 512
   policy_hidden_layer_sizes: [256, 256, 256]
   critic_grad_updates_per_step: 1000
-  model_grad_updates_per_step: 120000
+  model_grad_updates_per_step: 80000
   num_model_rollouts: 100000
   learning_rate: 1e-5
   critic_learning_rate: 3e-4
