@@ -25,13 +25,13 @@ agent:
   batch_size: 256
   min_replay_size: 5000
   max_replay_size: 1048576
-  critic_grad_updates_per_step: 4000
-  model_grad_updates_per_step: 80000
+  critic_grad_updates_per_step: 2000
+  model_grad_updates_per_step: 120000
   num_model_rollouts: 100000
   learning_rate: 3e-6
-  critic_learning_rate: 3e-6
+  critic_learning_rate: 1e-6
   model_learning_rate: 1e-4
-  pessimism: 10
+  pessimism: 12
   optimism: 0
   safety_discounting: 0.99
   safety_filter: sooper
