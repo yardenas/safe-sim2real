@@ -208,6 +208,7 @@ def train(
     learn_from_scratch: bool = False,
     load_auxiliaries: bool = False,
     load_normalizer: bool = True,
+    target_entropy: float | None = None,
 ):
     if min_replay_size >= num_timesteps:
         raise ValueError(
@@ -424,6 +425,7 @@ def train(
         action_size=action_size,
         use_bro=use_bro,
         normalize_fn=normalize_fn,
+        target_entropy=target_entropy,
     )
     alpha_update = (
         gradients.gradient_update_fn(  # pytype: disable=wrong-arg-types  # jax-ndarray
