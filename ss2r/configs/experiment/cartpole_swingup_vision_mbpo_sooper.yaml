@@ -7,14 +7,14 @@ defaults:
   - _self_
 
 training:
-  num_timesteps: 500000
+  num_timesteps: 1000000
   safe: true
-  num_envs: 1
-  num_eval_envs: 1
+  num_envs: 10
+  num_eval_envs: 10
   num_eval_episodes: 1
   train_domain_randomization: false
   eval_domain_randomization: false
-  wandb_id: y5z7b4bq
+  wandb_id: r4sai9ui
   render: false
   num_evals: 25
 
@@ -24,7 +24,7 @@ environment:
     ctrl_dt: 0.04
     vision: true
     vision_config:
-      render_batch_size: 1
+      render_batch_size: 10
       render_width: 64
       render_height: 64
       use_rasterizer: false
