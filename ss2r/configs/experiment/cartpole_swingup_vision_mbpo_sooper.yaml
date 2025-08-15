@@ -17,6 +17,7 @@ training:
   wandb_id: r4sai9ui
   render: false
   num_evals: 25
+  safety_budget: 100
 
 environment:
   task_params:
