@@ -7,10 +7,10 @@ defaults:
   - _self_
 
 training:
-  num_timesteps: 1000000
+  num_timesteps: 2000000
   safe: true
-  num_envs: 128
-  num_eval_envs: 128
+  num_envs: 64
+  num_eval_envs: 64
   num_eval_episodes: 1
   train_domain_randomization: false
   eval_domain_randomization: false
@@ -25,7 +25,7 @@ environment:
     ctrl_dt: 0.04
     vision: true
     vision_config:
-      render_batch_size: 128
+      render_batch_size: 64
       render_width: 64
       render_height: 64
       use_rasterizer: false
