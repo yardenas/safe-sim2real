@@ -7,7 +7,7 @@ defaults:
   - _self_
 
 training:
-  num_timesteps: 500000
+  num_timesteps: 1500000
   safe: true
   num_envs: 64
   num_eval_envs: 64
@@ -52,3 +52,4 @@ agent:
   safety_filter: sooper
   reset_on_eval: true
   load_auxiliaries: true
+  cost_scaling: 50.
