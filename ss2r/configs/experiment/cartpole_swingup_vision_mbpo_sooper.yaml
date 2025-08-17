@@ -51,4 +51,4 @@ agent:
   safety_filter: sooper
   reset_on_eval: true
   load_auxiliaries: true
-  cost_scaling: 1.
+  cost_scaling: 50.
