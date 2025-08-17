@@ -1,7 +1,6 @@
 # @package _global_
 defaults:
   - cartpole_swingup_vision_mbpo_sooper
-  - override /agent/penalizer: crpo
   - _self_
 
 
