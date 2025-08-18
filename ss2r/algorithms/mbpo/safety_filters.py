@@ -191,8 +191,8 @@ def make_advantage_filter_g2g_reset_fn(
                 behavioral_action = mbpo_networks.parametric_action_distribution.sample(
                     logits, key_sample
                 )
-            linear_velocity = observations[3]
-            angular_velocity = observations[5]
+            linear_velocity = observations[2]
+            angular_velocity = observations[4]
             backup_action = jnp.array(
                 [-1000.0 * linear_velocity, -1000.0 * angular_velocity]
             )
