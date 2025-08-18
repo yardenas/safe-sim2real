@@ -342,7 +342,7 @@ def make_training_step(
                     ).mean(axis=-1)
                     new_reward = jnp.where(discount, new_reward, pessimistic_qr_pred)
                     metrics["pessimistic_qr_pred"] = pessimistic_qr_pred
-                elif safety_filter == "advantage":
+                elif safety_filter in ["advantage", "advantage_g2g_reset"]:
                     qc_backup = planning_env.qc_network.apply(
                         normalizer_params,
                         planning_env.backup_qc_params,
