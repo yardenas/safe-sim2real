@@ -74,26 +74,29 @@ def make_training_step(
             params=training_state.behavior_qr_params,
         )
         if safe:
-            (
-                backup_cost_critic_loss,
-                backup_qc_params,
-                backup_qc_optimizer_state,
-            ) = cost_critic_update(
-                training_state.backup_qc_params,
-                training_state.backup_policy_params,
-                training_state.normalizer_params,
-                training_state.backup_target_qc_params,
-                alpha,
-                transitions,
-                key_critic,
-                cost_q_transform,
-                True,
-                optimizer_state=training_state.backup_qc_optimizer_state,
-                params=training_state.backup_qc_params,
-            )
-            cost_metrics = {
-                "backup_cost_critic_loss": backup_cost_critic_loss,
-            }
+            cost_metrics = {}
+            if safety_filter is not None:
+                (
+                    backup_cost_critic_loss,
+                    backup_qc_params,
+                    backup_qc_optimizer_state,
+                ) = cost_critic_update(
+                    training_state.backup_qc_params,
+                    training_state.backup_policy_params,
+                    training_state.normalizer_params,
+                    training_state.backup_target_qc_params,
+                    alpha,
+                    transitions,
+                    key_critic,
+                    cost_q_transform,
+                    True,
+                    optimizer_state=training_state.backup_qc_optimizer_state,
+                    params=training_state.backup_qc_params,
+                )
+                cost_metrics["backup_cost_critic_loss"] = backup_cost_critic_loss
+            else:
+                backup_qc_params = training_state.backup_qc_params
+                backup_qc_optimizer_state = training_state.backup_qc_optimizer_state
             if penalizer is not None:
                 (
                     behavior_cost_critic_loss,
@@ -339,7 +342,7 @@ def make_training_step(
                     ).mean(axis=-1)
                     new_reward = jnp.where(discount, new_reward, pessimistic_qr_pred)
                     metrics["pessimistic_qr_pred"] = pessimistic_qr_pred
-                elif safety_filter == "advantage":
+                elif safety_filter in ["advantage", "advantage_g2g_reset"]:
                     qc_backup = planning_env.qc_network.apply(
                         normalizer_params,
                         planning_env.backup_qc_params,
