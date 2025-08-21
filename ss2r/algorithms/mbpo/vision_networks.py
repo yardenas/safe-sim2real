@@ -93,11 +93,15 @@ def make_policy_vision_network(
         def __call__(self, obs):
             # Create dummy encoder so that it's easier to load the
             # checkpoint
-            Encoder(name="SharedEncoder")({"pixels/view_0": np.zeros((1, 64, 64, 3))})
-            # Ignore the encoder because we use VisionWrapper
-            hidden = obs
+            hidden = Encoder(name="SharedEncoder")(
+                {"pixels/view_0": np.zeros((1, 64, 64, 3))}
+            )
             hidden = linen.Dense(encoder_hidden_dim)(hidden)
-            hidden = linen.LayerNorm()(hidden)
+            linen.LayerNorm()(hidden)
+            if isinstance(obs, Mapping):
+                hidden = obs["state"]
+            else:
+                hidden = obs
             if tanh:
                 hidden = jnn.tanh(hidden)
             outs = networks.MLP(
@@ -117,6 +121,8 @@ def make_policy_vision_network(
             obs = {**obs, state_obs_key: state_obs}
         return pi_module.apply(params, obs)
 
+    if isinstance(observation_size, Mapping):
+        observation_size = observation_size["state"]  # type: ignore
     dummy_obs = jnp.zeros((1, observation_size))
     return networks.FeedForwardNetwork(
         init=lambda key: pi_module.init(key, dummy_obs), apply=apply
@@ -144,10 +150,15 @@ def make_q_vision_network(
         def __call__(self, obs, actions):
             # Create dummy encoder so that it's easier to load the
             # checkpoint
-            Encoder(name="SharedEncoder")({"pixels/view_0": np.zeros((1, 64, 64, 3))})
-            hidden = obs
+            hidden = Encoder(name="SharedEncoder")(
+                {"pixels/view_0": np.zeros((1, 64, 64, 3))}
+            )
             hidden = linen.Dense(encoder_hidden_dim)(hidden)
-            hidden = linen.LayerNorm()(hidden)
+            linen.LayerNorm()(hidden)
+            if isinstance(obs, Mapping):
+                hidden = obs["state"]
+            else:
+                hidden = obs
             if tanh:
                 hidden = jnn.tanh(hidden)
             hidden = jnp.concatenate([hidden, actions], axis=-1)
@@ -174,6 +185,8 @@ def make_q_vision_network(
             obs = {**obs, state_obs_key: state_obs}
         return q_module.apply(params, obs, actions)
 
+    if isinstance(observation_size, Mapping):
+        observation_size = observation_size["state"]  # type: ignore
     dummy_obs = jnp.zeros((1, observation_size))
     dummy_action = jnp.zeros((1, action_size))
     return networks.FeedForwardNetwork(
@@ -245,7 +258,7 @@ def make_mbpo_vision_networks(
     else:
         qc_network = None
     model_network = make_world_model_ensemble(
-        4096,
+        encoder_hidden_dim,
         action_size,
         preprocess_observations_fn=preprocess_observations_fn,
         postprocess_observations_fn=postprocess_observations_fn,
