@@ -32,7 +32,7 @@ agent:
   critic_learning_rate: 1e-6
   model_learning_rate: 1e-4
   pessimism: 12
-  optimism: 0
+  optimism: 0.1
   safety_discounting: 0.99
   safety_filter: sooper
   load_auxiliaries: true
