@@ -27,10 +27,11 @@ agent:
   min_replay_size: 5000
   max_replay_size: 1048576
   critic_grad_updates_per_step: 2000
-  model_grad_updates_per_step: 120000
+  model_grad_updates_per_step: 130000
+  num_critic_updates_per_actor_update: 3
   num_model_rollouts: 100000
   learning_rate: 3e-6
-  critic_learning_rate: 1e-6
+  critic_learning_rate: 1e-7
   model_learning_rate: 1e-4
   pessimism: 0.55
   optimism: 0.5
