@@ -193,8 +193,8 @@ def make_advantage_filter_g2g_reset_fn(
                 )
             linear_velocity = observations["state"][..., -5]
             angular_velocity = observations["state"][..., -3]
-            backup_action = jnp.array(
-                [-1000.0 * linear_velocity, -1000.0 * angular_velocity]
+            backup_action = jnp.stack(
+                [-1000.0 * linear_velocity, -1000.0 * angular_velocity], axis=-1
             )
             backup_action = jnp.tanh(backup_action)
             if mbpo_networks.qc_network is not None:
