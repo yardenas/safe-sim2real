@@ -204,7 +204,7 @@ def convert_policy_to_onnx(make_inference_fn, params, cfg, act_size, obs_size):
     )
     obs = {
         "pixels/view_0": np.ones((1,) + obs_size, dtype=np.float32),
-        "state": np.ones((1, 8), dtype=np.float32),
+        "state": np.ones((1, 10), dtype=np.float32),
     }
     tf_policy_network(obs).numpy()[0]
     # Transfer JAX weights to TF model
@@ -219,7 +219,7 @@ def convert_policy_to_onnx(make_inference_fn, params, cfg, act_size, obs_size):
                 "pixels/view_0": tf.TensorSpec(
                     [1, *obs_size], tf.float32, name="pixels/view_0"
                 ),
-                "state": tf.TensorSpec([1, 8], tf.float32, name="state"),
+                "state": tf.TensorSpec([1, 10], tf.float32, name="state"),
             }
         ],
         opset=11,
