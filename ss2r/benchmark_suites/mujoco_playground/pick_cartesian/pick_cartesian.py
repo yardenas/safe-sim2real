@@ -425,8 +425,9 @@ class PandaPickCubeCartesian(pick.PandaPickCube):
             obs = _rgba_to_grayscale(jp.asarray(rgb[0], dtype=jp.float32)) / 255.0
             obs = adjust_brightness(obs, brightness)[..., None]
             gripper_pos = data.site_xpos[self._gripper_site]
+            fingers = data.qpos[7:9] / 0.04
             proprioceptive = jp.concatenate(
-                [gripper_pos, info["action_history"].copy()]
+                [gripper_pos, fingers, info["action_history"].copy()]
             )
             obs = {"pixels/view_0": obs, "state": proprioceptive}
 
@@ -556,7 +557,10 @@ class PandaPickCubeCartesian(pick.PandaPickCube):
             obs = _rgba_to_grayscale(jp.asarray(rgb[0], dtype=jp.float32)) / 255.0
             obs = adjust_brightness(obs, state.info["brightness"])[..., None]
             gripper_pos = data.site_xpos[self._gripper_site]
-            proprioceptive = jp.concatenate([gripper_pos, action_history.copy()])
+            fingers = data.qpos[7:9] / 0.04
+            proprioceptive = jp.concatenate(
+                [gripper_pos, fingers, action_history.copy()]
+            )
             obs = {"pixels/view_0": obs, "state": proprioceptive}
 
         return state.replace(
